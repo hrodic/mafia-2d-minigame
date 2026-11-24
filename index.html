@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mafia 2D minigame</title>
+  <title>Hrodic's Mafia 2D — BETA.2026.11.24</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     body {
       font-family: 'Inter', sans-serif;
@@ -23,6 +23,16 @@
       border: 1px solid rgba(63, 63, 70, 0.68);
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.58);
     }
+    .font-display-mafia {
+      font-family: 'Bebas Neue', 'Inter', sans-serif;
+      letter-spacing: 0.06em;
+    }
+    .title-gold-chrome {
+      background: linear-gradient(180deg, #fef08a 0%, #f59e0b 48%, #b45309 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 2px 10px rgba(245, 158, 11, 0.35));
+    }
   </style>
 </head>
 <body class="w-screen h-screen flex flex-col">
@@ -30,8 +40,22 @@
   <!-- Top HUD Header -->
   <header class="bg-zinc-950/95 backdrop-blur border-b border-zinc-800 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2 z-20 shadow-lg">
     <div class="flex items-center gap-2.5">
-      <div class="w-3 h-3 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_#f59e0b]"></div>
-      <h1 class="font-bold text-sm sm:text-base tracking-tight text-zinc-100">Syndicate Turf 2D</h1>
+      <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 via-amber-600 to-rose-700 p-[1.5px] shadow-[0_0_12px_rgba(245,158,11,0.45)] flex-shrink-0">
+        <div class="w-full h-full bg-zinc-950 rounded-[6.5px] flex items-center justify-center font-display-mafia text-amber-400 text-base leading-none">
+          H
+        </div>
+      </div>
+      <div class="flex items-baseline gap-1.5">
+        <h1 class="font-display-mafia text-xl sm:text-2xl tracking-wider title-gold-chrome leading-none">
+          HRODIC'S MAFIA
+        </h1>
+        <span class="text-[10px] font-extrabold uppercase tracking-widest bg-rose-600/20 border border-rose-500/50 text-rose-300 px-1.5 py-0.5 rounded">
+          2D
+        </span>
+        <span class="text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-500/15 border border-amber-500/40 text-amber-300 px-1.5 py-0.5 rounded">
+          BETA.2026.11.24
+        </span>
+      </div>
       <span id="stats-badge" class="hidden xl:inline-block text-xs bg-zinc-900 border border-zinc-700 text-zinc-300 px-2.5 py-0.5 rounded-full">
         Turf: 1/400 | Crew: 0/400 | Income: $0/hr
       </span>
@@ -47,12 +71,28 @@
         <span id="hp-text" class="font-mono font-bold text-emerald-400">200/200</span>
       </div>
 
+      <div id="armor-hud-box" class="hidden items-center gap-1.5 bg-sky-950/80 border border-sky-500/50 px-2.5 py-1 rounded-lg" title="Kevlar Armor absorbs incoming Boss damage until depleted">
+        <span class="text-sky-300 font-semibold">🛡️ Armor:</span>
+        <div class="w-12 sm:w-14 h-2.5 bg-zinc-800 rounded-full overflow-hidden">
+          <div id="armor-bar-fill" class="h-full bg-sky-400 transition-all duration-150" style="width: 100%"></div>
+        </div>
+        <span id="armor-text" class="font-mono font-bold text-sky-300">200</span>
+      </div>
+
       <div class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg">
         <span class="text-zinc-400 font-semibold">Cash:</span>
         <span id="cash-text" class="font-mono font-bold text-amber-400">$3,000</span>
       </div>
 
-      <div class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg" title="Every 10 seconds an hour passes: blocks pay $1k-$2k & toggled units spawn">
+      <div id="sprint-hud-box" class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg" title="Hold Shift to Sprint (2s burst, 2s cooldown)">
+        <span class="text-zinc-400 font-semibold">Sprint:</span>
+        <div class="w-10 h-2 bg-zinc-800 rounded-full overflow-hidden">
+          <div id="sprint-bar-fill" class="h-full bg-amber-400 transition-all duration-75" style="width: 100%"></div>
+        </div>
+        <span id="sprint-text" class="font-mono font-bold text-amber-300">RDY</span>
+      </div>
+
+      <div id="hour-hud-box" class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg" title="Every 10 seconds an hour passes: blocks pay & toggled units spawn">
         <span class="text-zinc-400 font-semibold">Hour:</span>
         <span id="hour-text" class="font-mono font-bold text-sky-400">12:00</span>
         <div class="w-10 h-2 bg-zinc-800 rounded-full overflow-hidden">
@@ -69,10 +109,13 @@
       <button id="btn-toggle-elite" class="bg-indigo-900/90 hover:bg-indigo-800 border border-indigo-400/70 text-indigo-200 font-bold px-2.5 py-1.5 rounded-lg transition" title="Auto-spawn Elites ($2,400 each) on every tick">
         Auto Elite: ON ($2,400)
       </button>
+      <button id="btn-buy-armor" class="bg-sky-950/90 hover:bg-sky-900 border border-sky-500/60 text-sky-200 font-bold px-2.5 py-1.5 rounded-lg transition flex items-center gap-1" title="Buy 200 HP Kevlar Armor for your Boss ($5,000) [Key: Q]">
+        <span>🛡️</span> Armor ($5,000) [Q]
+      </button>
       <button id="btn-slash" class="bg-gradient-to-b from-rose-500 to-rose-700 hover:from-rose-400 hover:to-rose-600 active:scale-95 transition text-white font-bold px-2.5 py-1.5 rounded-lg shadow border border-rose-400/30 flex items-center gap-1" title="Close-range Knife Slash (Space / F)">
         <span>🔪</span> Slash
       </button>
-      <button id="btn-pistol" class="bg-gradient-to-b from-amber-500 to-amber-700 hover:from-amber-400 hover:to-amber-600 active:scale-95 transition text-zinc-950 font-extrabold px-2.5 py-1.5 rounded-lg shadow border border-amber-300/40 flex items-center gap-1" title="Ranged 9mm Pistol Shot: 100px–600px range, 40–80 dmg (Right-Click)">
+      <button id="btn-pistol" class="bg-gradient-to-b from-amber-500 to-amber-700 hover:from-amber-400 hover:to-amber-600 active:scale-95 transition text-zinc-950 font-extrabold px-2.5 py-1.5 rounded-lg shadow border border-amber-300/40 flex items-center gap-1" title="Ranged 9mm Pistol Shot: up to 800px range, 40–80 dmg (50% less <100px, 75% less ≤50px) (Right-Click)">
         <span>🔫</span> Pistol
       </button>
       <button id="btn-toggle-expand-click" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 px-2.5 py-1.5 rounded-lg transition" title="Allow clicking empty space outside the map to build new blocks">
@@ -83,6 +126,9 @@
       </button>
       <button id="btn-toggle-grid" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 px-2.5 py-1.5 rounded-lg transition">
         Borders: ON
+      </button>
+      <button id="btn-toggle-music" class="bg-amber-950/80 hover:bg-amber-900/80 border border-amber-500/60 text-amber-200 font-semibold px-2.5 py-1.5 rounded-lg transition" title="Toggle GTA-Style Synthetic Background Music">
+        🎵 Music: ON
       </button>
       <button id="btn-toggle-sound" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 px-2.5 py-1.5 rounded-lg transition" title="Toggle Sound Effects">
         🔊 SFX: ON
@@ -114,70 +160,205 @@
       <!-- Populated dynamically via JS -->
     </div>
 
-    <!-- Floating Controls / Legend Overlay (Bottom-Left) -->
-    <div class="glass-panel absolute bottom-4 left-4 p-3.5 rounded-xl max-w-xs text-xs text-zinc-300 pointer-events-none z-10">
-      <p id="legend-title" class="font-bold text-amber-400 uppercase tracking-wider mb-1.5">20×20 Syndicate War:</p>
-      <ul class="space-y-1">
-        <li><span class="text-white font-semibold">Move & Knife:</span> WASD / Left-Click + <kbd class="bg-zinc-800 px-1 rounded">Space</kbd></li>
-        <li><span class="text-amber-300 font-semibold">9mm Pistol (100–600px):</span> Right-Click target (40–80 dmg)</li>
-        <li><span class="text-rose-400 font-semibold">Kill the Boss = Faction Loses:</span> Turf turns Neutral & spawning stops!</li>
-      </ul>
-    </div>
-
-    <!-- Tactical City Grid Minimap (Bottom-Right) -->
-    <div class="glass-panel absolute bottom-4 right-4 p-2.5 rounded-xl flex flex-col items-center gap-1.5 z-10">
-      <div class="w-full flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-0.5">
+    <!-- City Radar Minimap (Bottom-Right) -->
+    <div class="glass-panel absolute bottom-4 right-4 p-2.5 rounded-xl z-10 flex flex-col gap-1.5">
+      <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-zinc-400">
         <span>City Radar</span>
-        <span id="minimap-coords" class="font-mono text-zinc-500">(0, 0)</span>
+        <span id="minimap-coords" class="font-mono text-zinc-300">(0, 0)</span>
       </div>
-      <canvas id="minimapCanvas" width="140" height="140" class="rounded-lg border border-zinc-800 bg-zinc-900 cursor-crosshair"></canvas>
-      <div class="w-full flex items-center justify-between text-[9px] text-zinc-400 px-0.5">
-        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-white inline-block"></span>You</span>
-        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>Rival Boss</span>
-        <span>Click to Move/Pan</span>
-      </div>
+      <canvas id="minimapCanvas" width="140" height="140" class="rounded-lg border border-zinc-800 cursor-pointer"></canvas>
     </div>
 
-    <!-- Pre-Game Setup Modal (Map Size Toggle 5x5 to 25x25, Default 20x20) -->
-    <div id="setup-modal" class="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center z-40">
-      <div class="bg-zinc-900 border border-zinc-700 p-6 sm:p-7 rounded-2xl shadow-2xl max-w-md w-full mx-4">
-        <div class="flex items-center gap-2.5 mb-2">
-          <div class="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_10px_#f59e0b]"></div>
-          <h2 class="text-xl font-extrabold text-white tracking-tight">Syndicate Turf 2.5D</h2>
+    <!-- Pre-Game Setup & Field Manual Modal -->
+    <div id="setup-modal" class="fixed inset-0 bg-zinc-950/85 backdrop-blur-md flex items-center justify-center z-40 p-3 sm:p-4">
+      <div class="bg-zinc-900 border border-amber-500/30 p-5 sm:p-6 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] max-w-4xl w-full max-h-[94vh] overflow-y-auto relative">
+        <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-600"></div>
+
+        <!-- Modal Header -->
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+          <span class="text-[10px] font-extrabold uppercase tracking-[0.22em] text-amber-400/90">
+            Criminal Empire Edition
+          </span>
+          <span class="text-[10px] font-mono text-zinc-500">4 SYNDICATES · 1 CITY · BETA.2026.11.24</span>
         </div>
-        <p class="text-xs text-zinc-400 mb-5">
+        <div class="flex flex-wrap items-center gap-2.5 mb-1.5">
+          <h2 class="font-display-mafia text-4xl sm:text-5xl title-gold-chrome leading-none">
+            HRODIC'S MAFIA
+          </h2>
+          <span class="px-2 py-0.5 rounded-md bg-gradient-to-b from-rose-500 to-rose-700 text-white font-display-mafia text-xl tracking-wider shadow">
+            2D
+          </span>
+          <span class="px-2 py-1 rounded-md bg-amber-500/15 border border-amber-500/45 text-amber-300 font-mono text-xs font-bold tracking-wider">
+            BETA.2026.11.24
+          </span>
+        </div>
+        <p class="text-xs text-zinc-400 mb-4">
           Four crime syndicates start in the four corners of the city. Eliminate all rival Bosses to conquer the metropolis.
         </p>
 
-        <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-4 mb-5">
-          <div class="flex items-center justify-between mb-2">
-            <label for="map-size-slider" class="text-xs font-bold uppercase tracking-wider text-zinc-300">
-              City Grid Size
-            </label>
-            <span id="map-size-display" class="font-mono text-sm font-extrabold text-amber-400">20×20 (Default)</span>
+        <!-- Two-Column Layout: Match Settings (Left) + Detailed Instructions (Right) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-5">
+
+          <!-- Left Column: Match Configuration -->
+          <div class="lg:col-span-5 flex flex-col gap-3">
+            <!-- Map Size Selector -->
+            <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
+              <div class="flex items-center justify-between mb-2">
+                <label for="map-size-slider" class="text-xs font-bold uppercase tracking-wider text-zinc-300">
+                  City Grid Size
+                </label>
+                <span id="map-size-display" class="font-mono text-sm font-extrabold text-amber-400">20×20 (Default)</span>
+              </div>
+
+              <input
+                id="map-size-slider"
+                type="range"
+                min="5"
+                max="25"
+                value="20"
+                class="w-full accent-amber-500 cursor-pointer mb-2.5"
+              />
+
+              <div class="grid grid-cols-5 gap-1.5 mb-2.5">
+                <button type="button" data-size="5" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">5×5</button>
+                <button type="button" data-size="10" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">10×10</button>
+                <button type="button" data-size="15" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">15×15</button>
+                <button type="button" data-size="20" class="size-preset-btn bg-amber-500/20 border border-amber-500 text-amber-300 py-1 rounded text-[11px] font-mono font-bold transition">20×20</button>
+                <button type="button" data-size="25" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">25×25</button>
+              </div>
+
+              <div id="map-cap-preview" class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-zinc-800/90 pt-2">
+                <span>400 Neighborhoods</span>
+                <span class="font-mono text-emerald-400">Cap: 300 Soldiers · 100 Elites</span>
+              </div>
+            </div>
+
+            <!-- Seconds Per Tick Selector (10s Turbo to 30s Slow) -->
+            <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
+              <div class="flex items-center justify-between mb-2">
+                <label for="tick-speed-slider" class="text-xs font-bold uppercase tracking-wider text-zinc-300">
+                  Seconds Per Tick
+                </label>
+                <span id="tick-speed-display" class="font-mono text-sm font-extrabold text-sky-400">10s (Turbo)</span>
+              </div>
+
+              <input
+                id="tick-speed-slider"
+                type="range"
+                min="10"
+                max="30"
+                step="1"
+                value="10"
+                class="w-full accent-sky-400 cursor-pointer mb-1.5"
+              />
+
+              <div class="flex items-center justify-between text-[10px] font-mono text-zinc-500">
+                <span>10s (Turbo)</span>
+                <span>20s (Normal)</span>
+                <span>30s (Slow)</span>
+              </div>
+            </div>
+
+            <!-- Neighborhood Income Selector (Low / Mid / High) -->
+            <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-zinc-300">
+                  Neighborhood Income
+                </span>
+                <span id="income-tier-display" class="font-mono text-xs font-bold text-emerald-400">$1,000–$2,000 / tick</span>
+              </div>
+
+              <div class="grid grid-cols-3 gap-2">
+                <button type="button" data-income="LOW" class="income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition">
+                  <div class="text-xs font-extrabold">Low</div>
+                  <div class="text-[10px] font-mono text-zinc-400">$250–$500</div>
+                </button>
+                <button type="button" data-income="MID" class="income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition">
+                  <div class="text-xs font-extrabold">Mid</div>
+                  <div class="text-[10px] font-mono text-zinc-400">$500–$1,000</div>
+                </button>
+                <button type="button" data-income="HIGH" class="income-tier-btn bg-emerald-500/20 border border-emerald-500 text-emerald-300 py-2 px-2 rounded-lg text-center transition">
+                  <div class="text-xs font-extrabold">High</div>
+                  <div class="text-[10px] font-mono text-emerald-200/80">$1,000–$2,000</div>
+                </button>
+              </div>
+            </div>
           </div>
 
-          <input
-            id="map-size-slider"
-            type="range"
-            min="5"
-            max="25"
-            value="20"
-            class="w-full accent-amber-500 cursor-pointer mb-3"
-          />
+          <!-- Right Column: Detailed Controls, Mechanics & HUD Buttons Manual -->
+          <div class="lg:col-span-7 bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5 flex flex-col gap-3 text-[11px] text-zinc-300">
+            <div class="flex items-center justify-between border-b border-zinc-800 pb-1.5">
+              <span class="text-xs font-bold uppercase tracking-wider text-amber-400">
+                Boss Controls & Combat Mechanics
+              </span>
+              <span class="text-[10px] font-mono text-zinc-500">FIELD MANUAL</span>
+            </div>
 
-          <div class="grid grid-cols-5 gap-1.5 mb-3">
-            <button type="button" data-size="5" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">5×5</button>
-            <button type="button" data-size="10" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">10×10</button>
-            <button type="button" data-size="15" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">15×15</button>
-            <button type="button" data-size="20" class="size-preset-btn bg-amber-500/20 border border-amber-500 text-amber-300 py-1 rounded text-[11px] font-mono font-bold transition">20×20</button>
-            <button type="button" data-size="25" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">25×25</button>
+            <!-- Controls & Weapons Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div class="bg-zinc-900/90 border border-zinc-800/90 rounded-lg p-2">
+                <div class="font-bold text-white mb-0.5">🕹️ Movement & Navigation</div>
+                <p class="text-zinc-400 leading-relaxed">
+                  Use <kbd class="bg-zinc-800 text-zinc-200 px-1 rounded">WASD</kbd> / <kbd class="bg-zinc-800 text-zinc-200 px-1 rounded">Arrows</kbd>, <span class="text-zinc-200 font-semibold">Left-Click</span> any street, or click the <span class="text-zinc-200 font-semibold">City Radar</span> minimap to move.
+                </p>
+              </div>
+
+              <div class="bg-zinc-900/90 border border-zinc-800/90 rounded-lg p-2">
+                <div class="font-bold text-amber-300 mb-0.5">⚡ Tactical Sprint (<kbd class="bg-zinc-800 text-zinc-200 px-1 rounded">Shift</kbd>)</div>
+                <p class="text-zinc-400 leading-relaxed">
+                  Hold <kbd class="bg-zinc-800 text-zinc-200 px-1 rounded">Shift</kbd> while moving for a <span class="text-amber-300 font-semibold">1.68× speed burst</span> up to <span class="text-white">2.0s</span>, followed by a <span class="text-white">2.0s</span> cooldown.
+                </p>
+              </div>
+
+              <div class="bg-zinc-900/90 border border-zinc-800/90 rounded-lg p-2">
+                <div class="font-bold text-rose-400 mb-0.5">🔪 Switchblade Slash (<kbd class="bg-zinc-800 text-zinc-200 px-1 rounded">Space</kbd> / <kbd class="bg-zinc-800 text-zinc-200 px-1 rounded">F</kbd>)</div>
+                <p class="text-zinc-400 leading-relaxed">
+                  Close-range cleave (<span class="text-white">52px</span> reach, <span class="text-rose-300 font-semibold">20–40 dmg</span>) hitting up to <span class="text-white">3 enemies</span> in front of you.
+                </p>
+              </div>
+
+              <div class="bg-zinc-900/90 border border-zinc-800/90 rounded-lg p-2">
+                <div class="font-bold text-amber-400 mb-0.5">🔫 9mm Pistol (<span class="text-zinc-200">Right-Click</span>)</div>
+                <p class="text-zinc-400 leading-relaxed">
+                  Fires up to <span class="text-white">800px</span> (<span class="text-amber-300 font-semibold">40–80 dmg</span>). Point-blank shots deal <span class="text-white">50% less</span> (&lt;100px) or <span class="text-white">75% less</span> (≤50px).
+                </p>
+              </div>
+            </div>
+
+            <!-- Syndicate Rules & Economy -->
+            <div class="bg-zinc-900/70 border border-zinc-800/90 rounded-lg p-2.5 space-y-1.5">
+              <div class="font-bold text-emerald-400 uppercase tracking-wider text-[10px]">
+                Turf War, Crew & Economy Rules
+              </div>
+              <ul class="space-y-1 text-zinc-400 leading-relaxed">
+                <li>
+                  <span class="text-rose-400 font-semibold">• Assassinate Rival Bosses:</span> Killing a syndicate's Boss immediately eliminates their faction, turns all their blocks Neutral, and halts their recruitment.
+                </li>
+                <li>
+                  <span class="text-emerald-300 font-semibold">• Turf Capture & Hourly Ticks:</span> Stand in any block to capture it (allies speed up capture). Every tick, owned blocks pay out cash and auto-spawn toggled units (Soldiers first, then Elites).
+                </li>
+                <li>
+                  <span class="text-indigo-300 font-semibold">• Crew Stats & Caps:</span> <span class="text-white">Soldiers</span> ($1,200 · 200 HP · 10–20 dmg) &amp; <span class="text-white">Elites</span> ($2,400 · 300 HP · 15–25 dmg). Max cap scales with map size (<span class="text-white">75% Soldiers / 25% Elites</span>). Friendly units yield when pushed; enemies block movement until killed.
+                </li>
+              </ul>
+            </div>
+
+            <!-- Top HUD Buttons Reference -->
+            <div class="bg-zinc-900/70 border border-zinc-800/90 rounded-lg p-2.5">
+              <div class="font-bold text-sky-300 uppercase tracking-wider text-[10px] mb-1">
+                Top HUD Action Buttons
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 text-zinc-400">
+                <div><span class="text-emerald-300 font-semibold">Auto Soldier / Elite:</span> Toggle auto-hiring on each tick.</div>
+                <div><span class="text-sky-300 font-semibold">🛡️ Armor ($5k) [Q]:</span> Equips 200 HP damage shield on Boss.</div>
+                <div><span class="text-rose-300 font-semibold">🔪 Slash / 🔫 Pistol:</span> Trigger melee slash or auto-aimed shot.</div>
+                <div><span class="text-amber-300 font-semibold">Click-Build / + Expand Ring:</span> Build new blocks outside map.</div>
+                <div><span class="text-zinc-200 font-semibold">Borders / Music / SFX:</span> Toggle overlays &amp; 90s synth audio.</div>
+                <div><span class="text-zinc-200 font-semibold">New Game:</span> Re-open this setup &amp; manual screen anytime.</div>
+              </div>
+            </div>
           </div>
 
-          <div id="map-cap-preview" class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-zinc-800/90 pt-2.5">
-            <span>400 Neighborhoods</span>
-            <span class="font-mono text-emerald-400">Cap: 300 Soldiers · 100 Elites</span>
-          </div>
         </div>
 
         <button id="btn-start-game" class="w-full bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white font-extrabold py-3 rounded-xl shadow-lg border border-emerald-400/30 transition text-sm tracking-wide">
@@ -236,332 +417,570 @@
 
   <script>
     // =========================================================================
-    // 1. SYNTHESIZED AUDIO FX ENGINE (Metallic Blade, 9mm Pistol & Formant Scream)
+    // 1. SYNTHESIZED AUDIO FX & GTA 1-STYLE ACTION MUSIC ENGINE
     // =========================================================================
     let soundEnabled = true;
+    let musicEnabled = true;
     let audioCtx = null;
     let masterGain = null;
+    let musicGain = null;
 
-    function getAudioCtx() {
-      if (!soundEnabled) return null;
+    function ensureAudioContext() {
       if (!audioCtx) {
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
         if (!AudioContextClass) return null;
         audioCtx = new AudioContextClass();
+
         masterGain = audioCtx.createGain();
         masterGain.gain.value = 0.72;
         masterGain.connect(audioCtx.destination);
+
+        musicGain = audioCtx.createGain();
+        musicGain.gain.value = musicEnabled ? 0.28 : 0.0;
+        musicGain.connect(audioCtx.destination);
       }
       if (audioCtx.state === 'suspended') {
         audioCtx.resume().catch(() => {});
       }
+      if (musicEnabled && !musicEngine.isPlaying) {
+        musicEngine.start();
+      }
       return audioCtx;
+    }
+
+    function getAudioCtx() {
+      const ctx = ensureAudioContext();
+      if (!soundEnabled) return null;
+      return ctx;
     }
 
     function getAudioDest() {
       return masterGain || audioCtx.destination;
     }
 
-    const sfx = {
-      playSlash(hitFlesh = false) {
-        const ctx = getAudioCtx();
-        if (!ctx) return;
-        const dest = getAudioDest();
-        const now = ctx.currentTime;
-        const pitchVar = 0.94 + Math.random() * 0.12;
+    // GTA 1-Inspired 90s Top-Down Funk/Breakbeat Action Synth Loop (124 BPM, E Dorian)
+    const musicEngine = {
+      isPlaying: false,
+      timerId: null,
+      step: 0,
+      nextNoteTime: 0,
+      tempo: 124,
+      noiseBuffer: null,
 
-        // 1. High-Q metallic blade shimmer
-        const ring1 = ctx.createOscillator();
-        const ring2 = ctx.createOscillator();
-        const ringGain = ctx.createGain();
-        ring1.type = 'triangle';
-        ring2.type = 'sine';
-        ring1.frequency.setValueAtTime(3450 * pitchVar, now);
-        ring1.frequency.exponentialRampToValueAtTime(1450 * pitchVar, now + 0.16);
-        ring2.frequency.setValueAtTime(5180 * pitchVar, now);
-        ring2.frequency.exponentialRampToValueAtTime(2200 * pitchVar, now + 0.14);
+      // 16-step funky synth bass frequencies (Hz) in E Minor / Dorian
+      bassPattern: [
+        82.41, 0, 82.41, 164.81,
+        98.00, 0, 110.00, 123.47,
+        82.41, 0, 82.41, 146.83,
+        123.47, 110.00, 98.00, 73.42,
+      ],
 
-        ringGain.gain.setValueAtTime(0.001, now);
-        ringGain.gain.linearRampToValueAtTime(hitFlesh ? 0.19 : 0.13, now + 0.012);
-        ringGain.gain.exponentialRampToValueAtTime(0.0008, now + 0.17);
+      // 32-step gritty 90s synth brass / lead riff (0 = rest)
+      leadPattern: [
+        329.63, 0, 0, 392.00, 0, 329.63, 293.66, 0,
+        246.94, 0, 293.66, 0, 329.63, 0, 0, 0,
+        493.88, 0, 440.00, 392.00, 0, 329.63, 392.00, 0,
+        440.00, 0, 392.00, 329.63, 293.66, 0, 246.94, 0,
+      ],
 
-        ring1.connect(ringGain);
-        ring2.connect(ringGain);
-        ringGain.connect(dest);
-        ring1.start(now);
-        ring2.start(now);
-        ring1.stop(now + 0.18);
-        ring2.stop(now + 0.18);
+      // Syncopated 90s breakbeat drum grid (16 steps)
+      kickPattern:  [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0],
+      snarePattern: [0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1],
+      hatPattern:   [1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1, 1], // 2 = open hat accent
 
-        // 2. Fast steel air-swipe noise
-        const swipeDur = 0.14;
-        const len = Math.floor(ctx.sampleRate * swipeDur);
-        const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-        const data = buf.getChannelData(0);
-        for (let i = 0; i < len; i++) {
-          const env = Math.sin((i / len) * Math.PI);
-          data[i] = (Math.random() * 2 - 1) * env;
+      getNoiseBuffer(ctx) {
+        if (!this.noiseBuffer) {
+          const len = ctx.sampleRate * 0.5;
+          const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+          const data = buf.getChannelData(0);
+          for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+          this.noiseBuffer = buf;
         }
-        const noise = ctx.createBufferSource();
-        noise.buffer = buf;
+        return this.noiseBuffer;
+      },
 
+      scheduleKick(ctx, time) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(135, time);
+        osc.frequency.exponentialRampToValueAtTime(38, time + 0.13);
+        gain.gain.setValueAtTime(0.65, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.16);
+        osc.connect(gain);
+        gain.connect(musicGain);
+        osc.start(time);
+        osc.stop(time + 0.17);
+      },
+
+      scheduleSnare(ctx, time, ghost = false) {
+        const noise = ctx.createBufferSource();
+        noise.buffer = this.getNoiseBuffer(ctx);
         const filter = ctx.createBiquadFilter();
         filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(2800 * pitchVar, now);
-        filter.frequency.exponentialRampToValueAtTime(680, now + swipeDur);
-        filter.Q.value = 3.2;
+        filter.frequency.setValueAtTime(1450, time);
+        filter.Q.value = 0.9;
 
         const nGain = ctx.createGain();
-        nGain.gain.setValueAtTime(0.26, now);
-        nGain.gain.exponentialRampToValueAtTime(0.001, now + swipeDur);
-
+        const level = ghost ? 0.16 : 0.36;
+        nGain.gain.setValueAtTime(level, time);
+        nGain.gain.exponentialRampToValueAtTime(0.001, time + (ghost ? 0.08 : 0.15));
         noise.connect(filter);
         filter.connect(nGain);
-        nGain.connect(dest);
-        noise.start(now);
+        nGain.connect(musicGain);
+        noise.start(time);
+        noise.stop(time + 0.16);
 
-        // 3. Visceral blade strike impact thud
-        if (hitFlesh) {
-          const stabOsc = ctx.createOscillator();
-          const stabGain = ctx.createGain();
-          stabOsc.type = 'sine';
-          stabOsc.frequency.setValueAtTime(220 * pitchVar, now + 0.015);
-          stabOsc.frequency.exponentialRampToValueAtTime(42, now + 0.14);
-          stabGain.gain.setValueAtTime(0.36, now + 0.015);
-          stabGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-          stabOsc.connect(stabGain);
-          stabGain.connect(dest);
-          stabOsc.start(now + 0.015);
-          stabOsc.stop(now + 0.16);
+        if (!ghost) {
+          const body = ctx.createOscillator();
+          const bGain = ctx.createGain();
+          body.type = 'triangle';
+          body.frequency.setValueAtTime(195, time);
+          body.frequency.exponentialRampToValueAtTime(95, time + 0.09);
+          bGain.gain.setValueAtTime(0.28, time);
+          bGain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+          body.connect(bGain);
+          bGain.connect(musicGain);
+          body.start(time);
+          body.stop(time + 0.11);
         }
+      },
+
+      scheduleHat(ctx, time, open = false) {
+        const noise = ctx.createBufferSource();
+        noise.buffer = this.getNoiseBuffer(ctx);
+        const hp = ctx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.setValueAtTime(7200, time);
+
+        const gain = ctx.createGain();
+        const dur = open ? 0.14 : 0.045;
+        gain.gain.setValueAtTime(open ? 0.14 : 0.09, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+        noise.connect(hp);
+        hp.connect(gain);
+        gain.connect(musicGain);
+        noise.start(time);
+        noise.stop(time + dur + 0.01);
+      },
+
+      scheduleBass(ctx, time, freq, stepDur) {
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        osc1.type = 'sawtooth';
+        osc2.type = 'square';
+        osc1.frequency.setValueAtTime(freq, time);
+        osc2.frequency.setValueAtTime(freq * 0.5, time);
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(920, time);
+        filter.frequency.exponentialRampToValueAtTime(220, time + stepDur * 0.9);
+        filter.Q.value = 4.5;
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.26, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + stepDur * 0.95);
+
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(gain);
+        gain.connect(musicGain);
+
+        osc1.start(time);
+        osc2.start(time);
+        osc1.stop(time + stepDur);
+        osc2.stop(time + stepDur);
+      },
+
+      scheduleLead(ctx, time, freq, stepDur) {
+        const oscA = ctx.createOscillator();
+        const oscB = ctx.createOscillator();
+        oscA.type = 'sawtooth';
+        oscB.type = 'sawtooth';
+        oscA.frequency.setValueAtTime(freq, time);
+        oscB.frequency.setValueAtTime(freq * 1.006, time); // 90s chorus detune
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(2400, time);
+        filter.frequency.exponentialRampToValueAtTime(780, time + stepDur * 1.6);
+        filter.Q.value = 3.0;
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.001, time);
+        gain.gain.linearRampToValueAtTime(0.14, time + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + stepDur * 1.75);
+
+        oscA.connect(filter);
+        oscB.connect(filter);
+        filter.connect(gain);
+        gain.connect(musicGain);
+
+        oscA.start(time);
+        oscB.start(time);
+        oscA.stop(time + stepDur * 1.8);
+        oscB.stop(time + stepDur * 1.8);
+      },
+
+      scheduleChordStab(ctx, time, rootFreq) {
+        const ratios = [1, 1.1892, 1.4983, 1.7818]; // Minor 7th stab
+        ratios.forEach((r) => {
+          const osc = ctx.createOscillator();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(rootFreq * r, time);
+
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(0.055, time);
+          gain.gain.exponentialRampToValueAtTime(0.0008, time + 0.22);
+
+          osc.connect(gain);
+          gain.connect(musicGain);
+          osc.start(time);
+          osc.stop(time + 0.24);
+        });
+      },
+
+      scheduler() {
+        if (!musicEnabled || !audioCtx || audioCtx.state !== 'running') return;
+        const stepDur = 60 / this.tempo / 4; // 16th note duration
+        while (this.nextNoteTime < audioCtx.currentTime + 0.15) {
+          const s16 = this.step % 16;
+          const s32 = this.step % 32;
+          const s64 = this.step % 64;
+
+          if (this.kickPattern[s16]) this.scheduleKick(audioCtx, this.nextNoteTime);
+          if (this.snarePattern[s16]) {
+            this.scheduleSnare(audioCtx, this.nextNoteTime, s16 === 7 || s16 === 15);
+          }
+          if (this.hatPattern[s16]) {
+            this.scheduleHat(audioCtx, this.nextNoteTime, this.hatPattern[s16] === 2);
+          }
+
+          const bassFreq = this.bassPattern[s16];
+          if (bassFreq > 0) {
+            this.scheduleBass(audioCtx, this.nextNoteTime, bassFreq, stepDur);
+          }
+
+          const leadFreq = this.leadPattern[s32];
+          if (leadFreq > 0) {
+            this.scheduleLead(audioCtx, this.nextNoteTime, leadFreq, stepDur);
+          }
+
+          if (s64 === 0 || s64 === 32) {
+            this.scheduleChordStab(audioCtx, this.nextNoteTime, s64 === 0 ? 164.81 : 196.0);
+          }
+
+          this.nextNoteTime += stepDur;
+          this.step++;
+        }
+      },
+
+      start() {
+        if (this.isPlaying || !audioCtx) return;
+        this.isPlaying = true;
+        this.nextNoteTime = audioCtx.currentTime + 0.05;
+        this.timerId = setInterval(() => this.scheduler(), 35);
+      },
+
+      stop() {
+        this.isPlaying = false;
+        if (this.timerId !== null) {
+          clearInterval(this.timerId);
+          this.timerId = null;
+        }
+      },
+    };
+
+    // Synthesized Sound Effects Engine (Knife Cut, 9mm Gunshot, Ricochet, Scream, Victory)
+    const sfx = {
+      playSlash(hit = false) {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const dest = getAudioDest();
+
+        // 1. Crisp blade-through-air flick (short high-frequency bandpass noise burst, no tonal bell)
+        const airNoise = ctx.createBufferSource();
+        airNoise.buffer = musicEngine.getNoiseBuffer(ctx);
+        const airFilter = ctx.createBiquadFilter();
+        airFilter.type = 'bandpass';
+        airFilter.frequency.setValueAtTime(3200, now);
+        airFilter.frequency.exponentialRampToValueAtTime(1100, now + 0.055);
+        airFilter.Q.value = 1.8;
+
+        const airGain = ctx.createGain();
+        airGain.gain.setValueAtTime(0.001, now);
+        airGain.gain.linearRampToValueAtTime(hit ? 0.28 : 0.22, now + 0.008);
+        airGain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+
+        airNoise.connect(airFilter);
+        airFilter.connect(airGain);
+        airGain.connect(dest);
+        airNoise.start(now);
+        airNoise.stop(now + 0.07);
+
+        if (hit) {
+          // 2. Crisp skin/fabric tear transient (razor-sharp high-shelf slice)
+          const cutNoise = ctx.createBufferSource();
+          cutNoise.buffer = musicEngine.getNoiseBuffer(ctx);
+          const cutFilter = ctx.createBiquadFilter();
+          cutFilter.type = 'highpass';
+          cutFilter.frequency.setValueAtTime(2200, now + 0.01);
+          cutFilter.frequency.exponentialRampToValueAtTime(950, now + 0.085);
+
+          const cutGain = ctx.createGain();
+          cutGain.gain.setValueAtTime(0.001, now + 0.008);
+          cutGain.gain.linearRampToValueAtTime(0.42, now + 0.016);
+          cutGain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+          cutNoise.connect(cutFilter);
+          cutFilter.connect(cutGain);
+          cutGain.connect(dest);
+          cutNoise.start(now + 0.008);
+          cutNoise.stop(now + 0.095);
+
+          // 3. Tight wet stab punch (short muffled body thump)
+          const stab = ctx.createOscillator();
+          const sGain = ctx.createGain();
+          stab.type = 'triangle';
+          stab.frequency.setValueAtTime(145, now + 0.01);
+          stab.frequency.exponentialRampToValueAtTime(44, now + 0.075);
+          sGain.gain.setValueAtTime(0.32, now + 0.01);
+          sGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+          stab.connect(sGain);
+          sGain.connect(dest);
+          stab.start(now + 0.01);
+          stab.stop(now + 0.085);
+        }
+      },
+
+      playArmorEquip() {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const dest = getAudioDest();
+
+        // Heavy Kevlar strap velcro rip + ceramic plate click
+        const strap = ctx.createBufferSource();
+        strap.buffer = musicEngine.getNoiseBuffer(ctx);
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.setValueAtTime(1900, now);
+        bp.Q.value = 1.6;
+        const sGain = ctx.createGain();
+        sGain.gain.setValueAtTime(0.24, now);
+        sGain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+        strap.connect(bp);
+        bp.connect(sGain);
+        sGain.connect(dest);
+        strap.start(now);
+        strap.stop(now + 0.12);
+
+        const clack = ctx.createOscillator();
+        const cGain = ctx.createGain();
+        clack.type = 'triangle';
+        clack.frequency.setValueAtTime(520, now + 0.07);
+        clack.frequency.exponentialRampToValueAtTime(180, now + 0.15);
+        cGain.gain.setValueAtTime(0.28, now + 0.07);
+        cGain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+        clack.connect(cGain);
+        cGain.connect(dest);
+        clack.start(now + 0.07);
+        clack.stop(now + 0.17);
+      },
+
+      playGunshot() {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const dest = getAudioDest();
+
+        // Waveshaper overdrive to give the gunshot real acoustic bite & air-pressure snap
+        const shaper = ctx.createWaveShaper();
+        const curve = new Float32Array(256);
+        for (let i = 0; i < 256; i++) {
+          const x = (i * 2) / 256 - 1;
+          curve[i] = Math.tanh(x * 3.2);
+        }
+        shaper.curve = curve;
+        shaper.connect(dest);
+
+        // 1. Ultra-fast supersonic muzzle transient (sharp 18ms crack)
+        const crackNoise = ctx.createBufferSource();
+        crackNoise.buffer = musicEngine.getNoiseBuffer(ctx);
+        const crackFilter = ctx.createBiquadFilter();
+        crackFilter.type = 'bandpass';
+        crackFilter.frequency.setValueAtTime(2400, now);
+        crackFilter.Q.value = 0.75;
+
+        const crackGain = ctx.createGain();
+        crackGain.gain.setValueAtTime(1.15, now);
+        crackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.028);
+
+        crackNoise.connect(crackFilter);
+        crackFilter.connect(crackGain);
+        crackGain.connect(shaper);
+        crackNoise.start(now);
+        crackNoise.stop(now + 0.032);
+
+        // 2. Heavy chamber punch (rapid pitch drop from 340Hz -> 38Hz)
+        const punch = ctx.createOscillator();
+        const pGain = ctx.createGain();
+        punch.type = 'triangle';
+        punch.frequency.setValueAtTime(340, now);
+        punch.frequency.exponentialRampToValueAtTime(38, now + 0.09);
+        pGain.gain.setValueAtTime(0.85, now);
+        pGain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+        punch.connect(pGain);
+        pGain.connect(shaper);
+        punch.start(now);
+        punch.stop(now + 0.12);
+
+        // 3. Gunpowder blast + urban street reverberation tail
+        const blastNoise = ctx.createBufferSource();
+        blastNoise.buffer = musicEngine.getNoiseBuffer(ctx);
+        const blastFilter = ctx.createBiquadFilter();
+        blastFilter.type = 'lowpass';
+        blastFilter.frequency.setValueAtTime(5600, now);
+        blastFilter.frequency.exponentialRampToValueAtTime(420, now + 0.14);
+        blastFilter.frequency.exponentialRampToValueAtTime(160, now + 0.42);
+
+        const blastGain = ctx.createGain();
+        blastGain.gain.setValueAtTime(0.75, now);
+        blastGain.gain.exponentialRampToValueAtTime(0.14, now + 0.08);
+        blastGain.gain.exponentialRampToValueAtTime(0.001, now + 0.44);
+
+        blastNoise.connect(blastFilter);
+        blastFilter.connect(blastGain);
+        blastGain.connect(shaper);
+        blastNoise.start(now);
+        blastNoise.stop(now + 0.45);
+
+        // 4. Crisp mechanical slide-cycle click 55ms after firing
+        const slideOsc = ctx.createOscillator();
+        const slideGain = ctx.createGain();
+        slideOsc.type = 'square';
+        slideOsc.frequency.setValueAtTime(3100, now + 0.055);
+        slideOsc.frequency.exponentialRampToValueAtTime(1400, now + 0.072);
+        slideGain.gain.setValueAtTime(0.001, now);
+        slideGain.gain.setValueAtTime(0.09, now + 0.055);
+        slideGain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
+        slideOsc.connect(slideGain);
+        slideGain.connect(dest);
+        slideOsc.start(now + 0.055);
+        slideOsc.stop(now + 0.08);
+      },
+
+      playRicochet() {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const dest = getAudioDest();
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        const startFreq = 2600 + Math.random() * 900;
+        osc.frequency.setValueAtTime(startFreq, now);
+        osc.frequency.exponentialRampToValueAtTime(620, now + 0.18);
+        gain.gain.setValueAtTime(0.14, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.19);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(now);
+        osc.stop(now + 0.2);
       },
 
       playDeath(isBoss = false) {
         const ctx = getAudioCtx();
         if (!ctx) return;
-        const dest = getAudioDest();
         const now = ctx.currentTime;
-        const dur = isBoss ? 0.78 : 0.46;
-        const basePitch = isBoss ? 195 : 225 + Math.random() * 65;
+        const dest = getAudioDest();
+        const dur = isBoss ? 0.65 : 0.42;
 
-        // 1. Vocal cords sawtooth source with pitch drop
-        const voiceOsc = ctx.createOscillator();
-        voiceOsc.type = 'sawtooth';
-        voiceOsc.frequency.setValueAtTime(basePitch * 1.18, now);
-        voiceOsc.frequency.linearRampToValueAtTime(basePitch * 1.28, now + 0.06);
-        voiceOsc.frequency.exponentialRampToValueAtTime(basePitch * 0.48, now + dur);
+        // Dual-formant vocal scream
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        const baseFreq = isBoss ? 195 : 230 + Math.random() * 55;
+        osc.frequency.setValueAtTime(baseFreq, now);
+        osc.frequency.linearRampToValueAtTime(baseFreq * 1.12, now + 0.06);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.48, now + dur);
 
-        // Vibrato tremor
-        const vib = ctx.createOscillator();
-        const vibGain = ctx.createGain();
-        vib.frequency.value = 18;
-        vibGain.gain.value = 9;
-        vib.connect(vibGain);
-        vibGain.connect(voiceOsc.frequency);
-
-        // 2. Dual vocal-tract formant filters ("AAAHH" throat resonance)
         const f1 = ctx.createBiquadFilter();
         f1.type = 'bandpass';
-        f1.frequency.setValueAtTime(780, now);
-        f1.frequency.exponentialRampToValueAtTime(440, now + dur);
-        f1.Q.value = 4.2;
+        f1.frequency.setValueAtTime(760, now);
+        f1.Q.value = 3.2;
 
         const f2 = ctx.createBiquadFilter();
         f2.type = 'bandpass';
-        f2.frequency.setValueAtTime(1320, now);
-        f2.frequency.exponentialRampToValueAtTime(860, now + dur);
-        f2.Q.value = 5.0;
+        f2.frequency.setValueAtTime(1340, now);
+        f2.Q.value = 3.8;
 
-        const voiceEnv = ctx.createGain();
-        voiceEnv.gain.setValueAtTime(0.001, now);
-        voiceEnv.gain.linearRampToValueAtTime(isBoss ? 0.36 : 0.26, now + 0.035);
-        voiceEnv.gain.setValueAtTime(isBoss ? 0.30 : 0.21, now + dur * 0.45);
-        voiceEnv.gain.exponentialRampToValueAtTime(0.0008, now + dur);
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.01, now);
+        gain.gain.linearRampToValueAtTime(isBoss ? 0.26 : 0.18, now + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
 
-        voiceOsc.connect(f1);
-        voiceOsc.connect(f2);
-        f1.connect(voiceEnv);
-        f2.connect(voiceEnv);
-        voiceEnv.connect(dest);
+        osc.connect(f1);
+        osc.connect(f2);
+        f1.connect(gain);
+        f2.connect(gain);
+        gain.connect(dest);
 
-        // 3. Breathy vocal rasp
-        const nLen = Math.floor(ctx.sampleRate * dur);
-        const nBuf = ctx.createBuffer(1, nLen, ctx.sampleRate);
-        const nData = nBuf.getChannelData(0);
-        for (let i = 0; i < nLen; i++) {
-          nData[i] = Math.random() * 2 - 1;
-        }
-        const breath = ctx.createBufferSource();
-        breath.buffer = nBuf;
-        const bFilter = ctx.createBiquadFilter();
-        bFilter.type = 'bandpass';
-        bFilter.frequency.setValueAtTime(1500, now);
-        bFilter.Q.value = 2.5;
-        const bGain = ctx.createGain();
-        bGain.gain.setValueAtTime(0.09, now);
-        bGain.gain.exponentialRampToValueAtTime(0.0008, now + dur * 0.85);
-        breath.connect(bFilter);
-        bFilter.connect(bGain);
-        bGain.connect(dest);
-
-        // 4. Heavy body collapse thud
-        const thud = ctx.createOscillator();
-        const thudGain = ctx.createGain();
-        thud.type = 'sine';
-        thud.frequency.setValueAtTime(95, now + dur * 0.55);
-        thud.frequency.exponentialRampToValueAtTime(28, now + dur + 0.14);
-        thudGain.gain.setValueAtTime(0.001, now);
-        thudGain.gain.setValueAtTime(isBoss ? 0.38 : 0.22, now + dur * 0.55);
-        thudGain.gain.exponentialRampToValueAtTime(0.0008, now + dur + 0.15);
-        thud.connect(thudGain);
-        thudGain.connect(dest);
-
-        voiceOsc.start(now);
-        vib.start(now);
-        breath.start(now);
-        thud.start(now + dur * 0.55);
-
-        voiceOsc.stop(now + dur + 0.02);
-        vib.stop(now + dur + 0.02);
-        breath.stop(now + dur);
-        thud.stop(now + dur + 0.16);
+        osc.start(now);
+        osc.stop(now + dur + 0.02);
       },
 
       playFactionEliminated() {
         const ctx = getAudioCtx();
         if (!ctx) return;
-        const dest = getAudioDest();
         const now = ctx.currentTime;
-        const freqs = [164.81, 130.81, 98.0];
-        freqs.forEach((f, idx) => {
+        const dest = getAudioDest();
+
+        [220, 185, 146.83].forEach((freq, i) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.type = 'sawtooth';
-          const t = now + idx * 0.16;
-          osc.frequency.setValueAtTime(f, t);
-          gain.gain.setValueAtTime(0.001, t);
-          gain.gain.linearRampToValueAtTime(0.24, t + 0.03);
-          gain.gain.exponentialRampToValueAtTime(0.0008, t + 0.48);
+          const t = now + i * 0.14;
+          osc.frequency.setValueAtTime(freq, t);
 
           const lp = ctx.createBiquadFilter();
           lp.type = 'lowpass';
-          lp.frequency.setValueAtTime(750, t);
+          lp.frequency.setValueAtTime(900, t);
+
+          gain.gain.setValueAtTime(0.22, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
 
           osc.connect(lp);
           lp.connect(gain);
           gain.connect(dest);
           osc.start(t);
-          osc.stop(t + 0.5);
+          osc.stop(t + 0.36);
         });
       },
 
       playVictory() {
         const ctx = getAudioCtx();
         if (!ctx) return;
-        const dest = getAudioDest();
         const now = ctx.currentTime;
-        const notes = [261.63, 329.63, 392.0, 523.25, 659.25];
-        notes.forEach((f, idx) => {
+        const dest = getAudioDest();
+
+        [329.63, 415.3, 493.88, 659.25].forEach((freq, i) => {
           const osc = ctx.createOscillator();
-          const pad = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.type = 'triangle';
-          pad.type = 'sine';
-          const t = now + idx * 0.11;
-          osc.frequency.setValueAtTime(f, t);
-          pad.frequency.setValueAtTime(f * 0.5, t);
-          gain.gain.setValueAtTime(0.001, t);
-          gain.gain.linearRampToValueAtTime(0.24, t + 0.03);
-          gain.gain.exponentialRampToValueAtTime(0.0008, t + 0.95);
+          const t = now + i * 0.12;
+          osc.frequency.setValueAtTime(freq, t);
+
+          gain.gain.setValueAtTime(0.24, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+
           osc.connect(gain);
-          pad.connect(gain);
           gain.connect(dest);
           osc.start(t);
-          pad.start(t);
-          osc.stop(t + 1.0);
-          pad.stop(t + 1.0);
+          osc.stop(t + 0.56);
         });
-      },
-
-      playGunshot() {
-        const ctx = getAudioCtx();
-        if (!ctx) return;
-        const dest = getAudioDest();
-        const now = ctx.currentTime;
-        const pitchVar = 0.95 + Math.random() * 0.1;
-
-        // 1. Supersonic transient crack
-        const crackOsc = ctx.createOscillator();
-        const crackGain = ctx.createGain();
-        crackOsc.type = 'sawtooth';
-        crackOsc.frequency.setValueAtTime(1650 * pitchVar, now);
-        crackOsc.frequency.exponentialRampToValueAtTime(140, now + 0.045);
-        crackGain.gain.setValueAtTime(0.45, now);
-        crackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-        crackOsc.connect(crackGain);
-        crackGain.connect(dest);
-        crackOsc.start(now);
-        crackOsc.stop(now + 0.055);
-
-        // 2. Chamber sub-bass punch
-        const bodyOsc = ctx.createOscillator();
-        const bodyGain = ctx.createGain();
-        bodyOsc.type = 'sine';
-        bodyOsc.frequency.setValueAtTime(180 * pitchVar, now);
-        bodyOsc.frequency.exponentialRampToValueAtTime(36, now + 0.14);
-        bodyGain.gain.setValueAtTime(0.55, now);
-        bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-        bodyOsc.connect(bodyGain);
-        bodyGain.connect(dest);
-        bodyOsc.start(now);
-        bodyOsc.stop(now + 0.16);
-
-        // 3. Muzzle blast + urban canyon reverb tail
-        const tailDur = 0.34;
-        const len = Math.floor(ctx.sampleRate * tailDur);
-        const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-        const data = buf.getChannelData(0);
-        for (let i = 0; i < len; i++) {
-          const t = i / len;
-          const env = t < 0.08 ? Math.exp(-t * 28) : 0.24 * Math.exp(-(t - 0.08) * 7.5);
-          data[i] = (Math.random() * 2 - 1) * env;
-        }
-        const noise = ctx.createBufferSource();
-        noise.buffer = buf;
-
-        const filter = ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(1350 * pitchVar, now);
-        filter.frequency.exponentialRampToValueAtTime(340, now + tailDur);
-        filter.Q.value = 1.1;
-
-        const nGain = ctx.createGain();
-        nGain.gain.setValueAtTime(0.52, now);
-        nGain.gain.exponentialRampToValueAtTime(0.001, now + tailDur);
-
-        noise.connect(filter);
-        filter.connect(nGain);
-        nGain.connect(dest);
-        noise.start(now);
-      },
-
-      playRicochet() {
-        const ctx = getAudioCtx();
-        if (!ctx) return;
-        const dest = getAudioDest();
-        const now = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        const f0 = 2200 + Math.random() * 900;
-        osc.frequency.setValueAtTime(f0, now);
-        osc.frequency.exponentialRampToValueAtTime(f0 * 0.42, now + 0.14);
-        gain.gain.setValueAtTime(0.16, now);
-        gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.15);
-        osc.connect(gain);
-        gain.connect(dest);
-        osc.start(now);
-        osc.stop(now + 0.16);
       },
     };
 
@@ -630,15 +1049,25 @@
     const TILE_SIZE = 44;
     const CHUNK_PX = CHUNK_SIZE * TILE_SIZE;
     const DEFAULT_GRID_SIZE = 20;
-    const TICK_DURATION = 10.0;
+    const DEFAULT_TICK_DURATION = 10;
+
+    const INCOME_TIERS = {
+      LOW: { label: 'Low', min: 250, max: 500 },
+      MID: { label: 'Mid', min: 500, max: 1000 },
+      HIGH: { label: 'High', min: 1000, max: 2000 },
+    };
 
     // Proportional pricing based on combat power:
     // Soldier: 200 HP * 15 avg dmg = 3,000 power -> $1,200
     // Elite:   300 HP * 20 avg dmg = 6,000 power -> $2,400 (exact 2x ratio)
     const COST_SOLDIER = 1200;
     const COST_ELITE = 2400;
-    const MIN_PISTOL_RANGE = 100;
-    const MAX_PISTOL_RANGE = 600;
+    const COST_BOSS_ARMOR = 5000;
+    const MAX_BOSS_ARMOR = 200;
+    const MAX_PISTOL_RANGE = 800;
+    const SPRINT_MAX_DURATION = 2.0;
+    const SPRINT_COOLDOWN_DURATION = 2.0;
+    const SPRINT_SPEED_MULTIPLIER = 1.68;
 
     const TileType = {
       ASPHALT: 0,
@@ -729,6 +1158,8 @@
     const CAR_PALETTE = ['#18181b', '#27272a', '#e4e4e7', '#1e293b', '#3f3f46', '#7f1d1d'];
 
     let currentGridSize = DEFAULT_GRID_SIZE;
+    let tickDuration = DEFAULT_TICK_DURATION;
+    let currentIncomeTier = 'HIGH';
 
     function getUnitCaps() {
       const totalNeighborhoods = Math.max(25, world.chunks.size || currentGridSize * currentGridSize);
@@ -761,8 +1192,8 @@
         this.props = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill(PropType.NONE));
         this.propColors = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill('#18181b'));
         this.propVertical = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill(false));
-
-        this.income = 1000 + Math.floor(Math.random() * 1001);
+        const tier = INCOME_TIERS[currentIncomeTier] || INCOME_TIERS.HIGH;
+        this.income = tier.min + Math.floor(Math.random() * (tier.max - tier.min + 1));
         this.incomeLabel = `$${this.income.toLocaleString()}/hr`;
         this.faction = forcedFaction || this.determineInitialFaction(cx, cy);
         this.captureProgress = 0;
@@ -1164,6 +1595,11 @@
       facing: 0,
       hp: 200,
       maxHp: 200,
+      armor: 0,
+      maxArmor: MAX_BOSS_ARMOR,
+      sprintTimer: 0,
+      sprintCooldown: 0,
+      isSprinting: false,
       minDmg: 20,
       maxDmg: 40,
       alive: true,
@@ -1202,14 +1638,24 @@
     }
 
     /**
-     * Checks both environment walls/cars AND solid torso collision against all living units.
+     * Checks environment walls/cars AND unit collisions:
+     * - Enemies have hard solid mass (cannot push or pass through).
+     * - Same-faction allies allow soft squeezing (pass slowly & push aside).
      */
-    function canOccupyPosition(wx, wy, radius, ignoreNpcId = -1, ignorePlayer = false) {
+    function canOccupyPosition(
+      wx,
+      wy,
+      radius,
+      ignoreNpcId = -1,
+      ignorePlayer = false,
+      moverFaction = null
+    ) {
       if (!world.canMoveTo(wx, wy, radius)) return false;
 
       if (!ignorePlayer && player.alive) {
         const pRad = getEntityCollisionRadius(UnitRank.BOSS);
-        const minDist = radius + pRad - 1.0;
+        const sameFaction = moverFaction !== null && moverFaction === Faction.PLAYER;
+        const minDist = sameFaction ? (radius + pRad) * 0.45 : radius + pRad - 1.0;
         const dx = wx - player.x;
         const dy = wy - player.y;
         if (dx * dx + dy * dy < minDist * minDist) return false;
@@ -1226,7 +1672,8 @@
             for (const other of bucket) {
               if (other.id === ignoreNpcId) continue;
               const oRad = getEntityCollisionRadius(other.rank);
-              const minDist = radius + oRad - 1.0;
+              const sameFaction = moverFaction !== null && moverFaction === other.faction;
+              const minDist = sameFaction ? (radius + oRad) * 0.45 : radius + oRad - 1.0;
               const ox = wx - other.x;
               const oy = wy - other.y;
               if (ox * ox + oy * oy < minDist * minDist) return false;
@@ -1237,7 +1684,8 @@
         for (const other of npcs) {
           if (other.id === ignoreNpcId) continue;
           const oRad = getEntityCollisionRadius(other.rank);
-          const minDist = radius + oRad - 1.0;
+          const sameFaction = moverFaction !== null && moverFaction === other.faction;
+          const minDist = sameFaction ? (radius + oRad) * 0.45 : radius + oRad - 1.0;
           const ox = wx - other.x;
           const oy = wy - other.y;
           if (ox * ox + oy * oy < minDist * minDist) return false;
@@ -1245,6 +1693,27 @@
       }
 
       return true;
+    }
+
+    function isPushingFriendly(wx, wy, radius, faction, ignoreNpcId = -1, ignorePlayer = false) {
+      if (!ignorePlayer && player.alive && faction === Faction.PLAYER) {
+        const minDist = radius + getEntityCollisionRadius(UnitRank.BOSS);
+        if (Math.hypot(wx - player.x, wy - player.y) < minDist) return true;
+      }
+      const cx = Math.floor(wx / CHUNK_PX);
+      const cy = Math.floor(wy / CHUNK_PX);
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const bucket = spatialBuckets.get(`${cx + dx},${cy + dy}`);
+          if (!bucket) continue;
+          for (const other of bucket) {
+            if (other.id === ignoreNpcId || other.faction !== faction) continue;
+            const minDist = radius + getEntityCollisionRadius(other.rank);
+            if (Math.hypot(wx - other.x, wy - other.y) < minDist) return true;
+          }
+        }
+      }
+      return false;
     }
 
     function addFloatingText(x, y, text, color = '#fbbf24') {
@@ -1426,17 +1895,24 @@
         player.alive = false;
         gameOver = true;
         document.getElementById('defeat-banner').classList.remove('hidden');
-        showToast('DEFEAT! Your Boss was killed—all your turf is now Neutral.');
       } else {
         sfx.playFactionEliminated();
-        showToast(`${FACTION_META[faction].name} Boss killed! Faction eliminated & turf turned Neutral.`);
+        showToast(`${FACTION_META[faction].name} Boss killed! Their turf is now Neutral.`);
         checkVictoryCondition();
       }
       updateHUD();
     }
 
-    function initWorld(gridSize = currentGridSize, autoStart = true) {
+    function initWorld(
+      gridSize = currentGridSize,
+      autoStart = true,
+      selectedTickSeconds = tickDuration,
+      selectedIncomeTier = currentIncomeTier
+    ) {
       currentGridSize = Math.max(5, Math.min(25, gridSize));
+      tickDuration = Math.max(10, Math.min(30, selectedTickSeconds));
+      currentIncomeTier = INCOME_TIERS[selectedIncomeTier] ? selectedIncomeTier : 'HIGH';
+
       world.chunks.clear();
       npcs.length = 0;
       floatingTexts.length = 0;
@@ -1457,7 +1933,8 @@
       document.getElementById('defeat-banner').classList.add('hidden');
       document.getElementById('victory-banner').classList.add('hidden');
       document.getElementById('spectator-banner').classList.add('hidden');
-      document.getElementById('legend-title').textContent = `${currentGridSize}×${currentGridSize} Syndicate War:`;
+      document.getElementById('hour-hud-box').title =
+        `Every ${tickDuration} seconds an hour passes: blocks pay & toggled units spawn`;
 
       for (const f of ALL_FACTIONS) {
         treasuries[f] = 3000;
@@ -1477,6 +1954,10 @@
       player.targetY = null;
       player.hp = 200;
       player.maxHp = 200;
+      player.armor = 0;
+      player.sprintTimer = 0;
+      player.sprintCooldown = 0;
+      player.isSprinting = false;
       player.alive = true;
       player.attackCooldown = 0;
       player.slashAnimTimer = 0;
@@ -1617,15 +2098,6 @@
 
       const dx = targetX - shooter.x;
       const dy = targetY - shooter.y;
-      const rawDist = Math.hypot(dx, dy);
-
-      if (rawDist < MIN_PISTOL_RANGE) {
-        if (isPlayerShooter) {
-          addFloatingText(shooter.x, shooter.y - 34, 'Too close (<100px) — Slash!', '#fbbf24');
-        }
-        return false;
-      }
-
       const angle = Math.atan2(dy, dx);
       shooter.facing = angle;
       shooter.attackCooldown = isPlayerShooter ? 0.65 : 0.95;
@@ -1704,17 +2176,14 @@
       });
 
       if (bestTarget) {
-        const dmg = rollDamage(40, 80);
+        let dmg = rollDamage(40, 80);
+        if (bestProjDist <= 50) {
+          dmg = Math.max(1, Math.round(dmg * 0.25));
+        } else if (bestProjDist < 100) {
+          dmg = Math.max(1, Math.round(dmg * 0.5));
+        }
         if (bestTargetIsPlayer) {
-          player.hp -= dmg;
-          player.hitFlashTimer = 0.16;
-          const isKill = player.hp <= 0 && player.alive;
-          spawnBloodSplash(player.x, player.y, 1.5, isKill);
-          addFloatingText(player.x, player.y - 30, `-${dmg} 🔫`, '#f43f5e');
-          if (isKill) {
-            sfx.playDeath(true);
-            eliminateFaction(Faction.PLAYER);
-          }
+          damagePlayerBoss(dmg, `${FACTION_META[shooterFaction].accent}`, '🔫');
         } else {
           bestTarget.hp -= dmg;
           bestTarget.hitFlashTimer = 0.16;
@@ -1761,8 +2230,73 @@
     }
 
     // =========================================================================
-    // 8. INPUT HANDLING (WASD, Mouse Click, Right-Click Pistol & Minimap Pan)
+    // 8. BOSS ARMOR, DAMAGE ABSORPTION & INPUT HANDLING
     // =========================================================================
+    function damagePlayerBoss(dmg, textColor = '#f43f5e', suffix = '') {
+      if (!player.alive) return;
+      player.hitFlashTimer = 0.15;
+
+      let remainingDmg = dmg;
+      let absorbed = 0;
+      if (player.armor > 0) {
+        absorbed = Math.min(player.armor, remainingDmg);
+        player.armor -= absorbed;
+        remainingDmg -= absorbed;
+      }
+
+      if (remainingDmg > 0) {
+        player.hp -= remainingDmg;
+      }
+
+      const isKill = player.hp <= 0 && player.alive;
+      if (remainingDmg > 0) {
+        spawnBloodSplash(player.x, player.y, 1.25, isKill);
+      } else {
+        spawnSparks(player.x, player.y - 12);
+      }
+
+      if (absorbed > 0 && remainingDmg === 0) {
+        addFloatingText(player.x, player.y - 30, `-${absorbed} 🛡️`, '#38bdf8');
+      } else if (absorbed > 0 && remainingDmg > 0) {
+        addFloatingText(player.x, player.y - 30, `-${absorbed}🛡️ -${remainingDmg} ${suffix}`, '#f43f5e');
+      } else {
+        addFloatingText(player.x, player.y - 30, `-${remainingDmg} ${suffix}`.trim(), textColor);
+      }
+
+      if (absorbed > 0 && player.armor <= 0) {
+        player.armor = 0;
+        addFloatingText(player.x, player.y - 44, 'ARMOR BROKEN!', '#7dd3fc');
+      }
+
+      if (isKill) {
+        sfx.playDeath(true);
+        eliminateFaction(Faction.PLAYER);
+      }
+    }
+
+    function buyBossArmor() {
+      getAudioCtx();
+      if (!gameStarted || !player.alive || !factionAlive[Faction.PLAYER]) {
+        showToast('Your Boss must be alive to equip armor!');
+        return;
+      }
+      if (player.armor >= MAX_BOSS_ARMOR) {
+        showToast(`Kevlar Armor is already at full capacity (${MAX_BOSS_ARMOR} HP)!`);
+        return;
+      }
+      if (treasuries[Faction.PLAYER] < COST_BOSS_ARMOR) {
+        showToast(`Need $${COST_BOSS_ARMOR.toLocaleString()} for Boss Kevlar Armor!`);
+        return;
+      }
+
+      treasuries[Faction.PLAYER] -= COST_BOSS_ARMOR;
+      player.armor = MAX_BOSS_ARMOR;
+      sfx.playArmorEquip();
+      addFloatingText(player.x, player.y - 34, '+200 ARMOR 🛡️', '#38bdf8');
+      showToast('Equipped Kevlar Armor (+200 HP damage block)!');
+      updateHUD();
+    }
+
     const keys = new Set();
     window.addEventListener('keydown', (e) => {
       getAudioCtx();
@@ -1772,6 +2306,7 @@
         e.preventDefault();
       }
       if (k === ' ' || k === 'f') performKnifeSlash();
+      if (k === 'q') buyBossArmor();
     });
     window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 
@@ -1872,7 +2407,24 @@
     const mapCapPreview = document.getElementById('map-cap-preview');
     const presetBtns = document.querySelectorAll('.size-preset-btn');
 
-    function syncSetupPreview(size) {
+    const tickSpeedSlider = document.getElementById('tick-speed-slider');
+    const tickSpeedDisplay = document.getElementById('tick-speed-display');
+    const incomeTierDisplay = document.getElementById('income-tier-display');
+    const incomeTierBtns = document.querySelectorAll('.income-tier-btn');
+    let pendingIncomeTier = currentIncomeTier;
+
+    function getTickSpeedLabel(sec) {
+      if (sec <= 12) return `${sec}s (Turbo)`;
+      if (sec <= 18) return `${sec}s (Fast)`;
+      if (sec <= 24) return `${sec}s (Normal)`;
+      return `${sec}s (Slow)`;
+    }
+
+    function syncSetupPreview(
+      size = Number(mapSizeSlider.value) || currentGridSize,
+      sec = Number(tickSpeedSlider.value) || tickDuration,
+      tierKey = pendingIncomeTier
+    ) {
       const s = Math.max(5, Math.min(25, Number(size)));
       mapSizeSlider.value = String(s);
       mapSizeDisplay.textContent = s === 20 ? '20×20 (Default)' : `${s}×${s}`;
@@ -1891,29 +2443,59 @@
             'size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition';
         }
       });
+
+      const clampedSec = Math.max(10, Math.min(30, Number(sec)));
+      tickSpeedSlider.value = String(clampedSec);
+      tickSpeedDisplay.textContent = getTickSpeedLabel(clampedSec);
+
+      pendingIncomeTier = INCOME_TIERS[tierKey] ? tierKey : 'HIGH';
+      const tier = INCOME_TIERS[pendingIncomeTier];
+      incomeTierDisplay.textContent = `$${tier.min.toLocaleString()}–$${tier.max.toLocaleString()} / tick`;
+
+      incomeTierBtns.forEach((btn) => {
+        const isSelected = btn.dataset.income === pendingIncomeTier;
+        btn.className = isSelected
+          ? 'income-tier-btn bg-emerald-500/20 border border-emerald-500 text-emerald-300 py-2 px-2 rounded-lg text-center transition'
+          : 'income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition';
+      });
     }
 
-    mapSizeSlider.addEventListener('input', (e) => syncSetupPreview(e.target.value));
+    mapSizeSlider.addEventListener('input', (e) =>
+      syncSetupPreview(Number(e.target.value), Number(tickSpeedSlider.value), pendingIncomeTier)
+    );
     presetBtns.forEach((btn) => {
-      btn.addEventListener('click', () => syncSetupPreview(btn.dataset.size));
+      btn.addEventListener('click', () =>
+        syncSetupPreview(Number(btn.dataset.size), Number(tickSpeedSlider.value), pendingIncomeTier)
+      );
+    });
+    tickSpeedSlider.addEventListener('input', (e) =>
+      syncSetupPreview(Number(mapSizeSlider.value), Number(e.target.value), pendingIncomeTier)
+    );
+    incomeTierBtns.forEach((btn) => {
+      btn.addEventListener('click', () =>
+        syncSetupPreview(Number(mapSizeSlider.value), Number(tickSpeedSlider.value), btn.dataset.income)
+      );
     });
 
     document.getElementById('btn-start-game').addEventListener('click', () => {
       getAudioCtx();
       const selectedSize = Number(mapSizeSlider.value) || 20;
+      const selectedTick = Number(tickSpeedSlider.value) || 10;
       document.getElementById('setup-modal').classList.add('hidden');
-      initWorld(selectedSize, true);
-      showToast(`${selectedSize}×${selectedSize} Turf War started! Eliminate all 3 rival Bosses.`);
+      initWorld(selectedSize, true, selectedTick, pendingIncomeTier);
+      const tier = INCOME_TIERS[pendingIncomeTier];
+      showToast(
+        `${selectedSize}×${selectedSize} Turf War started! (${selectedTick}s ticks · ${tier.label} income)`
+      );
     });
 
-    // HUD Toggle & Action Buttons
     document.getElementById('btn-toggle-soldier').addEventListener('click', (e) => {
       getAudioCtx();
       autoRecruitSoldier = !autoRecruitSoldier;
       e.target.textContent = `Auto Soldier: ${autoRecruitSoldier ? 'ON' : 'OFF'} ($${COST_SOLDIER.toLocaleString()})`;
       e.target.className = autoRecruitSoldier
         ? 'bg-emerald-900/90 hover:bg-emerald-800 border border-emerald-500/70 text-emerald-200 font-bold px-2.5 py-1.5 rounded-lg transition'
-        : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 font-semibold px-2.5 py-1.5 rounded-lg transition';
+        : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 font-bold px-2.5 py-1.5 rounded-lg transition';
     });
 
     document.getElementById('btn-toggle-elite').addEventListener('click', (e) => {
@@ -1922,8 +2504,10 @@
       e.target.textContent = `Auto Elite: ${autoRecruitElite ? 'ON' : 'OFF'} ($${COST_ELITE.toLocaleString()})`;
       e.target.className = autoRecruitElite
         ? 'bg-indigo-900/90 hover:bg-indigo-800 border border-indigo-400/70 text-indigo-200 font-bold px-2.5 py-1.5 rounded-lg transition'
-        : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 font-semibold px-2.5 py-1.5 rounded-lg transition';
+        : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 font-bold px-2.5 py-1.5 rounded-lg transition';
     });
+
+    document.getElementById('btn-buy-armor').addEventListener('click', buyBossArmor);
 
     document.getElementById('btn-toggle-expand-click').addEventListener('click', (e) => {
       getAudioCtx();
@@ -1953,7 +2537,7 @@
       for (const npc of npcs) {
         if (npc.faction === Faction.PLAYER) continue;
         const d = Math.hypot(npc.x - player.x, npc.y - player.y);
-        if (d >= MIN_PISTOL_RANGE && d <= bestDist) {
+        if (d <= bestDist) {
           bestDist = d;
           aimX = npc.x;
           aimY = npc.y;
@@ -1976,6 +2560,25 @@
       e.target.textContent = `Borders: ${showBorders ? 'ON' : 'OFF'}`;
     });
 
+    document.getElementById('btn-toggle-music').addEventListener('click', (e) => {
+      musicEnabled = !musicEnabled;
+      ensureAudioContext();
+      if (musicGain && audioCtx) {
+        musicGain.gain.setTargetAtTime(musicEnabled ? 0.28 : 0.0, audioCtx.currentTime, 0.05);
+      }
+      if (musicEnabled) {
+        musicEngine.start();
+        e.target.textContent = '🎵 Music: ON';
+        e.target.className =
+          'bg-amber-950/80 hover:bg-amber-900/80 border border-amber-500/60 text-amber-200 font-semibold px-2.5 py-1.5 rounded-lg transition';
+      } else {
+        musicEngine.stop();
+        e.target.textContent = '🔇 Music: OFF';
+        e.target.className =
+          'bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 px-2.5 py-1.5 rounded-lg transition';
+      }
+    });
+
     document.getElementById('btn-toggle-sound').addEventListener('click', (e) => {
       soundEnabled = !soundEnabled;
       if (soundEnabled) {
@@ -1986,7 +2589,7 @@
     });
 
     function openSetupModal() {
-      syncSetupPreview(currentGridSize);
+      syncSetupPreview(currentGridSize, tickDuration, currentIncomeTier);
       document.getElementById('defeat-banner').classList.add('hidden');
       document.getElementById('victory-banner').classList.add('hidden');
       document.getElementById('spectator-banner').classList.add('hidden');
@@ -2060,7 +2663,42 @@
       document.getElementById('hour-text').textContent =
         `${String(gameHour).padStart(2, '0')}:00`;
       document.getElementById('tick-bar-fill').style.width =
-        `${Math.min(100, (tickTimer / TICK_DURATION) * 100)}%`;
+        `${Math.min(100, (tickTimer / tickDuration) * 100)}%`;
+
+      // Armor HUD indicator (visible only when armor > 0)
+      const armorBox = document.getElementById('armor-hud-box');
+      if (player.alive && player.armor > 0) {
+        armorBox.classList.remove('hidden');
+        armorBox.classList.add('flex');
+        const armorPct = Math.max(0, (player.armor / player.maxArmor) * 100);
+        document.getElementById('armor-bar-fill').style.width = `${armorPct}%`;
+        document.getElementById('armor-text').textContent = `${Math.ceil(player.armor)}`;
+      } else {
+        armorBox.classList.add('hidden');
+        armorBox.classList.remove('flex');
+      }
+
+      // Sprint HUD indicator (2s duration / 2s cooldown)
+      const sprintBar = document.getElementById('sprint-bar-fill');
+      const sprintText = document.getElementById('sprint-text');
+      if (player.isSprinting) {
+        const remPct = Math.max(0, ((SPRINT_MAX_DURATION - player.sprintTimer) / SPRINT_MAX_DURATION) * 100);
+        sprintBar.style.width = `${remPct}%`;
+        sprintBar.className = 'h-full bg-emerald-400 transition-all duration-75';
+        sprintText.textContent = `${(SPRINT_MAX_DURATION - player.sprintTimer).toFixed(1)}s`;
+        sprintText.className = 'font-mono font-bold text-emerald-400';
+      } else if (player.sprintCooldown > 0) {
+        const cdPct = Math.max(0, ((SPRINT_COOLDOWN_DURATION - player.sprintCooldown) / SPRINT_COOLDOWN_DURATION) * 100);
+        sprintBar.style.width = `${cdPct}%`;
+        sprintBar.className = 'h-full bg-zinc-500 transition-all duration-75';
+        sprintText.textContent = `${player.sprintCooldown.toFixed(1)}s`;
+        sprintText.className = 'font-mono font-bold text-zinc-400';
+      } else {
+        sprintBar.style.width = '100%';
+        sprintBar.className = 'h-full bg-amber-400 transition-all duration-75';
+        sprintText.textContent = 'RDY';
+        sprintText.className = 'font-mono font-bold text-amber-300';
+      }
 
       const board = document.getElementById('faction-board');
       board.innerHTML = `
@@ -2068,7 +2706,7 @@
           <div class="flex items-center justify-between mb-1">
             <span class="font-extrabold text-emerald-300 uppercase tracking-wider text-[10px]">Your Boss & Crew</span>
             <span class="font-mono text-[10px] ${player.alive ? 'text-emerald-400' : 'text-rose-400'} font-bold">
-              ${player.alive ? `HP ${Math.ceil(player.hp)}/${player.maxHp}` : 'ELIMINATED'}
+              ${player.alive ? `HP ${Math.ceil(player.hp)}/${player.maxHp}${player.armor > 0 ? ` · 🛡️${Math.ceil(player.armor)}` : ''}` : 'ELIMINATED'}
             </span>
           </div>
           <div class="grid grid-cols-3 gap-1.5 text-center bg-zinc-950/60 rounded p-1.5 font-mono text-[10px]">
@@ -2155,14 +2793,16 @@
         1.55 * npc.dodgeDir,
         -1.55 * npc.dodgeDir,
       ];
-      const step = speed * dt;
       const bodyRad = getEntityCollisionRadius(npc.rank);
+      const pushingAlly = isPushingFriendly(npc.x, npc.y, bodyRad, npc.faction, npc.id, false);
+      const effectiveSpeed = pushingAlly ? speed * 0.48 : speed;
+      const step = effectiveSpeed * dt;
 
       for (const offset of angles) {
         const testAngle = desiredAngle + offset;
         const nx = npc.x + Math.cos(testAngle) * step;
         const ny = npc.y + Math.sin(testAngle) * step;
-        if (canOccupyPosition(nx, ny, bodyRad, npc.id, false)) {
+        if (canOccupyPosition(nx, ny, bodyRad, npc.id, false, npc.faction)) {
           npc.x = nx;
           npc.y = ny;
           npc.facing = testAngle;
@@ -2178,18 +2818,10 @@
       const dmg = rollDamage(attacker.minDmg, attacker.maxDmg);
 
       if (target.isPlayer) {
-        player.hp -= dmg;
-        player.hitFlashTimer = 0.14;
-        const isKill = player.hp <= 0 && player.alive;
         if (Math.hypot(player.x - camera.x, player.y - camera.y) < 700) {
           sfx.playSlash(true);
         }
-        spawnBloodSplash(player.x, player.y, 1.0, isKill);
-        addFloatingText(player.x, player.y - 28, `-${dmg}`, '#f43f5e');
-        if (isKill) {
-          sfx.playDeath(true);
-          eliminateFaction(Faction.PLAYER);
-        }
+        damagePlayerBoss(dmg, '#f43f5e');
       } else {
         target.hp -= dmg;
         target.hitFlashTimer = 0.14;
@@ -2223,10 +2855,10 @@
     function update(dt) {
       if (!gameStarted) return;
 
-      // 1. 10-Second Hourly Economy Tick (Income + Auto-Recruitment)
+      // 1. Hourly Economy Tick (Configurable 10s–30s: Income + Auto-Recruitment)
       tickTimer += dt;
-      if (tickTimer >= TICK_DURATION) {
-        tickTimer -= TICK_DURATION;
+      if (tickTimer >= tickDuration) {
+        tickTimer -= tickDuration;
         gameHour = (gameHour + 1) % 24;
         const incomes = recalculateHourlyIncome();
 
@@ -2323,15 +2955,50 @@
         }
 
         const pRadius = getEntityCollisionRadius(UnitRank.BOSS);
+        const pushingCrew = isPushingFriendly(
+          player.x,
+          player.y,
+          pRadius,
+          Faction.PLAYER,
+          -1,
+          true
+        );
+
+        // Sprint with SHIFT (2 second sprint, then 2 second cooldown)
+        const wantsSprint = keys.has('shift') && (moveX !== 0 || moveY !== 0);
+        if (player.sprintCooldown > 0) {
+          player.sprintCooldown = Math.max(0, player.sprintCooldown - dt);
+          player.isSprinting = false;
+        } else if (wantsSprint) {
+          player.isSprinting = true;
+          player.sprintTimer += dt;
+          if (player.sprintTimer >= SPRINT_MAX_DURATION) {
+            player.isSprinting = false;
+            player.sprintTimer = 0;
+            player.sprintCooldown = SPRINT_COOLDOWN_DURATION;
+          }
+        } else {
+          if (player.isSprinting && player.sprintTimer > 0) {
+            player.sprintCooldown = SPRINT_COOLDOWN_DURATION * (player.sprintTimer / SPRINT_MAX_DURATION);
+          }
+          player.isSprinting = false;
+          player.sprintTimer = 0;
+        }
+
+        let currentPlayerSpeed = pushingCrew ? player.speed * 0.45 : player.speed;
+        if (player.isSprinting) {
+          currentPlayerSpeed *= SPRINT_SPEED_MULTIPLIER;
+        }
+
         if (moveX !== 0) {
-          const nextX = player.x + moveX * player.speed * dt;
-          if (canOccupyPosition(nextX, player.y, pRadius, -1, true)) {
+          const nextX = player.x + moveX * currentPlayerSpeed * dt;
+          if (canOccupyPosition(nextX, player.y, pRadius, -1, true, Faction.PLAYER)) {
             player.x = nextX;
           }
         }
         if (moveY !== 0) {
-          const nextY = player.y + moveY * player.speed * dt;
-          if (canOccupyPosition(player.x, nextY, pRadius, -1, true)) {
+          const nextY = player.y + moveY * currentPlayerSpeed * dt;
+          if (canOccupyPosition(player.x, nextY, pRadius, -1, true, Faction.PLAYER)) {
             player.y = nextY;
           }
         }
@@ -2424,7 +3091,7 @@
                 }
                 if (
                   npc.rank === UnitRank.BOSS &&
-                  d >= MIN_PISTOL_RANGE &&
+                  d >= 100 &&
                   d <= MAX_PISTOL_RANGE &&
                   d < bestRangedDist
                 ) {
@@ -2450,7 +3117,7 @@
           }
           if (
             npc.rank === UnitRank.BOSS &&
-            dPlayer >= MIN_PISTOL_RANGE &&
+            dPlayer >= 100 &&
             dPlayer <= MAX_PISTOL_RANGE &&
             dPlayer < bestRangedDist
           ) {
@@ -2608,14 +3275,14 @@
             addFloatingText(
               nChunk.cx * CHUNK_PX + CHUNK_PX / 2,
               nChunk.cy * CHUNK_PX + 28,
-              `${FACTION_META[npc.faction].short.toUpperCase()} SEIZED TURF`,
+              `${FACTION_META[npc.faction].short} TURF`,
               FACTION_META[npc.faction].accent
             );
           }
         }
       }
 
-      // 4. Hard Non-Overlapping Torso Collision Solver (2-pass spatial separation)
+      // 4. Hard Enemy Collision + Soft Friendly Yielding Solver (2-pass spatial separation)
       for (let pass = 0; pass < 2; pass++) {
         for (let i = 0; i < npcs.length; i++) {
           const a = npcs[i];
@@ -2637,17 +3304,23 @@
                 if (d < minDist) {
                   const nx = d > 0.001 ? ox / d : 1;
                   const ny = d > 0.001 ? oy / d : 0;
-                  const overlap = (minDist - d) * 0.52;
+                  const sameFaction = a.faction === b.faction;
+                  // Friendly units gently yield out of each other's way; enemies remain hard-blocked
+                  const pushFactor = sameFaction ? 0.14 : 0.52;
+                  const overlap = (minDist - d) * pushFactor;
 
-                  const axNew = a.x - nx * overlap;
-                  const ayNew = a.y - ny * overlap;
+                  const aWeight = sameFaction && a.rank === UnitRank.BOSS ? 0.25 : 1.0;
+                  const bWeight = sameFaction && b.rank === UnitRank.BOSS ? 0.25 : 1.0;
+
+                  const axNew = a.x - nx * overlap * aWeight;
+                  const ayNew = a.y - ny * overlap * aWeight;
                   if (world.canMoveTo(axNew, ayNew, rA)) {
                     a.x = axNew;
                     a.y = ayNew;
                   }
 
-                  const bxNew = b.x + nx * overlap;
-                  const byNew = b.y + ny * overlap;
+                  const bxNew = b.x + nx * overlap * bWeight;
+                  const byNew = b.y + ny * overlap * bWeight;
                   if (world.canMoveTo(bxNew, byNew, rB)) {
                     b.x = bxNew;
                     b.y = byNew;
@@ -2666,7 +3339,9 @@
             if (d < minDist) {
               const nx = d > 0.001 ? ox / d : 1;
               const ny = d > 0.001 ? oy / d : 0;
-              const overlap = minDist - d + 0.5;
+              const sameFaction = a.faction === Faction.PLAYER;
+              // Allied crew step aside as the Player Boss pushes through; enemies stay completely solid
+              const overlap = sameFaction ? (minDist - d) * 0.28 : minDist - d + 0.5;
               const axNew = a.x + nx * overlap;
               const ayNew = a.y + ny * overlap;
               if (world.canMoveTo(axNew, ayNew, rA)) {
@@ -2794,6 +3469,17 @@
       ctx.lineWidth = isBoss ? 2 : isElite ? 1.6 : 1.2;
       ctx.stroke();
 
+      // Kevlar Tactical Armor Vest visual when Player Boss has active armor
+      if (isBoss && faction === Faction.PLAYER && player.armor > 0) {
+        ctx.fillStyle = 'rgba(14, 165, 233, 0.42)';
+        ctx.beginPath();
+        ctx.roundRect(-7.5 * scale, -16.5 * scale, 15 * scale, 14 * scale, 3.5);
+        ctx.fill();
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+      }
+
       // Shirt & Tie
       ctx.fillStyle = '#f4f4f5';
       ctx.beginPath();
@@ -2873,6 +3559,17 @@
       ctx.fillStyle = isBoss ? '#fbbf24' : hpRatio > 0.45 ? meta.badge : '#f43f5e';
       ctx.fillRect(-barW / 2, barY, barW * hpRatio, 3.5);
 
+      // Sky-blue Armor Bar above HP bar when Boss Armor is active
+      const hasPlayerArmor = isBoss && faction === Faction.PLAYER && player.armor > 0;
+      if (hasPlayerArmor) {
+        const armorRatio = Math.max(0, player.armor / player.maxArmor);
+        const armorBarY = barY - 5.5;
+        ctx.fillStyle = 'rgba(9, 9, 11, 0.9)';
+        ctx.fillRect(-barW / 2 - 1, armorBarY - 1, barW + 2, 4.5);
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(-barW / 2, armorBarY, barW * armorRatio, 2.8);
+      }
+
       if (isBoss || isElite) {
         ctx.font = 'bold 8.5px Inter, sans-serif';
         ctx.textAlign = 'center';
@@ -2880,7 +3577,7 @@
         ctx.fillText(
           isBoss ? (faction === Faction.PLAYER ? 'YOU (BOSS)' : 'BOSS') : 'ELITE',
           0,
-          barY - 3
+          (hasPlayerArmor ? barY - 8.5 : barY - 3)
         );
       }
 
@@ -3329,8 +4026,8 @@
 
     window.onload = function () {
       resizeCanvas();
-      syncSetupPreview(DEFAULT_GRID_SIZE);
-      initWorld(DEFAULT_GRID_SIZE, false);
+      syncSetupPreview(DEFAULT_GRID_SIZE, DEFAULT_TICK_DURATION, 'HIGH');
+      initWorld(DEFAULT_GRID_SIZE, false, DEFAULT_TICK_DURATION, 'HIGH');
       requestAnimationFrame(gameLoop);
     };
   </script>
