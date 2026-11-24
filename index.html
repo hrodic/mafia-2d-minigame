@@ -1,0 +1,3338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2.5D Modern Mafia Turf Map</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #09090b;
+      color: #f4f4f5;
+      overflow: hidden;
+      user-select: none;
+    }
+    canvas {
+      display: block;
+    }
+    .glass-panel {
+      background: rgba(9, 9, 11, 0.88);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(63, 63, 70, 0.68);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.58);
+    }
+  </style>
+</head>
+<body class="w-screen h-screen flex flex-col">
+
+  <!-- Top HUD Header -->
+  <header class="bg-zinc-950/95 backdrop-blur border-b border-zinc-800 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2 z-20 shadow-lg">
+    <div class="flex items-center gap-2.5">
+      <div class="w-3 h-3 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_#f59e0b]"></div>
+      <h1 class="font-bold text-sm sm:text-base tracking-tight text-zinc-100">Syndicate Turf 2.5D</h1>
+      <span id="stats-badge" class="hidden xl:inline-block text-xs bg-zinc-900 border border-zinc-700 text-zinc-300 px-2.5 py-0.5 rounded-full">
+        Turf: 1/400 | Crew: 0/400 | Income: $0/hr
+      </span>
+    </div>
+
+    <!-- Boss HP, Treasury & 10s Hourly Tick -->
+    <div class="flex items-center gap-2.5 text-xs">
+      <div class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg">
+        <span class="text-zinc-400 font-semibold">Boss HP:</span>
+        <div class="w-16 sm:w-20 h-2.5 bg-zinc-800 rounded-full overflow-hidden">
+          <div id="hp-bar-fill" class="h-full bg-emerald-500 transition-all duration-150" style="width: 100%"></div>
+        </div>
+        <span id="hp-text" class="font-mono font-bold text-emerald-400">200/200</span>
+      </div>
+
+      <div class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg">
+        <span class="text-zinc-400 font-semibold">Cash:</span>
+        <span id="cash-text" class="font-mono font-bold text-amber-400">$3,000</span>
+      </div>
+
+      <div class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg" title="Every 10 seconds an hour passes: blocks pay $1k-$2k & toggled units spawn">
+        <span class="text-zinc-400 font-semibold">Hour:</span>
+        <span id="hour-text" class="font-mono font-bold text-sky-400">12:00</span>
+        <div class="w-10 h-2 bg-zinc-800 rounded-full overflow-hidden">
+          <div id="tick-bar-fill" class="h-full bg-sky-400" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Controls -->
+    <div class="flex flex-wrap items-center gap-1.5 text-xs">
+      <button id="btn-toggle-soldier" class="bg-emerald-900/90 hover:bg-emerald-800 border border-emerald-500/70 text-emerald-200 font-bold px-2.5 py-1.5 rounded-lg transition" title="Auto-spawn Soldiers ($1,200 each) on every tick">
+        Auto Soldier: ON ($1,200)
+      </button>
+      <button id="btn-toggle-elite" class="bg-indigo-900/90 hover:bg-indigo-800 border border-indigo-400/70 text-indigo-200 font-bold px-2.5 py-1.5 rounded-lg transition" title="Auto-spawn Elites ($2,400 each) on every tick">
+        Auto Elite: ON ($2,400)
+      </button>
+      <button id="btn-slash" class="bg-gradient-to-b from-rose-500 to-rose-700 hover:from-rose-400 hover:to-rose-600 active:scale-95 transition text-white font-bold px-2.5 py-1.5 rounded-lg shadow border border-rose-400/30 flex items-center gap-1" title="Close-range Knife Slash (Space / F)">
+        <span>🔪</span> Slash
+      </button>
+      <button id="btn-pistol" class="bg-gradient-to-b from-amber-500 to-amber-700 hover:from-amber-400 hover:to-amber-600 active:scale-95 transition text-zinc-950 font-extrabold px-2.5 py-1.5 rounded-lg shadow border border-amber-300/40 flex items-center gap-1" title="Ranged 9mm Pistol Shot: 100px–600px range, 40–80 dmg (Right-Click)">
+        <span>🔫</span> Pistol
+      </button>
+      <button id="btn-toggle-expand-click" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 px-2.5 py-1.5 rounded-lg transition" title="Allow clicking empty space outside the map to build new blocks">
+        Click-Build: OFF
+      </button>
+      <button id="btn-expand-ring" class="bg-gradient-to-b from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 active:scale-95 transition text-zinc-950 font-bold px-2.5 py-1.5 rounded-lg shadow">
+        + Expand Ring
+      </button>
+      <button id="btn-toggle-grid" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 px-2.5 py-1.5 rounded-lg transition">
+        Borders: ON
+      </button>
+      <button id="btn-toggle-sound" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 px-2.5 py-1.5 rounded-lg transition" title="Toggle Sound Effects">
+        🔊 SFX: ON
+      </button>
+      <button id="btn-reset" class="bg-zinc-900 hover:bg-rose-950 border border-zinc-700 hover:border-rose-800 text-zinc-300 hover:text-rose-200 px-2.5 py-1.5 rounded-lg transition">
+        New Game
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Canvas Container -->
+  <main class="relative flex-1 w-full h-full overflow-hidden">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Spectator Mode Pill (Shown when spectating after defeat) -->
+    <div id="spectator-banner" class="hidden glass-panel fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full border border-amber-500/60 flex items-center gap-3 text-xs z-20">
+      <span class="flex items-center gap-1.5 font-bold text-amber-400 uppercase tracking-wider">
+        <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+        Spectator Mode
+      </span>
+      <span class="text-zinc-300 hidden sm:inline">WASD / Click Minimap to pan camera</span>
+      <button id="btn-spectate-new-game" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-full transition">
+        Start New Game
+      </button>
+    </div>
+
+    <!-- Player & Faction Standings Panel (Top-Right) -->
+    <div id="faction-board" class="glass-panel absolute top-4 right-4 p-3 rounded-xl text-xs text-zinc-200 pointer-events-none space-y-2 min-w-[245px] z-10">
+      <!-- Populated dynamically via JS -->
+    </div>
+
+    <!-- Floating Controls / Legend Overlay (Bottom-Left) -->
+    <div class="glass-panel absolute bottom-4 left-4 p-3.5 rounded-xl max-w-xs text-xs text-zinc-300 pointer-events-none z-10">
+      <p id="legend-title" class="font-bold text-amber-400 uppercase tracking-wider mb-1.5">20×20 Syndicate War:</p>
+      <ul class="space-y-1">
+        <li><span class="text-white font-semibold">Move & Knife:</span> WASD / Left-Click + <kbd class="bg-zinc-800 px-1 rounded">Space</kbd></li>
+        <li><span class="text-amber-300 font-semibold">9mm Pistol (100–600px):</span> Right-Click target (40–80 dmg)</li>
+        <li><span class="text-rose-400 font-semibold">Kill the Boss = Faction Loses:</span> Turf turns Neutral & spawning stops!</li>
+      </ul>
+    </div>
+
+    <!-- Tactical City Grid Minimap (Bottom-Right) -->
+    <div class="glass-panel absolute bottom-4 right-4 p-2.5 rounded-xl flex flex-col items-center gap-1.5 z-10">
+      <div class="w-full flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-0.5">
+        <span>City Radar</span>
+        <span id="minimap-coords" class="font-mono text-zinc-500">(0, 0)</span>
+      </div>
+      <canvas id="minimapCanvas" width="140" height="140" class="rounded-lg border border-zinc-800 bg-zinc-900 cursor-crosshair"></canvas>
+      <div class="w-full flex items-center justify-between text-[9px] text-zinc-400 px-0.5">
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-white inline-block"></span>You</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>Rival Boss</span>
+        <span>Click to Move/Pan</span>
+      </div>
+    </div>
+
+    <!-- Pre-Game Setup Modal (Map Size Toggle 5x5 to 25x25, Default 20x20) -->
+    <div id="setup-modal" class="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center z-40">
+      <div class="bg-zinc-900 border border-zinc-700 p-6 sm:p-7 rounded-2xl shadow-2xl max-w-md w-full mx-4">
+        <div class="flex items-center gap-2.5 mb-2">
+          <div class="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_10px_#f59e0b]"></div>
+          <h2 class="text-xl font-extrabold text-white tracking-tight">Syndicate Turf 2.5D</h2>
+        </div>
+        <p class="text-xs text-zinc-400 mb-5">
+          Four crime syndicates start in the four corners of the city. Eliminate all rival Bosses to conquer the metropolis.
+        </p>
+
+        <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-4 mb-5">
+          <div class="flex items-center justify-between mb-2">
+            <label for="map-size-slider" class="text-xs font-bold uppercase tracking-wider text-zinc-300">
+              City Grid Size
+            </label>
+            <span id="map-size-display" class="font-mono text-sm font-extrabold text-amber-400">20×20 (Default)</span>
+          </div>
+
+          <input
+            id="map-size-slider"
+            type="range"
+            min="5"
+            max="25"
+            value="20"
+            class="w-full accent-amber-500 cursor-pointer mb-3"
+          />
+
+          <div class="grid grid-cols-5 gap-1.5 mb-3">
+            <button type="button" data-size="5" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">5×5</button>
+            <button type="button" data-size="10" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">10×10</button>
+            <button type="button" data-size="15" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">15×15</button>
+            <button type="button" data-size="20" class="size-preset-btn bg-amber-500/20 border border-amber-500 text-amber-300 py-1 rounded text-[11px] font-mono font-bold transition">20×20</button>
+            <button type="button" data-size="25" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">25×25</button>
+          </div>
+
+          <div id="map-cap-preview" class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-zinc-800/90 pt-2.5">
+            <span>400 Neighborhoods</span>
+            <span class="font-mono text-emerald-400">Cap: 300 Soldiers · 100 Elites</span>
+          </div>
+        </div>
+
+        <button id="btn-start-game" class="w-full bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white font-extrabold py-3 rounded-xl shadow-lg border border-emerald-400/30 transition text-sm tracking-wide">
+          Launch Turf War
+        </button>
+      </div>
+    </div>
+
+    <!-- Victory Popup Modal -->
+    <div id="victory-banner" class="hidden fixed inset-0 bg-zinc-950/75 backdrop-blur-sm flex items-center justify-center z-30">
+      <div class="bg-zinc-900 border-2 border-amber-500 p-7 rounded-2xl shadow-2xl text-center max-w-md mx-4">
+        <div class="inline-block px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-bold uppercase tracking-widest mb-2">
+          City Conquered
+        </div>
+        <h2 class="text-3xl font-extrabold text-white mb-2">Syndicate Victory!</h2>
+        <p id="victory-summary" class="text-sm text-zinc-300 mb-5">
+          All rival Bosses have been eliminated. Emerald Syndicate rules the entire city.
+        </p>
+        <div class="flex items-center justify-center gap-3">
+          <button id="btn-victory-continue" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-200 font-semibold px-4 py-2.5 rounded-xl transition">
+            Keep Playing
+          </button>
+          <button id="btn-victory-restart" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl shadow transition">
+            New Turf War
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Defeat Banner Modal (Allows Spectating or Starting New Game) -->
+    <div id="defeat-banner" class="hidden fixed inset-0 bg-zinc-950/75 backdrop-blur-sm flex items-center justify-center z-30">
+      <div class="bg-zinc-900 border-2 border-rose-600 p-6 rounded-2xl shadow-2xl text-center max-w-md mx-4">
+        <div class="inline-block px-3 py-1 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-bold uppercase tracking-widest mb-2">
+          Boss Eliminated
+        </div>
+        <h2 class="text-2xl font-extrabold text-rose-400 mb-2">Your Syndicate Has Fallen!</h2>
+        <p class="text-sm text-zinc-300 mb-5">
+          Your Boss was killed. Your neighborhoods have turned Neutral and recruitment has halted, though your surviving crew fights on.
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-3">
+          <button id="btn-spectate-match" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-amber-300 font-bold px-4 py-2.5 rounded-xl transition">
+            Spectate Match
+          </button>
+          <button id="btn-restart-match" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl shadow transition">
+            Start New Game
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Toast -->
+    <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-zinc-900 border border-amber-500/60 text-amber-200 text-xs font-semibold px-4 py-2 rounded-full shadow-lg opacity-0 transition-opacity duration-200 pointer-events-none z-50">
+      Action
+    </div>
+  </main>
+
+  <script>
+    // =========================================================================
+    // 1. SYNTHESIZED AUDIO FX ENGINE (Metallic Blade, 9mm Pistol & Formant Scream)
+    // =========================================================================
+    let soundEnabled = true;
+    let audioCtx = null;
+    let masterGain = null;
+
+    function getAudioCtx() {
+      if (!soundEnabled) return null;
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return null;
+        audioCtx = new AudioContextClass();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = 0.72;
+        masterGain.connect(audioCtx.destination);
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+      return audioCtx;
+    }
+
+    function getAudioDest() {
+      return masterGain || audioCtx.destination;
+    }
+
+    const sfx = {
+      playSlash(hitFlesh = false) {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        const dest = getAudioDest();
+        const now = ctx.currentTime;
+        const pitchVar = 0.94 + Math.random() * 0.12;
+
+        // 1. High-Q metallic blade shimmer
+        const ring1 = ctx.createOscillator();
+        const ring2 = ctx.createOscillator();
+        const ringGain = ctx.createGain();
+        ring1.type = 'triangle';
+        ring2.type = 'sine';
+        ring1.frequency.setValueAtTime(3450 * pitchVar, now);
+        ring1.frequency.exponentialRampToValueAtTime(1450 * pitchVar, now + 0.16);
+        ring2.frequency.setValueAtTime(5180 * pitchVar, now);
+        ring2.frequency.exponentialRampToValueAtTime(2200 * pitchVar, now + 0.14);
+
+        ringGain.gain.setValueAtTime(0.001, now);
+        ringGain.gain.linearRampToValueAtTime(hitFlesh ? 0.19 : 0.13, now + 0.012);
+        ringGain.gain.exponentialRampToValueAtTime(0.0008, now + 0.17);
+
+        ring1.connect(ringGain);
+        ring2.connect(ringGain);
+        ringGain.connect(dest);
+        ring1.start(now);
+        ring2.start(now);
+        ring1.stop(now + 0.18);
+        ring2.stop(now + 0.18);
+
+        // 2. Fast steel air-swipe noise
+        const swipeDur = 0.14;
+        const len = Math.floor(ctx.sampleRate * swipeDur);
+        const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) {
+          const env = Math.sin((i / len) * Math.PI);
+          data[i] = (Math.random() * 2 - 1) * env;
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buf;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(2800 * pitchVar, now);
+        filter.frequency.exponentialRampToValueAtTime(680, now + swipeDur);
+        filter.Q.value = 3.2;
+
+        const nGain = ctx.createGain();
+        nGain.gain.setValueAtTime(0.26, now);
+        nGain.gain.exponentialRampToValueAtTime(0.001, now + swipeDur);
+
+        noise.connect(filter);
+        filter.connect(nGain);
+        nGain.connect(dest);
+        noise.start(now);
+
+        // 3. Visceral blade strike impact thud
+        if (hitFlesh) {
+          const stabOsc = ctx.createOscillator();
+          const stabGain = ctx.createGain();
+          stabOsc.type = 'sine';
+          stabOsc.frequency.setValueAtTime(220 * pitchVar, now + 0.015);
+          stabOsc.frequency.exponentialRampToValueAtTime(42, now + 0.14);
+          stabGain.gain.setValueAtTime(0.36, now + 0.015);
+          stabGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+          stabOsc.connect(stabGain);
+          stabGain.connect(dest);
+          stabOsc.start(now + 0.015);
+          stabOsc.stop(now + 0.16);
+        }
+      },
+
+      playDeath(isBoss = false) {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        const dest = getAudioDest();
+        const now = ctx.currentTime;
+        const dur = isBoss ? 0.78 : 0.46;
+        const basePitch = isBoss ? 195 : 225 + Math.random() * 65;
+
+        // 1. Vocal cords sawtooth source with pitch drop
+        const voiceOsc = ctx.createOscillator();
+        voiceOsc.type = 'sawtooth';
+        voiceOsc.frequency.setValueAtTime(basePitch * 1.18, now);
+        voiceOsc.frequency.linearRampToValueAtTime(basePitch * 1.28, now + 0.06);
+        voiceOsc.frequency.exponentialRampToValueAtTime(basePitch * 0.48, now + dur);
+
+        // Vibrato tremor
+        const vib = ctx.createOscillator();
+        const vibGain = ctx.createGain();
+        vib.frequency.value = 18;
+        vibGain.gain.value = 9;
+        vib.connect(vibGain);
+        vibGain.connect(voiceOsc.frequency);
+
+        // 2. Dual vocal-tract formant filters ("AAAHH" throat resonance)
+        const f1 = ctx.createBiquadFilter();
+        f1.type = 'bandpass';
+        f1.frequency.setValueAtTime(780, now);
+        f1.frequency.exponentialRampToValueAtTime(440, now + dur);
+        f1.Q.value = 4.2;
+
+        const f2 = ctx.createBiquadFilter();
+        f2.type = 'bandpass';
+        f2.frequency.setValueAtTime(1320, now);
+        f2.frequency.exponentialRampToValueAtTime(860, now + dur);
+        f2.Q.value = 5.0;
+
+        const voiceEnv = ctx.createGain();
+        voiceEnv.gain.setValueAtTime(0.001, now);
+        voiceEnv.gain.linearRampToValueAtTime(isBoss ? 0.36 : 0.26, now + 0.035);
+        voiceEnv.gain.setValueAtTime(isBoss ? 0.30 : 0.21, now + dur * 0.45);
+        voiceEnv.gain.exponentialRampToValueAtTime(0.0008, now + dur);
+
+        voiceOsc.connect(f1);
+        voiceOsc.connect(f2);
+        f1.connect(voiceEnv);
+        f2.connect(voiceEnv);
+        voiceEnv.connect(dest);
+
+        // 3. Breathy vocal rasp
+        const nLen = Math.floor(ctx.sampleRate * dur);
+        const nBuf = ctx.createBuffer(1, nLen, ctx.sampleRate);
+        const nData = nBuf.getChannelData(0);
+        for (let i = 0; i < nLen; i++) {
+          nData[i] = Math.random() * 2 - 1;
+        }
+        const breath = ctx.createBufferSource();
+        breath.buffer = nBuf;
+        const bFilter = ctx.createBiquadFilter();
+        bFilter.type = 'bandpass';
+        bFilter.frequency.setValueAtTime(1500, now);
+        bFilter.Q.value = 2.5;
+        const bGain = ctx.createGain();
+        bGain.gain.setValueAtTime(0.09, now);
+        bGain.gain.exponentialRampToValueAtTime(0.0008, now + dur * 0.85);
+        breath.connect(bFilter);
+        bFilter.connect(bGain);
+        bGain.connect(dest);
+
+        // 4. Heavy body collapse thud
+        const thud = ctx.createOscillator();
+        const thudGain = ctx.createGain();
+        thud.type = 'sine';
+        thud.frequency.setValueAtTime(95, now + dur * 0.55);
+        thud.frequency.exponentialRampToValueAtTime(28, now + dur + 0.14);
+        thudGain.gain.setValueAtTime(0.001, now);
+        thudGain.gain.setValueAtTime(isBoss ? 0.38 : 0.22, now + dur * 0.55);
+        thudGain.gain.exponentialRampToValueAtTime(0.0008, now + dur + 0.15);
+        thud.connect(thudGain);
+        thudGain.connect(dest);
+
+        voiceOsc.start(now);
+        vib.start(now);
+        breath.start(now);
+        thud.start(now + dur * 0.55);
+
+        voiceOsc.stop(now + dur + 0.02);
+        vib.stop(now + dur + 0.02);
+        breath.stop(now + dur);
+        thud.stop(now + dur + 0.16);
+      },
+
+      playFactionEliminated() {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        const dest = getAudioDest();
+        const now = ctx.currentTime;
+        const freqs = [164.81, 130.81, 98.0];
+        freqs.forEach((f, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          const t = now + idx * 0.16;
+          osc.frequency.setValueAtTime(f, t);
+          gain.gain.setValueAtTime(0.001, t);
+          gain.gain.linearRampToValueAtTime(0.24, t + 0.03);
+          gain.gain.exponentialRampToValueAtTime(0.0008, t + 0.48);
+
+          const lp = ctx.createBiquadFilter();
+          lp.type = 'lowpass';
+          lp.frequency.setValueAtTime(750, t);
+
+          osc.connect(lp);
+          lp.connect(gain);
+          gain.connect(dest);
+          osc.start(t);
+          osc.stop(t + 0.5);
+        });
+      },
+
+      playVictory() {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        const dest = getAudioDest();
+        const now = ctx.currentTime;
+        const notes = [261.63, 329.63, 392.0, 523.25, 659.25];
+        notes.forEach((f, idx) => {
+          const osc = ctx.createOscillator();
+          const pad = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          pad.type = 'sine';
+          const t = now + idx * 0.11;
+          osc.frequency.setValueAtTime(f, t);
+          pad.frequency.setValueAtTime(f * 0.5, t);
+          gain.gain.setValueAtTime(0.001, t);
+          gain.gain.linearRampToValueAtTime(0.24, t + 0.03);
+          gain.gain.exponentialRampToValueAtTime(0.0008, t + 0.95);
+          osc.connect(gain);
+          pad.connect(gain);
+          gain.connect(dest);
+          osc.start(t);
+          pad.start(t);
+          osc.stop(t + 1.0);
+          pad.stop(t + 1.0);
+        });
+      },
+
+      playGunshot() {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        const dest = getAudioDest();
+        const now = ctx.currentTime;
+        const pitchVar = 0.95 + Math.random() * 0.1;
+
+        // 1. Supersonic transient crack
+        const crackOsc = ctx.createOscillator();
+        const crackGain = ctx.createGain();
+        crackOsc.type = 'sawtooth';
+        crackOsc.frequency.setValueAtTime(1650 * pitchVar, now);
+        crackOsc.frequency.exponentialRampToValueAtTime(140, now + 0.045);
+        crackGain.gain.setValueAtTime(0.45, now);
+        crackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        crackOsc.connect(crackGain);
+        crackGain.connect(dest);
+        crackOsc.start(now);
+        crackOsc.stop(now + 0.055);
+
+        // 2. Chamber sub-bass punch
+        const bodyOsc = ctx.createOscillator();
+        const bodyGain = ctx.createGain();
+        bodyOsc.type = 'sine';
+        bodyOsc.frequency.setValueAtTime(180 * pitchVar, now);
+        bodyOsc.frequency.exponentialRampToValueAtTime(36, now + 0.14);
+        bodyGain.gain.setValueAtTime(0.55, now);
+        bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        bodyOsc.connect(bodyGain);
+        bodyGain.connect(dest);
+        bodyOsc.start(now);
+        bodyOsc.stop(now + 0.16);
+
+        // 3. Muzzle blast + urban canyon reverb tail
+        const tailDur = 0.34;
+        const len = Math.floor(ctx.sampleRate * tailDur);
+        const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) {
+          const t = i / len;
+          const env = t < 0.08 ? Math.exp(-t * 28) : 0.24 * Math.exp(-(t - 0.08) * 7.5);
+          data[i] = (Math.random() * 2 - 1) * env;
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buf;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1350 * pitchVar, now);
+        filter.frequency.exponentialRampToValueAtTime(340, now + tailDur);
+        filter.Q.value = 1.1;
+
+        const nGain = ctx.createGain();
+        nGain.gain.setValueAtTime(0.52, now);
+        nGain.gain.exponentialRampToValueAtTime(0.001, now + tailDur);
+
+        noise.connect(filter);
+        filter.connect(nGain);
+        nGain.connect(dest);
+        noise.start(now);
+      },
+
+      playRicochet() {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        const dest = getAudioDest();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        const f0 = 2200 + Math.random() * 900;
+        osc.frequency.setValueAtTime(f0, now);
+        osc.frequency.exponentialRampToValueAtTime(f0 * 0.42, now + 0.14);
+        gain.gain.setValueAtTime(0.16, now);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.15);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(now);
+        osc.stop(now + 0.16);
+      },
+    };
+
+    // =========================================================================
+    // 2. BLOOD PARTICLE, BULLET TRACER & GROUND SPLATTER SYSTEM
+    // =========================================================================
+    const bloodParticles = [];
+    const bloodDecals = [];
+    const bulletTracers = [];
+    const shellCasings = [];
+    const sparks = [];
+    const MAX_BLOOD_DECALS = 220;
+
+    function spawnBloodSplash(x, y, intensity = 1, isKill = false) {
+      const count = isKill ? 24 : Math.round(11 * intensity);
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = (isKill ? 65 : 42) + Math.random() * (isKill ? 155 : 95);
+        bloodParticles.push({
+          x: x + (Math.random() - 0.5) * 8,
+          y: y + (Math.random() - 0.5) * 8,
+          z: 10 + Math.random() * 14,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          vz: 55 + Math.random() * 110,
+          radius: 1.8 + Math.random() * (isKill ? 3.2 : 2.1),
+          color: Math.random() > 0.35 ? '#dc2626' : '#7f1d1d',
+          life: 0.45 + Math.random() * 0.35,
+        });
+      }
+
+      const poolCount = isKill ? 4 : 2;
+      for (let p = 0; p < poolCount; p++) {
+        bloodDecals.push({
+          x: x + (Math.random() - 0.5) * (isKill ? 28 : 16),
+          y: y + (Math.random() - 0.5) * (isKill ? 20 : 12),
+          rx: (isKill ? 7 : 4) + Math.random() * (isKill ? 9 : 4),
+          ry: (isKill ? 4.5 : 2.5) + Math.random() * (isKill ? 5 : 2.5),
+          color: Math.random() > 0.4 ? 'rgba(127, 29, 29, 0.72)' : 'rgba(69, 10, 10, 0.78)',
+          alpha: 0.88,
+        });
+      }
+      if (bloodDecals.length > MAX_BLOOD_DECALS) {
+        bloodDecals.splice(0, bloodDecals.length - MAX_BLOOD_DECALS);
+      }
+    }
+
+    function spawnSparks(x, y) {
+      for (let i = 0; i < 8; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const spd = 60 + Math.random() * 120;
+        sparks.push({
+          x,
+          y,
+          vx: Math.cos(a) * spd,
+          vy: Math.sin(a) * spd,
+          life: 0.18 + Math.random() * 0.12,
+        });
+      }
+    }
+
+    // =========================================================================
+    // 3. DATA STRUCTURES & CONSTANTS (Dynamic Grid Size 5x5 to 25x25)
+    // =========================================================================
+    const CHUNK_SIZE = 10;
+    const TILE_SIZE = 44;
+    const CHUNK_PX = CHUNK_SIZE * TILE_SIZE;
+    const DEFAULT_GRID_SIZE = 20;
+    const TICK_DURATION = 10.0;
+
+    // Proportional pricing based on combat power:
+    // Soldier: 200 HP * 15 avg dmg = 3,000 power -> $1,200
+    // Elite:   300 HP * 20 avg dmg = 6,000 power -> $2,400 (exact 2x ratio)
+    const COST_SOLDIER = 1200;
+    const COST_ELITE = 2400;
+    const MIN_PISTOL_RANGE = 100;
+    const MAX_PISTOL_RANGE = 600;
+
+    const TileType = {
+      ASPHALT: 0,
+      SIDEWALK: 1,
+      BUILDING: 2,
+      ALLEY: 3,
+      PLAZA: 4,
+    };
+
+    const PropType = {
+      NONE: 0,
+      STREETLIGHT: 1,
+      HYDRANT: 2,
+      CAR: 3,
+      DUMPSTER: 4,
+      TREE: 5,
+    };
+
+    const Faction = {
+      NEUTRAL: 'NEUTRAL',
+      PLAYER: 'PLAYER',
+      RIVAL_RED: 'RIVAL_RED',
+      RIVAL_BLUE: 'RIVAL_BLUE',
+      RIVAL_AMBER: 'RIVAL_AMBER',
+    };
+
+    const UnitRank = {
+      SOLDIER: 'SOLDIER',
+      ELITE: 'ELITE',
+      BOSS: 'BOSS',
+    };
+
+    const FACTION_META = {
+      [Faction.NEUTRAL]: {
+        name: 'Neutral',
+        short: 'Neutral',
+        tint: 'rgba(113, 113, 122, 0.04)',
+        border: 'rgba(113, 113, 122, 0.32)',
+        badge: '#52525b',
+        coat: '#52525b',
+        accent: '#a1a1aa',
+      },
+      [Faction.PLAYER]: {
+        name: 'Emerald Syndicate',
+        short: 'Emerald (You)',
+        tint: 'rgba(16, 185, 129, 0.14)',
+        border: 'rgba(16, 185, 129, 0.85)',
+        badge: '#10b981',
+        coat: '#065f46',
+        accent: '#34d399',
+      },
+      [Faction.RIVAL_RED]: {
+        name: 'Viper Cartel',
+        short: 'Viper Cartel',
+        tint: 'rgba(244, 63, 94, 0.14)',
+        border: 'rgba(244, 63, 94, 0.85)',
+        badge: '#f43f5e',
+        coat: '#881337',
+        accent: '#fb7185',
+      },
+      [Faction.RIVAL_BLUE]: {
+        name: 'Northside Bratva',
+        short: 'Bratva',
+        tint: 'rgba(59, 130, 246, 0.14)',
+        border: 'rgba(59, 130, 246, 0.85)',
+        badge: '#3b82f6',
+        coat: '#1e3a8a',
+        accent: '#60a5fa',
+      },
+      [Faction.RIVAL_AMBER]: {
+        name: 'Gold Coast Triad',
+        short: 'Gold Triad',
+        tint: 'rgba(245, 158, 11, 0.14)',
+        border: 'rgba(245, 158, 11, 0.85)',
+        badge: '#f59e0b',
+        coat: '#78350f',
+        accent: '#fbbf24',
+      },
+    };
+
+    const ALL_FACTIONS = [
+      Faction.PLAYER,
+      Faction.RIVAL_RED,
+      Faction.RIVAL_BLUE,
+      Faction.RIVAL_AMBER,
+    ];
+
+    const CAR_PALETTE = ['#18181b', '#27272a', '#e4e4e7', '#1e293b', '#3f3f46', '#7f1d1d'];
+
+    let currentGridSize = DEFAULT_GRID_SIZE;
+
+    function getUnitCaps() {
+      const totalNeighborhoods = Math.max(25, world.chunks.size || currentGridSize * currentGridSize);
+      const maxElites = Math.floor(totalNeighborhoods * 0.25);
+      const maxSoldiers = totalNeighborhoods - maxElites;
+      return { totalNeighborhoods, maxSoldiers, maxElites };
+    }
+
+    function rollDamage(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function hash2D(x, y) {
+      const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+      return n - Math.floor(n);
+    }
+
+    // =========================================================================
+    // 4. DISTRICT CHUNK CLASS (Varied 1-4 Block Layouts + Pre-baked Ground)
+    // =========================================================================
+    class DistrictChunk {
+      constructor(cx, cy, forcedFaction = null) {
+        this.cx = cx;
+        this.cy = cy;
+        this.key = `${cx},${cy}`;
+
+        this.ground = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill(TileType.ASPHALT));
+        this.elevation = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill(0));
+        this.buildingStyle = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill(0));
+        this.props = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill(PropType.NONE));
+        this.propColors = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill('#18181b'));
+        this.propVertical = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill(false));
+
+        this.income = 1000 + Math.floor(Math.random() * 1001);
+        this.incomeLabel = `$${this.income.toLocaleString()}/hr`;
+        this.faction = forcedFaction || this.determineInitialFaction(cx, cy);
+        this.captureProgress = 0;
+        this.capturingFaction = null;
+        this.groundCanvas = null;
+
+        this.generateUrbanBlock();
+        this.bakeGroundLayer();
+      }
+
+      determineInitialFaction(cx, cy) {
+        const last = currentGridSize - 1;
+        if (cx === 0 && cy === 0) return Faction.PLAYER;
+        if (cx === last && cy === 0) return Faction.RIVAL_RED;
+        if (cx === 0 && cy === last) return Faction.RIVAL_BLUE;
+        if (cx === last && cy === last) return Faction.RIVAL_AMBER;
+        return Faction.NEUTRAL;
+      }
+
+      bakeGroundLayer() {
+        const off = document.createElement('canvas');
+        off.width = CHUNK_PX;
+        off.height = CHUNK_PX;
+        const octx = off.getContext('2d');
+
+        for (let ly = 0; ly < CHUNK_SIZE; ly++) {
+          for (let lx = 0; lx < CHUNK_SIZE; lx++) {
+            const tile = this.ground[ly][lx];
+            const wx = lx * TILE_SIZE;
+            const wy = ly * TILE_SIZE;
+
+            if (tile === TileType.ASPHALT) {
+              octx.fillStyle = '#18181b';
+              octx.fillRect(wx, wy, TILE_SIZE, TILE_SIZE);
+
+              octx.fillStyle = 'rgba(255,255,255,0.025)';
+              if ((lx + ly) % 2 === 0) octx.fillRect(wx + 4, wy + 4, 3, 3);
+
+              if ((ly === 0 || ly === CHUNK_SIZE - 1) && lx > 1 && lx < CHUNK_SIZE - 2 && lx % 2 === 0) {
+                octx.fillStyle = '#ca8a04';
+                octx.fillRect(wx + 10, wy + TILE_SIZE / 2 - 1.5, 22, 3);
+              }
+              if ((lx === 0 || lx === CHUNK_SIZE - 1) && ly > 1 && ly < CHUNK_SIZE - 2 && ly % 2 === 0) {
+                octx.fillStyle = '#ca8a04';
+                octx.fillRect(wx + TILE_SIZE / 2 - 1.5, wy + 10, 3, 22);
+              }
+
+              if ((lx === 0 || lx === CHUNK_SIZE - 1) && (ly === 1 || ly === CHUNK_SIZE - 2)) {
+                octx.fillStyle = 'rgba(244, 244, 245, 0.35)';
+                for (let s = 4; s < TILE_SIZE - 4; s += 8) {
+                  octx.fillRect(wx + s, wy + 4, 4, TILE_SIZE - 8);
+                }
+              }
+            } else {
+              const curbLift = 4;
+              octx.fillStyle = '#3f3f46';
+              octx.fillRect(wx, wy + TILE_SIZE - curbLift, TILE_SIZE, curbLift);
+
+              if (tile === TileType.SIDEWALK || tile === TileType.BUILDING) {
+                octx.fillStyle = '#64748b';
+              } else if (tile === TileType.PLAZA) {
+                octx.fillStyle = '#78716c';
+              } else {
+                octx.fillStyle = '#27272a';
+              }
+              octx.fillRect(wx, wy - curbLift, TILE_SIZE, TILE_SIZE);
+
+              octx.strokeStyle = 'rgba(15, 23, 42, 0.18)';
+              octx.lineWidth = 1;
+              octx.strokeRect(wx + 0.5, wy - curbLift + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
+            }
+          }
+        }
+        this.groundCanvas = off;
+      }
+
+      generateUrbanBlock() {
+        for (let ly = 0; ly < CHUNK_SIZE; ly++) {
+          for (let lx = 0; lx < CHUNK_SIZE; lx++) {
+            const isRoad =
+              lx === 0 ||
+              lx === CHUNK_SIZE - 1 ||
+              ly === 0 ||
+              ly === CHUNK_SIZE - 1;
+            if (!isRoad) {
+              this.ground[ly][lx] = TileType.SIDEWALK;
+              this.elevation[ly][lx] = 1;
+            }
+          }
+        }
+
+        const placeBuildingRect = (x0, y0, x1, y1, elevOverride = null, styleOverride = null) => {
+          const elev = elevOverride !== null ? elevOverride : 2 + Math.floor(Math.random() * 3);
+          const style = styleOverride !== null ? styleOverride : Math.floor(Math.random() * 3);
+          for (let y = y0; y <= y1; y++) {
+            for (let x = x0; x <= x1; x++) {
+              this.ground[y][x] = TileType.BUILDING;
+              this.elevation[y][x] = elev;
+              this.buildingStyle[y][x] = style;
+            }
+          }
+        };
+
+        const carvePlazaRect = (x0, y0, x1, y1) => {
+          for (let y = y0; y <= y1; y++) {
+            for (let x = x0; x <= x1; x++) {
+              this.ground[y][x] = TileType.PLAZA;
+              this.elevation[y][x] = 1;
+            }
+          }
+        };
+
+        const carveAlleyLine = (coords) => {
+          for (const [x, y] of coords) {
+            this.ground[y][x] = TileType.ALLEY;
+            this.elevation[y][x] = 1;
+          }
+        };
+
+        // Varied 1, 2, 3, or 4 building layouts (leaving corner sidewalks open for spawns & navigation)
+        const layout = 1 + Math.floor(Math.random() * 4);
+
+        if (layout === 1) {
+          const variant = Math.floor(Math.random() * 4);
+          if (variant === 0) {
+            placeBuildingRect(2, 2, 7, 7);
+          } else if (variant === 1) {
+            placeBuildingRect(2, 2, 7, 5);
+            carvePlazaRect(2, 6, 7, 7);
+          } else if (variant === 2) {
+            placeBuildingRect(2, 2, 5, 7);
+            carvePlazaRect(6, 2, 7, 7);
+          } else {
+            placeBuildingRect(3, 3, 6, 6);
+            carvePlazaRect(2, 2, 7, 2);
+          }
+        } else if (layout === 2) {
+          if (Math.random() < 0.5) {
+            const splitX = Math.random() < 0.5 ? 4 : 5;
+            placeBuildingRect(2, 2, splitX - 1, 7);
+            placeBuildingRect(splitX + 1, 2, 7, 7);
+            carveAlleyLine([[splitX, 2], [splitX, 3], [splitX, 4], [splitX, 5], [splitX, 6], [splitX, 7]]);
+          } else {
+            const splitY = Math.random() < 0.5 ? 4 : 5;
+            placeBuildingRect(2, 2, 7, splitY - 1);
+            placeBuildingRect(2, splitY + 1, 7, 7);
+            carveAlleyLine([[2, splitY], [3, splitY], [4, splitY], [5, splitY], [6, splitY], [7, splitY]]);
+          }
+        } else if (layout === 3) {
+          const variant = Math.floor(Math.random() * 4);
+          if (variant === 0) {
+            placeBuildingRect(2, 2, 7, 4);
+            placeBuildingRect(2, 6, 4, 7);
+            placeBuildingRect(6, 6, 7, 7);
+            carveAlleyLine([[2, 5], [3, 5], [4, 5], [5, 5], [6, 5], [7, 5], [5, 6], [5, 7]]);
+          } else if (variant === 1) {
+            placeBuildingRect(2, 2, 4, 3);
+            placeBuildingRect(6, 2, 7, 3);
+            placeBuildingRect(2, 5, 7, 7);
+            carveAlleyLine([[5, 2], [5, 3], [2, 4], [3, 4], [4, 4], [5, 4], [6, 4], [7, 4]]);
+          } else if (variant === 2) {
+            placeBuildingRect(2, 2, 4, 7);
+            placeBuildingRect(6, 2, 7, 4);
+            placeBuildingRect(6, 6, 7, 7);
+            carveAlleyLine([[5, 2], [5, 3], [5, 4], [5, 5], [5, 6], [5, 7], [6, 5], [7, 5]]);
+          } else {
+            placeBuildingRect(2, 2, 3, 4);
+            placeBuildingRect(2, 6, 3, 7);
+            placeBuildingRect(5, 2, 7, 7);
+            carveAlleyLine([[4, 2], [4, 3], [4, 4], [4, 5], [4, 6], [4, 7], [2, 5], [3, 5]]);
+          }
+        } else {
+          const sub = Math.floor(Math.random() * 3);
+          if (sub === 0) {
+            placeBuildingRect(2, 2, 4, 4);
+            placeBuildingRect(6, 2, 7, 4);
+            placeBuildingRect(2, 6, 4, 7);
+            placeBuildingRect(6, 6, 7, 7);
+            carveAlleyLine([
+              [5, 2], [5, 3], [5, 4], [5, 5], [5, 6], [5, 7],
+              [2, 5], [3, 5], [4, 5], [6, 5], [7, 5],
+            ]);
+          } else if (sub === 1) {
+            placeBuildingRect(2, 2, 3, 3);
+            placeBuildingRect(5, 2, 7, 3);
+            placeBuildingRect(2, 5, 3, 7);
+            placeBuildingRect(5, 5, 7, 7);
+            carveAlleyLine([
+              [4, 2], [4, 3], [4, 4], [4, 5], [4, 6], [4, 7],
+              [2, 4], [3, 4], [5, 4], [6, 4], [7, 4],
+            ]);
+          } else {
+            placeBuildingRect(2, 2, 3, 4);
+            placeBuildingRect(5, 2, 7, 3);
+            placeBuildingRect(2, 6, 4, 7);
+            placeBuildingRect(6, 5, 7, 7);
+            carveAlleyLine([
+              [4, 2], [4, 3], [4, 4], [4, 5], [5, 4], [5, 5], [5, 6], [5, 7],
+              [2, 5], [3, 5], [6, 4], [7, 4],
+            ]);
+          }
+        }
+
+        // Streetlights on sidewalk corners
+        const lampSpots = [[1, 1], [8, 1], [1, 8], [8, 8]];
+        for (const [lx, ly] of lampSpots) {
+          if (this.ground[ly][lx] === TileType.SIDEWALK && Math.random() < 0.72) {
+            this.props[ly][lx] = PropType.STREETLIGHT;
+          }
+        }
+
+        // Park 1 or 2 cars per neighborhood on straight asphalt edges
+        const carSpots = [
+          { x: 2, y: 0, vert: false },
+          { x: 7, y: 0, vert: false },
+          { x: 2, y: 9, vert: false },
+          { x: 7, y: 9, vert: false },
+          { x: 0, y: 2, vert: true },
+          { x: 0, y: 7, vert: true },
+          { x: 9, y: 2, vert: true },
+          { x: 9, y: 7, vert: true },
+        ];
+        for (let i = carSpots.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [carSpots[i], carSpots[j]] = [carSpots[j], carSpots[i]];
+        }
+        const targetCars = 1 + Math.floor(Math.random() * 2);
+        let placedCars = 0;
+        for (const spot of carSpots) {
+          if (placedCars >= targetCars) break;
+          if (this.ground[spot.y][spot.x] === TileType.ASPHALT && this.props[spot.y][spot.x] === PropType.NONE) {
+            this.props[spot.y][spot.x] = PropType.CAR;
+            this.propColors[spot.y][spot.x] = CAR_PALETTE[Math.floor(Math.random() * CAR_PALETTE.length)];
+            this.propVertical[spot.y][spot.x] = spot.vert;
+            placedCars++;
+          }
+        }
+
+        // Occasional sidewalk trees on plaza/sidewalk edges
+        for (let ly = 1; ly < CHUNK_SIZE - 1; ly++) {
+          for (let lx = 1; lx < CHUNK_SIZE - 1; lx++) {
+            if (
+              (this.ground[ly][lx] === TileType.SIDEWALK || this.ground[ly][lx] === TileType.PLAZA) &&
+              this.props[ly][lx] === PropType.NONE &&
+              (lx === 1 || lx === 8 || ly === 1 || ly === 8) &&
+              Math.random() < 0.08
+            ) {
+              this.props[ly][lx] = PropType.TREE;
+            }
+          }
+        }
+      }
+    }
+
+    // =========================================================================
+    // 5. CITY MAP MANAGER & EXACT COLLISION ENGINE
+    // =========================================================================
+    class CityMap {
+      constructor() {
+        this.chunks = new Map();
+      }
+
+      getChunk(cx, cy) {
+        return this.chunks.get(`${cx},${cy}`);
+      }
+
+      hasChunk(cx, cy) {
+        return this.chunks.has(`${cx},${cy}`);
+      }
+
+      generateChunk(cx, cy, forcedFaction = null) {
+        const key = `${cx},${cy}`;
+        if (this.chunks.has(key)) return this.chunks.get(key);
+        const chunk = new DistrictChunk(cx, cy, forcedFaction);
+        this.chunks.set(key, chunk);
+        return chunk;
+      }
+
+      worldToTile(wx, wy) {
+        const gx = Math.floor(wx / TILE_SIZE);
+        const gy = Math.floor(wy / TILE_SIZE);
+        const cx = Math.floor(gx / CHUNK_SIZE);
+        const cy = Math.floor(gy / CHUNK_SIZE);
+        const lx = ((gx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+        const ly = ((gy % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+        return { cx, cy, lx, ly };
+      }
+
+      isWalkable(wx, wy) {
+        const { cx, cy, lx, ly } = this.worldToTile(wx, wy);
+        const chunk = this.getChunk(cx, cy);
+        if (!chunk) return false;
+        return chunk.ground[ly][lx] !== TileType.BUILDING;
+      }
+
+      canMoveTo(wx, wy, radius = 12) {
+        const offsets = [
+          [0, 0],
+          [radius, 0],
+          [-radius, 0],
+          [0, radius],
+          [0, -radius],
+          [radius * 0.72, radius * 0.72],
+          [-radius * 0.72, radius * 0.72],
+          [radius * 0.72, -radius * 0.72],
+          [-radius * 0.72, -radius * 0.72],
+        ];
+        for (const [ox, oy] of offsets) {
+          if (!this.isWalkable(wx + ox, wy + oy)) return false;
+        }
+
+        // Exact pixel-accurate bounding box collision for parked cars
+        const minGx = Math.floor((wx - radius - 8) / TILE_SIZE);
+        const maxGx = Math.floor((wx + radius + 8) / TILE_SIZE);
+        const minGy = Math.floor((wy - radius - 8) / TILE_SIZE);
+        const maxGy = Math.floor((wy + radius + 8) / TILE_SIZE);
+
+        for (let gy = minGy; gy <= maxGy; gy++) {
+          for (let gx = minGx; gx <= maxGx; gx++) {
+            const cx = Math.floor(gx / CHUNK_SIZE);
+            const cy = Math.floor(gy / CHUNK_SIZE);
+            const chunk = this.getChunk(cx, cy);
+            if (!chunk) continue;
+            const lx = ((gx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+            const ly = ((gy % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+
+            if (chunk.props[ly][lx] === PropType.CAR) {
+              const tileWx = gx * TILE_SIZE;
+              const tileWy = gy * TILE_SIZE;
+              const isVert = chunk.propVertical[ly][lx];
+              const rx = isVert ? tileWx + 13 : tileWx + 5;
+              const ry = isVert ? tileWy + 5 : tileWy + 10;
+              const rw = isVert ? 18 : 34;
+              const rh = isVert ? 34 : 18;
+
+              const closestX = Math.max(rx, Math.min(wx, rx + rw));
+              const closestY = Math.max(ry, Math.min(wy, ry + rh));
+              const dx = wx - closestX;
+              const dy = wy - closestY;
+              if (dx * dx + dy * dy < radius * radius) {
+                return false;
+              }
+            }
+          }
+        }
+        return true;
+      }
+
+      expandPerimeterRing(faction = Faction.PLAYER) {
+        let minCx = Infinity, maxCx = -Infinity, minCy = Infinity, maxCy = -Infinity;
+        for (const chunk of this.chunks.values()) {
+          if (chunk.cx < minCx) minCx = chunk.cx;
+          if (chunk.cx > maxCx) maxCx = chunk.cx;
+          if (chunk.cy < minCy) minCy = chunk.cy;
+          if (chunk.cy > maxCy) maxCy = chunk.cy;
+        }
+        let added = 0;
+        for (let cy = minCy - 1; cy <= maxCy + 1; cy++) {
+          for (let cx = minCx - 1; cx <= maxCx + 1; cx++) {
+            if (!this.hasChunk(cx, cy)) {
+              this.generateChunk(cx, cy, faction);
+              added++;
+            }
+          }
+        }
+        return added;
+      }
+    }
+
+    // =========================================================================
+    // 6. GAME STATE, ENTITIES & SOLID PHYSICAL MASS COLLISION
+    // =========================================================================
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const minimapCanvas = document.getElementById('minimapCanvas');
+    const minimapCtx = minimapCanvas.getContext('2d');
+    const world = new CityMap();
+
+    const treasuries = {
+      [Faction.PLAYER]: 3000,
+      [Faction.RIVAL_RED]: 3000,
+      [Faction.RIVAL_BLUE]: 3000,
+      [Faction.RIVAL_AMBER]: 3000,
+    };
+
+    const factionAlive = {
+      [Faction.PLAYER]: true,
+      [Faction.RIVAL_RED]: true,
+      [Faction.RIVAL_BLUE]: true,
+      [Faction.RIVAL_AMBER]: true,
+    };
+
+    const player = {
+      x: 1.5 * TILE_SIZE,
+      y: 1.5 * TILE_SIZE,
+      targetX: null,
+      targetY: null,
+      speed: 225,
+      facing: 0,
+      hp: 200,
+      maxHp: 200,
+      minDmg: 20,
+      maxDmg: 40,
+      alive: true,
+      attackCooldown: 0,
+      slashAnimTimer: 0,
+      muzzleFlashTimer: 0,
+      hitFlashTimer: 0,
+    };
+
+    const camera = {
+      x: player.x,
+      y: player.y,
+    };
+
+    const npcs = [];
+    const floatingTexts = [];
+    const spatialBuckets = new Map();
+    let nextNpcId = 1;
+
+    let gameStarted = false;
+    let isSpectating = false;
+    let showBorders = true;
+    let allowClickExpand = false;
+    let autoRecruitSoldier = true;
+    let autoRecruitElite = true;
+    let gameOver = false;
+    let victoryShown = false;
+    let tickTimer = 0;
+    let gameHour = 12;
+    let hudUpdateTimer = 0;
+
+    function getEntityCollisionRadius(rank) {
+      if (rank === UnitRank.BOSS) return 13.5;
+      if (rank === UnitRank.ELITE) return 12.2;
+      return 11.0;
+    }
+
+    /**
+     * Checks both environment walls/cars AND solid torso collision against all living units.
+     */
+    function canOccupyPosition(wx, wy, radius, ignoreNpcId = -1, ignorePlayer = false) {
+      if (!world.canMoveTo(wx, wy, radius)) return false;
+
+      if (!ignorePlayer && player.alive) {
+        const pRad = getEntityCollisionRadius(UnitRank.BOSS);
+        const minDist = radius + pRad - 1.0;
+        const dx = wx - player.x;
+        const dy = wy - player.y;
+        if (dx * dx + dy * dy < minDist * minDist) return false;
+      }
+
+      const cx = Math.floor(wx / CHUNK_PX);
+      const cy = Math.floor(wy / CHUNK_PX);
+
+      if (spatialBuckets.size > 0) {
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const bucket = spatialBuckets.get(`${cx + dx},${cy + dy}`);
+            if (!bucket) continue;
+            for (const other of bucket) {
+              if (other.id === ignoreNpcId) continue;
+              const oRad = getEntityCollisionRadius(other.rank);
+              const minDist = radius + oRad - 1.0;
+              const ox = wx - other.x;
+              const oy = wy - other.y;
+              if (ox * ox + oy * oy < minDist * minDist) return false;
+            }
+          }
+        }
+      } else {
+        for (const other of npcs) {
+          if (other.id === ignoreNpcId) continue;
+          const oRad = getEntityCollisionRadius(other.rank);
+          const minDist = radius + oRad - 1.0;
+          const ox = wx - other.x;
+          const oy = wy - other.y;
+          if (ox * ox + oy * oy < minDist * minDist) return false;
+        }
+      }
+
+      return true;
+    }
+
+    function addFloatingText(x, y, text, color = '#fbbf24') {
+      floatingTexts.push({ x, y, text, color, life: 1.0, vy: -30 });
+    }
+
+    let toastTimeout = null;
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.style.opacity = '1';
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        el.style.opacity = '0';
+      }, 2400);
+    }
+
+    function recalculateHourlyIncome() {
+      const totals = {
+        [Faction.PLAYER]: 0,
+        [Faction.RIVAL_RED]: 0,
+        [Faction.RIVAL_BLUE]: 0,
+        [Faction.RIVAL_AMBER]: 0,
+      };
+      for (const chunk of world.chunks.values()) {
+        if (totals[chunk.faction] !== undefined) {
+          totals[chunk.faction] += chunk.income;
+        }
+      }
+      return totals;
+    }
+
+    function spawnUnitInChunk(faction, chunk, rank = UnitRank.SOLDIER) {
+      const spots = [
+        [1, 1], [8, 1], [1, 8], [8, 8],
+        [4, 1], [5, 8], [1, 4], [8, 5],
+        [1, 2], [8, 2], [1, 7], [8, 7],
+        [0, 1], [9, 1], [0, 8], [9, 8],
+        [1, 0], [8, 0], [1, 9], [8, 9],
+      ];
+
+      const bodyRadius = getEntityCollisionRadius(rank);
+
+      for (let attempt = 0; attempt < spots.length; attempt++) {
+        const [lx, ly] = spots[(attempt + nextNpcId) % spots.length];
+        const wx = chunk.cx * CHUNK_PX + (lx + 0.5) * TILE_SIZE;
+        const wy = chunk.cy * CHUNK_PX + (ly + 0.5) * TILE_SIZE;
+
+        if (canOccupyPosition(wx, wy, bodyRadius)) {
+          const isBoss = rank === UnitRank.BOSS;
+          const isElite = rank === UnitRank.ELITE;
+          const maxHp = isBoss ? 400 : isElite ? 300 : 200;
+          const minDmg = isBoss ? 20 : isElite ? 15 : 10;
+          const maxDmg = isBoss ? 40 : isElite ? 25 : 20;
+
+          const unit = {
+            id: nextNpcId++,
+            faction,
+            rank,
+            x: wx,
+            y: wy,
+            bodyRadius,
+            speed: isBoss ? 152 : isElite ? 142 : 128 + Math.random() * 16,
+            hp: maxHp,
+            maxHp,
+            minDmg,
+            maxDmg,
+            facing: Math.random() * Math.PI * 2,
+            goalX: wx,
+            goalY: wy,
+            aiTimer: 0,
+            attackCooldown: 0,
+            slashAnimTimer: 0,
+            muzzleFlashTimer: 0,
+            hitFlashTimer: 0,
+            dodgeDir: Math.random() > 0.5 ? 1 : -1,
+            lastCheckX: wx,
+            lastCheckY: wy,
+            stuckTimer: 0,
+          };
+          npcs.push(unit);
+          return unit;
+        }
+      }
+      return null;
+    }
+
+    function recruitUnit(faction, rank, silent = false) {
+      if (!factionAlive[faction]) return false;
+      const cost = rank === UnitRank.ELITE ? COST_ELITE : COST_SOLDIER;
+      if (treasuries[faction] < cost) return false;
+
+      const { maxSoldiers, maxElites } = getUnitCaps();
+      const currentCount = npcs.filter(
+        (n) => n.faction === faction && n.rank === rank
+      ).length;
+      const limit = rank === UnitRank.ELITE ? maxElites : maxSoldiers;
+      if (currentCount >= limit) return false;
+
+      const ownedChunks = [];
+      for (const c of world.chunks.values()) {
+        if (c.faction === faction) ownedChunks.push(c);
+      }
+      if (ownedChunks.length === 0) return false;
+
+      let spawnChunk = ownedChunks[Math.floor(Math.random() * ownedChunks.length)];
+      if (faction === Faction.PLAYER && player.alive) {
+        const pTile = world.worldToTile(player.x, player.y);
+        const pChunk = world.getChunk(pTile.cx, pTile.cy);
+        if (pChunk && pChunk.faction === Faction.PLAYER) {
+          spawnChunk = pChunk;
+        }
+      } else {
+        const boss = npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS);
+        if (boss) {
+          const bTile = world.worldToTile(boss.x, boss.y);
+          const bChunk = world.getChunk(bTile.cx, bTile.cy);
+          if (bChunk && bChunk.faction === faction) {
+            spawnChunk = bChunk;
+          }
+        }
+      }
+
+      treasuries[faction] -= cost;
+      const unit = spawnUnitInChunk(faction, spawnChunk, rank);
+      if (unit) {
+        if (!silent) {
+          const label =
+            rank === UnitRank.ELITE
+              ? `+ELITE ($${COST_ELITE.toLocaleString()})`
+              : `+SOLDIER ($${COST_SOLDIER.toLocaleString()})`;
+          addFloatingText(unit.x, unit.y - 26, label, FACTION_META[faction].accent);
+        }
+        return true;
+      } else {
+        treasuries[faction] += cost;
+        return false;
+      }
+    }
+
+    function checkVictoryCondition() {
+      if (victoryShown || gameOver || !factionAlive[Faction.PLAYER]) return;
+      const anyRivalAlive =
+        factionAlive[Faction.RIVAL_RED] ||
+        factionAlive[Faction.RIVAL_BLUE] ||
+        factionAlive[Faction.RIVAL_AMBER];
+
+      if (!anyRivalAlive) {
+        victoryShown = true;
+        sfx.playVictory();
+        const playerBlocks = Array.from(world.chunks.values()).filter(
+          (c) => c.faction === Faction.PLAYER
+        ).length;
+        const survivingCrew = npcs.filter((n) => n.faction === Faction.PLAYER).length;
+        document.getElementById('victory-summary').textContent =
+          `All rival Bosses have been eliminated! You control ${playerBlocks}/${world.chunks.size} neighborhoods with $${treasuries[Faction.PLAYER].toLocaleString()} in cash and ${survivingCrew} surviving crew.`;
+        document.getElementById('victory-banner').classList.remove('hidden');
+      }
+    }
+
+    function eliminateFaction(faction) {
+      if (!factionAlive[faction]) return;
+      factionAlive[faction] = false;
+      treasuries[faction] = 0;
+
+      for (const chunk of world.chunks.values()) {
+        if (chunk.faction === faction) {
+          chunk.faction = Faction.NEUTRAL;
+          chunk.captureProgress = 0;
+          chunk.capturingFaction = null;
+        }
+        if (chunk.capturingFaction === faction) {
+          chunk.captureProgress = 0;
+          chunk.capturingFaction = null;
+        }
+      }
+
+      if (faction === Faction.PLAYER) {
+        player.alive = false;
+        gameOver = true;
+        document.getElementById('defeat-banner').classList.remove('hidden');
+        showToast('DEFEAT! Your Boss was killed—all your turf is now Neutral.');
+      } else {
+        sfx.playFactionEliminated();
+        showToast(`${FACTION_META[faction].name} Boss killed! Faction eliminated & turf turned Neutral.`);
+        checkVictoryCondition();
+      }
+      updateHUD();
+    }
+
+    function initWorld(gridSize = currentGridSize, autoStart = true) {
+      currentGridSize = Math.max(5, Math.min(25, gridSize));
+      world.chunks.clear();
+      npcs.length = 0;
+      floatingTexts.length = 0;
+      bloodParticles.length = 0;
+      bloodDecals.length = 0;
+      bulletTracers.length = 0;
+      shellCasings.length = 0;
+      sparks.length = 0;
+      spatialBuckets.clear();
+      gameStarted = autoStart;
+      isSpectating = false;
+      gameOver = false;
+      victoryShown = false;
+      tickTimer = 0;
+      hudUpdateTimer = 0;
+      gameHour = 12;
+
+      document.getElementById('defeat-banner').classList.add('hidden');
+      document.getElementById('victory-banner').classList.add('hidden');
+      document.getElementById('spectator-banner').classList.add('hidden');
+      document.getElementById('legend-title').textContent = `${currentGridSize}×${currentGridSize} Syndicate War:`;
+
+      for (const f of ALL_FACTIONS) {
+        treasuries[f] = 3000;
+        factionAlive[f] = true;
+      }
+
+      for (let cy = 0; cy < currentGridSize; cy++) {
+        for (let cx = 0; cx < currentGridSize; cx++) {
+          world.generateChunk(cx, cy);
+        }
+      }
+
+      // 1. Player Boss at Top-Left Corner (0, 0) on open sidewalk intersection (1.5, 1.5)
+      player.x = 1.5 * TILE_SIZE;
+      player.y = 1.5 * TILE_SIZE;
+      player.targetX = null;
+      player.targetY = null;
+      player.hp = 200;
+      player.maxHp = 200;
+      player.alive = true;
+      player.attackCooldown = 0;
+      player.slashAnimTimer = 0;
+      player.muzzleFlashTimer = 0;
+      player.hitFlashTimer = 0;
+      camera.x = player.x;
+      camera.y = player.y;
+
+      // 2. Rival Bosses at the other 3 Corners regardless of grid size
+      const last = currentGridSize - 1;
+      const rivalStarts = [
+        { faction: Faction.RIVAL_RED, cx: last, cy: 0 },
+        { faction: Faction.RIVAL_BLUE, cx: 0, cy: last },
+        { faction: Faction.RIVAL_AMBER, cx: last, cy: last },
+      ];
+
+      for (const start of rivalStarts) {
+        const hq = world.getChunk(start.cx, start.cy);
+        if (hq) {
+          spawnUnitInChunk(start.faction, hq, UnitRank.BOSS);
+        }
+      }
+
+      recalculateHourlyIncome();
+      updateHUD();
+    }
+
+    // =========================================================================
+    // 7. PLAYER MELEE KNIFE SLASH & 9MM PISTOL SECONDARY ATTACK
+    // =========================================================================
+    function performKnifeSlash() {
+      if (!gameStarted || !player.alive || player.attackCooldown > 0) return;
+
+      player.attackCooldown = 0.34;
+      player.slashAnimTimer = 0.18;
+
+      const reach = 52;
+      const maxTargets = 3;
+      const candidates = [];
+
+      for (let i = 0; i < npcs.length; i++) {
+        const npc = npcs[i];
+        if (npc.faction === Faction.PLAYER) continue;
+        const dx = npc.x - player.x;
+        const dy = npc.y - player.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist <= reach) {
+          const angleToNpc = Math.atan2(dy, dx);
+          let angleDiff = Math.abs(angleToNpc - player.facing);
+          if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+          if (angleDiff <= Math.PI * 0.42 || dist < 30) {
+            candidates.push({ npc, dist, dx, dy });
+          }
+        }
+      }
+
+      candidates.sort((a, b) => a.dist - b.dist);
+      const targets = candidates.slice(0, maxTargets);
+      const hitCount = targets.length;
+      sfx.playSlash(hitCount > 0);
+
+      for (const item of targets) {
+        const { npc, dist, dx, dy } = item;
+        const dmg = rollDamage(player.minDmg, player.maxDmg);
+        npc.hp -= dmg;
+        npc.hitFlashTimer = 0.15;
+        const isKill = npc.hp <= 0;
+        spawnBloodSplash(npc.x, npc.y, 1.25, isKill);
+        addFloatingText(npc.x, npc.y - 28, `-${dmg}`, '#fbbf24');
+
+        const pushAngle = dist > 0.01 ? Math.atan2(dy, dx) : player.facing;
+        const knockX = npc.x + Math.cos(pushAngle) * 14;
+        const knockY = npc.y + Math.sin(pushAngle) * 14;
+        const nRad = getEntityCollisionRadius(npc.rank);
+        if (canOccupyPosition(knockX, knockY, nRad, npc.id, false)) {
+          npc.x = knockX;
+          npc.y = knockY;
+        }
+
+        if (isKill) {
+          const deadIdx = npcs.indexOf(npc);
+          if (deadIdx !== -1) {
+            const deadFaction = npc.faction;
+            const wasBoss = npc.rank === UnitRank.BOSS;
+            npcs.splice(deadIdx, 1);
+            if (wasBoss) {
+              sfx.playDeath(true);
+              addFloatingText(npc.x, npc.y - 42, 'BOSS KILLED!', '#f43f5e');
+              eliminateFaction(deadFaction);
+            } else {
+              sfx.playDeath(false);
+              addFloatingText(npc.x, npc.y - 38, 'ELIMINATED', '#f43f5e');
+            }
+          }
+        }
+      }
+
+      if (hitCount === 0) {
+        addFloatingText(
+          player.x + Math.cos(player.facing) * 20,
+          player.y + Math.sin(player.facing) * 20 - 16,
+          'Slash!',
+          '#a1a1aa'
+        );
+      }
+    }
+
+    function traceBulletRay(x0, y0, angle, maxDist) {
+      const step = 8;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      for (let d = 14; d <= maxDist; d += step) {
+        const px = x0 + cos * d;
+        const py = y0 + sin * d;
+        if (!world.isWalkable(px, py)) {
+          return { blocked: true, dist: d, x: px, y: py };
+        }
+        const { cx, cy, lx, ly } = world.worldToTile(px, py);
+        const chunk = world.getChunk(cx, cy);
+        if (!chunk) return { blocked: true, dist: d, x: px, y: py };
+        if (chunk.props[ly][lx] === PropType.CAR) {
+          const tileWx = (cx * CHUNK_SIZE + lx) * TILE_SIZE;
+          const tileWy = (cy * CHUNK_SIZE + ly) * TILE_SIZE;
+          const rx = chunk.propVertical[ly][lx] ? tileWx + 13 : tileWx + 5;
+          const ry = chunk.propVertical[ly][lx] ? tileWy + 5 : tileWy + 10;
+          const rw = chunk.propVertical[ly][lx] ? 18 : 34;
+          const rh = chunk.propVertical[ly][lx] ? 34 : 18;
+          if (px >= rx && px <= rx + rw && py >= ry && py <= ry + rh) {
+            return { blocked: true, dist: d, x: px, y: py };
+          }
+        }
+      }
+      return { blocked: false, dist: maxDist, x: x0 + cos * maxDist, y: y0 + sin * maxDist };
+    }
+
+    function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY) {
+      if (shooter.attackCooldown > 0) return false;
+
+      const dx = targetX - shooter.x;
+      const dy = targetY - shooter.y;
+      const rawDist = Math.hypot(dx, dy);
+
+      if (rawDist < MIN_PISTOL_RANGE) {
+        if (isPlayerShooter) {
+          addFloatingText(shooter.x, shooter.y - 34, 'Too close (<100px) — Slash!', '#fbbf24');
+        }
+        return false;
+      }
+
+      const angle = Math.atan2(dy, dx);
+      shooter.facing = angle;
+      shooter.attackCooldown = isPlayerShooter ? 0.65 : 0.95;
+      shooter.muzzleFlashTimer = 0.09;
+
+      const shooterFaction = isPlayerShooter ? Faction.PLAYER : shooter.faction;
+      const muzzleX = shooter.x + Math.cos(angle) * 18;
+      const muzzleY = shooter.y - 10 + Math.sin(angle) * 8;
+
+      const ejectAngle = angle + Math.PI * 0.55 + (Math.random() - 0.5) * 0.3;
+      shellCasings.push({
+        x: shooter.x + Math.cos(angle) * 8,
+        y: shooter.y - 10,
+        z: 14,
+        vx: Math.cos(ejectAngle) * (45 + Math.random() * 35),
+        vy: Math.sin(ejectAngle) * (45 + Math.random() * 35),
+        vz: 75 + Math.random() * 35,
+        rot: Math.random() * Math.PI,
+        vrot: (Math.random() - 0.5) * 24,
+        life: 0.75,
+      });
+
+      sfx.playGunshot();
+
+      const envHit = traceBulletRay(shooter.x, shooter.y, angle, MAX_PISTOL_RANGE);
+      const maxRayDist = envHit.dist;
+
+      let bestTarget = null;
+      let bestTargetIsPlayer = false;
+      let bestProjDist = maxRayDist;
+
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+
+      for (let i = 0; i < npcs.length; i++) {
+        const npc = npcs[i];
+        if (npc.faction === shooterFaction) continue;
+        const rx = npc.x - shooter.x;
+        const ry = npc.y - shooter.y;
+        const proj = rx * cos + ry * sin;
+        if (proj < 16 || proj > bestProjDist) continue;
+        const perp = Math.abs(-rx * sin + ry * cos);
+        const hitRadius = getEntityCollisionRadius(npc.rank) + 4;
+        if (perp <= hitRadius) {
+          bestProjDist = proj;
+          bestTarget = npc;
+          bestTargetIsPlayer = false;
+        }
+      }
+
+      if (!isPlayerShooter && player.alive && shooterFaction !== Faction.PLAYER) {
+        const rx = player.x - shooter.x;
+        const ry = player.y - shooter.y;
+        const proj = rx * cos + ry * sin;
+        if (proj >= 16 && proj <= bestProjDist) {
+          const perp = Math.abs(-rx * sin + ry * cos);
+          const hitRadius = getEntityCollisionRadius(UnitRank.BOSS) + 4;
+          if (perp <= hitRadius) {
+            bestProjDist = proj;
+            bestTarget = player;
+            bestTargetIsPlayer = true;
+          }
+        }
+      }
+
+      const endX = shooter.x + cos * bestProjDist;
+      const endY = (shooter.y - 10) + sin * bestProjDist;
+
+      bulletTracers.push({
+        x1: muzzleX,
+        y1: muzzleY,
+        x2: endX,
+        y2: endY,
+        color: isPlayerShooter ? '#fde047' : FACTION_META[shooterFaction].accent,
+        life: 0.14,
+      });
+
+      if (bestTarget) {
+        const dmg = rollDamage(40, 80);
+        if (bestTargetIsPlayer) {
+          player.hp -= dmg;
+          player.hitFlashTimer = 0.16;
+          const isKill = player.hp <= 0 && player.alive;
+          spawnBloodSplash(player.x, player.y, 1.5, isKill);
+          addFloatingText(player.x, player.y - 30, `-${dmg} 🔫`, '#f43f5e');
+          if (isKill) {
+            sfx.playDeath(true);
+            eliminateFaction(Faction.PLAYER);
+          }
+        } else {
+          bestTarget.hp -= dmg;
+          bestTarget.hitFlashTimer = 0.16;
+          const isKill = bestTarget.hp <= 0;
+          spawnBloodSplash(bestTarget.x, bestTarget.y, 1.5, isKill);
+          addFloatingText(
+            bestTarget.x,
+            bestTarget.y - 28,
+            `-${dmg}`,
+            isPlayerShooter ? '#fde047' : FACTION_META[shooterFaction].accent
+          );
+
+          const knockX = bestTarget.x + cos * 16;
+          const knockY = bestTarget.y + sin * 16;
+          const nRad = getEntityCollisionRadius(bestTarget.rank);
+          if (canOccupyPosition(knockX, knockY, nRad, bestTarget.id, false)) {
+            bestTarget.x = knockX;
+            bestTarget.y = knockY;
+          }
+
+          if (isKill) {
+            const deadIdx = npcs.indexOf(bestTarget);
+            if (deadIdx !== -1) {
+              const deadFaction = bestTarget.faction;
+              const wasBoss = bestTarget.rank === UnitRank.BOSS;
+              npcs.splice(deadIdx, 1);
+              if (wasBoss) {
+                sfx.playDeath(true);
+                addFloatingText(bestTarget.x, bestTarget.y - 42, 'BOSS SHOT DEAD!', '#f43f5e');
+                eliminateFaction(deadFaction);
+              } else {
+                sfx.playDeath(false);
+                addFloatingText(bestTarget.x, bestTarget.y - 38, 'HEADSHOT', '#f43f5e');
+              }
+            }
+          }
+        }
+      } else if (envHit.blocked) {
+        spawnSparks(envHit.x, envHit.y);
+        sfx.playRicochet();
+      }
+
+      return true;
+    }
+
+    // =========================================================================
+    // 8. INPUT HANDLING (WASD, Mouse Click, Right-Click Pistol & Minimap Pan)
+    // =========================================================================
+    const keys = new Set();
+    window.addEventListener('keydown', (e) => {
+      getAudioCtx();
+      const k = e.key.toLowerCase();
+      keys.add(k);
+      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) {
+        e.preventDefault();
+      }
+      if (k === ' ' || k === 'f') performKnifeSlash();
+    });
+    window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+
+    function handlePointerAction(clientX, clientY, isRightClick = false) {
+      getAudioCtx();
+      if (!gameStarted) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const sx = clientX - rect.left;
+      const sy = clientY - rect.top;
+
+      const wx = sx - rect.width / 2 + camera.x;
+      const wy = sy - rect.height / 2 + camera.y;
+
+      if (!player.alive) {
+        if (isSpectating) {
+          camera.x = wx;
+          camera.y = wy;
+        }
+        return;
+      }
+
+      player.facing = Math.atan2(wy - player.y, wx - player.x);
+
+      if (isRightClick) {
+        performBossPistolShot(player, true, wx, wy);
+        return;
+      }
+
+      const { cx, cy } = world.worldToTile(wx, wy);
+
+      if (!world.hasChunk(cx, cy)) {
+        if (!allowClickExpand || !factionAlive[Faction.PLAYER]) return;
+        world.generateChunk(cx, cy, Faction.PLAYER);
+        showToast(`Expanded & Claimed Block (${cx}, ${cy})!`);
+        updateHUD();
+        return;
+      }
+
+      player.targetX = wx;
+      player.targetY = wy;
+    }
+
+    canvas.addEventListener('click', (e) => handlePointerAction(e.clientX, e.clientY, false));
+    canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      handlePointerAction(e.clientX, e.clientY, true);
+    });
+    canvas.addEventListener(
+      'touchstart',
+      (e) => {
+        if (e.touches.length > 0) {
+          handlePointerAction(e.touches[0].clientX, e.touches[0].clientY, false);
+        }
+      },
+      { passive: true }
+    );
+
+    minimapCanvas.addEventListener('click', (e) => {
+      getAudioCtx();
+      if (!gameStarted) return;
+      const rect = minimapCanvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      let minCx = Infinity, maxCx = -Infinity, minCy = Infinity, maxCy = -Infinity;
+      for (const c of world.chunks.values()) {
+        if (c.cx < minCx) minCx = c.cx;
+        if (c.cx > maxCx) maxCx = c.cx;
+        if (c.cy < minCy) minCy = c.cy;
+        if (c.cy > maxCy) maxCy = c.cy;
+      }
+      const cols = Math.max(1, maxCx - minCx + 1);
+      const rows = Math.max(1, maxCy - minCy + 1);
+      const cellSize = Math.min(minimapCanvas.width / cols, minimapCanvas.height / rows);
+      const offsetX = (minimapCanvas.width - cols * cellSize) / 2;
+      const offsetY = (minimapCanvas.height - rows * cellSize) / 2;
+
+      const targetCx = Math.floor((mx - offsetX) / cellSize) + minCx;
+      const targetCy = Math.floor((my - offsetY) / cellSize) + minCy;
+      if (world.hasChunk(targetCx, targetCy)) {
+        const wx = (targetCx + 0.15) * CHUNK_PX;
+        const wy = (targetCy + 0.15) * CHUNK_PX;
+        if (player.alive) {
+          player.targetX = wx;
+          player.targetY = wy;
+          showToast(`Boss moving to (${targetCx}, ${targetCy})`);
+        } else if (isSpectating) {
+          camera.x = wx;
+          camera.y = wy;
+        }
+      }
+    });
+
+    // Setup Modal Controls
+    const mapSizeSlider = document.getElementById('map-size-slider');
+    const mapSizeDisplay = document.getElementById('map-size-display');
+    const mapCapPreview = document.getElementById('map-cap-preview');
+    const presetBtns = document.querySelectorAll('.size-preset-btn');
+
+    function syncSetupPreview(size) {
+      const s = Math.max(5, Math.min(25, Number(size)));
+      mapSizeSlider.value = String(s);
+      mapSizeDisplay.textContent = s === 20 ? '20×20 (Default)' : `${s}×${s}`;
+      const blocks = s * s;
+      const maxElites = Math.floor(blocks * 0.25);
+      const maxSoldiers = blocks - maxElites;
+      mapCapPreview.innerHTML = `<span>${blocks} Neighborhoods</span><span class="font-mono text-emerald-400">Cap: ${maxSoldiers} Soldiers · ${maxElites} Elites</span>`;
+
+      presetBtns.forEach((btn) => {
+        const bSize = Number(btn.dataset.size);
+        if (bSize === s) {
+          btn.className =
+            'size-preset-btn bg-amber-500/20 border border-amber-500 text-amber-300 py-1 rounded text-[11px] font-mono font-bold transition';
+        } else {
+          btn.className =
+            'size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition';
+        }
+      });
+    }
+
+    mapSizeSlider.addEventListener('input', (e) => syncSetupPreview(e.target.value));
+    presetBtns.forEach((btn) => {
+      btn.addEventListener('click', () => syncSetupPreview(btn.dataset.size));
+    });
+
+    document.getElementById('btn-start-game').addEventListener('click', () => {
+      getAudioCtx();
+      const selectedSize = Number(mapSizeSlider.value) || 20;
+      document.getElementById('setup-modal').classList.add('hidden');
+      initWorld(selectedSize, true);
+      showToast(`${selectedSize}×${selectedSize} Turf War started! Eliminate all 3 rival Bosses.`);
+    });
+
+    // HUD Toggle & Action Buttons
+    document.getElementById('btn-toggle-soldier').addEventListener('click', (e) => {
+      getAudioCtx();
+      autoRecruitSoldier = !autoRecruitSoldier;
+      e.target.textContent = `Auto Soldier: ${autoRecruitSoldier ? 'ON' : 'OFF'} ($${COST_SOLDIER.toLocaleString()})`;
+      e.target.className = autoRecruitSoldier
+        ? 'bg-emerald-900/90 hover:bg-emerald-800 border border-emerald-500/70 text-emerald-200 font-bold px-2.5 py-1.5 rounded-lg transition'
+        : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 font-semibold px-2.5 py-1.5 rounded-lg transition';
+    });
+
+    document.getElementById('btn-toggle-elite').addEventListener('click', (e) => {
+      getAudioCtx();
+      autoRecruitElite = !autoRecruitElite;
+      e.target.textContent = `Auto Elite: ${autoRecruitElite ? 'ON' : 'OFF'} ($${COST_ELITE.toLocaleString()})`;
+      e.target.className = autoRecruitElite
+        ? 'bg-indigo-900/90 hover:bg-indigo-800 border border-indigo-400/70 text-indigo-200 font-bold px-2.5 py-1.5 rounded-lg transition'
+        : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 font-semibold px-2.5 py-1.5 rounded-lg transition';
+    });
+
+    document.getElementById('btn-toggle-expand-click').addEventListener('click', (e) => {
+      getAudioCtx();
+      allowClickExpand = !allowClickExpand;
+      e.target.textContent = `Click-Build: ${allowClickExpand ? 'ON' : 'OFF'}`;
+      e.target.className = allowClickExpand
+        ? 'bg-emerald-900/90 hover:bg-emerald-800 border border-emerald-500/70 text-emerald-200 font-semibold px-2.5 py-1.5 rounded-lg transition'
+        : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 px-2.5 py-1.5 rounded-lg transition';
+      showToast(
+        allowClickExpand
+          ? 'Click-Build ENABLED: Click outside borders to build new blocks.'
+          : 'Click-Build DISABLED'
+      );
+    });
+
+    document.getElementById('btn-slash').addEventListener('click', () => {
+      getAudioCtx();
+      performKnifeSlash();
+    });
+
+    document.getElementById('btn-pistol').addEventListener('click', () => {
+      getAudioCtx();
+      if (!gameStarted || !player.alive) return;
+      let aimX = player.x + Math.cos(player.facing) * 320;
+      let aimY = player.y + Math.sin(player.facing) * 320;
+      let bestDist = MAX_PISTOL_RANGE;
+      for (const npc of npcs) {
+        if (npc.faction === Faction.PLAYER) continue;
+        const d = Math.hypot(npc.x - player.x, npc.y - player.y);
+        if (d >= MIN_PISTOL_RANGE && d <= bestDist) {
+          bestDist = d;
+          aimX = npc.x;
+          aimY = npc.y;
+        }
+      }
+      performBossPistolShot(player, true, aimX, aimY);
+    });
+
+    document.getElementById('btn-expand-ring').addEventListener('click', () => {
+      getAudioCtx();
+      if (!gameStarted || !factionAlive[Faction.PLAYER]) return;
+      const added = world.expandPerimeterRing(Faction.PLAYER);
+      showToast(`Expanded & Claimed ${added} Perimeter Districts!`);
+      updateHUD();
+    });
+
+    document.getElementById('btn-toggle-grid').addEventListener('click', (e) => {
+      getAudioCtx();
+      showBorders = !showBorders;
+      e.target.textContent = `Borders: ${showBorders ? 'ON' : 'OFF'}`;
+    });
+
+    document.getElementById('btn-toggle-sound').addEventListener('click', (e) => {
+      soundEnabled = !soundEnabled;
+      if (soundEnabled) {
+        getAudioCtx();
+        sfx.playSlash(false);
+      }
+      e.target.textContent = soundEnabled ? '🔊 SFX: ON' : '🔇 SFX: OFF';
+    });
+
+    function openSetupModal() {
+      syncSetupPreview(currentGridSize);
+      document.getElementById('defeat-banner').classList.add('hidden');
+      document.getElementById('victory-banner').classList.add('hidden');
+      document.getElementById('spectator-banner').classList.add('hidden');
+      document.getElementById('setup-modal').classList.remove('hidden');
+    }
+
+    document.getElementById('btn-reset').addEventListener('click', openSetupModal);
+    document.getElementById('btn-restart-match').addEventListener('click', openSetupModal);
+    document.getElementById('btn-spectate-new-game').addEventListener('click', openSetupModal);
+    document.getElementById('btn-victory-restart').addEventListener('click', openSetupModal);
+
+    document.getElementById('btn-spectate-match').addEventListener('click', () => {
+      isSpectating = true;
+      document.getElementById('defeat-banner').classList.add('hidden');
+      document.getElementById('spectator-banner').classList.remove('hidden');
+      showToast('Spectating match—use WASD or click the City Radar minimap to pan.');
+    });
+
+    document.getElementById('btn-victory-continue').addEventListener('click', () => {
+      document.getElementById('victory-banner').classList.add('hidden');
+    });
+
+    function updateHUD() {
+      const incomes = recalculateHourlyIncome();
+      const blockCounts = {
+        [Faction.PLAYER]: 0,
+        [Faction.RIVAL_RED]: 0,
+        [Faction.RIVAL_BLUE]: 0,
+        [Faction.RIVAL_AMBER]: 0,
+      };
+      for (const chunk of world.chunks.values()) {
+        if (blockCounts[chunk.faction] !== undefined) {
+          blockCounts[chunk.faction]++;
+        }
+      }
+
+      const unitCounts = {
+        [Faction.PLAYER]: { soldiers: 0, elites: 0 },
+        [Faction.RIVAL_RED]: { soldiers: 0, elites: 0 },
+        [Faction.RIVAL_BLUE]: { soldiers: 0, elites: 0 },
+        [Faction.RIVAL_AMBER]: { soldiers: 0, elites: 0 },
+      };
+      for (const npc of npcs) {
+        if (!unitCounts[npc.faction]) continue;
+        if (npc.rank === UnitRank.ELITE) unitCounts[npc.faction].elites++;
+        else if (npc.rank === UnitRank.SOLDIER) unitCounts[npc.faction].soldiers++;
+      }
+
+      const { maxSoldiers, maxElites } = getUnitCaps();
+      const playerUnits = unitCounts[Faction.PLAYER];
+      const playerTotalActive =
+        playerUnits.soldiers + playerUnits.elites + (player.alive ? 1 : 0);
+
+      document.getElementById('stats-badge').textContent =
+        `Turf: ${blockCounts[Faction.PLAYER]}/${world.chunks.size} | Crew: ${playerUnits.soldiers}/${maxSoldiers} S · ${playerUnits.elites}/${maxElites} E | Income: $${incomes[Faction.PLAYER].toLocaleString()}/hr`;
+
+      const hpPct = Math.max(0, (player.hp / player.maxHp) * 100);
+      document.getElementById('hp-bar-fill').style.width = `${hpPct}%`;
+      document.getElementById('hp-text').textContent = player.alive
+        ? `${Math.ceil(player.hp)}/${player.maxHp}`
+        : 'DEAD';
+      document.getElementById('hp-text').className =
+        !player.alive
+          ? 'font-mono font-bold text-rose-500'
+          : hpPct < 35
+          ? 'font-mono font-bold text-rose-400'
+          : 'font-mono font-bold text-emerald-400';
+
+      document.getElementById('cash-text').textContent =
+        `$${treasuries[Faction.PLAYER].toLocaleString()}`;
+      document.getElementById('hour-text').textContent =
+        `${String(gameHour).padStart(2, '0')}:00`;
+      document.getElementById('tick-bar-fill').style.width =
+        `${Math.min(100, (tickTimer / TICK_DURATION) * 100)}%`;
+
+      const board = document.getElementById('faction-board');
+      board.innerHTML = `
+        <div class="bg-emerald-950/55 border border-emerald-500/40 rounded-lg p-2.5 mb-2">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-extrabold text-emerald-300 uppercase tracking-wider text-[10px]">Your Boss & Crew</span>
+            <span class="font-mono text-[10px] ${player.alive ? 'text-emerald-400' : 'text-rose-400'} font-bold">
+              ${player.alive ? `HP ${Math.ceil(player.hp)}/${player.maxHp}` : 'ELIMINATED'}
+            </span>
+          </div>
+          <div class="grid grid-cols-3 gap-1.5 text-center bg-zinc-950/60 rounded p-1.5 font-mono text-[10px]">
+            <div>
+              <div class="text-zinc-500 text-[9px]">TURF</div>
+              <div class="text-white font-bold">${blockCounts[Faction.PLAYER]}</div>
+            </div>
+            <div>
+              <div class="text-zinc-500 text-[9px]">CREW</div>
+              <div class="text-emerald-300 font-bold">${playerTotalActive} <span class="text-indigo-300">(${playerUnits.elites}E)</span></div>
+            </div>
+            <div>
+              <div class="text-zinc-500 text-[9px]">RATE</div>
+              <div class="text-amber-300 font-bold">$${Math.round(incomes[Faction.PLAYER] / 1000)}k/h</div>
+            </div>
+          </div>
+        </div>
+        <div class="font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-800 pb-1 text-[10px]">
+          Syndicate Standings (Cap ${maxSoldiers}S/${maxElites}E)
+        </div>
+      `;
+
+      for (const f of ALL_FACTIONS) {
+        const meta = FACTION_META[f];
+        const alive = factionAlive[f];
+        const bossNpc = npcs.find((n) => n.faction === f && n.rank === UnitRank.BOSS);
+        const bossAlive = f === Faction.PLAYER ? player.alive : Boolean(bossNpc);
+        const fSoldiers = unitCounts[f].soldiers;
+        const fElites = unitCounts[f].elites;
+        const activeCount = fSoldiers + fElites + (bossAlive ? 1 : 0);
+
+        const row = document.createElement('div');
+        row.className = `flex flex-col gap-0.5 py-1 border-b border-zinc-800/70 last:border-0 ${alive ? '' : 'opacity-45'}`;
+        row.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <span class="flex items-center gap-1.5 font-semibold" style="color:${meta.accent}">
+              <span class="w-2 h-2 rounded-full" style="background:${meta.badge}"></span>
+              ${meta.short}
+            </span>
+            <span class="text-[10px] font-bold px-1.5 py-0.2 rounded ${alive ? 'bg-zinc-800 text-emerald-300' : 'bg-rose-950 text-rose-400'}">
+              ${alive ? 'BOSS ALIVE' : 'DEFEATED'}
+            </span>
+          </div>
+          <div class="flex items-center justify-between text-[11px] font-mono text-zinc-400 pl-3.5">
+            <span>Blocks: <b class="text-zinc-200">${blockCounts[f]}</b></span>
+            <span>Units: <b class="text-zinc-200">${activeCount}</b> (${fElites}E)</span>
+            <span class="text-amber-300">$${treasuries[f].toLocaleString()}</span>
+          </div>
+        `;
+        board.appendChild(row);
+      }
+    }
+
+    // =========================================================================
+    // 9. SMART AI STEERING, COMBAT & SIMULATION LOOP
+    // =========================================================================
+    function chooseSmartTargetChunk(npc) {
+      const { cx, cy } = world.worldToTile(npc.x, npc.y);
+      let bestScore = -Infinity;
+      let bestChunk = null;
+
+      for (const chunk of world.chunks.values()) {
+        if (chunk.faction === npc.faction) continue;
+        const distBlocks = Math.hypot(chunk.cx - cx, chunk.cy - cy);
+        let score = 26 - distBlocks * 3.0 + (chunk.income / 1000) * 2.5 + Math.random() * 6;
+        if (chunk.faction === Faction.NEUTRAL) score += 4;
+        if (score > bestScore) {
+          bestScore = score;
+          bestChunk = chunk;
+        }
+      }
+
+      if (bestChunk) return bestChunk;
+      return world.getChunk(cx, cy);
+    }
+
+    function moveWithSteering(npc, desiredAngle, speed, dt) {
+      const angles = [
+        0,
+        0.5 * npc.dodgeDir,
+        -0.5 * npc.dodgeDir,
+        1.0 * npc.dodgeDir,
+        -1.0 * npc.dodgeDir,
+        1.55 * npc.dodgeDir,
+        -1.55 * npc.dodgeDir,
+      ];
+      const step = speed * dt;
+      const bodyRad = getEntityCollisionRadius(npc.rank);
+
+      for (const offset of angles) {
+        const testAngle = desiredAngle + offset;
+        const nx = npc.x + Math.cos(testAngle) * step;
+        const ny = npc.y + Math.sin(testAngle) * step;
+        if (canOccupyPosition(nx, ny, bodyRad, npc.id, false)) {
+          npc.x = nx;
+          npc.y = ny;
+          npc.facing = testAngle;
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function executeNpcAttack(attacker, target) {
+      attacker.attackCooldown = 0.85 + Math.random() * 0.25;
+      attacker.slashAnimTimer = 0.18;
+      const dmg = rollDamage(attacker.minDmg, attacker.maxDmg);
+
+      if (target.isPlayer) {
+        player.hp -= dmg;
+        player.hitFlashTimer = 0.14;
+        const isKill = player.hp <= 0 && player.alive;
+        if (Math.hypot(player.x - camera.x, player.y - camera.y) < 700) {
+          sfx.playSlash(true);
+        }
+        spawnBloodSplash(player.x, player.y, 1.0, isKill);
+        addFloatingText(player.x, player.y - 28, `-${dmg}`, '#f43f5e');
+        if (isKill) {
+          sfx.playDeath(true);
+          eliminateFaction(Faction.PLAYER);
+        }
+      } else {
+        target.hp -= dmg;
+        target.hitFlashTimer = 0.14;
+        const isKill = target.hp <= 0;
+        if (Math.hypot(target.x - camera.x, target.y - camera.y) < 650) {
+          sfx.playSlash(true);
+        }
+        spawnBloodSplash(target.x, target.y, 1.0, isKill);
+        addFloatingText(target.x, target.y - 26, `-${dmg}`, FACTION_META[attacker.faction].accent);
+        if (isKill) {
+          const deadIdx = npcs.indexOf(target);
+          if (deadIdx !== -1) {
+            const deadFaction = target.faction;
+            const wasBoss = target.rank === UnitRank.BOSS;
+            npcs.splice(deadIdx, 1);
+            if (wasBoss) {
+              sfx.playDeath(true);
+              addFloatingText(target.x, target.y - 42, 'BOSS KILLED!', '#f43f5e');
+              eliminateFaction(deadFaction);
+            } else {
+              if (Math.hypot(target.x - camera.x, target.y - camera.y) < 750) {
+                sfx.playDeath(false);
+              }
+              addFloatingText(target.x, target.y - 36, 'KIA', '#f43f5e');
+            }
+          }
+        }
+      }
+    }
+
+    function update(dt) {
+      if (!gameStarted) return;
+
+      // 1. 10-Second Hourly Economy Tick (Income + Auto-Recruitment)
+      tickTimer += dt;
+      if (tickTimer >= TICK_DURATION) {
+        tickTimer -= TICK_DURATION;
+        gameHour = (gameHour + 1) % 24;
+        const incomes = recalculateHourlyIncome();
+
+        for (const f of ALL_FACTIONS) {
+          if (factionAlive[f]) {
+            treasuries[f] += incomes[f];
+          }
+        }
+
+        if (factionAlive[Faction.PLAYER]) {
+          let hiredSoldiers = 0;
+          let hiredElites = 0;
+          if (autoRecruitSoldier) {
+            while (recruitUnit(Faction.PLAYER, UnitRank.SOLDIER, true)) {
+              hiredSoldiers++;
+            }
+          }
+          if (autoRecruitElite) {
+            while (recruitUnit(Faction.PLAYER, UnitRank.ELITE, true)) {
+              hiredElites++;
+            }
+          }
+          const recruitSummary =
+            hiredSoldiers > 0 || hiredElites > 0
+              ? ` | Spawned ${hiredSoldiers}S + ${hiredElites}E`
+              : '';
+          showToast(`Hourly Tick: +$${incomes[Faction.PLAYER].toLocaleString()}${recruitSummary}`);
+        }
+
+        for (const f of [Faction.RIVAL_RED, Faction.RIVAL_BLUE, Faction.RIVAL_AMBER]) {
+          if (!factionAlive[f]) continue;
+          while (recruitUnit(f, UnitRank.SOLDIER, true)) {}
+          while (recruitUnit(f, UnitRank.ELITE, true)) {}
+        }
+
+        updateHUD();
+      }
+
+      // Build Spatial Grid early so player & NPC collision checks use O(1) neighbor queries
+      spatialBuckets.clear();
+      const factionBosses = {};
+      for (const npc of npcs) {
+        const cx = Math.floor(npc.x / CHUNK_PX);
+        const cy = Math.floor(npc.y / CHUNK_PX);
+        const key = `${cx},${cy}`;
+        let bucket = spatialBuckets.get(key);
+        if (!bucket) {
+          bucket = [];
+          spatialBuckets.set(key, bucket);
+        }
+        bucket.push(npc);
+        if (npc.rank === UnitRank.BOSS) {
+          factionBosses[npc.faction] = npc;
+        }
+      }
+
+      // 2. Player Movement & Block Capture (Blocked by solid NPC mass—cannot push through)
+      if (player.alive) {
+        if (player.attackCooldown > 0) player.attackCooldown -= dt;
+        if (player.slashAnimTimer > 0) player.slashAnimTimer -= dt;
+        if (player.muzzleFlashTimer > 0) player.muzzleFlashTimer -= dt;
+        if (player.hitFlashTimer > 0) player.hitFlashTimer -= dt;
+
+        if (player.hp < player.maxHp) {
+          player.hp = Math.min(player.maxHp, player.hp + 5 * dt);
+        }
+
+        let moveX = 0;
+        let moveY = 0;
+        if (keys.has('w') || keys.has('arrowup')) moveY -= 1;
+        if (keys.has('s') || keys.has('arrowdown')) moveY += 1;
+        if (keys.has('a') || keys.has('arrowleft')) moveX -= 1;
+        if (keys.has('d') || keys.has('arrowright')) moveX += 1;
+
+        if (moveX !== 0 || moveY !== 0) {
+          player.targetX = null;
+          player.targetY = null;
+          const len = Math.hypot(moveX, moveY);
+          moveX /= len;
+          moveY /= len;
+          player.facing = Math.atan2(moveY, moveX);
+        } else if (player.targetX !== null && player.targetY !== null) {
+          const dx = player.targetX - player.x;
+          const dy = player.targetY - player.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 6) {
+            player.targetX = null;
+            player.targetY = null;
+          } else {
+            moveX = dx / dist;
+            moveY = dy / dist;
+            player.facing = Math.atan2(moveY, moveX);
+          }
+        }
+
+        const pRadius = getEntityCollisionRadius(UnitRank.BOSS);
+        if (moveX !== 0) {
+          const nextX = player.x + moveX * player.speed * dt;
+          if (canOccupyPosition(nextX, player.y, pRadius, -1, true)) {
+            player.x = nextX;
+          }
+        }
+        if (moveY !== 0) {
+          const nextY = player.y + moveY * player.speed * dt;
+          if (canOccupyPosition(player.x, nextY, pRadius, -1, true)) {
+            player.y = nextY;
+          }
+        }
+
+        const pTile = world.worldToTile(player.x, player.y);
+        const currentChunk = world.getChunk(pTile.cx, pTile.cy);
+        if (currentChunk && currentChunk.faction !== Faction.PLAYER) {
+          if (currentChunk.capturingFaction !== Faction.PLAYER) {
+            currentChunk.capturingFaction = Faction.PLAYER;
+            currentChunk.captureProgress = 0;
+          }
+          currentChunk.captureProgress += dt * 0.375;
+          if (currentChunk.captureProgress >= 1) {
+            currentChunk.faction = Faction.PLAYER;
+            currentChunk.captureProgress = 0;
+            currentChunk.capturingFaction = null;
+            addFloatingText(
+              currentChunk.cx * CHUNK_PX + CHUNK_PX / 2,
+              currentChunk.cy * CHUNK_PX + 28,
+              `+${currentChunk.incomeLabel} TURF CLAIMED`,
+              '#34d399'
+            );
+            updateHUD();
+          }
+        }
+      } else if (isSpectating) {
+        let panX = 0;
+        let panY = 0;
+        if (keys.has('w') || keys.has('arrowup')) panY -= 1;
+        if (keys.has('s') || keys.has('arrowdown')) panY += 1;
+        if (keys.has('a') || keys.has('arrowleft')) panX -= 1;
+        if (keys.has('d') || keys.has('arrowright')) panX += 1;
+        if (panX !== 0 || panY !== 0) {
+          const len = Math.hypot(panX, panY);
+          camera.x += (panX / len) * 520 * dt;
+          camera.y += (panY / len) * 520 * dt;
+        }
+      }
+
+      // 3. Smart NPC & Boss AI
+      for (let i = npcs.length - 1; i >= 0; i--) {
+        const npc = npcs[i];
+        if (npc.attackCooldown > 0) npc.attackCooldown -= dt;
+        if (npc.slashAnimTimer > 0) npc.slashAnimTimer -= dt;
+        if (npc.muzzleFlashTimer > 0) npc.muzzleFlashTimer -= dt;
+        if (npc.hitFlashTimer > 0) npc.hitFlashTimer -= dt;
+
+        if (npc.rank === UnitRank.BOSS && npc.hp < npc.maxHp) {
+          npc.hp = Math.min(npc.maxHp, npc.hp + 4 * dt);
+        }
+
+        npc.stuckTimer += dt;
+        if (npc.stuckTimer >= 0.75) {
+          const movedDist = Math.hypot(npc.x - npc.lastCheckX, npc.y - npc.lastCheckY);
+          if (movedDist < 14) {
+            npc.dodgeDir *= -1;
+            npc.goalX = npc.x + (Math.random() - 0.5) * 280;
+            npc.goalY = npc.y + (Math.random() - 0.5) * 280;
+          }
+          npc.lastCheckX = npc.x;
+          npc.lastCheckY = npc.y;
+          npc.stuckTimer = 0;
+        }
+
+        let nearestEnemy = null;
+        let nearestDist = Infinity;
+        let bestRangedEnemy = null;
+        let bestRangedDist = Infinity;
+        let enemiesWithin320 = 0;
+        let alliesWithin320 = 0;
+
+        const ncx = Math.floor(npc.x / CHUNK_PX);
+        const ncy = Math.floor(npc.y / CHUNK_PX);
+        const scanChunks = npc.rank === UnitRank.BOSS ? 2 : 1;
+
+        for (let dy = -scanChunks; dy <= scanChunks; dy++) {
+          for (let dx = -scanChunks; dx <= scanChunks; dx++) {
+            const bucket = spatialBuckets.get(`${ncx + dx},${ncy + dy}`);
+            if (!bucket) continue;
+            for (const other of bucket) {
+              if (other.id === npc.id) continue;
+              const d = Math.hypot(other.x - npc.x, other.y - npc.y);
+              if (other.faction === npc.faction) {
+                if (d < 320) alliesWithin320++;
+              } else {
+                if (d < 320) enemiesWithin320++;
+                if (d < nearestDist) {
+                  nearestDist = d;
+                  nearestEnemy = other;
+                }
+                if (
+                  npc.rank === UnitRank.BOSS &&
+                  d >= MIN_PISTOL_RANGE &&
+                  d <= MAX_PISTOL_RANGE &&
+                  d < bestRangedDist
+                ) {
+                  bestRangedDist = d;
+                  bestRangedEnemy = other;
+                }
+              }
+            }
+          }
+        }
+
+        if (player.alive && npc.faction !== Faction.PLAYER) {
+          const dPlayer = Math.hypot(player.x - npc.x, player.y - npc.y);
+          if (dPlayer < 320) enemiesWithin320++;
+          if (dPlayer < nearestDist) {
+            nearestDist = dPlayer;
+            nearestEnemy = {
+              isPlayer: true,
+              x: player.x,
+              y: player.y,
+              faction: Faction.PLAYER,
+            };
+          }
+          if (
+            npc.rank === UnitRank.BOSS &&
+            dPlayer >= MIN_PISTOL_RANGE &&
+            dPlayer <= MAX_PISTOL_RANGE &&
+            dPlayer < bestRangedDist
+          ) {
+            bestRangedDist = dPlayer;
+            bestRangedEnemy = {
+              isPlayer: true,
+              x: player.x,
+              y: player.y,
+              faction: Faction.PLAYER,
+            };
+          }
+        }
+
+        const myBoss = npc.rank !== UnitRank.BOSS ? factionBosses[npc.faction] : null;
+        let bossUnderThreat = false;
+        let bossThreatTarget = null;
+        if (myBoss) {
+          let closestToBoss = 360;
+          const bcx = Math.floor(myBoss.x / CHUNK_PX);
+          const bcy = Math.floor(myBoss.y / CHUNK_PX);
+
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              const bucket = spatialBuckets.get(`${bcx + dx},${bcy + dy}`);
+              if (!bucket) continue;
+              for (const other of bucket) {
+                if (other.faction === npc.faction) continue;
+                const dBoss = Math.hypot(other.x - myBoss.x, other.y - myBoss.y);
+                if (dBoss < closestToBoss) {
+                  closestToBoss = dBoss;
+                  bossUnderThreat = true;
+                  bossThreatTarget = other;
+                }
+              }
+            }
+          }
+          if (player.alive && npc.faction !== Faction.PLAYER) {
+            const dBossPlayer = Math.hypot(player.x - myBoss.x, player.y - myBoss.y);
+            if (dBossPlayer < closestToBoss) {
+              bossUnderThreat = true;
+              bossThreatTarget = {
+                isPlayer: true,
+                x: player.x,
+                y: player.y,
+                faction: Faction.PLAYER,
+              };
+            }
+          }
+        }
+
+        // A. BOSS AI: Escape & Regroup when overwhelmed or low HP (while firing back if in pistol range)
+        if (npc.rank === UnitRank.BOSS) {
+          const isOverwhelmed =
+            enemiesWithin320 > alliesWithin320 + 1 ||
+            (npc.hp < npc.maxHp * 0.45 && enemiesWithin320 > 0);
+
+          if (isOverwhelmed && nearestEnemy) {
+            if (bestRangedEnemy && npc.attackCooldown <= 0) {
+              const ang = Math.atan2(bestRangedEnemy.y - npc.y, bestRangedEnemy.x - npc.x);
+              const los = traceBulletRay(npc.x, npc.y, ang, bestRangedDist);
+              if (!los.blocked) {
+                performBossPistolShot(npc, false, bestRangedEnemy.x, bestRangedEnemy.y);
+              }
+            }
+            const fleeAngle = Math.atan2(npc.y - nearestEnemy.y, npc.x - nearestEnemy.x);
+            moveWithSteering(npc, fleeAngle, npc.speed * 1.15, dt);
+            continue;
+          }
+
+          // Boss prefers ranged 9mm pistol attack (100px-600px) whenever a target has clear line of sight
+          if (bestRangedEnemy) {
+            const ang = Math.atan2(bestRangedEnemy.y - npc.y, bestRangedEnemy.x - npc.x);
+            const los = traceBulletRay(npc.x, npc.y, ang, bestRangedDist);
+            if (!los.blocked) {
+              npc.facing = ang;
+              if (npc.attackCooldown <= 0) {
+                performBossPistolShot(npc, false, bestRangedEnemy.x, bestRangedEnemy.y);
+              }
+              if (bestRangedDist < 200) {
+                moveWithSteering(npc, ang + Math.PI, npc.speed * 0.75, dt);
+              } else if (bestRangedDist > 360) {
+                moveWithSteering(npc, ang, npc.speed * 0.85, dt);
+              }
+              continue;
+            }
+          }
+        }
+
+        // B. BODYGUARD AI: Rally to defend Boss if Boss is under attack within 650px
+        if (
+          myBoss &&
+          bossUnderThreat &&
+          bossThreatTarget &&
+          Math.hypot(myBoss.x - npc.x, myBoss.y - npc.y) < 650
+        ) {
+          const distThreat = Math.hypot(bossThreatTarget.x - npc.x, bossThreatTarget.y - npc.y);
+          if (distThreat < 42) {
+            npc.facing = Math.atan2(bossThreatTarget.y - npc.y, bossThreatTarget.x - npc.x);
+            if (npc.attackCooldown <= 0) {
+              executeNpcAttack(npc, bossThreatTarget);
+            }
+          } else {
+            const angle = Math.atan2(bossThreatTarget.y - npc.y, bossThreatTarget.x - npc.x);
+            moveWithSteering(npc, angle, npc.speed * 1.15, dt);
+          }
+          continue;
+        }
+
+        // C. STANDARD COMBAT & NEIGHBORHOOD CAPTURE
+        if (nearestEnemy && nearestDist < 270) {
+          if (nearestDist < 42) {
+            npc.facing = Math.atan2(nearestEnemy.y - npc.y, nearestEnemy.x - npc.x);
+            if (npc.attackCooldown <= 0) {
+              executeNpcAttack(npc, nearestEnemy);
+            }
+          } else {
+            const angle = Math.atan2(nearestEnemy.y - npc.y, nearestEnemy.x - npc.x);
+            moveWithSteering(npc, angle, npc.speed * 1.08, dt);
+          }
+        } else {
+          npc.aiTimer -= dt;
+          const distGoal = Math.hypot(npc.goalX - npc.x, npc.goalY - npc.y);
+          if (npc.aiTimer <= 0 || distGoal < 20) {
+            npc.aiTimer = 2.2 + Math.random() * 2.0;
+            const targetChunk = chooseSmartTargetChunk(npc);
+            if (targetChunk) {
+              const spots = [
+                [1, 1], [8, 1], [1, 8], [8, 8],
+                [4, 1], [5, 8], [1, 4], [8, 5],
+              ];
+              const [slx, sly] = spots[Math.floor(Math.random() * spots.length)];
+              npc.goalX = targetChunk.cx * CHUNK_PX + (slx + 0.5) * TILE_SIZE;
+              npc.goalY = targetChunk.cy * CHUNK_PX + (sly + 0.5) * TILE_SIZE;
+            }
+          }
+
+          if (distGoal >= 10) {
+            const angle = Math.atan2(npc.goalY - npc.y, npc.goalX - npc.x);
+            moveWithSteering(npc, angle, npc.speed * 0.88, dt);
+          }
+        }
+
+        const nTile = world.worldToTile(npc.x, npc.y);
+        const nChunk = world.getChunk(nTile.cx, nTile.cy);
+        if (nChunk && nChunk.faction !== npc.faction && factionAlive[npc.faction]) {
+          if (nChunk.capturingFaction !== npc.faction) {
+            nChunk.capturingFaction = npc.faction;
+            nChunk.captureProgress = 0;
+          }
+          nChunk.captureProgress += dt * 0.275;
+          if (nChunk.captureProgress >= 1) {
+            nChunk.faction = npc.faction;
+            nChunk.captureProgress = 0;
+            nChunk.capturingFaction = null;
+            addFloatingText(
+              nChunk.cx * CHUNK_PX + CHUNK_PX / 2,
+              nChunk.cy * CHUNK_PX + 28,
+              `${FACTION_META[npc.faction].short.toUpperCase()} SEIZED TURF`,
+              FACTION_META[npc.faction].accent
+            );
+          }
+        }
+      }
+
+      // 4. Hard Non-Overlapping Torso Collision Solver (2-pass spatial separation)
+      for (let pass = 0; pass < 2; pass++) {
+        for (let i = 0; i < npcs.length; i++) {
+          const a = npcs[i];
+          const rA = getEntityCollisionRadius(a.rank);
+          const acx = Math.floor(a.x / CHUNK_PX);
+          const acy = Math.floor(a.y / CHUNK_PX);
+
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              const bucket = spatialBuckets.get(`${acx + dx},${acy + dy}`);
+              if (!bucket) continue;
+              for (const b of bucket) {
+                if (b.id <= a.id) continue;
+                const rB = getEntityCollisionRadius(b.rank);
+                const minDist = rA + rB;
+                const ox = b.x - a.x;
+                const oy = b.y - a.y;
+                const d = Math.hypot(ox, oy);
+                if (d < minDist) {
+                  const nx = d > 0.001 ? ox / d : 1;
+                  const ny = d > 0.001 ? oy / d : 0;
+                  const overlap = (minDist - d) * 0.52;
+
+                  const axNew = a.x - nx * overlap;
+                  const ayNew = a.y - ny * overlap;
+                  if (world.canMoveTo(axNew, ayNew, rA)) {
+                    a.x = axNew;
+                    a.y = ayNew;
+                  }
+
+                  const bxNew = b.x + nx * overlap;
+                  const byNew = b.y + ny * overlap;
+                  if (world.canMoveTo(bxNew, byNew, rB)) {
+                    b.x = bxNew;
+                    b.y = byNew;
+                  }
+                }
+              }
+            }
+          }
+
+          if (player.alive) {
+            const rP = getEntityCollisionRadius(UnitRank.BOSS);
+            const minDist = rA + rP;
+            const ox = a.x - player.x;
+            const oy = a.y - player.y;
+            const d = Math.hypot(ox, oy);
+            if (d < minDist) {
+              const nx = d > 0.001 ? ox / d : 1;
+              const ny = d > 0.001 ? oy / d : 0;
+              const overlap = minDist - d + 0.5;
+              const axNew = a.x + nx * overlap;
+              const ayNew = a.y + ny * overlap;
+              if (world.canMoveTo(axNew, ayNew, rA)) {
+                a.x = axNew;
+                a.y = ayNew;
+              }
+            }
+          }
+        }
+      }
+
+      // 5. Blood Particles, Floating Texts, Bullet Tracers, Shell Casings & Sparks
+      for (let i = bloodParticles.length - 1; i >= 0; i--) {
+        const bp = bloodParticles[i];
+        bp.x += bp.vx * dt;
+        bp.y += bp.vy * dt;
+        bp.vz -= 340 * dt;
+        bp.z += bp.vz * dt;
+        if (bp.z < 0) {
+          bp.z = 0;
+          bp.vx *= 0.45;
+          bp.vy *= 0.45;
+          bp.vz = 0;
+        }
+        bp.life -= dt;
+        if (bp.life <= 0) bloodParticles.splice(i, 1);
+      }
+
+      for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.y += ft.vy * dt;
+        ft.life -= dt;
+        if (ft.life <= 0) floatingTexts.splice(i, 1);
+      }
+
+      for (let i = bulletTracers.length - 1; i >= 0; i--) {
+        bulletTracers[i].life -= dt;
+        if (bulletTracers[i].life <= 0) bulletTracers.splice(i, 1);
+      }
+
+      for (let i = shellCasings.length - 1; i >= 0; i--) {
+        const sc = shellCasings[i];
+        sc.x += sc.vx * dt;
+        sc.y += sc.vy * dt;
+        sc.vz -= 340 * dt;
+        sc.z += sc.vz * dt;
+        sc.rot += sc.vrot * dt;
+        if (sc.z < 0) {
+          sc.z = 0;
+          sc.vz = Math.abs(sc.vz) * 0.35;
+          sc.vx *= 0.45;
+          sc.vy *= 0.45;
+        }
+        sc.life -= dt;
+        if (sc.life <= 0) shellCasings.splice(i, 1);
+      }
+
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const sp = sparks[i];
+        sp.x += sp.vx * dt;
+        sp.y += sp.vy * dt;
+        sp.life -= dt;
+        if (sp.life <= 0) sparks.splice(i, 1);
+      }
+
+      if (player.alive) {
+        camera.x += (player.x - camera.x) * Math.min(1, dt * 8);
+        camera.y += (player.y - camera.y) * Math.min(1, dt * 8);
+      }
+
+      hudUpdateTimer += dt;
+      if (hudUpdateTimer >= 0.2) {
+        hudUpdateTimer = 0;
+        updateHUD();
+      }
+    }
+
+    // =========================================================================
+    // 10. 2.5D RENDERING & TACTICAL MINIMAP
+    // =========================================================================
+    function drawCharacter(
+      x,
+      y,
+      facing,
+      faction,
+      rank,
+      hp,
+      maxHp,
+      slashAnimTimer,
+      hitFlashTimer,
+      muzzleFlashTimer = 0
+    ) {
+      const meta = FACTION_META[faction];
+      const isBoss = rank === UnitRank.BOSS;
+      const isElite = rank === UnitRank.ELITE;
+      const scale = isBoss ? 1.24 : isElite ? 1.12 : 1.0;
+
+      ctx.save();
+      ctx.translate(x, y);
+
+      if (slashAnimTimer > 0) {
+        ctx.save();
+        ctx.rotate(facing);
+        ctx.strokeStyle = isBoss ? '#fbbf24' : isElite ? '#a5b4fc' : meta.accent;
+        ctx.lineWidth = isBoss ? 4 : 2.5;
+        ctx.beginPath();
+        ctx.arc(8, 0, isBoss ? 32 : 24, -Math.PI * 0.38, Math.PI * 0.38);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Ground Contact Shadow
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.46)';
+      ctx.beginPath();
+      ctx.ellipse(0, 3, 12 * scale, 5.5 * scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Coat / Torso
+      ctx.fillStyle = hitFlashTimer > 0 ? '#ffffff' : meta.coat;
+      ctx.beginPath();
+      ctx.roundRect(-8.5 * scale, -18 * scale, 17 * scale, 19 * scale, 5);
+      ctx.fill();
+
+      ctx.strokeStyle = isBoss ? '#fbbf24' : isElite ? '#818cf8' : meta.badge;
+      ctx.lineWidth = isBoss ? 2 : isElite ? 1.6 : 1.2;
+      ctx.stroke();
+
+      // Shirt & Tie
+      ctx.fillStyle = '#f4f4f5';
+      ctx.beginPath();
+      ctx.moveTo(-3 * scale, -16 * scale);
+      ctx.lineTo(3 * scale, -16 * scale);
+      ctx.lineTo(0, -7 * scale);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = meta.badge;
+      ctx.fillRect(-1, -15 * scale, 2, 7 * scale);
+
+      // Head
+      ctx.fillStyle = hitFlashTimer > 0 ? '#ffffff' : '#fcd34d';
+      ctx.beginPath();
+      ctx.arc(0, -23 * scale, 6.2 * scale, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Fedora / Crown Hat for Bosses & Gold Beret Trim for Elites
+      if (isBoss) {
+        ctx.fillStyle = '#18181b';
+        ctx.beginPath();
+        ctx.ellipse(0, -27 * scale, 11 * scale, 3 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(-6 * scale, -32 * scale, 12 * scale, 5 * scale);
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillRect(-6 * scale, -28.5 * scale, 12 * scale, 1.5);
+      } else if (isElite) {
+        ctx.fillStyle = '#312e81';
+        ctx.beginPath();
+        ctx.ellipse(0, -27.5 * scale, 7.5 * scale, 2.8 * scale, -0.15, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Weapon: 9mm Pistol + Muzzle Flash for Bosses, Switchblade / Knife for Soldiers & Elites
+      const weaponX = Math.cos(facing) * 10 * scale;
+      const weaponY = -8 * scale + Math.sin(facing) * 5 * scale;
+      ctx.save();
+      ctx.translate(weaponX, weaponY);
+      ctx.rotate(facing + (slashAnimTimer > 0 ? 0.9 : 0));
+
+      if (isBoss && slashAnimTimer <= 0) {
+        ctx.fillStyle = '#18181b';
+        ctx.fillRect(0, -2.2, 11 * scale, 4.2);
+        ctx.fillStyle = '#71717a';
+        ctx.fillRect(2, -2.2, 8 * scale, 1.5);
+
+        if (muzzleFlashTimer > 0) {
+          ctx.fillStyle = 'rgba(254, 240, 138, 0.92)';
+          ctx.beginPath();
+          ctx.moveTo(11 * scale, 0);
+          ctx.lineTo(25 * scale, -6);
+          ctx.lineTo(21 * scale, 0);
+          ctx.lineTo(25 * scale, 6);
+          ctx.closePath();
+          ctx.fill();
+        }
+      } else {
+        ctx.fillStyle = '#e4e4e7';
+        ctx.beginPath();
+        ctx.moveTo(0, -1.8);
+        ctx.lineTo(11 * scale, 0);
+        ctx.lineTo(0, 1.8);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // Health Bar & Rank Tag
+      const barW = isBoss ? 34 : isElite ? 28 : 24;
+      const barY = isBoss ? -40 : isElite ? -36 : -34;
+      const hpRatio = Math.max(0, hp / maxHp);
+
+      ctx.fillStyle = 'rgba(9, 9, 11, 0.88)';
+      ctx.fillRect(-barW / 2 - 1, barY - 1, barW + 2, 5.5);
+
+      ctx.fillStyle = isBoss ? '#fbbf24' : hpRatio > 0.45 ? meta.badge : '#f43f5e';
+      ctx.fillRect(-barW / 2, barY, barW * hpRatio, 3.5);
+
+      if (isBoss || isElite) {
+        ctx.font = 'bold 8.5px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = isBoss ? '#fde047' : '#c7d2fe';
+        ctx.fillText(
+          isBoss ? (faction === Faction.PLAYER ? 'YOU (BOSS)' : 'BOSS') : 'ELITE',
+          0,
+          barY - 3
+        );
+      }
+
+      ctx.restore();
+    }
+
+    function renderMinimap() {
+      const w = minimapCanvas.width;
+      const h = minimapCanvas.height;
+      minimapCtx.fillStyle = '#09090b';
+      minimapCtx.fillRect(0, 0, w, h);
+
+      let minCx = Infinity, maxCx = -Infinity, minCy = Infinity, maxCy = -Infinity;
+      for (const c of world.chunks.values()) {
+        if (c.cx < minCx) minCx = c.cx;
+        if (c.cx > maxCx) maxCx = c.cx;
+        if (c.cy < minCy) minCy = c.cy;
+        if (c.cy > maxCy) maxCy = c.cy;
+      }
+      if (!isFinite(minCx)) return;
+
+      const cols = Math.max(1, maxCx - minCx + 1);
+      const rows = Math.max(1, maxCy - minCy + 1);
+      const cellSize = Math.min(w / cols, h / rows);
+      const offsetX = (w - cols * cellSize) / 2;
+      const offsetY = (h - rows * cellSize) / 2;
+
+      for (const chunk of world.chunks.values()) {
+        const gx = offsetX + (chunk.cx - minCx) * cellSize;
+        const gy = offsetY + (chunk.cy - minCy) * cellSize;
+        const meta = FACTION_META[chunk.faction];
+
+        minimapCtx.fillStyle =
+          chunk.faction === Faction.NEUTRAL ? '#27272a' : meta.badge;
+        minimapCtx.fillRect(
+          gx + 0.5,
+          gy + 0.5,
+          Math.max(2, cellSize - 1),
+          Math.max(2, cellSize - 1)
+        );
+      }
+
+      for (const npc of npcs) {
+        if (npc.rank !== UnitRank.BOSS) continue;
+        const bx = offsetX + (npc.x / CHUNK_PX - minCx) * cellSize;
+        const by = offsetY + (npc.y / CHUNK_PX - minCy) * cellSize;
+        minimapCtx.fillStyle = '#fde047';
+        minimapCtx.beginPath();
+        minimapCtx.arc(bx, by, 2.8, 0, Math.PI * 2);
+        minimapCtx.fill();
+      }
+
+      if (player.alive) {
+        const px = offsetX + (player.x / CHUNK_PX - minCx) * cellSize;
+        const py = offsetY + (player.y / CHUNK_PX - minCy) * cellSize;
+        minimapCtx.fillStyle = '#ffffff';
+        minimapCtx.beginPath();
+        minimapCtx.arc(px, py, 3.2, 0, Math.PI * 2);
+        minimapCtx.fill();
+      }
+
+      const camLeft = offsetX + ((camera.x - canvas.width / 2) / CHUNK_PX - minCx) * cellSize;
+      const camTop = offsetY + ((camera.y - canvas.height / 2) / CHUNK_PX - minCy) * cellSize;
+      const camW = (canvas.width / CHUNK_PX) * cellSize;
+      const camH = (canvas.height / CHUNK_PX) * cellSize;
+      minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+      minimapCtx.lineWidth = 1;
+      minimapCtx.strokeRect(camLeft, camTop, camW, camH);
+
+      const focusX = player.alive ? player.x : camera.x;
+      const focusY = player.alive ? player.y : camera.y;
+      const pTile = world.worldToTile(focusX, focusY);
+      document.getElementById('minimap-coords').textContent = `(${pTile.cx}, ${pTile.cy})`;
+    }
+
+    function render() {
+      ctx.fillStyle = '#09090b';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      ctx.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
+
+      const left = camera.x - canvas.width / 2 - CHUNK_PX;
+      const right = camera.x + canvas.width / 2 + CHUNK_PX;
+      const top = camera.y - canvas.height / 2 - CHUNK_PX;
+      const bottom = camera.y + canvas.height / 2 + CHUNK_PX;
+
+      const minCx = Math.floor(left / CHUNK_PX);
+      const maxCx = Math.floor(right / CHUNK_PX);
+      const minCy = Math.floor(top / CHUNK_PX);
+      const maxCy = Math.floor(bottom / CHUNK_PX);
+
+      const depthRenderables = [];
+
+      // PASS 1: Blit Pre-Baked Ground Canvases & Queue Buildings/Props
+      for (let cy = minCy; cy <= maxCy; cy++) {
+        for (let cx = minCx; cx <= maxCx; cx++) {
+          const chunk = world.getChunk(cx, cy);
+          const chunkOriginX = cx * CHUNK_PX;
+          const chunkOriginY = cy * CHUNK_PX;
+
+          if (!chunk) {
+            if (allowClickExpand) {
+              ctx.strokeStyle = 'rgba(16, 185, 129, 0.35)';
+              ctx.lineWidth = 1.5;
+              ctx.setLineDash([6, 6]);
+              ctx.strokeRect(chunkOriginX + 3, chunkOriginY + 3, CHUNK_PX - 6, CHUNK_PX - 6);
+              ctx.setLineDash([]);
+            }
+            continue;
+          }
+
+          if (chunk.groundCanvas) {
+            ctx.drawImage(chunk.groundCanvas, chunkOriginX, chunkOriginY);
+          }
+
+          for (let ly = 0; ly < CHUNK_SIZE; ly++) {
+            for (let lx = 0; lx < CHUNK_SIZE; lx++) {
+              const tile = chunk.ground[ly][lx];
+              const wx = chunkOriginX + lx * TILE_SIZE;
+              const wy = chunkOriginY + ly * TILE_SIZE;
+
+              if (tile === TileType.BUILDING) {
+                const elev = chunk.elevation[ly][lx];
+                const style = chunk.buildingStyle[ly][lx];
+                const hasSouthBuilding =
+                  ly + 1 < CHUNK_SIZE && chunk.ground[ly + 1][lx] === TileType.BUILDING;
+                const hasEastBuilding =
+                  lx + 1 < CHUNK_SIZE && chunk.ground[ly][lx + 1] === TileType.BUILDING;
+                const hasWestBuilding =
+                  lx - 1 >= 0 && chunk.ground[ly][lx - 1] === TileType.BUILDING;
+
+                depthRenderables.push({
+                  type: 'building',
+                  sortY: wy + TILE_SIZE,
+                  wx,
+                  wy,
+                  elev,
+                  style,
+                  hasSouthBuilding,
+                  hasEastBuilding,
+                  hasWestBuilding,
+                });
+              }
+
+              const prop = chunk.props[ly][lx];
+              if (prop !== PropType.NONE) {
+                let propSortY = wy + TILE_SIZE * 0.72;
+                if (prop === PropType.CAR) {
+                  propSortY = chunk.propVertical[ly][lx] ? wy + 39 : wy + 28;
+                } else if (prop === PropType.STREETLIGHT || prop === PropType.TREE) {
+                  propSortY = wy + 26;
+                }
+                depthRenderables.push({
+                  type: 'prop',
+                  sortY: propSortY,
+                  wx,
+                  wy,
+                  prop,
+                  color: chunk.propColors[ly][lx],
+                  vertical: chunk.propVertical[ly][lx],
+                });
+              }
+            }
+          }
+
+          const meta = FACTION_META[chunk.faction];
+          if (showBorders) {
+            if (chunk.faction !== Faction.NEUTRAL) {
+              ctx.fillStyle = meta.tint;
+              ctx.fillRect(chunkOriginX, chunkOriginY, CHUNK_PX, CHUNK_PX);
+            }
+            ctx.strokeStyle = meta.border;
+            ctx.lineWidth = chunk.faction === Faction.NEUTRAL ? 1 : 2.5;
+            ctx.strokeRect(chunkOriginX + 1.5, chunkOriginY + 1.5, CHUNK_PX - 3, CHUNK_PX - 3);
+
+            if (chunk.captureProgress > 0 && chunk.capturingFaction) {
+              const capMeta = FACTION_META[chunk.capturingFaction];
+              ctx.fillStyle = 'rgba(9, 9, 11, 0.85)';
+              ctx.fillRect(chunkOriginX + 14, chunkOriginY + 34, 96, 8);
+              ctx.fillStyle = capMeta.badge;
+              ctx.fillRect(chunkOriginX + 14, chunkOriginY + 34, 96 * chunk.captureProgress, 8);
+            }
+          }
+
+          // Neighborhood Hourly Income Pill Badge
+          ctx.fillStyle = 'rgba(9, 9, 11, 0.78)';
+          ctx.beginPath();
+          ctx.roundRect(chunkOriginX + 10, chunkOriginY + 10, 82, 20, 6);
+          ctx.fill();
+          ctx.strokeStyle = chunk.faction === Faction.NEUTRAL ? 'rgba(113, 113, 122, 0.55)' : meta.badge;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          ctx.font = 'bold 10px Inter, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillStyle = chunk.faction === Faction.NEUTRAL ? '#fbbf24' : meta.accent;
+          ctx.fillText(chunk.incomeLabel, chunkOriginX + 16, chunkOriginY + 23);
+        }
+      }
+
+      // Ground Blood Splatters
+      for (const decal of bloodDecals) {
+        if (decal.x < left || decal.x > right || decal.y < top || decal.y > bottom) continue;
+        ctx.save();
+        ctx.globalAlpha = decal.alpha;
+        ctx.fillStyle = decal.color;
+        ctx.beginPath();
+        ctx.ellipse(decal.x, decal.y, decal.rx, decal.ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // PASS 2: Y-Sorted 2.5D Buildings, Urban Props, Blood Particles & Characters
+      for (const npc of npcs) {
+        if (npc.x < left || npc.x > right || npc.y < top || npc.y > bottom) continue;
+        depthRenderables.push({ type: 'npc', sortY: npc.y, entity: npc });
+      }
+      if (player.alive) {
+        depthRenderables.push({ type: 'player', sortY: player.y, entity: player });
+      }
+      for (const bp of bloodParticles) {
+        if (bp.x < left || bp.x > right || bp.y < top || bp.y > bottom) continue;
+        depthRenderables.push({ type: 'blood', sortY: bp.y, bp });
+      }
+
+      depthRenderables.sort((a, b) => a.sortY - b.sortY);
+
+      for (const item of depthRenderables) {
+        if (item.type === 'building') {
+          const { wx, wy, elev, style, hasSouthBuilding, hasEastBuilding, hasWestBuilding } = item;
+          const heightPx = elev * 15;
+          const roofY = wy - heightPx - 4;
+
+          const roofColors = ['#334155', '#3f3f46', '#292524'];
+          const wallColors = ['#1e293b', '#27272a', '#1c1917'];
+
+          if (!hasSouthBuilding) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+            ctx.fillRect(wx + 4, wy + TILE_SIZE - 4, TILE_SIZE, 10);
+
+            ctx.fillStyle = wallColors[style];
+            ctx.fillRect(wx, roofY + TILE_SIZE, TILE_SIZE, heightPx);
+
+            for (let f = 0; f < elev; f++) {
+              const winY = roofY + TILE_SIZE + f * 15 + 4;
+              ctx.fillStyle = (wx + f) % 3 === 0 ? 'rgba(253, 224, 71, 0.5)' : 'rgba(148, 163, 184, 0.25)';
+              ctx.fillRect(wx + 7, winY, 10, 7);
+              ctx.fillStyle = (wy + f) % 2 === 0 ? 'rgba(253, 224, 71, 0.42)' : 'rgba(148, 163, 184, 0.25)';
+              ctx.fillRect(wx + 26, winY, 10, 7);
+            }
+          }
+
+          ctx.fillStyle = roofColors[style];
+          ctx.fillRect(wx, roofY, TILE_SIZE, TILE_SIZE);
+
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.28)';
+          ctx.lineWidth = 1.5;
+          if (!hasWestBuilding) {
+            ctx.beginPath();
+            ctx.moveTo(wx + 1, roofY);
+            ctx.lineTo(wx + 1, roofY + TILE_SIZE);
+            ctx.stroke();
+          }
+          if (!hasEastBuilding) {
+            ctx.beginPath();
+            ctx.moveTo(wx + TILE_SIZE - 1, roofY);
+            ctx.lineTo(wx + TILE_SIZE - 1, roofY + TILE_SIZE);
+            ctx.stroke();
+          }
+          if (!hasSouthBuilding) {
+            ctx.beginPath();
+            ctx.moveTo(wx, roofY + TILE_SIZE - 1);
+            ctx.lineTo(wx + TILE_SIZE, roofY + TILE_SIZE - 1);
+            ctx.stroke();
+          }
+
+          if ((wx / TILE_SIZE + wy / TILE_SIZE) % 5 === 0) {
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(wx + 14, roofY + 14, 14, 12);
+            ctx.strokeStyle = '#1e293b';
+            ctx.strokeRect(wx + 14, roofY + 14, 14, 12);
+          }
+        } else if (item.type === 'prop') {
+          const cx = item.wx + TILE_SIZE / 2;
+          const cy = item.wy + TILE_SIZE / 2;
+
+          if (item.prop === PropType.STREETLIGHT) {
+            ctx.fillStyle = 'rgba(253, 224, 71, 0.14)';
+            ctx.beginPath();
+            ctx.arc(cx, cy - 10, 36, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#27272a';
+            ctx.fillRect(cx - 2, cy - 28, 4, 30);
+            ctx.fillStyle = '#fef08a';
+            ctx.beginPath();
+            ctx.arc(cx, cy - 29, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (item.prop === PropType.CAR) {
+            ctx.fillStyle = 'rgba(0,0,0,0.45)';
+            if (item.vertical) {
+              ctx.fillRect(item.wx + 15, item.wy + 7, 18, 34);
+              ctx.fillStyle = item.color;
+              ctx.beginPath();
+              ctx.roundRect(item.wx + 13, item.wy + 5, 18, 34, 4);
+              ctx.fill();
+              ctx.fillStyle = '#38bdf8';
+              ctx.globalAlpha = 0.45;
+              ctx.fillRect(item.wx + 15, item.wy + 11, 14, 6);
+              ctx.fillRect(item.wx + 15, item.wy + 27, 14, 5);
+              ctx.globalAlpha = 1;
+            } else {
+              ctx.fillRect(item.wx + 7, item.wy + 12, 34, 18);
+              ctx.fillStyle = item.color;
+              ctx.beginPath();
+              ctx.roundRect(item.wx + 5, item.wy + 10, 34, 18, 4);
+              ctx.fill();
+              ctx.fillStyle = '#38bdf8';
+              ctx.globalAlpha = 0.45;
+              ctx.fillRect(item.wx + 11, item.wy + 12, 6, 14);
+              ctx.fillRect(item.wx + 27, item.wy + 12, 5, 14);
+              ctx.globalAlpha = 1;
+            }
+          } else if (item.prop === PropType.TREE) {
+            ctx.fillStyle = 'rgba(0,0,0,0.35)';
+            ctx.beginPath();
+            ctx.ellipse(cx, cy + 4, 13, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#451a03';
+            ctx.fillRect(cx - 2.5, cy - 12, 5, 15);
+            ctx.fillStyle = '#15803d';
+            ctx.beginPath();
+            ctx.arc(cx, cy - 17, 13, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#22c55e';
+            ctx.beginPath();
+            ctx.arc(cx - 3, cy - 20, 8, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else if (item.type === 'blood') {
+          const bp = item.bp;
+          ctx.fillStyle = bp.color;
+          ctx.beginPath();
+          ctx.arc(bp.x, bp.y - bp.z, bp.radius, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (item.type === 'npc') {
+          const n = item.entity;
+          drawCharacter(
+            n.x,
+            n.y,
+            n.facing,
+            n.faction,
+            n.rank,
+            n.hp,
+            n.maxHp,
+            n.slashAnimTimer,
+            n.hitFlashTimer,
+            n.muzzleFlashTimer || 0
+          );
+        } else if (item.type === 'player') {
+          drawCharacter(
+            player.x,
+            player.y,
+            player.facing,
+            Faction.PLAYER,
+            UnitRank.BOSS,
+            player.hp,
+            player.maxHp,
+            player.slashAnimTimer,
+            player.hitFlashTimer,
+            player.muzzleFlashTimer || 0
+          );
+        }
+      }
+
+      // Render Ejecting Brass Shell Casings
+      for (const sc of shellCasings) {
+        ctx.save();
+        ctx.translate(sc.x, sc.y - sc.z);
+        ctx.rotate(sc.rot);
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillRect(-2, -1, 4, 2);
+        ctx.restore();
+      }
+
+      // Render Bullet Tracers
+      for (const tr of bulletTracers) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, tr.life / 0.14);
+        ctx.strokeStyle = tr.color;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(tr.x1, tr.y1);
+        ctx.lineTo(tr.x2, tr.y2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Render Wall/Car Ricochet Sparks
+      for (const sp of sparks) {
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(sp.x - 1.5, sp.y - 1.5, 3, 3);
+      }
+
+      if (player.alive && player.targetX !== null && player.targetY !== null) {
+        ctx.strokeStyle = 'rgba(52, 211, 153, 0.85)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(player.targetX, player.targetY, 10, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      for (const ft of floatingTexts) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, ft.life * 1.4);
+        ctx.font = 'bold 12px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#09090b';
+        ctx.fillText(ft.text, ft.x + 1, ft.y + 1);
+        ctx.fillStyle = ft.color;
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+      }
+
+      ctx.restore();
+      renderMinimap();
+    }
+
+    function resizeCanvas() {
+      const parent = canvas.parentElement;
+      canvas.width = parent.clientWidth;
+      canvas.height = parent.clientHeight;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    let lastTime = 0;
+    function gameLoop(timestamp) {
+      const dt = Math.min(0.05, (timestamp - lastTime) / 1000 || 0.016);
+      lastTime = timestamp;
+      update(dt);
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+
+    window.onload = function () {
+      resizeCanvas();
+      syncSetupPreview(DEFAULT_GRID_SIZE);
+      initWorld(DEFAULT_GRID_SIZE, false);
+      requestAnimationFrame(gameLoop);
+    };
+  </script>
+</body>
+</html>
