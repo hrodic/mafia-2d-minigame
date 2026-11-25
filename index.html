@@ -758,15 +758,17 @@
       },
     };
 
-    // Distance-based SFX volume scalar: 100% up to 100px, -10% per 100px beyond (500px -> 50%, 900px -> 10%, >=1000px -> 0%)
+    // Distance-based SFX volume, measured from the CAMERA CENTER:
+    // 100% up to 100px, then linear falloff: 500px -> 50%, 900px -> 10%, >=1000px -> 0%
+    const SFX_FULL_VOLUME_RADIUS = 100;
+    const SFX_MAX_HEAR_RADIUS = 1000;
+    
     function getSfxDistanceGain(wx, wy) {
       if (wx === undefined || wy === undefined || wx === null || wy === null) return 1.0;
-      const listenerX = player.alive ? player.x : camera.x;
-      const listenerY = player.alive ? player.y : camera.y;
-      const dist = Math.hypot(wx - listenerX, wy - listenerY);
-      if (dist <= 100) return 1.0;
-      const extraSteps = (dist - 100) / 100;
-      return Math.max(0, 1.0 - extraSteps * 0.1);
+      const dist = Math.hypot(wx - camera.x, wy - camera.y);
+      if (dist <= SFX_FULL_VOLUME_RADIUS) return 1.0;
+      if (dist >= SFX_MAX_HEAR_RADIUS) return 0.0;
+      return 1.0 - dist / SFX_MAX_HEAR_RADIUS;
     }
 
     function createAttenuatedSfxNode(ctx, wx, wy) {
@@ -2860,8 +2862,6 @@
         vrot: (Math.random() - 0.5) * 24,
         life: 0.75,
       });
-
-      sfx.playGunshot();
 
       sfx.playGunshot(shooter.x, shooter.y);
 
