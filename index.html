@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hrodic's Mafia 2D — BETA.2026.11.24</title>
+  <title>Hrodic's Mafia 2D — BETA.2026.11.25</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -53,7 +53,7 @@
           2D
         </span>
         <span class="text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-500/15 border border-amber-500/40 text-amber-300 px-1.5 py-0.5 rounded">
-          BETA.2026.11.24
+          BETA.2026.11.25
         </span>
       </div>
       <span id="stats-badge" class="hidden xl:inline-block text-xs bg-zinc-900 border border-zinc-700 text-zinc-300 px-2.5 py-0.5 rounded-full">
@@ -68,7 +68,7 @@
         <div class="w-16 sm:w-20 h-2.5 bg-zinc-800 rounded-full overflow-hidden">
           <div id="hp-bar-fill" class="h-full bg-emerald-500 transition-all duration-150" style="width: 100%"></div>
         </div>
-        <span id="hp-text" class="font-mono font-bold text-emerald-400">200/200</span>
+        <span id="hp-text" class="font-mono font-bold text-emerald-400">350/350</span>
       </div>
 
       <div id="armor-hud-box" class="hidden items-center gap-1.5 bg-sky-950/80 border border-sky-500/50 px-2.5 py-1 rounded-lg" title="Kevlar Armor absorbs incoming Boss damage until depleted">
@@ -103,19 +103,46 @@
 
     <!-- Action Controls -->
     <div class="flex flex-wrap items-center gap-1.5 text-xs">
-      <button id="btn-toggle-soldier" class="bg-emerald-900/90 hover:bg-emerald-800 border border-emerald-500/70 text-emerald-200 font-bold px-2.5 py-1.5 rounded-lg transition" title="Auto-spawn Soldiers ($1,200 each) on every tick">
-        Auto Soldier: ON ($1,200)
-      </button>
-      <button id="btn-toggle-elite" class="bg-indigo-900/90 hover:bg-indigo-800 border border-indigo-400/70 text-indigo-200 font-bold px-2.5 py-1.5 rounded-lg transition" title="Auto-spawn Elites ($2,400 each) on every tick">
-        Auto Elite: ON ($2,400)
-      </button>
-      <button id="btn-buy-armor" class="bg-sky-950/90 hover:bg-sky-900 border border-sky-500/60 text-sky-200 font-bold px-2.5 py-1.5 rounded-lg transition flex items-center gap-1" title="Buy 200 HP Kevlar Armor for your Boss ($5,000) [Key: Q]">
-        <span>🛡️</span> Armor ($5,000) [Q]
+      <div class="inline-flex items-center bg-emerald-950/90 border border-emerald-500/60 rounded-lg overflow-hidden">
+        <button id="btn-toggle-soldier" class="bg-emerald-900/90 hover:bg-emerald-800 text-emerald-200 font-bold px-2 py-1.5 transition" title="Auto-spawn Street Enforcers ($1,200 each · $25/hr upkeep) on every tick">
+          Auto Soldato: ON ($1,200)
+        </button>
+        <div class="flex items-center bg-zinc-950/80 px-1.5 py-1 border-l border-emerald-500/40 gap-1 font-mono text-[11px]" title="Target Enforcer Spawn Cap (1 to Max)">
+          <button id="btn-cap-soldier-dec" class="text-zinc-400 hover:text-white px-1 font-bold">-</button>
+          <span id="cap-soldier-label" class="text-emerald-300 font-bold">140/280</span>
+          <button id="btn-cap-soldier-inc" class="text-zinc-400 hover:text-white px-1 font-bold">+</button>
+        </div>
+      </div>
+
+      <div class="inline-flex items-center bg-indigo-950/90 border border-indigo-400/60 rounded-lg overflow-hidden">
+        <button id="btn-toggle-captain" class="bg-indigo-900/90 hover:bg-indigo-800 text-indigo-200 font-bold px-2 py-1.5 transition" title="Auto-spawn Captains ($2,200 each · $50/hr upkeep) on every tick">
+          Auto Caporegime: ON ($2,200)
+        </button>
+        <div class="flex items-center bg-zinc-950/80 px-1.5 py-1 border-l border-indigo-400/40 gap-1 font-mono text-[11px]" title="Target Captain Spawn Cap (1 to Max)">
+          <button id="btn-cap-captain-dec" class="text-zinc-400 hover:text-white px-1 font-bold">-</button>
+          <span id="cap-captain-label" class="text-indigo-300 font-bold">40/80</span>
+          <button id="btn-cap-captain-inc" class="text-zinc-400 hover:text-white px-1 font-bold">+</button>
+        </div>
+      </div>
+
+      <div class="inline-flex items-center bg-purple-950/90 border border-purple-400/60 rounded-lg overflow-hidden">
+        <button id="btn-toggle-underboss" class="bg-purple-900/90 hover:bg-purple-800 text-purple-200 font-bold px-2 py-1.5 transition" title="Auto-spawn Second-in-Command ($3,800 each · $87.5/hr upkeep, armed with Pistol & Blade) on every tick">
+          Auto Sottocapo: ON ($3,800)
+        </button>
+        <div class="flex items-center bg-zinc-950/80 px-1.5 py-1 border-l border-purple-400/40 gap-1 font-mono text-[11px]" title="Target 2IC Spawn Cap (1 to Max)">
+          <button id="btn-cap-underboss-dec" class="text-zinc-400 hover:text-white px-1 font-bold">-</button>
+          <span id="cap-underboss-label" class="text-purple-300 font-bold">20/40</span>
+          <button id="btn-cap-underboss-inc" class="text-zinc-400 hover:text-white px-1 font-bold">+</button>
+        </div>
+      </div>
+
+      <button id="btn-buy-armor" class="bg-sky-950/90 hover:bg-sky-900 border border-sky-500/60 text-sky-200 font-bold px-2.5 py-1.5 rounded-lg transition flex items-center gap-1" title="Buy 200 HP Kevlar Armor for your Boss ($3,500 · Once per tick) [Key: Q]">
+        <span>🛡️</span> Armor ($3,500) [Q]
       </button>
       <button id="btn-slash" class="bg-gradient-to-b from-rose-500 to-rose-700 hover:from-rose-400 hover:to-rose-600 active:scale-95 transition text-white font-bold px-2.5 py-1.5 rounded-lg shadow border border-rose-400/30 flex items-center gap-1" title="Close-range Knife Slash (Space / F)">
         <span>🔪</span> Slash
       </button>
-      <button id="btn-pistol" class="bg-gradient-to-b from-amber-500 to-amber-700 hover:from-amber-400 hover:to-amber-600 active:scale-95 transition text-zinc-950 font-extrabold px-2.5 py-1.5 rounded-lg shadow border border-amber-300/40 flex items-center gap-1" title="Ranged 9mm Pistol Shot: up to 800px range, 40–80 dmg (50% less <100px, 75% less ≤50px) (Right-Click)">
+      <button id="btn-pistol" class="bg-gradient-to-b from-amber-500 to-amber-700 hover:from-amber-400 hover:to-amber-600 active:scale-95 transition text-zinc-950 font-extrabold px-2.5 py-1.5 rounded-lg shadow border border-amber-300/40 flex items-center gap-1" title="Ranged 9mm Pistol Shot: up to 1000px range, 40–80 dmg (-50% <100px, -75% ≤50px; miss chance: 5% at 250–500px, 10% at 500–750px, 25% at 750–900px, 50% at 900–1000px) (Right-Click)">
         <span>🔫</span> Pistol
       </button>
       <button id="btn-toggle-expand-click" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 px-2.5 py-1.5 rounded-lg transition" title="Allow clicking empty space outside the map to build new blocks">
@@ -127,8 +154,8 @@
       <button id="btn-toggle-grid" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 px-2.5 py-1.5 rounded-lg transition">
         Borders: ON
       </button>
-      <button id="btn-toggle-music" class="bg-amber-950/80 hover:bg-amber-900/80 border border-amber-500/60 text-amber-200 font-semibold px-2.5 py-1.5 rounded-lg transition" title="Toggle GTA-Style Synthetic Background Music">
-        🎵 Music: ON
+      <button id="btn-toggle-music" class="bg-amber-950/80 hover:bg-amber-900/80 border border-amber-500/60 text-amber-200 font-semibold px-2.5 py-1.5 rounded-lg transition" title="Cycle Dark Noir Mafia Music Tracks (Track 1 / Track 2 / OFF)">
+        🎷 Noir I: ON
       </button>
       <button id="btn-toggle-sound" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 px-2.5 py-1.5 rounded-lg transition" title="Toggle Sound Effects">
         🔊 SFX: ON
@@ -141,7 +168,7 @@
 
   <!-- Main Canvas Container -->
   <main class="relative flex-1 w-full h-full overflow-hidden">
-    <canvas id="gameCanvas"></canvas>
+    <canvas id="gameCanvas" class="cursor-crosshair"></canvas>
 
     <!-- Spectator Mode Pill (Shown when spectating after defeat) -->
     <div id="spectator-banner" class="hidden glass-panel fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full border border-amber-500/60 flex items-center gap-3 text-xs z-20">
@@ -179,7 +206,7 @@
           <span class="text-[10px] font-extrabold uppercase tracking-[0.22em] text-amber-400/90">
             Criminal Empire Edition
           </span>
-          <span class="text-[10px] font-mono text-zinc-500">4 SYNDICATES · 1 CITY · BETA.2026.11.24</span>
+          <span class="text-[10px] font-mono text-zinc-500">4 SYNDICATES · 1 CITY · BETA.2026.11.25</span>
         </div>
         <div class="flex flex-wrap items-center gap-2.5 mb-1.5">
           <h2 class="font-display-mafia text-4xl sm:text-5xl title-gold-chrome leading-none">
@@ -189,11 +216,11 @@
             2D
           </span>
           <span class="px-2 py-1 rounded-md bg-amber-500/15 border border-amber-500/45 text-amber-300 font-mono text-xs font-bold tracking-wider">
-            BETA.2026.11.24
+            BETA.2026.11.25
           </span>
         </div>
         <p class="text-xs text-zinc-400 mb-4">
-          Four crime syndicates start in the four corners of the city. Eliminate all rival Bosses to conquer the metropolis.
+          Choose 2 to 4 authentic crime organizations to battle for the city. Each syndicate fields its own named hierarchy—eliminate all rival Supreme Leaders to conquer the metropolis.
         </p>
 
         <!-- Two-Column Layout: Match Settings (Left) + Detailed Instructions (Right) -->
@@ -201,6 +228,23 @@
 
           <!-- Left Column: Match Configuration -->
           <div class="lg:col-span-5 flex flex-col gap-3">
+            <!-- Syndicate Count & Organization Roster (2 to 4 Unique Factions) -->
+            <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-amber-300">
+                  Syndicates in War
+                </span>
+                <div class="flex items-center gap-1" id="faction-count-btns">
+                  <button type="button" data-fcount="2" class="fcount-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 px-2.5 py-0.5 rounded text-[11px] font-mono font-bold transition">2</button>
+                  <button type="button" data-fcount="3" class="fcount-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 px-2.5 py-0.5 rounded text-[11px] font-mono font-bold transition">3</button>
+                  <button type="button" data-fcount="4" class="fcount-btn bg-amber-500/20 border border-amber-500 text-amber-300 px-2.5 py-0.5 rounded text-[11px] font-mono font-bold transition">4</button>
+                </div>
+              </div>
+              <div id="faction-slots-container" class="space-y-1.5">
+                <!-- Populated dynamically with unique organization dropdowns -->
+              </div>
+            </div>
+
             <!-- Map Size Selector -->
             <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
               <div class="flex items-center justify-between mb-2">
@@ -229,7 +273,7 @@
 
               <div id="map-cap-preview" class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-zinc-800/90 pt-2">
                 <span>400 Neighborhoods</span>
-                <span class="font-mono text-emerald-400">Cap: 300 Soldiers · 100 Elites</span>
+                <span class="font-mono text-emerald-400">Cap: 280 Enforcers · 80 Captains · 40 2IC</span>
               </div>
             </div>
 
@@ -265,21 +309,21 @@
                 <span class="text-xs font-bold uppercase tracking-wider text-zinc-300">
                   Neighborhood Income
                 </span>
-                <span id="income-tier-display" class="font-mono text-xs font-bold text-emerald-400">$1,000–$2,000 / tick</span>
+                <span id="income-tier-display" class="font-mono text-xs font-bold text-emerald-400">$1,200–$2,000 / tick</span>
               </div>
 
               <div class="grid grid-cols-3 gap-2">
                 <button type="button" data-income="LOW" class="income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition">
                   <div class="text-xs font-extrabold">Low</div>
-                  <div class="text-[10px] font-mono text-zinc-400">$250–$500</div>
+                  <div class="text-[10px] font-mono text-zinc-400">$450–$750</div>
                 </button>
                 <button type="button" data-income="MID" class="income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition">
                   <div class="text-xs font-extrabold">Mid</div>
-                  <div class="text-[10px] font-mono text-zinc-400">$500–$1,000</div>
+                  <div class="text-[10px] font-mono text-zinc-400">$750–$1,250</div>
                 </button>
                 <button type="button" data-income="HIGH" class="income-tier-btn bg-emerald-500/20 border border-emerald-500 text-emerald-300 py-2 px-2 rounded-lg text-center transition">
                   <div class="text-xs font-extrabold">High</div>
-                  <div class="text-[10px] font-mono text-emerald-200/80">$1,000–$2,000</div>
+                  <div class="text-[10px] font-mono text-emerald-200/80">$1,200–$2,000</div>
                 </button>
               </div>
             </div>
@@ -289,7 +333,7 @@
           <div class="lg:col-span-7 bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5 flex flex-col gap-3 text-[11px] text-zinc-300">
             <div class="flex items-center justify-between border-b border-zinc-800 pb-1.5">
               <span class="text-xs font-bold uppercase tracking-wider text-amber-400">
-                Boss Controls & Combat Mechanics
+                Syndicate Hierarchy & Combat Mechanics
               </span>
               <span class="text-[10px] font-mono text-zinc-500">FIELD MANUAL</span>
             </div>
@@ -320,25 +364,28 @@
               <div class="bg-zinc-900/90 border border-zinc-800/90 rounded-lg p-2">
                 <div class="font-bold text-amber-400 mb-0.5">🔫 9mm Pistol (<span class="text-zinc-200">Right-Click</span>)</div>
                 <p class="text-zinc-400 leading-relaxed">
-                  Fires up to <span class="text-white">800px</span> (<span class="text-amber-300 font-semibold">40–80 dmg</span>). Point-blank shots deal <span class="text-white">50% less</span> (&lt;100px) or <span class="text-white">75% less</span> (≤50px).
+                  Fires up to <span class="text-white">1000px</span> (<span class="text-amber-300 font-semibold">40–80 dmg</span>). Point-blank deals <span class="text-white">-50%</span> (&lt;100px) or <span class="text-white">-75%</span> (≤50px); miss chance scales at <span class="text-white">250px (5%)</span>, <span class="text-white">500px (10%)</span>, <span class="text-white">750px (25%)</span>, and <span class="text-white">900px+ (50%)</span>.
                 </p>
               </div>
             </div>
 
-            <!-- Syndicate Rules & Economy -->
+            <!-- Syndicate Rules & 4-Tier Hierarchy -->
             <div class="bg-zinc-900/70 border border-zinc-800/90 rounded-lg p-2.5 space-y-1.5">
               <div class="font-bold text-emerald-400 uppercase tracking-wider text-[10px]">
-                Turf War, Crew & Economy Rules
+                4-Tier Crime Family Hierarchy, Upkeep & Recruitment Caps
               </div>
               <ul class="space-y-1 text-zinc-400 leading-relaxed">
                 <li>
-                  <span class="text-rose-400 font-semibold">• Assassinate Rival Bosses:</span> Killing a syndicate's Boss immediately eliminates their faction, turns all their blocks Neutral, and halts their recruitment.
+                  <span class="text-amber-300 font-semibold">• 1. Supreme Leader (Boss · 350 HP):</span> Don / Pakhan / Oyabun / Shan Chu / Capobastone / Patrón. Equal 350 HP across all factions; Kevlar Armor costs <span class="text-sky-300 font-semibold">$3,500</span>.
                 </li>
                 <li>
-                  <span class="text-emerald-300 font-semibold">• Turf Capture & Hourly Ticks:</span> Stand in any block to capture it (allies speed up capture). Every tick, owned blocks pay out cash and auto-spawn toggled units (Soldiers first, then Elites).
+                  <span class="text-purple-300 font-semibold">• 2. Second-in-Command (Max 10%):</span> Sottocapo / Avtoritet / Wakagashira / Fu Shan Chu / Contabile / Lugarteniente (<span class="text-white">$3,800</span> · $87.5/hr upkeep · 480 HP + 120 Armor · <span class="text-amber-300">9mm Pistol + 26–38 Blade Slash</span>, 1.0s CD).
                 </li>
                 <li>
-                  <span class="text-indigo-300 font-semibold">• Crew Stats & Caps:</span> <span class="text-white">Soldiers</span> ($1,200 · 200 HP · 10–20 dmg) &amp; <span class="text-white">Elites</span> ($2,400 · 300 HP · 15–25 dmg). Max cap scales with map size (<span class="text-white">75% Soldiers / 25% Elites</span>). Friendly units yield when pushed; enemies block movement until killed.
+                  <span class="text-indigo-300 font-semibold">• 3. Middle Management (Max 20%):</span> Caporegime / Brigadier / Shateigashira / Hung Kwan / Caposocietà / Jefe de Plaza (<span class="text-white">$2,200</span> · $50/hr upkeep · 340 HP · 18–28 dmg, 1.0s CD).
+                </li>
+                <li>
+                  <span class="text-emerald-300 font-semibold">• 4. Street Enforcers (Max 70%):</span> Soldato / Boyevik / Kobun / Sei Kau Tsai / Picciotto / Sicario (<span class="text-white">$1,200</span> · $25/hr upkeep · 180 HP · 10–18 dmg, 1.0s CD).
                 </li>
               </ul>
             </div>
@@ -349,12 +396,10 @@
                 Top HUD Action Buttons
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 text-zinc-400">
-                <div><span class="text-emerald-300 font-semibold">Auto Soldier / Elite:</span> Toggle auto-hiring on each tick.</div>
-                <div><span class="text-sky-300 font-semibold">🛡️ Armor ($5k) [Q]:</span> Equips 200 HP damage shield on Boss.</div>
+                <div><span class="text-emerald-300 font-semibold">Top-Down Auto-Hire & -/+ Caps:</span> Hires 2IC → Captain → Enforcer up to your custom cap (1–Max).</div>
+                <div><span class="text-sky-300 font-semibold">🛡️ Armor ($3.5k) [Q]:</span> Equips 200 HP shield (1-tick cooldown).</div>
                 <div><span class="text-rose-300 font-semibold">🔪 Slash / 🔫 Pistol:</span> Trigger melee slash or auto-aimed shot.</div>
-                <div><span class="text-amber-300 font-semibold">Click-Build / + Expand Ring:</span> Build new blocks outside map.</div>
-                <div><span class="text-zinc-200 font-semibold">Borders / Music / SFX:</span> Toggle overlays &amp; 90s synth audio.</div>
-                <div><span class="text-zinc-200 font-semibold">New Game:</span> Re-open this setup &amp; manual screen anytime.</div>
+                <div><span class="text-amber-300 font-semibold">🎷 Noir I / II / OFF:</span> Switch between 2 dark noir mafia tracks.</div>
               </div>
             </div>
           </div>
@@ -417,10 +462,11 @@
 
   <script>
     // =========================================================================
-    // 1. SYNTHESIZED AUDIO FX & GTA 1-STYLE ACTION MUSIC ENGINE
+    // 1. SYNTHESIZED AUDIO FX & DUAL-TRACK DARK NOIR MAFIA MUSIC ENGINE
     // =========================================================================
     let soundEnabled = true;
     let musicEnabled = true;
+    let currentMusicTrack = 0; // 0 = Midnight Siciliano (Noir I), 1 = Velvet Omertà (Noir II)
     let audioCtx = null;
     let masterGain = null;
     let musicGain = null;
@@ -436,7 +482,7 @@
         masterGain.connect(audioCtx.destination);
 
         musicGain = audioCtx.createGain();
-        musicGain.gain.value = musicEnabled ? 0.28 : 0.0;
+        musicGain.gain.value = musicEnabled ? 0.27 : 0.0;
         musicGain.connect(audioCtx.destination);
       }
       if (audioCtx.state === 'suspended') {
@@ -458,35 +504,62 @@
       return masterGain || audioCtx.destination;
     }
 
-    // GTA 1-Inspired 90s Top-Down Funk/Breakbeat Action Synth Loop (124 BPM, E Dorian)
+    // Dual-Track Dark Noir Mafia Soundtrack Engine
     const musicEngine = {
       isPlaying: false,
       timerId: null,
       step: 0,
       nextNoteTime: 0,
-      tempo: 124,
       noiseBuffer: null,
 
-      // 16-step funky synth bass frequencies (Hz) in E Minor / Dorian
-      bassPattern: [
-        82.41, 0, 82.41, 164.81,
-        98.00, 0, 110.00, 123.47,
-        82.41, 0, 82.41, 146.83,
-        123.47, 110.00, 98.00, 73.42,
+      tracks: [
+        {
+          // Track 1: "Midnight Siciliano" — Slow Dark Noir Walking Bass & Muted Brass in D Harmonic Minor (92 BPM)
+          name: 'Noir I',
+          tempo: 92,
+          bassPattern: [
+            73.42, 0, 0, 87.31,
+            110.00, 0, 116.54, 0,
+            110.00, 0, 87.31, 0,
+            69.30, 0, 82.41, 0,
+          ],
+          leadPattern: [
+            293.66, 0, 0, 0, 349.23, 0, 440.00, 0,
+            466.16, 0, 440.00, 0, 349.23, 0, 0, 0,
+            277.18, 0, 0, 329.63, 0, 349.23, 0, 329.63,
+            293.66, 0, 0, 0, 0, 0, 0, 0,
+          ],
+          kickPattern:  [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+          snarePattern: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1],
+          hatPattern:   [1, 0, 1, 2, 1, 0, 1, 0, 1, 0, 1, 2, 1, 0, 1, 0],
+          chords: [146.83, 138.59], // Dm -> A7/C# noir tension
+          leadCutoff: 1350,
+          bassCutoff: 520,
+        },
+        {
+          // Track 2: "Velvet Omertà" — Moody Rain-Soaked Smoke Lounge Noir in C Minor (98 BPM)
+          name: 'Noir II',
+          tempo: 98,
+          bassPattern: [
+            65.41, 0, 98.00, 0,
+            77.78, 0, 87.31, 98.00,
+            65.41, 0, 98.00, 0,
+            103.83, 0, 98.00, 61.74,
+          ],
+          leadPattern: [
+            0, 0, 392.00, 0, 311.13, 0, 293.66, 0,
+            261.63, 0, 0, 0, 246.94, 0, 261.63, 0,
+            311.13, 0, 349.23, 0, 392.00, 0, 415.30, 0,
+            392.00, 0, 311.13, 0, 261.63, 0, 0, 0,
+          ],
+          kickPattern:  [1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+          snarePattern: [0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0],
+          hatPattern:   [2, 0, 1, 0, 1, 0, 1, 0, 2, 0, 1, 0, 1, 1, 1, 0],
+          chords: [130.81, 138.59], // Cm7 -> Abmaj7 noir progression
+          leadCutoff: 1180,
+          bassCutoff: 480,
+        },
       ],
-
-      // 32-step gritty 90s synth brass / lead riff (0 = rest)
-      leadPattern: [
-        329.63, 0, 0, 392.00, 0, 329.63, 293.66, 0,
-        246.94, 0, 293.66, 0, 329.63, 0, 0, 0,
-        493.88, 0, 440.00, 392.00, 0, 329.63, 392.00, 0,
-        440.00, 0, 392.00, 329.63, 293.66, 0, 246.94, 0,
-      ],
-
-      // Syncopated 90s breakbeat drum grid (16 steps)
-      kickPattern:  [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0],
-      snarePattern: [0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1],
-      hatPattern:   [1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1, 1], // 2 = open hat accent
 
       getNoiseBuffer(ctx) {
         if (!this.noiseBuffer) {
@@ -503,47 +576,33 @@
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(135, time);
-        osc.frequency.exponentialRampToValueAtTime(38, time + 0.13);
-        gain.gain.setValueAtTime(0.65, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.16);
+        osc.frequency.setValueAtTime(110, time);
+        osc.frequency.exponentialRampToValueAtTime(34, time + 0.16);
+        gain.gain.setValueAtTime(0.55, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
         osc.connect(gain);
         gain.connect(musicGain);
         osc.start(time);
-        osc.stop(time + 0.17);
+        osc.stop(time + 0.21);
       },
 
-      scheduleSnare(ctx, time, ghost = false) {
+      scheduleSnare(ctx, time, brush = false) {
         const noise = ctx.createBufferSource();
         noise.buffer = this.getNoiseBuffer(ctx);
         const filter = ctx.createBiquadFilter();
         filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(1450, time);
-        filter.Q.value = 0.9;
+        filter.frequency.setValueAtTime(1250, time);
+        filter.Q.value = 1.1;
 
         const nGain = ctx.createGain();
-        const level = ghost ? 0.16 : 0.36;
+        const level = brush ? 0.12 : 0.24;
         nGain.gain.setValueAtTime(level, time);
-        nGain.gain.exponentialRampToValueAtTime(0.001, time + (ghost ? 0.08 : 0.15));
+        nGain.gain.exponentialRampToValueAtTime(0.001, time + (brush ? 0.11 : 0.18));
         noise.connect(filter);
         filter.connect(nGain);
         nGain.connect(musicGain);
         noise.start(time);
-        noise.stop(time + 0.16);
-
-        if (!ghost) {
-          const body = ctx.createOscillator();
-          const bGain = ctx.createGain();
-          body.type = 'triangle';
-          body.frequency.setValueAtTime(195, time);
-          body.frequency.exponentialRampToValueAtTime(95, time + 0.09);
-          bGain.gain.setValueAtTime(0.28, time);
-          bGain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
-          body.connect(bGain);
-          bGain.connect(musicGain);
-          body.start(time);
-          body.stop(time + 0.11);
-        }
+        noise.stop(time + 0.19);
       },
 
       scheduleHat(ctx, time, open = false) {
@@ -551,11 +610,11 @@
         noise.buffer = this.getNoiseBuffer(ctx);
         const hp = ctx.createBiquadFilter();
         hp.type = 'highpass';
-        hp.frequency.setValueAtTime(7200, time);
+        hp.frequency.setValueAtTime(6400, time);
 
         const gain = ctx.createGain();
-        const dur = open ? 0.14 : 0.045;
-        gain.gain.setValueAtTime(open ? 0.14 : 0.09, time);
+        const dur = open ? 0.18 : 0.05;
+        gain.gain.setValueAtTime(open ? 0.09 : 0.055, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
         noise.connect(hp);
         hp.connect(gain);
@@ -564,23 +623,23 @@
         noise.stop(time + dur + 0.01);
       },
 
-      scheduleBass(ctx, time, freq, stepDur) {
+      scheduleBass(ctx, time, freq, stepDur, cutoff = 500) {
         const osc1 = ctx.createOscillator();
         const osc2 = ctx.createOscillator();
-        osc1.type = 'sawtooth';
-        osc2.type = 'square';
+        osc1.type = 'triangle';
+        osc2.type = 'sawtooth';
         osc1.frequency.setValueAtTime(freq, time);
-        osc2.frequency.setValueAtTime(freq * 0.5, time);
+        osc2.frequency.setValueAtTime(freq, time);
 
         const filter = ctx.createBiquadFilter();
         filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(920, time);
-        filter.frequency.exponentialRampToValueAtTime(220, time + stepDur * 0.9);
-        filter.Q.value = 4.5;
+        filter.frequency.setValueAtTime(cutoff, time);
+        filter.frequency.exponentialRampToValueAtTime(140, time + stepDur * 1.5);
+        filter.Q.value = 2.8;
 
         const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0.26, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + stepDur * 0.95);
+        gain.gain.setValueAtTime(0.32, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + stepDur * 1.65);
 
         osc1.connect(filter);
         osc2.connect(filter);
@@ -589,28 +648,28 @@
 
         osc1.start(time);
         osc2.start(time);
-        osc1.stop(time + stepDur);
-        osc2.stop(time + stepDur);
+        osc1.stop(time + stepDur * 1.7);
+        osc2.stop(time + stepDur * 1.7);
       },
 
-      scheduleLead(ctx, time, freq, stepDur) {
+      scheduleLead(ctx, time, freq, stepDur, cutoff = 1300) {
         const oscA = ctx.createOscillator();
         const oscB = ctx.createOscillator();
         oscA.type = 'sawtooth';
-        oscB.type = 'sawtooth';
+        oscB.type = 'triangle';
         oscA.frequency.setValueAtTime(freq, time);
-        oscB.frequency.setValueAtTime(freq * 1.006, time); // 90s chorus detune
+        oscB.frequency.setValueAtTime(freq * 1.004, time);
 
         const filter = ctx.createBiquadFilter();
         filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(2400, time);
-        filter.frequency.exponentialRampToValueAtTime(780, time + stepDur * 1.6);
-        filter.Q.value = 3.0;
+        filter.frequency.setValueAtTime(cutoff, time);
+        filter.frequency.exponentialRampToValueAtTime(420, time + stepDur * 2.4);
+        filter.Q.value = 2.4;
 
         const gain = ctx.createGain();
         gain.gain.setValueAtTime(0.001, time);
-        gain.gain.linearRampToValueAtTime(0.14, time + 0.015);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + stepDur * 1.75);
+        gain.gain.linearRampToValueAtTime(0.14, time + 0.045);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + stepDur * 2.6);
 
         oscA.connect(filter);
         oscB.connect(filter);
@@ -619,56 +678,63 @@
 
         oscA.start(time);
         oscB.start(time);
-        oscA.stop(time + stepDur * 1.8);
-        oscB.stop(time + stepDur * 1.8);
+        oscA.stop(time + stepDur * 2.7);
+        oscB.stop(time + stepDur * 2.7);
       },
 
-      scheduleChordStab(ctx, time, rootFreq) {
-        const ratios = [1, 1.1892, 1.4983, 1.7818]; // Minor 7th stab
+      scheduleChordPad(ctx, time, rootFreq, stepDur) {
+        const ratios = [1, 1.1892, 1.4983, 1.7818];
         ratios.forEach((r) => {
           const osc = ctx.createOscillator();
-          osc.type = 'triangle';
+          osc.type = 'sine';
           osc.frequency.setValueAtTime(rootFreq * r, time);
 
           const gain = ctx.createGain();
-          gain.gain.setValueAtTime(0.055, time);
-          gain.gain.exponentialRampToValueAtTime(0.0008, time + 0.22);
+          gain.gain.setValueAtTime(0.001, time);
+          gain.gain.linearRampToValueAtTime(0.042, time + 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.0008, time + stepDur * 14);
 
           osc.connect(gain);
           gain.connect(musicGain);
           osc.start(time);
-          osc.stop(time + 0.24);
+          osc.stop(time + stepDur * 14.5);
         });
       },
 
       scheduler() {
         if (!musicEnabled || !audioCtx || audioCtx.state !== 'running') return;
-        const stepDur = 60 / this.tempo / 4; // 16th note duration
-        while (this.nextNoteTime < audioCtx.currentTime + 0.15) {
+        const track = this.tracks[currentMusicTrack] || this.tracks[0];
+        const stepDur = 60 / track.tempo / 4;
+        while (this.nextNoteTime < audioCtx.currentTime + 0.16) {
           const s16 = this.step % 16;
           const s32 = this.step % 32;
           const s64 = this.step % 64;
 
-          if (this.kickPattern[s16]) this.scheduleKick(audioCtx, this.nextNoteTime);
-          if (this.snarePattern[s16]) {
+          if (track.kickPattern[s16]) this.scheduleKick(audioCtx, this.nextNoteTime);
+          if (track.snarePattern[s16]) {
             this.scheduleSnare(audioCtx, this.nextNoteTime, s16 === 7 || s16 === 15);
           }
-          if (this.hatPattern[s16]) {
-            this.scheduleHat(audioCtx, this.nextNoteTime, this.hatPattern[s16] === 2);
+          if (track.hatPattern[s16]) {
+            this.scheduleHat(audioCtx, this.nextNoteTime, track.hatPattern[s16] === 2);
           }
 
-          const bassFreq = this.bassPattern[s16];
+          const bassFreq = track.bassPattern[s16];
           if (bassFreq > 0) {
-            this.scheduleBass(audioCtx, this.nextNoteTime, bassFreq, stepDur);
+            this.scheduleBass(audioCtx, this.nextNoteTime, bassFreq, stepDur, track.bassCutoff);
           }
 
-          const leadFreq = this.leadPattern[s32];
+          const leadFreq = track.leadPattern[s32];
           if (leadFreq > 0) {
-            this.scheduleLead(audioCtx, this.nextNoteTime, leadFreq, stepDur);
+            this.scheduleLead(audioCtx, this.nextNoteTime, leadFreq, stepDur, track.leadCutoff);
           }
 
           if (s64 === 0 || s64 === 32) {
-            this.scheduleChordStab(audioCtx, this.nextNoteTime, s64 === 0 ? 164.81 : 196.0);
+            this.scheduleChordPad(
+              audioCtx,
+              this.nextNoteTime,
+              s64 === 0 ? track.chords[0] : track.chords[1],
+              stepDur
+            );
           }
 
           this.nextNoteTime += stepDur;
@@ -692,76 +758,83 @@
       },
     };
 
-    // Synthesized Sound Effects Engine (Knife Cut, 9mm Gunshot, Ricochet, Scream, Victory)
+    // Distance-based SFX volume scalar: 100% up to 100px, -10% per 100px beyond (500px -> 50%, 900px -> 10%, >=1000px -> 0%)
+    function getSfxDistanceGain(wx, wy) {
+      if (wx === undefined || wy === undefined || wx === null || wy === null) return 1.0;
+      const listenerX = player.alive ? player.x : camera.x;
+      const listenerY = player.alive ? player.y : camera.y;
+      const dist = Math.hypot(wx - listenerX, wy - listenerY);
+      if (dist <= 100) return 1.0;
+      const extraSteps = (dist - 100) / 100;
+      return Math.max(0, 1.0 - extraSteps * 0.1);
+    }
+
+    function createAttenuatedSfxNode(ctx, wx, wy) {
+      const atten = getSfxDistanceGain(wx, wy);
+      if (atten <= 0.005) return null;
+      const node = ctx.createGain();
+      node.gain.value = (masterGain ? masterGain.gain.value : 0.72) * atten;
+      node.connect(ctx.destination);
+      return node;
+    }
+
+    // Synthesized Sound Effects Engine (Subtle Slash FX + Prominent Death FX + Distance Attenuation)
     const sfx = {
-      playSlash(hit = false) {
+      playSlash(hit = false, wx = null, wy = null) {
         const ctx = getAudioCtx();
         if (!ctx) return;
+        const dest = createAttenuatedSfxNode(ctx, wx, wy);
+        if (!dest) return;
         const now = ctx.currentTime;
-        const dest = getAudioDest();
 
-        // 1. Crisp blade-through-air flick (short high-frequency bandpass noise burst, no tonal bell)
+        // Subtle, low-profile blade air swish
         const airNoise = ctx.createBufferSource();
         airNoise.buffer = musicEngine.getNoiseBuffer(ctx);
         const airFilter = ctx.createBiquadFilter();
         airFilter.type = 'bandpass';
-        airFilter.frequency.setValueAtTime(3200, now);
-        airFilter.frequency.exponentialRampToValueAtTime(1100, now + 0.055);
-        airFilter.Q.value = 1.8;
+        airFilter.frequency.setValueAtTime(2800, now);
+        airFilter.frequency.exponentialRampToValueAtTime(1050, now + 0.05);
+        airFilter.Q.value = 1.9;
 
         const airGain = ctx.createGain();
         airGain.gain.setValueAtTime(0.001, now);
-        airGain.gain.linearRampToValueAtTime(hit ? 0.28 : 0.22, now + 0.008);
-        airGain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+        airGain.gain.linearRampToValueAtTime(hit ? 0.11 : 0.085, now + 0.007);
+        airGain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
 
         airNoise.connect(airFilter);
         airFilter.connect(airGain);
         airGain.connect(dest);
         airNoise.start(now);
-        airNoise.stop(now + 0.07);
+        airNoise.stop(now + 0.06);
 
         if (hit) {
-          // 2. Crisp skin/fabric tear transient (razor-sharp high-shelf slice)
           const cutNoise = ctx.createBufferSource();
           cutNoise.buffer = musicEngine.getNoiseBuffer(ctx);
           const cutFilter = ctx.createBiquadFilter();
           cutFilter.type = 'highpass';
-          cutFilter.frequency.setValueAtTime(2200, now + 0.01);
-          cutFilter.frequency.exponentialRampToValueAtTime(950, now + 0.085);
+          cutFilter.frequency.setValueAtTime(2100, now + 0.008);
+          cutFilter.frequency.exponentialRampToValueAtTime(900, now + 0.07);
 
           const cutGain = ctx.createGain();
           cutGain.gain.setValueAtTime(0.001, now + 0.008);
-          cutGain.gain.linearRampToValueAtTime(0.42, now + 0.016);
-          cutGain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+          cutGain.gain.linearRampToValueAtTime(0.15, now + 0.014);
+          cutGain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
 
           cutNoise.connect(cutFilter);
           cutFilter.connect(cutGain);
           cutGain.connect(dest);
           cutNoise.start(now + 0.008);
-          cutNoise.stop(now + 0.095);
-
-          // 3. Tight wet stab punch (short muffled body thump)
-          const stab = ctx.createOscillator();
-          const sGain = ctx.createGain();
-          stab.type = 'triangle';
-          stab.frequency.setValueAtTime(145, now + 0.01);
-          stab.frequency.exponentialRampToValueAtTime(44, now + 0.075);
-          sGain.gain.setValueAtTime(0.32, now + 0.01);
-          sGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-          stab.connect(sGain);
-          sGain.connect(dest);
-          stab.start(now + 0.01);
-          stab.stop(now + 0.085);
+          cutNoise.stop(now + 0.08);
         }
       },
 
-      playArmorEquip() {
+      playArmorEquip(wx = null, wy = null) {
         const ctx = getAudioCtx();
         if (!ctx) return;
+        const dest = createAttenuatedSfxNode(ctx, wx, wy);
+        if (!dest) return;
         const now = ctx.currentTime;
-        const dest = getAudioDest();
 
-        // Heavy Kevlar strap velcro rip + ceramic plate click
         const strap = ctx.createBufferSource();
         strap.buffer = musicEngine.getNoiseBuffer(ctx);
         const bp = ctx.createBiquadFilter();
@@ -790,13 +863,13 @@
         clack.stop(now + 0.17);
       },
 
-      playGunshot() {
+      playGunshot(wx = null, wy = null) {
         const ctx = getAudioCtx();
         if (!ctx) return;
+        const dest = createAttenuatedSfxNode(ctx, wx, wy);
+        if (!dest) return;
         const now = ctx.currentTime;
-        const dest = getAudioDest();
 
-        // Waveshaper overdrive to give the gunshot real acoustic bite & air-pressure snap
         const shaper = ctx.createWaveShaper();
         const curve = new Float32Array(256);
         for (let i = 0; i < 256; i++) {
@@ -806,7 +879,6 @@
         shaper.curve = curve;
         shaper.connect(dest);
 
-        // 1. Ultra-fast supersonic muzzle transient (sharp 18ms crack)
         const crackNoise = ctx.createBufferSource();
         crackNoise.buffer = musicEngine.getNoiseBuffer(ctx);
         const crackFilter = ctx.createBiquadFilter();
@@ -824,7 +896,6 @@
         crackNoise.start(now);
         crackNoise.stop(now + 0.032);
 
-        // 2. Heavy chamber punch (rapid pitch drop from 340Hz -> 38Hz)
         const punch = ctx.createOscillator();
         const pGain = ctx.createGain();
         punch.type = 'triangle';
@@ -837,7 +908,6 @@
         punch.start(now);
         punch.stop(now + 0.12);
 
-        // 3. Gunpowder blast + urban street reverberation tail
         const blastNoise = ctx.createBufferSource();
         blastNoise.buffer = musicEngine.getNoiseBuffer(ctx);
         const blastFilter = ctx.createBiquadFilter();
@@ -857,7 +927,6 @@
         blastNoise.start(now);
         blastNoise.stop(now + 0.45);
 
-        // 4. Crisp mechanical slide-cycle click 55ms after firing
         const slideOsc = ctx.createOscillator();
         const slideGain = ctx.createGain();
         slideOsc.type = 'square';
@@ -872,11 +941,12 @@
         slideOsc.stop(now + 0.08);
       },
 
-      playRicochet() {
+      playRicochet(wx = null, wy = null) {
         const ctx = getAudioCtx();
         if (!ctx) return;
+        const dest = createAttenuatedSfxNode(ctx, wx, wy);
+        if (!dest) return;
         const now = ctx.currentTime;
-        const dest = getAudioDest();
 
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -892,44 +962,81 @@
         osc.stop(now + 0.2);
       },
 
-      playDeath(isBoss = false) {
+      playDeath(isBoss = false, wx = null, wy = null) {
         const ctx = getAudioCtx();
         if (!ctx) return;
+        const dest = createAttenuatedSfxNode(ctx, wx, wy);
+        if (!dest) return;
         const now = ctx.currentTime;
-        const dest = getAudioDest();
-        const dur = isBoss ? 0.65 : 0.42;
+        const dur = isBoss ? 0.78 : 0.54;
 
-        // Dual-formant vocal scream
+        // 1. Prominent descending vocal death cry / groan
         const osc = ctx.createOscillator();
+        const oscSub = ctx.createOscillator();
         osc.type = 'sawtooth';
-        const baseFreq = isBoss ? 195 : 230 + Math.random() * 55;
+        oscSub.type = 'triangle';
+        const baseFreq = isBoss ? 190 : 235 + Math.random() * 60;
         osc.frequency.setValueAtTime(baseFreq, now);
-        osc.frequency.linearRampToValueAtTime(baseFreq * 1.12, now + 0.06);
-        osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.48, now + dur);
+        osc.frequency.linearRampToValueAtTime(baseFreq * 1.15, now + 0.055);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.38, now + dur);
+
+        oscSub.frequency.setValueAtTime(baseFreq * 0.5, now);
+        oscSub.frequency.exponentialRampToValueAtTime(baseFreq * 0.22, now + dur);
 
         const f1 = ctx.createBiquadFilter();
         f1.type = 'bandpass';
         f1.frequency.setValueAtTime(760, now);
-        f1.Q.value = 3.2;
+        f1.Q.value = 2.6;
 
         const f2 = ctx.createBiquadFilter();
         f2.type = 'bandpass';
-        f2.frequency.setValueAtTime(1340, now);
-        f2.Q.value = 3.8;
+        f2.frequency.setValueAtTime(1360, now);
+        f2.Q.value = 3.0;
 
         const gain = ctx.createGain();
         gain.gain.setValueAtTime(0.01, now);
-        gain.gain.linearRampToValueAtTime(isBoss ? 0.26 : 0.18, now + 0.03);
+        gain.gain.linearRampToValueAtTime(isBoss ? 0.56 : 0.46, now + 0.025);
         gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
 
         osc.connect(f1);
         osc.connect(f2);
+        oscSub.connect(f1);
         f1.connect(gain);
         f2.connect(gain);
         gain.connect(dest);
 
         osc.start(now);
+        oscSub.start(now);
         osc.stop(now + dur + 0.02);
+        oscSub.stop(now + dur + 0.02);
+
+        // 2. Heavy body-collapse thud onto pavement
+        const thudTime = now + (isBoss ? 0.22 : 0.14);
+        const thudOsc = ctx.createOscillator();
+        const thudGain = ctx.createGain();
+        thudOsc.type = 'sine';
+        thudOsc.frequency.setValueAtTime(isBoss ? 115 : 130, thudTime);
+        thudOsc.frequency.exponentialRampToValueAtTime(28, thudTime + 0.2);
+        thudGain.gain.setValueAtTime(isBoss ? 0.68 : 0.54, thudTime);
+        thudGain.gain.exponentialRampToValueAtTime(0.001, thudTime + 0.22);
+        thudOsc.connect(thudGain);
+        thudGain.connect(dest);
+        thudOsc.start(thudTime);
+        thudOsc.stop(thudTime + 0.23);
+
+        const thudNoise = ctx.createBufferSource();
+        thudNoise.buffer = musicEngine.getNoiseBuffer(ctx);
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.setValueAtTime(480, thudTime);
+        const nGain = ctx.createGain();
+        nGain.gain.setValueAtTime(isBoss ? 0.38 : 0.28, thudTime);
+        nGain.gain.exponentialRampToValueAtTime(0.001, thudTime + 0.17);
+        thudNoise.connect(lp);
+        lp.connect(nGain);
+        nGain.connect(dest);
+        thudNoise.start(thudTime);
+        thudNoise.stop(thudTime + 0.18);
       },
 
       playFactionEliminated() {
@@ -1045,26 +1152,32 @@
     // =========================================================================
     // 3. DATA STRUCTURES & CONSTANTS (Dynamic Grid Size 5x5 to 25x25)
     // =========================================================================
-    const CHUNK_SIZE = 10;
+    const CHUNK_SIZE = 15; // 50% larger neighborhoods (15x15 tiles = 660x660px)
     const TILE_SIZE = 44;
     const CHUNK_PX = CHUNK_SIZE * TILE_SIZE;
     const DEFAULT_GRID_SIZE = 20;
     const DEFAULT_TICK_DURATION = 10;
 
     const INCOME_TIERS = {
-      LOW: { label: 'Low', min: 250, max: 500 },
-      MID: { label: 'Mid', min: 500, max: 1000 },
-      HIGH: { label: 'High', min: 1000, max: 2000 },
+      LOW: { label: 'Low', min: 450, max: 750 },
+      MID: { label: 'Mid', min: 750, max: 1250 },
+      HIGH: { label: 'High', min: 1200, max: 2000 },
     };
 
-    // Proportional pricing based on combat power:
-    // Soldier: 200 HP * 15 avg dmg = 3,000 power -> $1,200
-    // Elite:   300 HP * 20 avg dmg = 6,000 power -> $2,400 (exact 2x ratio)
     const COST_SOLDIER = 1200;
-    const COST_ELITE = 2400;
-    const COST_BOSS_ARMOR = 5000;
+    const COST_CAPTAIN = 2200;
+    const COST_UNDERBOSS = 3800;
+    const COST_BOSS_ARMOR = 3500;
+    const BOSS_MAX_HP = 350;
     const MAX_BOSS_ARMOR = 200;
-    const MAX_PISTOL_RANGE = 800;
+
+    // Hourly Unit Payroll Upkeep (50% of balanced proposal)
+    const UPKEEP_SOLDIER = 25;
+    const UPKEEP_CAPTAIN = 50;
+    const UPKEEP_UNDERBOSS = 87.5;
+    const UNIT_ATTACK_COOLDOWN = 1.0;
+
+    const MAX_PISTOL_RANGE = 1000;
     const SPRINT_MAX_DURATION = 2.0;
     const SPRINT_COOLDOWN_DURATION = 2.0;
     const SPRINT_SPEED_MULTIPLIER = 1.68;
@@ -1089,71 +1202,153 @@
     const Faction = {
       NEUTRAL: 'NEUTRAL',
       PLAYER: 'PLAYER',
-      RIVAL_RED: 'RIVAL_RED',
-      RIVAL_BLUE: 'RIVAL_BLUE',
-      RIVAL_AMBER: 'RIVAL_AMBER',
+      RIVAL_1: 'RIVAL_1',
+      RIVAL_2: 'RIVAL_2',
+      RIVAL_3: 'RIVAL_3',
     };
 
     const UnitRank = {
-      SOLDIER: 'SOLDIER',
-      ELITE: 'ELITE',
-      BOSS: 'BOSS',
+      SOLDIER: 'SOLDIER',     // 4. Street Enforcers (70% cap)
+      CAPTAIN: 'CAPTAIN',     // 3. Middle Management / Captains (20% cap)
+      UNDERBOSS: 'UNDERBOSS', // 2. Second-in-Command / Advisor (10% cap)
+      BOSS: 'BOSS',           // 1. Supreme Leader (The Boss)
     };
 
-    const FACTION_META = {
-      [Faction.NEUTRAL]: {
-        name: 'Neutral',
-        short: 'Neutral',
-        tint: 'rgba(113, 113, 122, 0.04)',
-        border: 'rgba(113, 113, 122, 0.32)',
-        badge: '#52525b',
-        coat: '#52525b',
-        accent: '#a1a1aa',
-      },
-      [Faction.PLAYER]: {
-        name: 'Emerald Syndicate',
-        short: 'Emerald (You)',
+    // 6 Authentic Crime Organizations with Real-World Rank Hierarchies
+    const ORGANIZATIONS = {
+      COSA_NOSTRA: {
+        id: 'COSA_NOSTRA',
+        name: 'Cosa Nostra',
+        origin: 'Sicily & USA',
+        short: 'Cosa Nostra',
+        ranks: {
+          BOSS: 'Don',
+          UNDERBOSS: 'Sottocapo',
+          CAPTAIN: 'Caporegime',
+          SOLDIER: 'Soldato',
+        },
         tint: 'rgba(16, 185, 129, 0.14)',
         border: 'rgba(16, 185, 129, 0.85)',
         badge: '#10b981',
         coat: '#065f46',
         accent: '#34d399',
       },
-      [Faction.RIVAL_RED]: {
-        name: 'Viper Cartel',
-        short: 'Viper Cartel',
-        tint: 'rgba(244, 63, 94, 0.14)',
-        border: 'rgba(244, 63, 94, 0.85)',
-        badge: '#f43f5e',
-        coat: '#881337',
-        accent: '#fb7185',
-      },
-      [Faction.RIVAL_BLUE]: {
-        name: 'Northside Bratva',
+      BRATVA: {
+        id: 'BRATVA',
+        name: 'Russian Bratva',
+        origin: 'Russia / Post-Soviet',
         short: 'Bratva',
+        ranks: {
+          BOSS: 'Pakhan',
+          UNDERBOSS: 'Avtoritet',
+          CAPTAIN: 'Brigadier',
+          SOLDIER: 'Boyevik',
+        },
         tint: 'rgba(59, 130, 246, 0.14)',
         border: 'rgba(59, 130, 246, 0.85)',
         badge: '#3b82f6',
         coat: '#1e3a8a',
         accent: '#60a5fa',
       },
-      [Faction.RIVAL_AMBER]: {
-        name: 'Gold Coast Triad',
-        short: 'Gold Triad',
+      YAKUZA: {
+        id: 'YAKUZA',
+        name: 'Yakuza',
+        origin: 'Japan',
+        short: 'Yakuza',
+        ranks: {
+          BOSS: 'Oyabun',
+          UNDERBOSS: 'Wakagashira',
+          CAPTAIN: 'Shateigashira',
+          SOLDIER: 'Kobun',
+        },
+        tint: 'rgba(244, 63, 94, 0.14)',
+        border: 'rgba(244, 63, 94, 0.85)',
+        badge: '#f43f5e',
+        coat: '#881337',
+        accent: '#fb7185',
+      },
+      TRIADS: {
+        id: 'TRIADS',
+        name: 'Chinese Triads',
+        origin: 'Hong Kong / China',
+        short: 'Triads',
+        ranks: {
+          BOSS: 'Shan Chu',
+          UNDERBOSS: 'Fu Shan Chu',
+          CAPTAIN: 'Hung Kwan',
+          SOLDIER: 'Sei Kau Tsai',
+        },
         tint: 'rgba(245, 158, 11, 0.14)',
         border: 'rgba(245, 158, 11, 0.85)',
         badge: '#f59e0b',
         coat: '#78350f',
         accent: '#fbbf24',
       },
+      NDRANGHETA: {
+        id: 'NDRANGHETA',
+        name: "'Ndrangheta",
+        origin: 'Calabria, Italy',
+        short: "'Ndrangheta",
+        ranks: {
+          BOSS: 'Capobastone',
+          UNDERBOSS: 'Contabile',
+          CAPTAIN: 'Caposocietà',
+          SOLDIER: 'Picciotto',
+        },
+        tint: 'rgba(168, 85, 247, 0.14)',
+        border: 'rgba(168, 85, 247, 0.85)',
+        badge: '#a855f7',
+        coat: '#581c87',
+        accent: '#c084fc',
+      },
+      CARTEL: {
+        id: 'CARTEL',
+        name: 'Mexican Cartels',
+        origin: 'Mexico',
+        short: 'Cartel',
+        ranks: {
+          BOSS: 'Patrón',
+          UNDERBOSS: 'Lugarteniente',
+          CAPTAIN: 'Jefe de Plaza',
+          SOLDIER: 'Sicario',
+        },
+        tint: 'rgba(249, 115, 22, 0.14)',
+        border: 'rgba(249, 115, 22, 0.85)',
+        badge: '#f97316',
+        coat: '#7c2d12',
+        accent: '#fb923c',
+      },
     };
 
-    const ALL_FACTIONS = [
+    const ALL_ORG_IDS = Object.keys(ORGANIZATIONS);
+
+    const FACTION_META = {
+      [Faction.NEUTRAL]: {
+        name: 'Neutral',
+        short: 'Neutral',
+        ranks: { BOSS: 'Boss', UNDERBOSS: '2IC', CAPTAIN: 'Captain', SOLDIER: 'Enforcer' },
+        tint: 'rgba(113, 113, 122, 0.04)',
+        border: 'rgba(113, 113, 122, 0.32)',
+        badge: '#52525b',
+        coat: '#52525b',
+        accent: '#a1a1aa',
+      },
+      [Faction.PLAYER]: { ...ORGANIZATIONS.COSA_NOSTRA },
+      [Faction.RIVAL_1]: { ...ORGANIZATIONS.BRATVA },
+      [Faction.RIVAL_2]: { ...ORGANIZATIONS.TRIADS },
+      [Faction.RIVAL_3]: { ...ORGANIZATIONS.CARTEL },
+    };
+
+    const ALL_FACTION_SLOTS = [
       Faction.PLAYER,
-      Faction.RIVAL_RED,
-      Faction.RIVAL_BLUE,
-      Faction.RIVAL_AMBER,
+      Faction.RIVAL_1,
+      Faction.RIVAL_2,
+      Faction.RIVAL_3,
     ];
+
+    let activeFactionCount = 4;
+    let selectedFactionOrgs = ['COSA_NOSTRA', 'BRATVA', 'TRIADS', 'CARTEL'];
+    let activeFactions = [...ALL_FACTION_SLOTS];
 
     const CAR_PALETTE = ['#18181b', '#27272a', '#e4e4e7', '#1e293b', '#3f3f46', '#7f1d1d'];
 
@@ -1163,22 +1358,18 @@
 
     function getUnitCaps() {
       const totalNeighborhoods = Math.max(25, world.chunks.size || currentGridSize * currentGridSize);
-      const maxElites = Math.floor(totalNeighborhoods * 0.25);
-      const maxSoldiers = totalNeighborhoods - maxElites;
-      return { totalNeighborhoods, maxSoldiers, maxElites };
+      const maxUnderbosses = Math.max(1, Math.floor(totalNeighborhoods * 0.10));
+      const maxCaptains = Math.max(2, Math.floor(totalNeighborhoods * 0.20));
+      const maxSoldiers = Math.max(1, totalNeighborhoods - maxCaptains - maxUnderbosses);
+      return { totalNeighborhoods, maxSoldiers, maxCaptains, maxUnderbosses };
     }
 
     function rollDamage(min, max) {
       return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
-    function hash2D(x, y) {
-      const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
-      return n - Math.floor(n);
-    }
-
     // =========================================================================
-    // 4. DISTRICT CHUNK CLASS (Varied 1-4 Block Layouts + Pre-baked Ground)
+    // 4. DISTRICT CHUNK CLASS (15x15 Tactical Layouts + Curb-Parked Cars)
     // =========================================================================
     class DistrictChunk {
       constructor(cx, cy, forcedFaction = null) {
@@ -1192,6 +1383,8 @@
         this.props = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill(PropType.NONE));
         this.propColors = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill('#18181b'));
         this.propVertical = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill(false));
+        this.propCurbSide = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill('N'));
+        this.solidMask = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
         const tier = INCOME_TIERS[currentIncomeTier] || INCOME_TIERS.HIGH;
         this.income = tier.min + Math.floor(Math.random() * (tier.max - tier.min + 1));
         this.incomeLabel = `$${this.income.toLocaleString()}/hr`;
@@ -1199,17 +1392,84 @@
         this.captureProgress = 0;
         this.capturingFaction = null;
         this.groundCanvas = null;
+        this.buildingRenderList = [];
+        this.propRenderList = [];
 
         this.generateUrbanBlock();
+        this.buildSolidMask();
+        this.buildStaticRenderLists();
         this.bakeGroundLayer();
+      }
+
+      buildStaticRenderLists() {
+        const chunkOriginX = this.cx * CHUNK_PX;
+        const chunkOriginY = this.cy * CHUNK_PX;
+        this.buildingRenderList.length = 0;
+        this.propRenderList.length = 0;
+
+        for (let ly = 0; ly < CHUNK_SIZE; ly++) {
+          for (let lx = 0; lx < CHUNK_SIZE; lx++) {
+            const tile = this.ground[ly][lx];
+            const wx = chunkOriginX + lx * TILE_SIZE;
+            const wy = chunkOriginY + ly * TILE_SIZE;
+
+            if (tile === TileType.BUILDING) {
+              this.buildingRenderList.push({
+                type: 'building',
+                sortY: wy + TILE_SIZE,
+                wx,
+                wy,
+                elev: this.elevation[ly][lx],
+                style: this.buildingStyle[ly][lx],
+                hasSouthBuilding: ly + 1 < CHUNK_SIZE && this.ground[ly + 1][lx] === TileType.BUILDING,
+                hasEastBuilding: lx + 1 < CHUNK_SIZE && this.ground[ly][lx + 1] === TileType.BUILDING,
+                hasWestBuilding: lx - 1 >= 0 && this.ground[ly][lx - 1] === TileType.BUILDING,
+              });
+            }
+
+            const prop = this.props[ly][lx];
+            if (prop !== PropType.NONE) {
+              let propSortY = wy + TILE_SIZE * 0.72;
+              if (prop === PropType.CAR) {
+                propSortY = this.propVertical[ly][lx] ? wy + 39 : wy + 28;
+              } else if (prop === PropType.STREETLIGHT || prop === PropType.TREE) {
+                propSortY = wy + 26;
+              } else if (prop === PropType.DUMPSTER) {
+                propSortY = wy + 32;
+              }
+              this.propRenderList.push({
+                type: 'prop',
+                sortY: propSortY,
+                wx,
+                wy,
+                prop,
+                color: this.propColors[ly][lx],
+                vertical: this.propVertical[ly][lx],
+                curbSide: this.propCurbSide[ly][lx],
+              });
+            }
+          }
+        }
+      }
+
+      buildSolidMask() {
+        for (let ly = 0; ly < CHUNK_SIZE; ly++) {
+          for (let lx = 0; lx < CHUNK_SIZE; lx++) {
+            const idx = ly * CHUNK_SIZE + lx;
+            const g = this.ground[ly][lx];
+            const p = this.props[ly][lx];
+            this.solidMask[idx] =
+              g === TileType.BUILDING || p === PropType.CAR || p === PropType.DUMPSTER ? 1 : 0;
+          }
+        }
       }
 
       determineInitialFaction(cx, cy) {
         const last = currentGridSize - 1;
-        if (cx === 0 && cy === 0) return Faction.PLAYER;
-        if (cx === last && cy === 0) return Faction.RIVAL_RED;
-        if (cx === 0 && cy === last) return Faction.RIVAL_BLUE;
-        if (cx === last && cy === last) return Faction.RIVAL_AMBER;
+        if (cx === 0 && cy === 0 && activeFactions.includes(Faction.PLAYER)) return Faction.PLAYER;
+        if (cx === last && cy === 0 && activeFactions.includes(Faction.RIVAL_1)) return Faction.RIVAL_1;
+        if (cx === 0 && cy === last && activeFactions.includes(Faction.RIVAL_2)) return Faction.RIVAL_2;
+        if (cx === last && cy === last && activeFactions.includes(Faction.RIVAL_3)) return Faction.RIVAL_3;
         return Faction.NEUTRAL;
       }
 
@@ -1232,6 +1492,7 @@
               octx.fillStyle = 'rgba(255,255,255,0.025)';
               if ((lx + ly) % 2 === 0) octx.fillRect(wx + 4, wy + 4, 3, 3);
 
+              // Outer Perimeter Road Dashed Centerlines
               if ((ly === 0 || ly === CHUNK_SIZE - 1) && lx > 1 && lx < CHUNK_SIZE - 2 && lx % 2 === 0) {
                 octx.fillStyle = '#ca8a04';
                 octx.fillRect(wx + 10, wy + TILE_SIZE / 2 - 1.5, 22, 3);
@@ -1241,10 +1502,32 @@
                 octx.fillRect(wx + TILE_SIZE / 2 - 1.5, wy + 10, 3, 22);
               }
 
+              // Crosswalks at Perimeter Intersections
               if ((lx === 0 || lx === CHUNK_SIZE - 1) && (ly === 1 || ly === CHUNK_SIZE - 2)) {
                 octx.fillStyle = 'rgba(244, 244, 245, 0.35)';
                 for (let s = 4; s < TILE_SIZE - 4; s += 8) {
                   octx.fillRect(wx + s, wy + 4, 4, TILE_SIZE - 8);
+                }
+              }
+
+              // Recessed Curb-Side Parking Bay Markings (off the main road)
+              if (this.props[ly][lx] === PropType.CAR) {
+                const side = this.propCurbSide[ly][lx];
+                octx.fillStyle = 'rgba(9, 9, 11, 0.45)';
+                octx.strokeStyle = 'rgba(244, 244, 245, 0.45)';
+                octx.lineWidth = 1.5;
+                if (side === 'N') {
+                  octx.fillRect(wx + 2, wy + 18, TILE_SIZE - 4, 24);
+                  octx.strokeRect(wx + 3, wy + 19, TILE_SIZE - 6, 23);
+                } else if (side === 'S') {
+                  octx.fillRect(wx + 2, wy + 2, TILE_SIZE - 4, 24);
+                  octx.strokeRect(wx + 3, wy + 2, TILE_SIZE - 6, 23);
+                } else if (side === 'W') {
+                  octx.fillRect(wx + 18, wy + 2, 24, TILE_SIZE - 4);
+                  octx.strokeRect(wx + 19, wy + 3, 23, TILE_SIZE - 6);
+                } else if (side === 'E') {
+                  octx.fillRect(wx + 2, wy + 2, 24, TILE_SIZE - 4);
+                  octx.strokeRect(wx + 2, wy + 3, 23, TILE_SIZE - 6);
                 }
               }
             } else {
@@ -1271,13 +1554,13 @@
       }
 
       generateUrbanBlock() {
+        const LAST = CHUNK_SIZE - 1;
+        const IN = CHUNK_SIZE - 2;
+
+        // Outer road loop (0 and 14), inner sidewalk ring (1..13)
         for (let ly = 0; ly < CHUNK_SIZE; ly++) {
           for (let lx = 0; lx < CHUNK_SIZE; lx++) {
-            const isRoad =
-              lx === 0 ||
-              lx === CHUNK_SIZE - 1 ||
-              ly === 0 ||
-              ly === CHUNK_SIZE - 1;
+            const isRoad = lx === 0 || lx === LAST || ly === 0 || ly === LAST;
             if (!isRoad) {
               this.ground[ly][lx] = TileType.SIDEWALK;
               this.elevation[ly][lx] = 1;
@@ -1306,139 +1589,125 @@
           }
         };
 
-        const carveAlleyLine = (coords) => {
-          for (const [x, y] of coords) {
-            this.ground[y][x] = TileType.ALLEY;
-            this.elevation[y][x] = 1;
+        const carveAlleyRect = (x0, y0, x1, y1) => {
+          for (let y = y0; y <= y1; y++) {
+            for (let x = x0; x <= x1; x++) {
+              this.ground[y][x] = TileType.ALLEY;
+              this.elevation[y][x] = 1;
+            }
           }
         };
 
-        // Varied 1, 2, 3, or 4 building layouts (leaving corner sidewalks open for spawns & navigation)
-        const layout = 1 + Math.floor(Math.random() * 4);
+        // 6 Tactical Urban Topologies for 15x15 Neighborhoods (indices 2..12)
+        const archetype = Math.floor(Math.random() * 6);
 
-        if (layout === 1) {
-          const variant = Math.floor(Math.random() * 4);
-          if (variant === 0) {
-            placeBuildingRect(2, 2, 7, 7);
-          } else if (variant === 1) {
-            placeBuildingRect(2, 2, 7, 5);
-            carvePlazaRect(2, 6, 7, 7);
-          } else if (variant === 2) {
-            placeBuildingRect(2, 2, 5, 7);
-            carvePlazaRect(6, 2, 7, 7);
-          } else {
-            placeBuildingRect(3, 3, 6, 6);
-            carvePlazaRect(2, 2, 7, 2);
-          }
-        } else if (layout === 2) {
-          if (Math.random() < 0.5) {
-            const splitX = Math.random() < 0.5 ? 4 : 5;
-            placeBuildingRect(2, 2, splitX - 1, 7);
-            placeBuildingRect(splitX + 1, 2, 7, 7);
-            carveAlleyLine([[splitX, 2], [splitX, 3], [splitX, 4], [splitX, 5], [splitX, 6], [splitX, 7]]);
-          } else {
-            const splitY = Math.random() < 0.5 ? 4 : 5;
-            placeBuildingRect(2, 2, 7, splitY - 1);
-            placeBuildingRect(2, splitY + 1, 7, 7);
-            carveAlleyLine([[2, splitY], [3, splitY], [4, splitY], [5, splitY], [6, splitY], [7, splitY]]);
-          }
-        } else if (layout === 3) {
-          const variant = Math.floor(Math.random() * 4);
-          if (variant === 0) {
-            placeBuildingRect(2, 2, 7, 4);
-            placeBuildingRect(2, 6, 4, 7);
-            placeBuildingRect(6, 6, 7, 7);
-            carveAlleyLine([[2, 5], [3, 5], [4, 5], [5, 5], [6, 5], [7, 5], [5, 6], [5, 7]]);
-          } else if (variant === 1) {
-            placeBuildingRect(2, 2, 4, 3);
-            placeBuildingRect(6, 2, 7, 3);
-            placeBuildingRect(2, 5, 7, 7);
-            carveAlleyLine([[5, 2], [5, 3], [2, 4], [3, 4], [4, 4], [5, 4], [6, 4], [7, 4]]);
-          } else if (variant === 2) {
-            placeBuildingRect(2, 2, 4, 7);
-            placeBuildingRect(6, 2, 7, 4);
-            placeBuildingRect(6, 6, 7, 7);
-            carveAlleyLine([[5, 2], [5, 3], [5, 4], [5, 5], [5, 6], [5, 7], [6, 5], [7, 5]]);
-          } else {
-            placeBuildingRect(2, 2, 3, 4);
-            placeBuildingRect(2, 6, 3, 7);
-            placeBuildingRect(5, 2, 7, 7);
-            carveAlleyLine([[4, 2], [4, 3], [4, 4], [4, 5], [4, 6], [4, 7], [2, 5], [3, 5]]);
-          }
+        if (archetype === 0) {
+          // 1. Fortified Courtyard Compound (4 corner bastions + central plaza + 4 choke alleys)
+          placeBuildingRect(2, 2, 5, 5);
+          placeBuildingRect(9, 2, 12, 5);
+          placeBuildingRect(2, 9, 5, 12);
+          placeBuildingRect(9, 9, 12, 12);
+          carveAlleyRect(6, 2, 8, 12);
+          carveAlleyRect(2, 6, 12, 8);
+          carvePlazaRect(5, 5, 9, 9);
+          // Central monument / cover block inside courtyard
+          placeBuildingRect(7, 7, 7, 7, 2, 1);
+        } else if (archetype === 1) {
+          // 2. Cross-Alley Ambush Grid (6 tactical sub-blocks separated by sightline-breaking alleys)
+          placeBuildingRect(2, 2, 4, 5);
+          placeBuildingRect(6, 2, 8, 5);
+          placeBuildingRect(10, 2, 12, 5);
+          placeBuildingRect(2, 8, 4, 12);
+          placeBuildingRect(6, 8, 8, 12);
+          placeBuildingRect(10, 8, 12, 12);
+          carveAlleyRect(5, 2, 5, 12);
+          carveAlleyRect(9, 2, 9, 12);
+          carveAlleyRect(2, 6, 12, 7);
+        } else if (archetype === 2) {
+          // 3. Staggered Chicane Maze (breaks long 1000px pistol lines of sight)
+          placeBuildingRect(2, 2, 7, 4);
+          placeBuildingRect(9, 2, 12, 5);
+          placeBuildingRect(2, 6, 5, 9);
+          placeBuildingRect(7, 6, 12, 8);
+          placeBuildingRect(2, 11, 6, 12);
+          placeBuildingRect(8, 10, 12, 12);
+          carveAlleyRect(8, 2, 8, 5);
+          carveAlleyRect(6, 6, 6, 9);
+          carveAlleyRect(7, 10, 7, 12);
+        } else if (archetype === 3) {
+          // 4. Twin High-Rises + Central Walkway & Flanking Alleys
+          placeBuildingRect(2, 2, 5, 12, 4, 0);
+          placeBuildingRect(9, 2, 12, 12, 4, 2);
+          carvePlazaRect(6, 2, 8, 12);
+          carveAlleyRect(7, 2, 7, 12);
+          // Mid-walkway tactical cover pillars
+          placeBuildingRect(6, 4, 6, 4, 2, 1);
+          placeBuildingRect(8, 10, 8, 10, 2, 1);
+        } else if (archetype === 4) {
+          // 5. Open Market Plaza with Perimeter Kiosks (wide combat arena with hard cover)
+          carvePlazaRect(2, 2, 12, 12);
+          placeBuildingRect(2, 2, 4, 3, 2, 1);
+          placeBuildingRect(10, 2, 12, 3, 2, 1);
+          placeBuildingRect(2, 11, 4, 12, 2, 1);
+          placeBuildingRect(10, 11, 12, 12, 2, 1);
+          placeBuildingRect(6, 6, 8, 8, 3, 0);
         } else {
-          const sub = Math.floor(Math.random() * 3);
-          if (sub === 0) {
-            placeBuildingRect(2, 2, 4, 4);
-            placeBuildingRect(6, 2, 7, 4);
-            placeBuildingRect(2, 6, 4, 7);
-            placeBuildingRect(6, 6, 7, 7);
-            carveAlleyLine([
-              [5, 2], [5, 3], [5, 4], [5, 5], [5, 6], [5, 7],
-              [2, 5], [3, 5], [4, 5], [6, 5], [7, 5],
-            ]);
-          } else if (sub === 1) {
-            placeBuildingRect(2, 2, 3, 3);
-            placeBuildingRect(5, 2, 7, 3);
-            placeBuildingRect(2, 5, 3, 7);
-            placeBuildingRect(5, 5, 7, 7);
-            carveAlleyLine([
-              [4, 2], [4, 3], [4, 4], [4, 5], [4, 6], [4, 7],
-              [2, 4], [3, 4], [5, 4], [6, 4], [7, 4],
-            ]);
-          } else {
-            placeBuildingRect(2, 2, 3, 4);
-            placeBuildingRect(5, 2, 7, 3);
-            placeBuildingRect(2, 6, 4, 7);
-            placeBuildingRect(6, 5, 7, 7);
-            carveAlleyLine([
-              [4, 2], [4, 3], [4, 4], [4, 5], [5, 4], [5, 5], [5, 6], [5, 7],
-              [2, 5], [3, 5], [6, 4], [7, 4],
-            ]);
-          }
+          // 6. Industrial Loading Docks (L-shaped warehouse + alley + dumpster cover)
+          placeBuildingRect(2, 2, 12, 5, 3, 2);
+          placeBuildingRect(2, 7, 6, 12, 3, 2);
+          carveAlleyRect(2, 6, 12, 6);
+          carvePlazaRect(8, 7, 12, 12);
+          placeBuildingRect(10, 9, 12, 12, 2, 1);
         }
 
-        // Streetlights on sidewalk corners
-        const lampSpots = [[1, 1], [8, 1], [1, 8], [8, 8]];
-        for (const [lx, ly] of lampSpots) {
-          if (this.ground[ly][lx] === TileType.SIDEWALK && Math.random() < 0.72) {
-            this.props[ly][lx] = PropType.STREETLIGHT;
-          }
-        }
-
-        // Park 1 or 2 cars per neighborhood on straight asphalt edges
-        const carSpots = [
-          { x: 2, y: 0, vert: false },
-          { x: 7, y: 0, vert: false },
-          { x: 2, y: 9, vert: false },
-          { x: 7, y: 9, vert: false },
-          { x: 0, y: 2, vert: true },
-          { x: 0, y: 7, vert: true },
-          { x: 9, y: 2, vert: true },
-          { x: 9, y: 7, vert: true },
+        // Recessed Curb-Side Parking Stalls (carved into outer sidewalk edge, NEVER blocking the street)
+        const parkingBays = [
+          { x: 4, y: 1, vert: false, side: 'N' },
+          { x: 10, y: 1, vert: false, side: 'N' },
+          { x: 4, y: IN, vert: false, side: 'S' },
+          { x: 10, y: IN, vert: false, side: 'S' },
+          { x: 1, y: 4, vert: true, side: 'W' },
+          { x: 1, y: 10, vert: true, side: 'W' },
+          { x: IN, y: 4, vert: true, side: 'E' },
+          { x: IN, y: 10, vert: true, side: 'E' },
         ];
-        for (let i = carSpots.length - 1; i > 0; i--) {
+        for (let i = parkingBays.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
-          [carSpots[i], carSpots[j]] = [carSpots[j], carSpots[i]];
+          [parkingBays[i], parkingBays[j]] = [parkingBays[j], parkingBays[i]];
         }
-        const targetCars = 1 + Math.floor(Math.random() * 2);
+        const targetCars = 2 + Math.floor(Math.random() * 2); // 2 to 3 parked cars per large district
         let placedCars = 0;
-        for (const spot of carSpots) {
+        for (const bay of parkingBays) {
           if (placedCars >= targetCars) break;
-          if (this.ground[spot.y][spot.x] === TileType.ASPHALT && this.props[spot.y][spot.x] === PropType.NONE) {
-            this.props[spot.y][spot.x] = PropType.CAR;
-            this.propColors[spot.y][spot.x] = CAR_PALETTE[Math.floor(Math.random() * CAR_PALETTE.length)];
-            this.propVertical[spot.y][spot.x] = spot.vert;
+          if (this.ground[bay.y][bay.x] === TileType.SIDEWALK && this.props[bay.y][bay.x] === PropType.NONE) {
+            this.ground[bay.y][bay.x] = TileType.ASPHALT;
+            this.elevation[bay.y][bay.x] = 0;
+            this.props[bay.y][bay.x] = PropType.CAR;
+            this.propColors[bay.y][bay.x] = CAR_PALETTE[Math.floor(Math.random() * CAR_PALETTE.length)];
+            this.propVertical[bay.y][bay.x] = bay.vert;
+            this.propCurbSide[bay.y][bay.x] = bay.side;
             placedCars++;
           }
         }
 
-        // Occasional sidewalk trees on plaza/sidewalk edges
-        for (let ly = 1; ly < CHUNK_SIZE - 1; ly++) {
-          for (let lx = 1; lx < CHUNK_SIZE - 1; lx++) {
-            if (
-              (this.ground[ly][lx] === TileType.SIDEWALK || this.ground[ly][lx] === TileType.PLAZA) &&
-              this.props[ly][lx] === PropType.NONE &&
-              (lx === 1 || lx === 8 || ly === 1 || ly === 8) &&
+        // Streetlights on outer sidewalk corners
+        const lampSpots = [[1, 1], [IN, 1], [1, IN], [IN, IN]];
+        for (const [lx, ly] of lampSpots) {
+          if (this.ground[ly][lx] === TileType.SIDEWALK && Math.random() < 0.78) {
+            this.props[ly][lx] = PropType.STREETLIGHT;
+          }
+        }
+
+        // Dumpsters in alleys & Trees on sidewalks/plazas for tactical cover
+        for (let ly = 1; ly < LAST; ly++) {
+          for (let lx = 1; lx < LAST; lx++) {
+            if (this.props[ly][lx] !== PropType.NONE) continue;
+            const g = this.ground[ly][lx];
+            if (g === TileType.ALLEY && Math.random() < 0.07) {
+              this.props[ly][lx] = PropType.DUMPSTER;
+            } else if (
+              (g === TileType.SIDEWALK || g === TileType.PLAZA) &&
+              (lx === 1 || lx === IN || ly === 1 || ly === IN) &&
               Math.random() < 0.08
             ) {
               this.props[ly][lx] = PropType.TREE;
@@ -1451,24 +1720,39 @@
     // =========================================================================
     // 5. CITY MAP MANAGER & EXACT COLLISION ENGINE
     // =========================================================================
+    function packChunkKey(cx, cy) {
+      return ((cx + 512) << 12) | (cy + 512);
+    }
+
     class CityMap {
       constructor() {
         this.chunks = new Map();
+        this._lastCx = 999999;
+        this._lastCy = 999999;
+        this._lastChunk = null;
       }
 
       getChunk(cx, cy) {
-        return this.chunks.get(`${cx},${cy}`);
+        if (cx === this._lastCx && cy === this._lastCy) return this._lastChunk;
+        const c = this.chunks.get(packChunkKey(cx, cy));
+        this._lastCx = cx;
+        this._lastCy = cy;
+        this._lastChunk = c;
+        return c;
       }
 
       hasChunk(cx, cy) {
-        return this.chunks.has(`${cx},${cy}`);
+        return this.chunks.has(packChunkKey(cx, cy));
       }
 
       generateChunk(cx, cy, forcedFaction = null) {
-        const key = `${cx},${cy}`;
+        const key = packChunkKey(cx, cy);
         if (this.chunks.has(key)) return this.chunks.get(key);
         const chunk = new DistrictChunk(cx, cy, forcedFaction);
         this.chunks.set(key, chunk);
+        this._lastCx = cx;
+        this._lastCy = cy;
+        this._lastChunk = chunk;
         return chunk;
       }
 
@@ -1489,23 +1773,54 @@
         return chunk.ground[ly][lx] !== TileType.BUILDING;
       }
 
+      isTileNavigable(gx, gy) {
+        const cx = Math.floor(gx / CHUNK_SIZE);
+        const cy = Math.floor(gy / CHUNK_SIZE);
+        const chunk = this.getChunk(cx, cy);
+        if (!chunk) return false;
+        const lx = ((gx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+        const ly = ((gy % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+        return chunk.solidMask[ly * CHUNK_SIZE + lx] === 0;
+      }
+
+      findNearestWalkablePoint(wx, wy, bodyRad = 12) {
+        if (this.canMoveTo(wx, wy, bodyRad)) return { x: wx, y: wy };
+        const baseGx = Math.floor(wx / TILE_SIZE);
+        const baseGy = Math.floor(wy / TILE_SIZE);
+        for (let r = 1; r <= 8; r++) {
+          for (let dy = -r; dy <= r; dy++) {
+            for (let dx = -r; dx <= r; dx++) {
+              if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+              const tx = (baseGx + dx + 0.5) * TILE_SIZE;
+              const ty = (baseGy + dy + 0.5) * TILE_SIZE;
+              if (this.canMoveTo(tx, ty, bodyRad)) {
+                return { x: tx, y: ty };
+              }
+            }
+          }
+        }
+        return null;
+      }
+
       canMoveTo(wx, wy, radius = 12) {
-        const offsets = [
-          [0, 0],
-          [radius, 0],
-          [-radius, 0],
-          [0, radius],
-          [0, -radius],
-          [radius * 0.72, radius * 0.72],
-          [-radius * 0.72, radius * 0.72],
-          [radius * 0.72, -radius * 0.72],
-          [-radius * 0.72, -radius * 0.72],
-        ];
-        for (const [ox, oy] of offsets) {
-          if (!this.isWalkable(wx + ox, wy + oy)) return false;
+        const diag = radius * 0.72;
+        const oxList = [0, radius, -radius, 0, 0, diag, -diag, diag, -diag];
+        const oyList = [0, 0, 0, radius, -radius, diag, diag, -diag, -diag];
+
+        for (let i = 0; i < 9; i++) {
+          const px = wx + oxList[i];
+          const py = wy + oyList[i];
+          const gx = Math.floor(px / TILE_SIZE);
+          const gy = Math.floor(py / TILE_SIZE);
+          const cx = Math.floor(gx / CHUNK_SIZE);
+          const cy = Math.floor(gy / CHUNK_SIZE);
+          const chunk = this.getChunk(cx, cy);
+          if (!chunk) return false;
+          const lx = ((gx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+          const ly = ((gy % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+          if (chunk.ground[ly][lx] === TileType.BUILDING) return false;
         }
 
-        // Exact pixel-accurate bounding box collision for parked cars
         const minGx = Math.floor((wx - radius - 8) / TILE_SIZE);
         const maxGx = Math.floor((wx + radius + 8) / TILE_SIZE);
         const minGy = Math.floor((wy - radius - 8) / TILE_SIZE);
@@ -1519,16 +1834,33 @@
             if (!chunk) continue;
             const lx = ((gx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
             const ly = ((gy % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+            const prop = chunk.props[ly][lx];
+            if (prop === PropType.NONE) continue;
 
-            if (chunk.props[ly][lx] === PropType.CAR) {
+            if (prop === PropType.CAR) {
               const tileWx = gx * TILE_SIZE;
               const tileWy = gy * TILE_SIZE;
               const isVert = chunk.propVertical[ly][lx];
-              const rx = isVert ? tileWx + 13 : tileWx + 5;
-              const ry = isVert ? tileWy + 5 : tileWy + 10;
+              const side = chunk.propCurbSide[ly][lx];
+              const rx = isVert ? (side === 'W' ? tileWx + 21 : tileWx + 5) : tileWx + 5;
+              const ry = isVert ? tileWy + 5 : (side === 'N' ? tileWy + 21 : tileWy + 5);
               const rw = isVert ? 18 : 34;
               const rh = isVert ? 34 : 18;
 
+              const closestX = Math.max(rx, Math.min(wx, rx + rw));
+              const closestY = Math.max(ry, Math.min(wy, ry + rh));
+              const dx = wx - closestX;
+              const dy = wy - closestY;
+              if (dx * dx + dy * dy < radius * radius) {
+                return false;
+              }
+            } else if (prop === PropType.DUMPSTER) {
+              const tileWx = gx * TILE_SIZE;
+              const tileWy = gy * TILE_SIZE;
+              const rx = tileWx + 9;
+              const ry = tileWy + 10;
+              const rw = 26;
+              const rh = 22;
               const closestX = Math.max(rx, Math.min(wx, rx + rw));
               const closestY = Math.max(ry, Math.min(wy, ry + rh));
               const dx = wx - closestX;
@@ -1574,16 +1906,16 @@
 
     const treasuries = {
       [Faction.PLAYER]: 3000,
-      [Faction.RIVAL_RED]: 3000,
-      [Faction.RIVAL_BLUE]: 3000,
-      [Faction.RIVAL_AMBER]: 3000,
+      [Faction.RIVAL_1]: 3000,
+      [Faction.RIVAL_2]: 3000,
+      [Faction.RIVAL_3]: 3000,
     };
 
     const factionAlive = {
       [Faction.PLAYER]: true,
-      [Faction.RIVAL_RED]: true,
-      [Faction.RIVAL_BLUE]: true,
-      [Faction.RIVAL_AMBER]: true,
+      [Faction.RIVAL_1]: true,
+      [Faction.RIVAL_2]: true,
+      [Faction.RIVAL_3]: true,
     };
 
     const player = {
@@ -1593,10 +1925,11 @@
       targetY: null,
       speed: 225,
       facing: 0,
-      hp: 200,
-      maxHp: 200,
+      hp: BOSS_MAX_HP,
+      maxHp: BOSS_MAX_HP,
       armor: 0,
       maxArmor: MAX_BOSS_ARMOR,
+      armorCooldown: 0,
       sprintTimer: 0,
       sprintCooldown: 0,
       isSprinting: false,
@@ -1614,34 +1947,226 @@
       y: player.y,
     };
 
+    const mouse = {
+      screenX: null,
+      screenY: null,
+      inside: false,
+    };
+
     const npcs = [];
     const floatingTexts = [];
     const spatialBuckets = new Map();
+    const bucketPool = [];
     let nextNpcId = 1;
+    let astarBudgetThisFrame = 0;
+    const MAX_ASTAR_PER_FRAME = 10;
+
+    // Fast Tile-Level A* Pathfinder (routes NPCs around tactical courtyards, chicanes & high-rises)
+    const astarOpen = [];
+    const astarClosed = new Set();
+    const astarCameFrom = new Map();
+    const astarGScore = new Map();
+
+    function computeTilePath(startWx, startWy, goalWx, goalWy, maxNodes = 260) {
+      let startGx = Math.floor(startWx / TILE_SIZE);
+      let startGy = Math.floor(startWy / TILE_SIZE);
+      let goalGx = Math.floor(goalWx / TILE_SIZE);
+      let goalGy = Math.floor(goalWy / TILE_SIZE);
+
+      if (!world.isTileNavigable(goalGx, goalGy)) {
+        const snapped = world.findNearestWalkablePoint(goalWx, goalWy, 12);
+        if (!snapped) return null;
+        goalGx = Math.floor(snapped.x / TILE_SIZE);
+        goalGy = Math.floor(snapped.y / TILE_SIZE);
+      }
+
+      if (!world.isTileNavigable(startGx, startGy)) {
+        const snappedStart = world.findNearestWalkablePoint(startWx, startWy, 11);
+        if (!snappedStart) return null;
+        startGx = Math.floor(snappedStart.x / TILE_SIZE);
+        startGy = Math.floor(snappedStart.y / TILE_SIZE);
+      }
+
+      if (startGx === goalGx && startGy === goalGy) {
+        return [{ x: (goalGx + 0.5) * TILE_SIZE, y: (goalGy + 0.5) * TILE_SIZE }];
+      }
+
+      astarOpen.length = 0;
+      astarClosed.clear();
+      astarCameFrom.clear();
+      astarGScore.clear();
+
+      const pack = (gx, gy) => ((gx + 2048) << 12) | (gy + 2048);
+      const startKey = pack(startGx, startGy);
+      const goalKey = pack(goalGx, goalGy);
+
+      astarGScore.set(startKey, 0);
+      astarOpen.push({
+        gx: startGx,
+        gy: startGy,
+        key: startKey,
+        f: Math.hypot(goalGx - startGx, goalGy - startGy),
+      });
+
+      let bestKey = startKey;
+      let bestDist = Math.hypot(goalGx - startGx, goalGy - startGy);
+      let explored = 0;
+
+      const dirs = [
+        [1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1],
+        [1, 1, 1.414], [-1, 1, 1.414], [1, -1, 1.414], [-1, -1, 1.414],
+      ];
+
+      while (astarOpen.length > 0 && explored < maxNodes) {
+        let lowestIdx = 0;
+        for (let i = 1; i < astarOpen.length; i++) {
+          if (astarOpen[i].f < astarOpen[lowestIdx].f) lowestIdx = i;
+        }
+        const current = astarOpen[lowestIdx];
+        astarOpen[lowestIdx] = astarOpen[astarOpen.length - 1];
+        astarOpen.pop();
+
+        if (current.key === goalKey) {
+          bestKey = goalKey;
+          break;
+        }
+
+        if (astarClosed.has(current.key)) continue;
+        astarClosed.add(current.key);
+        explored++;
+
+        const curG = astarGScore.get(current.key);
+
+        for (let d = 0; d < dirs.length; d++) {
+          const dx = dirs[d][0];
+          const dy = dirs[d][1];
+          const stepCost = dirs[d][2];
+          const nx = current.gx + dx;
+          const ny = current.gy + dy;
+
+          if (!world.isTileNavigable(nx, ny)) continue;
+          if (dx !== 0 && dy !== 0) {
+            if (!world.isTileNavigable(current.gx + dx, current.gy) || !world.isTileNavigable(current.gx, current.gy + dy)) {
+              continue;
+            }
+          }
+
+          const nKey = pack(nx, ny);
+          if (astarClosed.has(nKey)) continue;
+
+          const tentativeG = curG + stepCost;
+          const prevG = astarGScore.get(nKey);
+          if (prevG === undefined || tentativeG < prevG) {
+            astarCameFrom.set(nKey, current.key);
+            astarGScore.set(nKey, tentativeG);
+            const h = Math.hypot(goalGx - nx, goalGy - ny);
+            if (h < bestDist) {
+              bestDist = h;
+              bestKey = nKey;
+            }
+            astarOpen.push({ gx: nx, gy: ny, key: nKey, f: tentativeG + h * 1.15 });
+          }
+        }
+      }
+
+      if (bestKey === startKey) return null;
+
+      const path = [];
+      let curr = bestKey;
+      while (curr !== undefined && curr !== startKey) {
+        const gx = (curr >> 12) - 2048;
+        const gy = (curr & 0xfff) - 2048;
+        path.push({ x: (gx + 0.5) * TILE_SIZE, y: (gy + 0.5) * TILE_SIZE });
+        curr = astarCameFrom.get(curr);
+      }
+      path.reverse();
+      return path;
+    }
+
+    // Offscreen Minimap Cache (rendered at ~8fps instead of 60fps for major CPU savings)
+    const minimapCacheCanvas = document.createElement('canvas');
+    minimapCacheCanvas.width = minimapCanvas.width;
+    minimapCacheCanvas.height = minimapCanvas.height;
+    const minimapCacheCtx = minimapCacheCanvas.getContext('2d');
+    let minimapCacheTimer = 1.0;
+
+    // Cached HUD DOM Elements
+    const hudEls = {
+      statsBadge: document.getElementById('stats-badge'),
+      hpBarFill: document.getElementById('hp-bar-fill'),
+      hpText: document.getElementById('hp-text'),
+      cashText: document.getElementById('cash-text'),
+      hourText: document.getElementById('hour-text'),
+      tickBarFill: document.getElementById('tick-bar-fill'),
+      armorBtn: document.getElementById('btn-buy-armor'),
+      armorBox: document.getElementById('armor-hud-box'),
+      armorBarFill: document.getElementById('armor-bar-fill'),
+      armorText: document.getElementById('armor-text'),
+      sprintBar: document.getElementById('sprint-bar-fill'),
+      sprintText: document.getElementById('sprint-text'),
+      factionBoard: document.getElementById('faction-board'),
+      minimapCoords: document.getElementById('minimap-coords'),
+    };
 
     let gameStarted = false;
     let isSpectating = false;
     let showBorders = true;
     let allowClickExpand = false;
     let autoRecruitSoldier = true;
-    let autoRecruitElite = true;
+    let autoRecruitCaptain = true;
+    let autoRecruitUnderboss = true;
+    const playerSpawnCaps = {
+      [UnitRank.SOLDIER]: 140,
+      [UnitRank.CAPTAIN]: 40,
+      [UnitRank.UNDERBOSS]: 20,
+    };
     let gameOver = false;
     let victoryShown = false;
     let tickTimer = 0;
     let gameHour = 12;
     let hudUpdateTimer = 0;
 
+    function resetDefaultPlayerSpawnCaps() {
+      const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
+      playerSpawnCaps[UnitRank.SOLDIER] = Math.min(maxSoldiers, Math.max(1, Math.round(maxSoldiers * 0.5)));
+      playerSpawnCaps[UnitRank.CAPTAIN] = Math.min(maxCaptains, Math.max(1, Math.round(maxCaptains * 0.5)));
+      playerSpawnCaps[UnitRank.UNDERBOSS] = Math.min(maxUnderbosses, Math.max(1, Math.round(maxUnderbosses * 0.5)));
+    }
+
+    function clampPlayerSpawnCaps() {
+      const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
+      playerSpawnCaps[UnitRank.SOLDIER] = Math.max(1, Math.min(maxSoldiers, playerSpawnCaps[UnitRank.SOLDIER]));
+      playerSpawnCaps[UnitRank.CAPTAIN] = Math.max(1, Math.min(maxCaptains, playerSpawnCaps[UnitRank.CAPTAIN]));
+      playerSpawnCaps[UnitRank.UNDERBOSS] = Math.max(1, Math.min(maxUnderbosses, playerSpawnCaps[UnitRank.UNDERBOSS]));
+    }
+
+    function calculateFactionUpkeep() {
+      const totals = {
+        [Faction.PLAYER]: 0,
+        [Faction.RIVAL_1]: 0,
+        [Faction.RIVAL_2]: 0,
+        [Faction.RIVAL_3]: 0,
+      };
+      for (let i = 0; i < npcs.length; i++) {
+        const u = npcs[i];
+        if (totals[u.faction] === undefined) continue;
+        if (u.rank === UnitRank.SOLDIER) totals[u.faction] += UPKEEP_SOLDIER;
+        else if (u.rank === UnitRank.CAPTAIN) totals[u.faction] += UPKEEP_CAPTAIN;
+        else if (u.rank === UnitRank.UNDERBOSS) totals[u.faction] += UPKEEP_UNDERBOSS;
+      }
+      for (const f of ALL_FACTION_SLOTS) {
+        totals[f] = Math.round(totals[f]);
+      }
+      return totals;
+    }
+
     function getEntityCollisionRadius(rank) {
       if (rank === UnitRank.BOSS) return 13.5;
-      if (rank === UnitRank.ELITE) return 12.2;
+      if (rank === UnitRank.UNDERBOSS) return 12.8;
+      if (rank === UnitRank.CAPTAIN) return 12.0;
       return 11.0;
     }
 
-    /**
-     * Checks environment walls/cars AND unit collisions:
-     * - Enemies have hard solid mass (cannot push or pass through).
-     * - Same-faction allies allow soft squeezing (pass slowly & push aside).
-     */
     function canOccupyPosition(
       wx,
       wy,
@@ -1667,9 +2192,10 @@
       if (spatialBuckets.size > 0) {
         for (let dy = -1; dy <= 1; dy++) {
           for (let dx = -1; dx <= 1; dx++) {
-            const bucket = spatialBuckets.get(`${cx + dx},${cy + dy}`);
+            const bucket = spatialBuckets.get(packChunkKey(cx + dx, cy + dy));
             if (!bucket) continue;
-            for (const other of bucket) {
+            for (let i = 0; i < bucket.length; i++) {
+              const other = bucket[i];
               if (other.id === ignoreNpcId) continue;
               const oRad = getEntityCollisionRadius(other.rank);
               const sameFaction = moverFaction !== null && moverFaction === other.faction;
@@ -1681,7 +2207,8 @@
           }
         }
       } else {
-        for (const other of npcs) {
+        for (let i = 0; i < npcs.length; i++) {
+          const other = npcs[i];
           if (other.id === ignoreNpcId) continue;
           const oRad = getEntityCollisionRadius(other.rank);
           const sameFaction = moverFaction !== null && moverFaction === other.faction;
@@ -1698,18 +2225,23 @@
     function isPushingFriendly(wx, wy, radius, faction, ignoreNpcId = -1, ignorePlayer = false) {
       if (!ignorePlayer && player.alive && faction === Faction.PLAYER) {
         const minDist = radius + getEntityCollisionRadius(UnitRank.BOSS);
-        if (Math.hypot(wx - player.x, wy - player.y) < minDist) return true;
+        const dx = wx - player.x;
+        const dy = wy - player.y;
+        if (dx * dx + dy * dy < minDist * minDist) return true;
       }
       const cx = Math.floor(wx / CHUNK_PX);
       const cy = Math.floor(wy / CHUNK_PX);
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
-          const bucket = spatialBuckets.get(`${cx + dx},${cy + dy}`);
+          const bucket = spatialBuckets.get(packChunkKey(cx + dx, cy + dy));
           if (!bucket) continue;
-          for (const other of bucket) {
+          for (let i = 0; i < bucket.length; i++) {
+            const other = bucket[i];
             if (other.id === ignoreNpcId || other.faction !== faction) continue;
             const minDist = radius + getEntityCollisionRadius(other.rank);
-            if (Math.hypot(wx - other.x, wy - other.y) < minDist) return true;
+            const ox = wx - other.x;
+            const oy = wy - other.y;
+            if (ox * ox + oy * oy < minDist * minDist) return true;
           }
         }
       }
@@ -1717,7 +2249,10 @@
     }
 
     function addFloatingText(x, y, text, color = '#fbbf24') {
-      floatingTexts.push({ x, y, text, color, life: 1.0, vy: -30 });
+      if (floatingTexts.length >= 48) {
+        floatingTexts.shift();
+      }
+      floatingTexts.push({ x, y, text, color, life: 0.9, vy: -30 });
     }
 
     let toastTimeout = null;
@@ -1734,9 +2269,9 @@
     function recalculateHourlyIncome() {
       const totals = {
         [Faction.PLAYER]: 0,
-        [Faction.RIVAL_RED]: 0,
-        [Faction.RIVAL_BLUE]: 0,
-        [Faction.RIVAL_AMBER]: 0,
+        [Faction.RIVAL_1]: 0,
+        [Faction.RIVAL_2]: 0,
+        [Faction.RIVAL_3]: 0,
       };
       for (const chunk of world.chunks.values()) {
         if (totals[chunk.faction] !== undefined) {
@@ -1747,12 +2282,14 @@
     }
 
     function spawnUnitInChunk(faction, chunk, rank = UnitRank.SOLDIER) {
+      const IN = CHUNK_SIZE - 2;
+      const MID = Math.floor(CHUNK_SIZE / 2);
       const spots = [
-        [1, 1], [8, 1], [1, 8], [8, 8],
-        [4, 1], [5, 8], [1, 4], [8, 5],
-        [1, 2], [8, 2], [1, 7], [8, 7],
-        [0, 1], [9, 1], [0, 8], [9, 8],
-        [1, 0], [8, 0], [1, 9], [8, 9],
+        [1, 1], [IN, 1], [1, IN], [IN, IN],
+        [MID, 1], [MID + 1, IN], [1, MID], [IN, MID + 1],
+        [1, 2], [IN, 2], [1, IN - 1], [IN, IN - 1],
+        [0, 1], [CHUNK_SIZE - 1, 1], [0, IN], [CHUNK_SIZE - 1, IN],
+        [1, 0], [IN, 0], [1, CHUNK_SIZE - 1], [IN, CHUNK_SIZE - 1],
       ];
 
       const bodyRadius = getEntityCollisionRadius(rank);
@@ -1764,10 +2301,12 @@
 
         if (canOccupyPosition(wx, wy, bodyRadius)) {
           const isBoss = rank === UnitRank.BOSS;
-          const isElite = rank === UnitRank.ELITE;
-          const maxHp = isBoss ? 400 : isElite ? 300 : 200;
-          const minDmg = isBoss ? 20 : isElite ? 15 : 10;
-          const maxDmg = isBoss ? 40 : isElite ? 25 : 20;
+          const isUnderboss = rank === UnitRank.UNDERBOSS;
+          const isCaptain = rank === UnitRank.CAPTAIN;
+          const maxHp = isBoss ? BOSS_MAX_HP : isUnderboss ? 480 : isCaptain ? 340 : 180;
+          const minDmg = isBoss ? 20 : isUnderboss ? 26 : isCaptain ? 18 : 10;
+          const maxDmg = isBoss ? 40 : isUnderboss ? 38 : isCaptain ? 28 : 18;
+          const startArmor = isUnderboss ? 120 : 0;
 
           const unit = {
             id: nextNpcId++,
@@ -1776,14 +2315,22 @@
             x: wx,
             y: wy,
             bodyRadius,
-            speed: isBoss ? 152 : isElite ? 142 : 128 + Math.random() * 16,
+            speed: isBoss ? 152 : isUnderboss ? 148 : isCaptain ? 140 : 128 + Math.random() * 16,
             hp: maxHp,
             maxHp,
+            armor: startArmor,
+            maxArmor: isBoss ? MAX_BOSS_ARMOR : startArmor,
+            armorCooldown: 0,
+            sprintTimer: 0,
+            sprintCooldown: 0,
+            isSprinting: false,
             minDmg,
             maxDmg,
             facing: Math.random() * Math.PI * 2,
             goalX: wx,
             goalY: wy,
+            path: null,
+            pathTimer: 0,
             aiTimer: 0,
             attackCooldown: 0,
             slashAnimTimer: 0,
@@ -1801,21 +2348,44 @@
       return null;
     }
 
-    function recruitUnit(faction, rank, silent = false) {
+    function recruitUnit(faction, rank, silent = false, cachedCounts = null, cachedOwnedChunks = null) {
       if (!factionAlive[faction]) return false;
-      const cost = rank === UnitRank.ELITE ? COST_ELITE : COST_SOLDIER;
+      const cost =
+        rank === UnitRank.UNDERBOSS
+          ? COST_UNDERBOSS
+          : rank === UnitRank.CAPTAIN
+          ? COST_CAPTAIN
+          : COST_SOLDIER;
       if (treasuries[faction] < cost) return false;
 
-      const { maxSoldiers, maxElites } = getUnitCaps();
-      const currentCount = npcs.filter(
-        (n) => n.faction === faction && n.rank === rank
-      ).length;
-      const limit = rank === UnitRank.ELITE ? maxElites : maxSoldiers;
+      const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
+      const countKey =
+        rank === UnitRank.UNDERBOSS
+          ? 'underbosses'
+          : rank === UnitRank.CAPTAIN
+          ? 'captains'
+          : 'soldiers';
+      const currentCount = cachedCounts
+        ? cachedCounts[faction][countKey]
+        : npcs.filter((n) => n.faction === faction && n.rank === rank).length;
+      const hardLimit =
+        rank === UnitRank.UNDERBOSS
+          ? maxUnderbosses
+          : rank === UnitRank.CAPTAIN
+          ? maxCaptains
+          : maxSoldiers;
+      const limit =
+        faction === Faction.PLAYER
+          ? Math.max(1, Math.min(hardLimit, playerSpawnCaps[rank] || hardLimit))
+          : hardLimit;
       if (currentCount >= limit) return false;
 
-      const ownedChunks = [];
-      for (const c of world.chunks.values()) {
-        if (c.faction === faction) ownedChunks.push(c);
+      let ownedChunks = cachedOwnedChunks;
+      if (!ownedChunks) {
+        ownedChunks = [];
+        for (const c of world.chunks.values()) {
+          if (c.faction === faction) ownedChunks.push(c);
+        }
       }
       if (ownedChunks.length === 0) return false;
 
@@ -1840,12 +2410,12 @@
       treasuries[faction] -= cost;
       const unit = spawnUnitInChunk(faction, spawnChunk, rank);
       if (unit) {
+        if (cachedCounts) {
+          cachedCounts[faction][countKey]++;
+        }
         if (!silent) {
-          const label =
-            rank === UnitRank.ELITE
-              ? `+ELITE ($${COST_ELITE.toLocaleString()})`
-              : `+SOLDIER ($${COST_SOLDIER.toLocaleString()})`;
-          addFloatingText(unit.x, unit.y - 26, label, FACTION_META[faction].accent);
+          const rankLabel = (FACTION_META[faction].ranks[rank] || rank).toUpperCase();
+          addFloatingText(unit.x, unit.y - 26, `+${rankLabel} ($${cost.toLocaleString()})`, FACTION_META[faction].accent);
         }
         return true;
       } else {
@@ -1856,10 +2426,9 @@
 
     function checkVictoryCondition() {
       if (victoryShown || gameOver || !factionAlive[Faction.PLAYER]) return;
-      const anyRivalAlive =
-        factionAlive[Faction.RIVAL_RED] ||
-        factionAlive[Faction.RIVAL_BLUE] ||
-        factionAlive[Faction.RIVAL_AMBER];
+      const anyRivalAlive = activeFactions.some(
+        (f) => f !== Faction.PLAYER && factionAlive[f]
+      );
 
       if (!anyRivalAlive) {
         victoryShown = true;
@@ -1868,8 +2437,9 @@
           (c) => c.faction === Faction.PLAYER
         ).length;
         const survivingCrew = npcs.filter((n) => n.faction === Faction.PLAYER).length;
+        const playerOrg = FACTION_META[Faction.PLAYER];
         document.getElementById('victory-summary').textContent =
-          `All rival Bosses have been eliminated! You control ${playerBlocks}/${world.chunks.size} neighborhoods with $${treasuries[Faction.PLAYER].toLocaleString()} in cash and ${survivingCrew} surviving crew.`;
+          `All rival Supreme Leaders have been eliminated! ${playerOrg.name} (${playerOrg.ranks.BOSS}) rules ${playerBlocks}/${world.chunks.size} neighborhoods with $${treasuries[Faction.PLAYER].toLocaleString()} in cash and ${survivingCrew} surviving crew.`;
         document.getElementById('victory-banner').classList.remove('hidden');
       }
     }
@@ -1897,21 +2467,60 @@
         document.getElementById('defeat-banner').classList.remove('hidden');
       } else {
         sfx.playFactionEliminated();
-        showToast(`${FACTION_META[faction].name} Boss killed! Their turf is now Neutral.`);
+        const meta = FACTION_META[faction];
+        showToast(`${meta.name}'s ${meta.ranks.BOSS} killed! Their turf is now Neutral.`);
         checkVictoryCondition();
       }
       updateHUD();
+    }
+
+    function syncRecruitButtonLabels() {
+      clampPlayerSpawnCaps();
+      const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
+      const pRanks = FACTION_META[Faction.PLAYER].ranks;
+      const btnS = document.getElementById('btn-toggle-soldier');
+      const btnC = document.getElementById('btn-toggle-captain');
+      const btnU = document.getElementById('btn-toggle-underboss');
+      btnS.textContent = `Auto ${pRanks.SOLDIER}: ${autoRecruitSoldier ? 'ON' : 'OFF'} ($${COST_SOLDIER.toLocaleString()})`;
+      btnC.textContent = `Auto ${pRanks.CAPTAIN}: ${autoRecruitCaptain ? 'ON' : 'OFF'} ($${COST_CAPTAIN.toLocaleString()})`;
+      btnU.textContent = `Auto ${pRanks.UNDERBOSS}: ${autoRecruitUnderboss ? 'ON' : 'OFF'} ($${COST_UNDERBOSS.toLocaleString()})`;
+
+      document.getElementById('cap-soldier-label').textContent =
+        `${playerSpawnCaps[UnitRank.SOLDIER]}/${maxSoldiers}`;
+      document.getElementById('cap-captain-label').textContent =
+        `${playerSpawnCaps[UnitRank.CAPTAIN]}/${maxCaptains}`;
+      document.getElementById('cap-underboss-label').textContent =
+        `${playerSpawnCaps[UnitRank.UNDERBOSS]}/${maxUnderbosses}`;
     }
 
     function initWorld(
       gridSize = currentGridSize,
       autoStart = true,
       selectedTickSeconds = tickDuration,
-      selectedIncomeTier = currentIncomeTier
+      selectedIncomeTier = currentIncomeTier,
+      factionCount = activeFactionCount,
+      orgRoster = selectedFactionOrgs
     ) {
       currentGridSize = Math.max(5, Math.min(25, gridSize));
       tickDuration = Math.max(10, Math.min(30, selectedTickSeconds));
       currentIncomeTier = INCOME_TIERS[selectedIncomeTier] ? selectedIncomeTier : 'HIGH';
+      activeFactionCount = Math.max(2, Math.min(4, Number(factionCount) || 4));
+      selectedFactionOrgs = ensureUniqueOrgs(orgRoster);
+
+      // Assign active faction slots (2 factions use diagonal opposite corners TL & BR)
+      if (activeFactionCount === 2) {
+        activeFactions = [Faction.PLAYER, Faction.RIVAL_3];
+      } else if (activeFactionCount === 3) {
+        activeFactions = [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2];
+      } else {
+        activeFactions = [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3];
+      }
+
+      // Bind chosen real-world crime organizations to each active slot
+      activeFactions.forEach((slot, idx) => {
+        const orgId = selectedFactionOrgs[idx] || ALL_ORG_IDS[idx];
+        FACTION_META[slot] = { ...ORGANIZATIONS[orgId] };
+      });
 
       world.chunks.clear();
       npcs.length = 0;
@@ -1928,6 +2537,7 @@
       victoryShown = false;
       tickTimer = 0;
       hudUpdateTimer = 0;
+      minimapCacheTimer = 1.0;
       gameHour = 12;
 
       document.getElementById('defeat-banner').classList.add('hidden');
@@ -1936,9 +2546,10 @@
       document.getElementById('hour-hud-box').title =
         `Every ${tickDuration} seconds an hour passes: blocks pay & toggled units spawn`;
 
-      for (const f of ALL_FACTIONS) {
-        treasuries[f] = 3000;
-        factionAlive[f] = true;
+      for (const f of ALL_FACTION_SLOTS) {
+        const isActive = activeFactions.includes(f);
+        treasuries[f] = isActive ? 3000 : 0;
+        factionAlive[f] = isActive;
       }
 
       for (let cy = 0; cy < currentGridSize; cy++) {
@@ -1947,14 +2558,18 @@
         }
       }
 
-      // 1. Player Boss at Top-Left Corner (0, 0) on open sidewalk intersection (1.5, 1.5)
+      resetDefaultPlayerSpawnCaps();
+      syncRecruitButtonLabels();
+
+      // 1. Player Supreme Leader at Top-Left Corner (0, 0)
       player.x = 1.5 * TILE_SIZE;
       player.y = 1.5 * TILE_SIZE;
       player.targetX = null;
       player.targetY = null;
-      player.hp = 200;
-      player.maxHp = 200;
+      player.hp = BOSS_MAX_HP;
+      player.maxHp = BOSS_MAX_HP;
       player.armor = 0;
+      player.armorCooldown = 0;
       player.sprintTimer = 0;
       player.sprintCooldown = 0;
       player.isSprinting = false;
@@ -1966,18 +2581,20 @@
       camera.x = player.x;
       camera.y = player.y;
 
-      // 2. Rival Bosses at the other 3 Corners regardless of grid size
+      // 2. Active Rival Supreme Leaders at their respective corners
       const last = currentGridSize - 1;
-      const rivalStarts = [
-        { faction: Faction.RIVAL_RED, cx: last, cy: 0 },
-        { faction: Faction.RIVAL_BLUE, cx: 0, cy: last },
-        { faction: Faction.RIVAL_AMBER, cx: last, cy: last },
-      ];
+      const cornerCoords = {
+        [Faction.RIVAL_1]: { cx: last, cy: 0 },
+        [Faction.RIVAL_2]: { cx: 0, cy: last },
+        [Faction.RIVAL_3]: { cx: last, cy: last },
+      };
 
-      for (const start of rivalStarts) {
-        const hq = world.getChunk(start.cx, start.cy);
+      for (const slot of activeFactions) {
+        if (slot === Faction.PLAYER) continue;
+        const pos = cornerCoords[slot];
+        const hq = world.getChunk(pos.cx, pos.cy);
         if (hq) {
-          spawnUnitInChunk(start.faction, hq, UnitRank.BOSS);
+          spawnUnitInChunk(slot, hq, UnitRank.BOSS);
         }
       }
 
@@ -1986,8 +2603,63 @@
     }
 
     // =========================================================================
-    // 7. PLAYER MELEE KNIFE SLASH & 9MM PISTOL SECONDARY ATTACK
+    // 7. SHARED DAMAGE HELPER, BOSS MELEE SLASH & 9MM PISTOL ATTACK
     // =========================================================================
+    function applyDamageToNpc(target, dmg, textColor = '#fbbf24', suffix = '') {
+      if (!target) return false;
+      target.hitFlashTimer = 0.16;
+
+      let remainingDmg = dmg;
+      let absorbed = 0;
+      if (target.armor && target.armor > 0) {
+        absorbed = Math.min(target.armor, remainingDmg);
+        target.armor -= absorbed;
+        remainingDmg -= absorbed;
+      }
+
+      if (remainingDmg > 0) {
+        target.hp -= remainingDmg;
+      }
+
+      const isKill = target.hp <= 0;
+      if (remainingDmg > 0) {
+        spawnBloodSplash(target.x, target.y, target.rank === UnitRank.BOSS ? 1.4 : 1.15, isKill);
+      } else {
+        spawnSparks(target.x, target.y - 12);
+      }
+
+      if (absorbed > 0 && remainingDmg === 0) {
+        addFloatingText(target.x, target.y - 28, `-${absorbed} 🛡️`, '#38bdf8');
+      } else if (absorbed > 0 && remainingDmg > 0) {
+        addFloatingText(target.x, target.y - 28, `-${absorbed}🛡️ -${remainingDmg} ${suffix}`.trim(), textColor);
+      } else {
+        addFloatingText(target.x, target.y - 28, `-${remainingDmg} ${suffix}`.trim(), textColor);
+      }
+
+      if (absorbed > 0 && target.armor <= 0) {
+        target.armor = 0;
+        addFloatingText(target.x, target.y - 42, 'ARMOR BROKEN!', '#7dd3fc');
+      }
+
+      if (isKill) {
+        const deadIdx = npcs.indexOf(target);
+        if (deadIdx !== -1) {
+          const deadFaction = target.faction;
+          const wasBoss = target.rank === UnitRank.BOSS;
+          npcs.splice(deadIdx, 1);
+          if (wasBoss) {
+            sfx.playDeath(true, target.x, target.y);
+            addFloatingText(target.x, target.y - 44, 'BOSS KILLED!', '#f43f5e');
+            eliminateFaction(deadFaction);
+          } else {
+            sfx.playDeath(false, target.x, target.y);
+            addFloatingText(target.x, target.y - 38, 'ELIMINATED', '#f43f5e');
+          }
+        }
+      }
+      return isKill;
+    }
+
     function performKnifeSlash() {
       if (!gameStarted || !player.alive || player.attackCooldown > 0) return;
 
@@ -2017,16 +2689,11 @@
       candidates.sort((a, b) => a.dist - b.dist);
       const targets = candidates.slice(0, maxTargets);
       const hitCount = targets.length;
-      sfx.playSlash(hitCount > 0);
+      sfx.playSlash(hitCount > 0, player.x, player.y);
 
       for (const item of targets) {
         const { npc, dist, dx, dy } = item;
         const dmg = rollDamage(player.minDmg, player.maxDmg);
-        npc.hp -= dmg;
-        npc.hitFlashTimer = 0.15;
-        const isKill = npc.hp <= 0;
-        spawnBloodSplash(npc.x, npc.y, 1.25, isKill);
-        addFloatingText(npc.x, npc.y - 28, `-${dmg}`, '#fbbf24');
 
         const pushAngle = dist > 0.01 ? Math.atan2(dy, dx) : player.facing;
         const knockX = npc.x + Math.cos(pushAngle) * 14;
@@ -2037,22 +2704,7 @@
           npc.y = knockY;
         }
 
-        if (isKill) {
-          const deadIdx = npcs.indexOf(npc);
-          if (deadIdx !== -1) {
-            const deadFaction = npc.faction;
-            const wasBoss = npc.rank === UnitRank.BOSS;
-            npcs.splice(deadIdx, 1);
-            if (wasBoss) {
-              sfx.playDeath(true);
-              addFloatingText(npc.x, npc.y - 42, 'BOSS KILLED!', '#f43f5e');
-              eliminateFaction(deadFaction);
-            } else {
-              sfx.playDeath(false);
-              addFloatingText(npc.x, npc.y - 38, 'ELIMINATED', '#f43f5e');
-            }
-          }
-        }
+        applyDamageToNpc(npc, dmg, '#fbbf24');
       }
 
       if (hitCount === 0) {
@@ -2063,6 +2715,61 @@
           '#a1a1aa'
         );
       }
+    }
+
+    function performBossKnifeSlash(bossNpc) {
+      if (bossNpc.attackCooldown > 0) return false;
+      bossNpc.attackCooldown = UNIT_ATTACK_COOLDOWN;
+      bossNpc.slashAnimTimer = 0.18;
+
+      const reach = 52;
+      const maxTargets = 3;
+      const candidates = [];
+
+      if (player.alive && bossNpc.faction !== Faction.PLAYER) {
+        const dx = player.x - bossNpc.x;
+        const dy = player.y - bossNpc.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist <= reach) {
+          candidates.push({ isPlayer: true, entity: player, dist, dx, dy });
+        }
+      }
+
+      for (let i = 0; i < npcs.length; i++) {
+        const other = npcs[i];
+        if (other.faction === bossNpc.faction) continue;
+        const dx = other.x - bossNpc.x;
+        const dy = other.y - bossNpc.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist <= reach) {
+          candidates.push({ isPlayer: false, entity: other, dist, dx, dy });
+        }
+      }
+
+      candidates.sort((a, b) => a.dist - b.dist);
+      const targets = candidates.slice(0, maxTargets);
+      if (targets.length === 0) return false;
+
+      bossNpc.facing = Math.atan2(targets[0].dy, targets[0].dx);
+      sfx.playSlash(true, bossNpc.x, bossNpc.y);
+
+      for (const item of targets) {
+        const dmg = rollDamage(bossNpc.minDmg, bossNpc.maxDmg);
+        if (item.isPlayer) {
+          damagePlayerBoss(dmg, '#f43f5e', '🔪');
+        } else {
+          const pushAngle = item.dist > 0.01 ? Math.atan2(item.dy, item.dx) : bossNpc.facing;
+          const knockX = item.entity.x + Math.cos(pushAngle) * 12;
+          const knockY = item.entity.y + Math.sin(pushAngle) * 12;
+          const nRad = getEntityCollisionRadius(item.entity.rank);
+          if (canOccupyPosition(knockX, knockY, nRad, item.entity.id, false)) {
+            item.entity.x = knockX;
+            item.entity.y = knockY;
+          }
+          applyDamageToNpc(item.entity, dmg, FACTION_META[bossNpc.faction].accent, '🔪');
+        }
+      }
+      return true;
     }
 
     function traceBulletRay(x0, y0, angle, maxDist) {
@@ -2078,19 +2785,53 @@
         const { cx, cy, lx, ly } = world.worldToTile(px, py);
         const chunk = world.getChunk(cx, cy);
         if (!chunk) return { blocked: true, dist: d, x: px, y: py };
-        if (chunk.props[ly][lx] === PropType.CAR) {
+        const prop = chunk.props[ly][lx];
+        if (prop === PropType.CAR) {
           const tileWx = (cx * CHUNK_SIZE + lx) * TILE_SIZE;
           const tileWy = (cy * CHUNK_SIZE + ly) * TILE_SIZE;
-          const rx = chunk.propVertical[ly][lx] ? tileWx + 13 : tileWx + 5;
-          const ry = chunk.propVertical[ly][lx] ? tileWy + 5 : tileWy + 10;
-          const rw = chunk.propVertical[ly][lx] ? 18 : 34;
-          const rh = chunk.propVertical[ly][lx] ? 34 : 18;
+          const isVert = chunk.propVertical[ly][lx];
+          const side = chunk.propCurbSide[ly][lx];
+          const rx = isVert ? (side === 'W' ? tileWx + 21 : tileWx + 5) : tileWx + 5;
+          const ry = isVert ? tileWy + 5 : (side === 'N' ? tileWy + 21 : tileWy + 5);
+          const rw = isVert ? 18 : 34;
+          const rh = isVert ? 34 : 18;
           if (px >= rx && px <= rx + rw && py >= ry && py <= ry + rh) {
+            return { blocked: true, dist: d, x: px, y: py };
+          }
+        } else if (prop === PropType.DUMPSTER) {
+          const tileWx = (cx * CHUNK_SIZE + lx) * TILE_SIZE;
+          const tileWy = (cy * CHUNK_SIZE + ly) * TILE_SIZE;
+          if (px >= tileWx + 9 && px <= tileWx + 35 && py >= tileWy + 10 && py <= tileWy + 32) {
             return { blocked: true, dist: d, x: px, y: py };
           }
         }
       }
       return { blocked: false, dist: maxDist, x: x0 + cos * maxDist, y: y0 + sin * maxDist };
+    }
+
+    function getPistolAccuracyInfo(dist) {
+      if (dist > MAX_PISTOL_RANGE) {
+        return { failChance: 1, dmgMult: 0, label: 'OUT OF RANGE', color: '#71717a' };
+      }
+      if (dist <= 50) {
+        return { failChance: 0, dmgMult: 0.25, label: 'POINT-BLANK · -75% DMG', color: '#f97316' };
+      }
+      if (dist < 100) {
+        return { failChance: 0, dmgMult: 0.5, label: 'CLOSE · -50% DMG', color: '#fb923c' };
+      }
+      if (dist < MAX_PISTOL_RANGE * 0.25) {
+        return { failChance: 0, dmgMult: 1, label: '100% ACC · FULL DMG', color: '#34d399' };
+      }
+      if (dist < MAX_PISTOL_RANGE * 0.50) {
+        return { failChance: 0.05, dmgMult: 1, label: '95% ACC (5% MISS)', color: '#a3e635' };
+      }
+      if (dist < MAX_PISTOL_RANGE * 0.75) {
+        return { failChance: 0.10, dmgMult: 1, label: '90% ACC (10% MISS)', color: '#fbbf24' };
+      }
+      if (dist < MAX_PISTOL_RANGE * 0.90) {
+        return { failChance: 0.25, dmgMult: 1, label: '75% ACC (25% MISS)', color: '#fb923c' };
+      }
+      return { failChance: 0.50, dmgMult: 1, label: '50% ACC (50% MISS)', color: '#f43f5e' };
     }
 
     function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY) {
@@ -2100,7 +2841,7 @@
       const dy = targetY - shooter.y;
       const angle = Math.atan2(dy, dx);
       shooter.facing = angle;
-      shooter.attackCooldown = isPlayerShooter ? 0.65 : 0.95;
+      shooter.attackCooldown = isPlayerShooter ? 0.65 : UNIT_ATTACK_COOLDOWN;
       shooter.muzzleFlashTimer = 0.09;
 
       const shooterFaction = isPlayerShooter ? Faction.PLAYER : shooter.faction;
@@ -2121,6 +2862,8 @@
       });
 
       sfx.playGunshot();
+
+      sfx.playGunshot(shooter.x, shooter.y);
 
       const envHit = traceBulletRay(shooter.x, shooter.y, angle, MAX_PISTOL_RANGE);
       const maxRayDist = envHit.dist;
@@ -2163,8 +2906,32 @@
         }
       }
 
-      const endX = shooter.x + cos * bestProjDist;
-      const endY = (shooter.y - 10) + sin * bestProjDist;
+      // Distance-based accuracy fail chance for all Bosses (p25: 5%, p50: 10%, p75: 25%, p90: 50%)
+      let shotMissed = false;
+      if (bestTarget) {
+        const { failChance } = getPistolAccuracyInfo(bestProjDist);
+        if (failChance > 0 && Math.random() < failChance) {
+          shotMissed = true;
+        }
+      }
+
+      let endX = shooter.x + cos * bestProjDist;
+      let endY = (shooter.y - 10) + sin * bestProjDist;
+
+      if (bestTarget && shotMissed) {
+        // Bullet deflects past the target up to wall/max range and displays "MISS!"
+        const missDir = Math.random() < 0.5 ? 1 : -1;
+        const deflectAngle = angle + missDir * (0.045 + Math.random() * 0.035);
+        const missRay = traceBulletRay(shooter.x, shooter.y, deflectAngle, MAX_PISTOL_RANGE);
+        endX = missRay.x;
+        endY = missRay.y - 10;
+
+        addFloatingText(bestTarget.x, bestTarget.y - 34, 'MISS!', '#a1a1aa');
+        if (missRay.blocked) {
+          spawnSparks(missRay.x, missRay.y);
+          sfx.playRicochet(missRay.x, missRay.y);
+        }
+      }
 
       bulletTracers.push({
         x1: muzzleX,
@@ -2175,27 +2942,15 @@
         life: 0.14,
       });
 
-      if (bestTarget) {
+      if (bestTarget && !shotMissed) {
         let dmg = rollDamage(40, 80);
-        if (bestProjDist <= 50) {
-          dmg = Math.max(1, Math.round(dmg * 0.25));
-        } else if (bestProjDist < 100) {
-          dmg = Math.max(1, Math.round(dmg * 0.5));
+        const { dmgMult } = getPistolAccuracyInfo(bestProjDist);
+        if (dmgMult < 1) {
+          dmg = Math.max(1, Math.round(dmg * dmgMult));
         }
         if (bestTargetIsPlayer) {
           damagePlayerBoss(dmg, `${FACTION_META[shooterFaction].accent}`, '🔫');
         } else {
-          bestTarget.hp -= dmg;
-          bestTarget.hitFlashTimer = 0.16;
-          const isKill = bestTarget.hp <= 0;
-          spawnBloodSplash(bestTarget.x, bestTarget.y, 1.5, isKill);
-          addFloatingText(
-            bestTarget.x,
-            bestTarget.y - 28,
-            `-${dmg}`,
-            isPlayerShooter ? '#fde047' : FACTION_META[shooterFaction].accent
-          );
-
           const knockX = bestTarget.x + cos * 16;
           const knockY = bestTarget.y + sin * 16;
           const nRad = getEntityCollisionRadius(bestTarget.rank);
@@ -2203,34 +2958,22 @@
             bestTarget.x = knockX;
             bestTarget.y = knockY;
           }
-
-          if (isKill) {
-            const deadIdx = npcs.indexOf(bestTarget);
-            if (deadIdx !== -1) {
-              const deadFaction = bestTarget.faction;
-              const wasBoss = bestTarget.rank === UnitRank.BOSS;
-              npcs.splice(deadIdx, 1);
-              if (wasBoss) {
-                sfx.playDeath(true);
-                addFloatingText(bestTarget.x, bestTarget.y - 42, 'BOSS SHOT DEAD!', '#f43f5e');
-                eliminateFaction(deadFaction);
-              } else {
-                sfx.playDeath(false);
-                addFloatingText(bestTarget.x, bestTarget.y - 38, 'HEADSHOT', '#f43f5e');
-              }
-            }
-          }
+          applyDamageToNpc(
+            bestTarget,
+            dmg,
+            isPlayerShooter ? '#fde047' : FACTION_META[shooterFaction].accent
+          );
         }
-      } else if (envHit.blocked) {
+      } else if (!bestTarget && envHit.blocked) {
         spawnSparks(envHit.x, envHit.y);
-        sfx.playRicochet();
+        sfx.playRicochet(envHit.x, envHit.y);
       }
 
       return true;
     }
 
     // =========================================================================
-    // 8. BOSS ARMOR, DAMAGE ABSORPTION & INPUT HANDLING
+    // 8. BOSS ARMOR, SMART NPC BOSS UPGRADES & INPUT HANDLING
     // =========================================================================
     function damagePlayerBoss(dmg, textColor = '#f43f5e', suffix = '') {
       if (!player.alive) return;
@@ -2269,7 +3012,7 @@
       }
 
       if (isKill) {
-        sfx.playDeath(true);
+        sfx.playDeath(true, player.x, player.y);
         eliminateFaction(Faction.PLAYER);
       }
     }
@@ -2278,6 +3021,10 @@
       getAudioCtx();
       if (!gameStarted || !player.alive || !factionAlive[Faction.PLAYER]) {
         showToast('Your Boss must be alive to equip armor!');
+        return;
+      }
+      if (player.armorCooldown > 0) {
+        showToast(`Armor restock on cooldown (${player.armorCooldown.toFixed(1)}s until next tick)!`);
         return;
       }
       if (player.armor >= MAX_BOSS_ARMOR) {
@@ -2291,10 +3038,61 @@
 
       treasuries[Faction.PLAYER] -= COST_BOSS_ARMOR;
       player.armor = MAX_BOSS_ARMOR;
-      sfx.playArmorEquip();
+      player.armorCooldown = tickDuration;
+      sfx.playArmorEquip(player.x, player.y);
       addFloatingText(player.x, player.y - 34, '+200 ARMOR 🛡️', '#38bdf8');
-      showToast('Equipped Kevlar Armor (+200 HP damage block)!');
+      showToast(`Equipped Kevlar Armor! Next purchase available in ${tickDuration}s.`);
       updateHUD();
+    }
+
+    function tryBuyNpcBossArmor(bossNpc, nearbyEnemies = 0, nearbyAllies = 0) {
+      if (!bossNpc || bossNpc.rank !== UnitRank.BOSS) return false;
+      const faction = bossNpc.faction;
+      if (!factionAlive[faction]) return false;
+      if ((bossNpc.armorCooldown || 0) > 0) return false;
+      if (treasuries[faction] < COST_BOSS_ARMOR) return false;
+
+      const currentArmor = bossNpc.armor || 0;
+      const isHpWounded = bossNpc.hp < bossNpc.maxHp * 0.85;
+      const isUnderThreat = nearbyEnemies > 0;
+      const isOutnumbered = nearbyEnemies > nearbyAllies;
+
+      // Survival-first logic:
+      // 1. If wounded or in active danger/outnumbered, prioritize buying/refreshing armor whenever armor < 80 HP
+      // 2. Otherwise, pre-equip full Kevlar when unarmored (armor === 0) and cash >= $5,000
+      const needsSurvivalRefresh = (isHpWounded || isUnderThreat || isOutnumbered) && currentArmor < 80;
+      const needsInitialVest = currentArmor === 0;
+
+      if (!needsSurvivalRefresh && !needsInitialVest) return false;
+
+      treasuries[faction] -= COST_BOSS_ARMOR;
+      bossNpc.armor = MAX_BOSS_ARMOR;
+      bossNpc.armorCooldown = tickDuration;
+      sfx.playArmorEquip(bossNpc.x, bossNpc.y);
+      addFloatingText(bossNpc.x, bossNpc.y - 36, '+200 ARMOR 🛡️', '#38bdf8');
+      return true;
+    }
+
+    function updateNpcBossSprint(bossNpc, wantsSprint, dt) {
+      if (bossNpc.sprintCooldown > 0) {
+        bossNpc.sprintCooldown = Math.max(0, bossNpc.sprintCooldown - dt);
+        bossNpc.isSprinting = false;
+      } else if (wantsSprint) {
+        bossNpc.isSprinting = true;
+        bossNpc.sprintTimer += dt;
+        if (bossNpc.sprintTimer >= SPRINT_MAX_DURATION) {
+          bossNpc.isSprinting = false;
+          bossNpc.sprintTimer = 0;
+          bossNpc.sprintCooldown = SPRINT_COOLDOWN_DURATION;
+        }
+      } else {
+        if (bossNpc.isSprinting && bossNpc.sprintTimer > 0) {
+          bossNpc.sprintCooldown = SPRINT_COOLDOWN_DURATION * (bossNpc.sprintTimer / SPRINT_MAX_DURATION);
+        }
+        bossNpc.isSprinting = false;
+        bossNpc.sprintTimer = 0;
+      }
+      return bossNpc.isSprinting ? SPRINT_SPEED_MULTIPLIER : 1.0;
     }
 
     const keys = new Set();
@@ -2350,6 +3148,15 @@
       player.targetY = wy;
     }
 
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouse.screenX = e.clientX - rect.left;
+      mouse.screenY = e.clientY - rect.top;
+      mouse.inside = true;
+    });
+    canvas.addEventListener('mouseleave', () => {
+      mouse.inside = false;
+    });
     canvas.addEventListener('click', (e) => handlePointerAction(e.clientX, e.clientY, false));
     canvas.addEventListener('contextmenu', (e) => {
       e.preventDefault();
@@ -2411,7 +3218,81 @@
     const tickSpeedDisplay = document.getElementById('tick-speed-display');
     const incomeTierDisplay = document.getElementById('income-tier-display');
     const incomeTierBtns = document.querySelectorAll('.income-tier-btn');
+    const fcountBtns = document.querySelectorAll('.fcount-btn');
+    const factionSlotsContainer = document.getElementById('faction-slots-container');
+
     let pendingIncomeTier = currentIncomeTier;
+    let pendingFactionCount = activeFactionCount;
+    let pendingFactionOrgs = [...selectedFactionOrgs];
+
+    function ensureUniqueOrgs(list) {
+      const result = [];
+      for (const id of list) {
+        if (ORGANIZATIONS[id] && !result.includes(id)) result.push(id);
+      }
+      for (const id of ALL_ORG_IDS) {
+        if (result.length >= 4) break;
+        if (!result.includes(id)) result.push(id);
+      }
+      return result.slice(0, 4);
+    }
+
+    function renderFactionSlotSelectors() {
+      pendingFactionOrgs = ensureUniqueOrgs(pendingFactionOrgs);
+      fcountBtns.forEach((btn) => {
+        const cnt = Number(btn.dataset.fcount);
+        btn.className =
+          cnt === pendingFactionCount
+            ? 'fcount-btn bg-amber-500/20 border border-amber-500 text-amber-300 px-2.5 py-0.5 rounded text-[11px] font-mono font-bold transition'
+            : 'fcount-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 px-2.5 py-0.5 rounded text-[11px] font-mono font-bold transition';
+      });
+
+      factionSlotsContainer.innerHTML = '';
+      for (let i = 0; i < pendingFactionCount; i++) {
+        const selectedId = pendingFactionOrgs[i];
+        const org = ORGANIZATIONS[selectedId];
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between gap-2 bg-zinc-900/90 border border-zinc-800 rounded-lg px-2.5 py-1.5';
+
+        const label = document.createElement('span');
+        label.className = 'text-[10px] font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5';
+        label.style.color = org.accent;
+        label.innerHTML = `<span class="w-2 h-2 rounded-full inline-block" style="background:${org.badge}"></span>${i === 0 ? 'You' : `Rival ${i}`}`;
+
+        const select = document.createElement('select');
+        select.className = 'bg-zinc-950 border border-zinc-700 text-zinc-200 text-[11px] font-semibold rounded px-2 py-1 focus:outline-none focus:border-amber-500 max-w-[195px] w-full';
+        for (const orgId of ALL_ORG_IDS) {
+          const candidate = ORGANIZATIONS[orgId];
+          const opt = document.createElement('option');
+          opt.value = orgId;
+          opt.textContent = `${candidate.name} (${candidate.ranks.BOSS})`;
+          if (orgId === selectedId) opt.selected = true;
+          select.appendChild(opt);
+        }
+
+        select.addEventListener('change', (e) => {
+          const chosen = e.target.value;
+          const existingIdx = pendingFactionOrgs.indexOf(chosen);
+          if (existingIdx !== -1 && existingIdx !== i) {
+            // Swap organizations so no two factions ever repeat
+            pendingFactionOrgs[existingIdx] = pendingFactionOrgs[i];
+          }
+          pendingFactionOrgs[i] = chosen;
+          renderFactionSlotSelectors();
+        });
+
+        row.appendChild(label);
+        row.appendChild(select);
+        factionSlotsContainer.appendChild(row);
+      }
+    }
+
+    fcountBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        pendingFactionCount = Number(btn.dataset.fcount) || 4;
+        renderFactionSlotSelectors();
+      });
+    });
 
     function getTickSpeedLabel(sec) {
       if (sec <= 12) return `${sec}s (Turbo)`;
@@ -2429,9 +3310,10 @@
       mapSizeSlider.value = String(s);
       mapSizeDisplay.textContent = s === 20 ? '20×20 (Default)' : `${s}×${s}`;
       const blocks = s * s;
-      const maxElites = Math.floor(blocks * 0.25);
-      const maxSoldiers = blocks - maxElites;
-      mapCapPreview.innerHTML = `<span>${blocks} Neighborhoods</span><span class="font-mono text-emerald-400">Cap: ${maxSoldiers} Soldiers · ${maxElites} Elites</span>`;
+      const maxUnderbosses = Math.max(1, Math.floor(blocks * 0.10));
+      const maxCaptains = Math.max(2, Math.floor(blocks * 0.20));
+      const maxSoldiers = Math.max(1, blocks - maxCaptains - maxUnderbosses);
+      mapCapPreview.innerHTML = `<span>${blocks} Neighborhoods</span><span class="font-mono text-emerald-400">Cap: ${maxSoldiers}S · ${maxCaptains}C · ${maxUnderbosses}U</span>`;
 
       presetBtns.forEach((btn) => {
         const bSize = Number(btn.dataset.size);
@@ -2482,30 +3364,72 @@
       const selectedSize = Number(mapSizeSlider.value) || 20;
       const selectedTick = Number(tickSpeedSlider.value) || 10;
       document.getElementById('setup-modal').classList.add('hidden');
-      initWorld(selectedSize, true, selectedTick, pendingIncomeTier);
+      initWorld(selectedSize, true, selectedTick, pendingIncomeTier, pendingFactionCount, pendingFactionOrgs);
       const tier = INCOME_TIERS[pendingIncomeTier];
       showToast(
-        `${selectedSize}×${selectedSize} Turf War started! (${selectedTick}s ticks · ${tier.label} income)`
+        `${pendingFactionCount}-Syndicate ${selectedSize}×${selectedSize} Turf War started! (${selectedTick}s ticks · ${tier.label} income)`
       );
     });
 
     document.getElementById('btn-toggle-soldier').addEventListener('click', (e) => {
       getAudioCtx();
       autoRecruitSoldier = !autoRecruitSoldier;
-      e.target.textContent = `Auto Soldier: ${autoRecruitSoldier ? 'ON' : 'OFF'} ($${COST_SOLDIER.toLocaleString()})`;
+      syncRecruitButtonLabels();
       e.target.className = autoRecruitSoldier
-        ? 'bg-emerald-900/90 hover:bg-emerald-800 border border-emerald-500/70 text-emerald-200 font-bold px-2.5 py-1.5 rounded-lg transition'
-        : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 font-bold px-2.5 py-1.5 rounded-lg transition';
+        ? 'bg-emerald-900/90 hover:bg-emerald-800 text-emerald-200 font-bold px-2 py-1.5 transition'
+        : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-400 font-bold px-2 py-1.5 transition';
     });
 
-    document.getElementById('btn-toggle-elite').addEventListener('click', (e) => {
+    document.getElementById('btn-toggle-captain').addEventListener('click', (e) => {
       getAudioCtx();
-      autoRecruitElite = !autoRecruitElite;
-      e.target.textContent = `Auto Elite: ${autoRecruitElite ? 'ON' : 'OFF'} ($${COST_ELITE.toLocaleString()})`;
-      e.target.className = autoRecruitElite
-        ? 'bg-indigo-900/90 hover:bg-indigo-800 border border-indigo-400/70 text-indigo-200 font-bold px-2.5 py-1.5 rounded-lg transition'
-        : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-400 font-bold px-2.5 py-1.5 rounded-lg transition';
+      autoRecruitCaptain = !autoRecruitCaptain;
+      syncRecruitButtonLabels();
+      e.target.className = autoRecruitCaptain
+        ? 'bg-indigo-900/90 hover:bg-indigo-800 text-indigo-200 font-bold px-2 py-1.5 transition'
+        : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-400 font-bold px-2 py-1.5 transition';
     });
+
+    document.getElementById('btn-toggle-underboss').addEventListener('click', (e) => {
+      getAudioCtx();
+      autoRecruitUnderboss = !autoRecruitUnderboss;
+      syncRecruitButtonLabels();
+      e.target.className = autoRecruitUnderboss
+        ? 'bg-purple-900/90 hover:bg-purple-800 text-purple-200 font-bold px-2 py-1.5 transition'
+        : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-400 font-bold px-2 py-1.5 transition';
+    });
+
+    function adjustPlayerSpawnCap(rank, delta) {
+      getAudioCtx();
+      const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
+      const maxForRank =
+        rank === UnitRank.UNDERBOSS
+          ? maxUnderbosses
+          : rank === UnitRank.CAPTAIN
+          ? maxCaptains
+          : maxSoldiers;
+      const step = maxForRank >= 20 && Math.abs(delta) > 1 ? delta : Math.sign(delta);
+      playerSpawnCaps[rank] = Math.max(1, Math.min(maxForRank, (playerSpawnCaps[rank] || 1) + step));
+      syncRecruitButtonLabels();
+    }
+
+    document.getElementById('btn-cap-soldier-dec').addEventListener('click', (e) =>
+      adjustPlayerSpawnCap(UnitRank.SOLDIER, e.shiftKey ? -10 : -1)
+    );
+    document.getElementById('btn-cap-soldier-inc').addEventListener('click', (e) =>
+      adjustPlayerSpawnCap(UnitRank.SOLDIER, e.shiftKey ? 10 : 1)
+    );
+    document.getElementById('btn-cap-captain-dec').addEventListener('click', (e) =>
+      adjustPlayerSpawnCap(UnitRank.CAPTAIN, e.shiftKey ? -5 : -1)
+    );
+    document.getElementById('btn-cap-captain-inc').addEventListener('click', (e) =>
+      adjustPlayerSpawnCap(UnitRank.CAPTAIN, e.shiftKey ? 5 : 1)
+    );
+    document.getElementById('btn-cap-underboss-dec').addEventListener('click', (e) =>
+      adjustPlayerSpawnCap(UnitRank.UNDERBOSS, e.shiftKey ? -5 : -1)
+    );
+    document.getElementById('btn-cap-underboss-inc').addEventListener('click', (e) =>
+      adjustPlayerSpawnCap(UnitRank.UNDERBOSS, e.shiftKey ? 5 : 1)
+    );
 
     document.getElementById('btn-buy-armor').addEventListener('click', buyBossArmor);
 
@@ -2561,17 +3485,28 @@
     });
 
     document.getElementById('btn-toggle-music').addEventListener('click', (e) => {
-      musicEnabled = !musicEnabled;
       ensureAudioContext();
-      if (musicGain && audioCtx) {
-        musicGain.gain.setTargetAtTime(musicEnabled ? 0.28 : 0.0, audioCtx.currentTime, 0.05);
-      }
-      if (musicEnabled) {
+      if (!musicEnabled) {
+        musicEnabled = true;
+        currentMusicTrack = 0;
+        musicEngine.step = 0;
+        if (musicGain && audioCtx) {
+          musicGain.gain.setTargetAtTime(0.27, audioCtx.currentTime, 0.05);
+        }
         musicEngine.start();
-        e.target.textContent = '🎵 Music: ON';
+        e.target.textContent = '🎷 Noir I: ON';
         e.target.className =
           'bg-amber-950/80 hover:bg-amber-900/80 border border-amber-500/60 text-amber-200 font-semibold px-2.5 py-1.5 rounded-lg transition';
+      } else if (currentMusicTrack === 0) {
+        currentMusicTrack = 1;
+        musicEngine.step = 0;
+        e.target.textContent = '🎷 Noir II: ON';
+        showToast('Switched to Dark Noir Track II: Velvet Omertà');
       } else {
+        musicEnabled = false;
+        if (musicGain && audioCtx) {
+          musicGain.gain.setTargetAtTime(0.0, audioCtx.currentTime, 0.05);
+        }
         musicEngine.stop();
         e.target.textContent = '🔇 Music: OFF';
         e.target.className =
@@ -2589,6 +3524,9 @@
     });
 
     function openSetupModal() {
+      pendingFactionCount = activeFactionCount;
+      pendingFactionOrgs = [...selectedFactionOrgs];
+      renderFactionSlotSelectors();
       syncSetupPreview(currentGridSize, tickDuration, currentIncomeTier);
       document.getElementById('defeat-banner').classList.add('hidden');
       document.getElementById('victory-banner').classList.add('hidden');
@@ -2614,11 +3552,12 @@
 
     function updateHUD() {
       const incomes = recalculateHourlyIncome();
+      const upkeeps = calculateFactionUpkeep();
       const blockCounts = {
         [Faction.PLAYER]: 0,
-        [Faction.RIVAL_RED]: 0,
-        [Faction.RIVAL_BLUE]: 0,
-        [Faction.RIVAL_AMBER]: 0,
+        [Faction.RIVAL_1]: 0,
+        [Faction.RIVAL_2]: 0,
+        [Faction.RIVAL_3]: 0,
       };
       for (const chunk of world.chunks.values()) {
         if (blockCounts[chunk.faction] !== undefined) {
@@ -2627,60 +3566,76 @@
       }
 
       const unitCounts = {
-        [Faction.PLAYER]: { soldiers: 0, elites: 0 },
-        [Faction.RIVAL_RED]: { soldiers: 0, elites: 0 },
-        [Faction.RIVAL_BLUE]: { soldiers: 0, elites: 0 },
-        [Faction.RIVAL_AMBER]: { soldiers: 0, elites: 0 },
+        [Faction.PLAYER]: { soldiers: 0, captains: 0, underbosses: 0 },
+        [Faction.RIVAL_1]: { soldiers: 0, captains: 0, underbosses: 0 },
+        [Faction.RIVAL_2]: { soldiers: 0, captains: 0, underbosses: 0 },
+        [Faction.RIVAL_3]: { soldiers: 0, captains: 0, underbosses: 0 },
       };
-      for (const npc of npcs) {
+      for (let i = 0; i < npcs.length; i++) {
+        const npc = npcs[i];
         if (!unitCounts[npc.faction]) continue;
-        if (npc.rank === UnitRank.ELITE) unitCounts[npc.faction].elites++;
+        if (npc.rank === UnitRank.UNDERBOSS) unitCounts[npc.faction].underbosses++;
+        else if (npc.rank === UnitRank.CAPTAIN) unitCounts[npc.faction].captains++;
         else if (npc.rank === UnitRank.SOLDIER) unitCounts[npc.faction].soldiers++;
       }
 
-      const { maxSoldiers, maxElites } = getUnitCaps();
+      const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
+      syncRecruitButtonLabels();
       const playerUnits = unitCounts[Faction.PLAYER];
       const playerTotalActive =
-        playerUnits.soldiers + playerUnits.elites + (player.alive ? 1 : 0);
+        playerUnits.soldiers + playerUnits.captains + playerUnits.underbosses + (player.alive ? 1 : 0);
+      const pRanks = FACTION_META[Faction.PLAYER].ranks;
+      const netPlayerHourly = incomes[Faction.PLAYER] - upkeeps[Faction.PLAYER];
 
-      document.getElementById('stats-badge').textContent =
-        `Turf: ${blockCounts[Faction.PLAYER]}/${world.chunks.size} | Crew: ${playerUnits.soldiers}/${maxSoldiers} S · ${playerUnits.elites}/${maxElites} E | Income: $${incomes[Faction.PLAYER].toLocaleString()}/hr`;
-
-      const hpPct = Math.max(0, (player.hp / player.maxHp) * 100);
-      document.getElementById('hp-bar-fill').style.width = `${hpPct}%`;
-      document.getElementById('hp-text').textContent = player.alive
+      hudEls.statsBadge.textContent =
+        `Turf: ${blockCounts[Faction.PLAYER]}/${world.chunks.size} | Crew: ${playerUnits.soldiers}/${playerSpawnCaps[UnitRank.SOLDIER]} ${pRanks.SOLDIER} · ${playerUnits.captains}/${playerSpawnCaps[UnitRank.CAPTAIN]} ${pRanks.CAPTAIN} · ${playerUnits.underbosses}/${playerSpawnCaps[UnitRank.UNDERBOSS]} ${pRanks.UNDERBOSS} | Net: ${netPlayerHourly >= 0 ? '+' : ''}$${netPlayerHourly.toLocaleString()}/hr (-$${upkeeps[Faction.PLAYER].toLocaleString()} upkeep)`;
+      const hpPct = player.alive ? Math.max(0, (player.hp / player.maxHp) * 100) : 0;
+      hudEls.hpBarFill.style.width = `${hpPct}%`;
+      hudEls.hpText.textContent = player.alive
         ? `${Math.ceil(player.hp)}/${player.maxHp}`
         : 'DEAD';
-      document.getElementById('hp-text').className =
+      hudEls.hpText.className =
         !player.alive
           ? 'font-mono font-bold text-rose-500'
           : hpPct < 35
           ? 'font-mono font-bold text-rose-400'
           : 'font-mono font-bold text-emerald-400';
 
-      document.getElementById('cash-text').textContent =
+      hudEls.cashText.textContent =
         `$${treasuries[Faction.PLAYER].toLocaleString()}`;
-      document.getElementById('hour-text').textContent =
+      hudEls.hourText.textContent =
         `${String(gameHour).padStart(2, '0')}:00`;
-      document.getElementById('tick-bar-fill').style.width =
+      hudEls.tickBarFill.style.width =
         `${Math.min(100, (tickTimer / tickDuration) * 100)}%`;
 
+      // Armor Buy Button Cooldown & State
+      const armorBtn = hudEls.armorBtn;
+      if (player.armorCooldown > 0) {
+        armorBtn.innerHTML = `<span>🛡️</span> Armor (${player.armorCooldown.toFixed(1)}s)`;
+        armorBtn.className =
+          'bg-zinc-900 border border-zinc-700 text-zinc-400 font-bold px-2.5 py-1.5 rounded-lg transition flex items-center gap-1 cursor-not-allowed';
+      } else {
+        armorBtn.innerHTML = `<span>🛡️</span> Armor ($${COST_BOSS_ARMOR.toLocaleString()}) [Q]`;
+        armorBtn.className =
+          'bg-sky-950/90 hover:bg-sky-900 border border-sky-500/60 text-sky-200 font-bold px-2.5 py-1.5 rounded-lg transition flex items-center gap-1';
+      }
+
       // Armor HUD indicator (visible only when armor > 0)
-      const armorBox = document.getElementById('armor-hud-box');
+      const armorBox = hudEls.armorBox;
       if (player.alive && player.armor > 0) {
         armorBox.classList.remove('hidden');
         armorBox.classList.add('flex');
         const armorPct = Math.max(0, (player.armor / player.maxArmor) * 100);
-        document.getElementById('armor-bar-fill').style.width = `${armorPct}%`;
-        document.getElementById('armor-text').textContent = `${Math.ceil(player.armor)}`;
+        hudEls.armorBarFill.style.width = `${armorPct}%`;
+        hudEls.armorText.textContent = `${Math.ceil(player.armor)}`;
       } else {
         armorBox.classList.add('hidden');
         armorBox.classList.remove('flex');
       }
 
       // Sprint HUD indicator (2s duration / 2s cooldown)
-      const sprintBar = document.getElementById('sprint-bar-fill');
-      const sprintText = document.getElementById('sprint-text');
+      const sprintBar = hudEls.sprintBar;
+      const sprintText = hudEls.sprintText;
       if (player.isSprinting) {
         const remPct = Math.max(0, ((SPRINT_MAX_DURATION - player.sprintTimer) / SPRINT_MAX_DURATION) * 100);
         sprintBar.style.width = `${remPct}%`;
@@ -2700,11 +3655,11 @@
         sprintText.className = 'font-mono font-bold text-amber-300';
       }
 
-      const board = document.getElementById('faction-board');
+      const board = hudEls.factionBoard;
       board.innerHTML = `
         <div class="bg-emerald-950/55 border border-emerald-500/40 rounded-lg p-2.5 mb-2">
           <div class="flex items-center justify-between mb-1">
-            <span class="font-extrabold text-emerald-300 uppercase tracking-wider text-[10px]">Your Boss & Crew</span>
+            <span class="font-extrabold text-emerald-300 uppercase tracking-wider text-[10px]">${FACTION_META[Faction.PLAYER].name} (${pRanks.BOSS})</span>
             <span class="font-mono text-[10px] ${player.alive ? 'text-emerald-400' : 'text-rose-400'} font-bold">
               ${player.alive ? `HP ${Math.ceil(player.hp)}/${player.maxHp}${player.armor > 0 ? ` · 🛡️${Math.ceil(player.armor)}` : ''}` : 'ELIMINATED'}
             </span>
@@ -2716,27 +3671,30 @@
             </div>
             <div>
               <div class="text-zinc-500 text-[9px]">CREW</div>
-              <div class="text-emerald-300 font-bold">${playerTotalActive} <span class="text-indigo-300">(${playerUnits.elites}E)</span></div>
+              <div class="text-emerald-300 font-bold">${playerTotalActive} <span class="text-purple-300">(${playerUnits.underbosses}U/${playerUnits.captains}C)</span></div>
             </div>
             <div>
-              <div class="text-zinc-500 text-[9px]">RATE</div>
-              <div class="text-amber-300 font-bold">$${Math.round(incomes[Faction.PLAYER] / 1000)}k/h</div>
+              <div class="text-zinc-500 text-[9px]">NET RATE</div>
+              <div class="${netPlayerHourly >= 0 ? 'text-amber-300' : 'text-rose-400'} font-bold">${netPlayerHourly >= 0 ? '+' : ''}$${(netPlayerHourly / 1000).toFixed(1)}k/h</div>
             </div>
           </div>
         </div>
         <div class="font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-800 pb-1 text-[10px]">
-          Syndicate Standings (Cap ${maxSoldiers}S/${maxElites}E)
+          Syndicate Standings (Cap ${maxSoldiers}S/${maxCaptains}C/${maxUnderbosses}U)
         </div>
       `;
 
-      for (const f of ALL_FACTIONS) {
+      for (const f of activeFactions) {
         const meta = FACTION_META[f];
         const alive = factionAlive[f];
         const bossNpc = npcs.find((n) => n.faction === f && n.rank === UnitRank.BOSS);
         const bossAlive = f === Faction.PLAYER ? player.alive : Boolean(bossNpc);
+        const bossArmor = f === Faction.PLAYER ? player.armor : (bossNpc ? bossNpc.armor || 0 : 0);
         const fSoldiers = unitCounts[f].soldiers;
-        const fElites = unitCounts[f].elites;
-        const activeCount = fSoldiers + fElites + (bossAlive ? 1 : 0);
+        const fCaptains = unitCounts[f].captains;
+        const fUnderbosses = unitCounts[f].underbosses;
+        const activeCount = fSoldiers + fCaptains + fUnderbosses + (bossAlive ? 1 : 0);
+        const bossTitle = meta.ranks.BOSS.toUpperCase();
 
         const row = document.createElement('div');
         row.className = `flex flex-col gap-0.5 py-1 border-b border-zinc-800/70 last:border-0 ${alive ? '' : 'opacity-45'}`;
@@ -2747,12 +3705,12 @@
               ${meta.short}
             </span>
             <span class="text-[10px] font-bold px-1.5 py-0.2 rounded ${alive ? 'bg-zinc-800 text-emerald-300' : 'bg-rose-950 text-rose-400'}">
-              ${alive ? 'BOSS ALIVE' : 'DEFEATED'}
+              ${alive ? (bossArmor > 0 ? `${bossTitle} 🛡️${Math.ceil(bossArmor)}` : `${bossTitle} ALIVE`) : 'DEFEATED'}
             </span>
           </div>
           <div class="flex items-center justify-between text-[11px] font-mono text-zinc-400 pl-3.5">
             <span>Blocks: <b class="text-zinc-200">${blockCounts[f]}</b></span>
-            <span>Units: <b class="text-zinc-200">${activeCount}</b> (${fElites}E)</span>
+            <span>Units: <b class="text-zinc-200">${activeCount}</b> (${fUnderbosses}U/${fCaptains}C)</span>
             <span class="text-amber-300">$${treasuries[f].toLocaleString()}</span>
           </div>
         `;
@@ -2761,7 +3719,7 @@
     }
 
     // =========================================================================
-    // 9. SMART AI STEERING, COMBAT & SIMULATION LOOP
+    // 9. SMART AI STEERING, A* NAVIGATION, COMBAT & SIMULATION LOOP
     // =========================================================================
     function chooseSmartTargetChunk(npc) {
       const { cx, cy } = world.worldToTile(npc.x, npc.y);
@@ -2786,20 +3744,22 @@
     function moveWithSteering(npc, desiredAngle, speed, dt) {
       const angles = [
         0,
-        0.5 * npc.dodgeDir,
-        -0.5 * npc.dodgeDir,
-        1.0 * npc.dodgeDir,
-        -1.0 * npc.dodgeDir,
-        1.55 * npc.dodgeDir,
-        -1.55 * npc.dodgeDir,
+        0.48 * npc.dodgeDir,
+        -0.48 * npc.dodgeDir,
+        0.96 * npc.dodgeDir,
+        -0.96 * npc.dodgeDir,
+        1.48 * npc.dodgeDir,
+        -1.48 * npc.dodgeDir,
+        2.15 * npc.dodgeDir,
+        -2.15 * npc.dodgeDir,
       ];
       const bodyRad = getEntityCollisionRadius(npc.rank);
       const pushingAlly = isPushingFriendly(npc.x, npc.y, bodyRad, npc.faction, npc.id, false);
-      const effectiveSpeed = pushingAlly ? speed * 0.48 : speed;
+      const effectiveSpeed = pushingAlly ? speed * 0.52 : speed;
       const step = effectiveSpeed * dt;
 
-      for (const offset of angles) {
-        const testAngle = desiredAngle + offset;
+      for (let i = 0; i < angles.length; i++) {
+        const testAngle = desiredAngle + angles[i];
         const nx = npc.x + Math.cos(testAngle) * step;
         const ny = npc.y + Math.sin(testAngle) * step;
         if (canOccupyPosition(nx, ny, bodyRad, npc.id, false, npc.faction)) {
@@ -2809,104 +3769,196 @@
           return true;
         }
       }
+
+      // Axis-separated wall sliding (prevents snagging on building corners & alley curbs)
+      const dx = Math.cos(desiredAngle) * step;
+      const dy = Math.sin(desiredAngle) * step;
+      let slid = false;
+      if (Math.abs(dx) > 0.01 && canOccupyPosition(npc.x + dx, npc.y, bodyRad, npc.id, false, npc.faction)) {
+        npc.x += dx;
+        slid = true;
+      }
+      if (Math.abs(dy) > 0.01 && canOccupyPosition(npc.x, npc.y + dy, bodyRad, npc.id, false, npc.faction)) {
+        npc.y += dy;
+        slid = true;
+      }
+      if (slid) {
+        npc.facing = desiredAngle;
+        return true;
+      }
       return false;
     }
 
+    function navigateNpcToward(npc, targetX, targetY, speed, dt) {
+      const bodyRad = getEntityCollisionRadius(npc.rank);
+      npc.pathTimer = Math.max(0, (npc.pathTimer || 0) - dt);
+      const directDist = Math.hypot(targetX - npc.x, targetY - npc.y);
+
+      // Fast direct steering for short-range combat or clear line-of-sight
+      if (directDist < TILE_SIZE * 2.2) {
+        const directAngle = Math.atan2(targetY - npc.y, targetX - npc.x);
+        if (moveWithSteering(npc, directAngle, speed, dt)) {
+          return true;
+        }
+      }
+
+      const needNewPath =
+        (!npc.path || npc.path.length === 0) && npc.pathTimer <= 0 ||
+        (npc.pathTimer <= 0 &&
+          npc.path &&
+          npc.path.length > 0 &&
+          Math.hypot(
+            npc.path[npc.path.length - 1].x - targetX,
+            npc.path[npc.path.length - 1].y - targetY
+          ) > TILE_SIZE * 2.5);
+
+      if (needNewPath && astarBudgetThisFrame < MAX_ASTAR_PER_FRAME) {
+        astarBudgetThisFrame++;
+        const snappedTarget = world.findNearestWalkablePoint(targetX, targetY, bodyRad);
+        const destX = snappedTarget ? snappedTarget.x : targetX;
+        const destY = snappedTarget ? snappedTarget.y : targetY;
+        npc.path = computeTilePath(npc.x, npc.y, destX, destY, 180);
+        npc.pathTimer = 0.75 + Math.random() * 0.45;
+      }
+
+      if (npc.path && npc.path.length > 0) {
+        while (
+          npc.path.length > 1 &&
+          Math.hypot(npc.path[0].x - npc.x, npc.path[0].y - npc.y) < 18
+        ) {
+          npc.path.shift();
+        }
+        const wp = npc.path[0];
+        const angle = Math.atan2(wp.y - npc.y, wp.x - npc.x);
+        if (moveWithSteering(npc, angle, speed, dt)) {
+          return true;
+        }
+        npc.path = null;
+        npc.pathTimer = 0.35 + Math.random() * 0.25;
+      }
+
+      const fallbackAngle = Math.atan2(targetY - npc.y, targetX - npc.x);
+      return moveWithSteering(npc, fallbackAngle, speed, dt);
+    }
+
     function executeNpcAttack(attacker, target) {
-      attacker.attackCooldown = 0.85 + Math.random() * 0.25;
+      attacker.attackCooldown = UNIT_ATTACK_COOLDOWN;
       attacker.slashAnimTimer = 0.18;
       const dmg = rollDamage(attacker.minDmg, attacker.maxDmg);
 
       if (target.isPlayer) {
-        if (Math.hypot(player.x - camera.x, player.y - camera.y) < 700) {
-          sfx.playSlash(true);
-        }
+        sfx.playSlash(true, player.x, player.y);
         damagePlayerBoss(dmg, '#f43f5e');
       } else {
-        target.hp -= dmg;
-        target.hitFlashTimer = 0.14;
-        const isKill = target.hp <= 0;
-        if (Math.hypot(target.x - camera.x, target.y - camera.y) < 650) {
-          sfx.playSlash(true);
-        }
-        spawnBloodSplash(target.x, target.y, 1.0, isKill);
-        addFloatingText(target.x, target.y - 26, `-${dmg}`, FACTION_META[attacker.faction].accent);
-        if (isKill) {
-          const deadIdx = npcs.indexOf(target);
-          if (deadIdx !== -1) {
-            const deadFaction = target.faction;
-            const wasBoss = target.rank === UnitRank.BOSS;
-            npcs.splice(deadIdx, 1);
-            if (wasBoss) {
-              sfx.playDeath(true);
-              addFloatingText(target.x, target.y - 42, 'BOSS KILLED!', '#f43f5e');
-              eliminateFaction(deadFaction);
-            } else {
-              if (Math.hypot(target.x - camera.x, target.y - camera.y) < 750) {
-                sfx.playDeath(false);
-              }
-              addFloatingText(target.x, target.y - 36, 'KIA', '#f43f5e');
-            }
-          }
-        }
+        sfx.playSlash(true, target.x, target.y);
+        applyDamageToNpc(target, dmg, FACTION_META[attacker.faction].accent);
       }
     }
 
     function update(dt) {
       if (!gameStarted) return;
 
-      // 1. Hourly Economy Tick (Configurable 10s–30s: Income + Auto-Recruitment)
+      if (player.armorCooldown > 0) {
+        player.armorCooldown = Math.max(0, player.armorCooldown - dt);
+      }
+
+      // 1. Hourly Economy Tick (Configurable 10s–30s: Income - Upkeep + Boss Armor + Top-Down Auto-Recruitment)
       tickTimer += dt;
       if (tickTimer >= tickDuration) {
         tickTimer -= tickDuration;
         gameHour = (gameHour + 1) % 24;
         const incomes = recalculateHourlyIncome();
+        const upkeeps = calculateFactionUpkeep();
 
-        for (const f of ALL_FACTIONS) {
+        for (const f of activeFactions) {
           if (factionAlive[f]) {
-            treasuries[f] += incomes[f];
+            treasuries[f] = Math.max(0, treasuries[f] + incomes[f] - upkeeps[f]);
           }
         }
 
+        const cachedCounts = {
+          [Faction.PLAYER]: { soldiers: 0, captains: 0, underbosses: 0 },
+          [Faction.RIVAL_1]: { soldiers: 0, captains: 0, underbosses: 0 },
+          [Faction.RIVAL_2]: { soldiers: 0, captains: 0, underbosses: 0 },
+          [Faction.RIVAL_3]: { soldiers: 0, captains: 0, underbosses: 0 },
+        };
+        for (let i = 0; i < npcs.length; i++) {
+          const u = npcs[i];
+          if (!cachedCounts[u.faction]) continue;
+          if (u.rank === UnitRank.UNDERBOSS) cachedCounts[u.faction].underbosses++;
+          else if (u.rank === UnitRank.CAPTAIN) cachedCounts[u.faction].captains++;
+          else if (u.rank === UnitRank.SOLDIER) cachedCounts[u.faction].soldiers++;
+        }
+        const chunksByFaction = {
+          [Faction.PLAYER]: [],
+          [Faction.RIVAL_1]: [],
+          [Faction.RIVAL_2]: [],
+          [Faction.RIVAL_3]: [],
+        };
+        for (const c of world.chunks.values()) {
+          if (chunksByFaction[c.faction]) chunksByFaction[c.faction].push(c);
+        }
+
+        // Top-Down Recruitment Priority: Underboss -> Captain -> Enforcer
         if (factionAlive[Faction.PLAYER]) {
+          let hiredUnderbosses = 0;
+          let hiredCaptains = 0;
           let hiredSoldiers = 0;
-          let hiredElites = 0;
+          if (autoRecruitUnderboss) {
+            while (recruitUnit(Faction.PLAYER, UnitRank.UNDERBOSS, true, cachedCounts, chunksByFaction[Faction.PLAYER])) {
+              hiredUnderbosses++;
+            }
+          }
+          if (autoRecruitCaptain) {
+            while (recruitUnit(Faction.PLAYER, UnitRank.CAPTAIN, true, cachedCounts, chunksByFaction[Faction.PLAYER])) {
+              hiredCaptains++;
+            }
+          }
           if (autoRecruitSoldier) {
-            while (recruitUnit(Faction.PLAYER, UnitRank.SOLDIER, true)) {
+            while (recruitUnit(Faction.PLAYER, UnitRank.SOLDIER, true, cachedCounts, chunksByFaction[Faction.PLAYER])) {
               hiredSoldiers++;
             }
           }
-          if (autoRecruitElite) {
-            while (recruitUnit(Faction.PLAYER, UnitRank.ELITE, true)) {
-              hiredElites++;
-            }
-          }
           const recruitSummary =
-            hiredSoldiers > 0 || hiredElites > 0
-              ? ` | Spawned ${hiredSoldiers}S + ${hiredElites}E`
+            hiredSoldiers > 0 || hiredCaptains > 0 || hiredUnderbosses > 0
+              ? ` | Spawned ${hiredUnderbosses}U + ${hiredCaptains}C + ${hiredSoldiers}S`
               : '';
-          showToast(`Hourly Tick: +$${incomes[Faction.PLAYER].toLocaleString()}${recruitSummary}`);
+          const upkeepNote = upkeeps[Faction.PLAYER] > 0 ? ` (-$${upkeeps[Faction.PLAYER].toLocaleString()} upkeep)` : '';
+          showToast(`Hourly Tick: +$${incomes[Faction.PLAYER].toLocaleString()}${upkeepNote}${recruitSummary}`);
         }
 
-        for (const f of [Faction.RIVAL_RED, Faction.RIVAL_BLUE, Faction.RIVAL_AMBER]) {
-          if (!factionAlive[f]) continue;
-          while (recruitUnit(f, UnitRank.SOLDIER, true)) {}
-          while (recruitUnit(f, UnitRank.ELITE, true)) {}
+        for (const f of activeFactions) {
+          if (f === Faction.PLAYER || !factionAlive[f]) continue;
+
+          const rivalBoss = npcs.find((n) => n.faction === f && n.rank === UnitRank.BOSS);
+          if (rivalBoss) {
+            tryBuyNpcBossArmor(rivalBoss, 0, 0);
+          }
+
+          while (recruitUnit(f, UnitRank.UNDERBOSS, true, cachedCounts, chunksByFaction[f])) {}
+          while (recruitUnit(f, UnitRank.CAPTAIN, true, cachedCounts, chunksByFaction[f])) {}
+          while (recruitUnit(f, UnitRank.SOLDIER, true, cachedCounts, chunksByFaction[f])) {}
         }
 
         updateHUD();
       }
 
-      // Build Spatial Grid early so player & NPC collision checks use O(1) neighbor queries
+      // Build Spatial Grid with pooled arrays & integer keys (eliminates per-frame GC allocation spikes)
+      astarBudgetThisFrame = 0;
+      for (const arr of spatialBuckets.values()) {
+        arr.length = 0;
+        bucketPool.push(arr);
+      }
       spatialBuckets.clear();
       const factionBosses = {};
-      for (const npc of npcs) {
+      for (let i = 0; i < npcs.length; i++) {
+        const npc = npcs[i];
         const cx = Math.floor(npc.x / CHUNK_PX);
         const cy = Math.floor(npc.y / CHUNK_PX);
-        const key = `${cx},${cy}`;
+        const key = packChunkKey(cx, cy);
         let bucket = spatialBuckets.get(key);
         if (!bucket) {
-          bucket = [];
+          bucket = bucketPool.length > 0 ? bucketPool.pop() : [];
           spatialBuckets.set(key, bucket);
         }
         bucket.push(npc);
@@ -2915,7 +3967,7 @@
         }
       }
 
-      // 2. Player Movement & Block Capture (Blocked by solid NPC mass—cannot push through)
+      // 2. Player Movement & Block Capture
       if (player.alive) {
         if (player.attackCooldown > 0) player.attackCooldown -= dt;
         if (player.slashAnimTimer > 0) player.slashAnimTimer -= dt;
@@ -3045,18 +4097,28 @@
         if (npc.slashAnimTimer > 0) npc.slashAnimTimer -= dt;
         if (npc.muzzleFlashTimer > 0) npc.muzzleFlashTimer -= dt;
         if (npc.hitFlashTimer > 0) npc.hitFlashTimer -= dt;
+        if (npc.armorCooldown > 0) npc.armorCooldown = Math.max(0, npc.armorCooldown - dt);
 
         if (npc.rank === UnitRank.BOSS && npc.hp < npc.maxHp) {
           npc.hp = Math.min(npc.maxHp, npc.hp + 4 * dt);
         }
 
         npc.stuckTimer += dt;
-        if (npc.stuckTimer >= 0.75) {
-          const movedDist = Math.hypot(npc.x - npc.lastCheckX, npc.y - npc.lastCheckY);
-          if (movedDist < 14) {
+        if (npc.stuckTimer >= 0.45) {
+          const movedDistSq =
+            (npc.x - npc.lastCheckX) * (npc.x - npc.lastCheckX) +
+            (npc.y - npc.lastCheckY) * (npc.y - npc.lastCheckY);
+          if (movedDistSq < 12 * 12) {
             npc.dodgeDir *= -1;
-            npc.goalX = npc.x + (Math.random() - 0.5) * 280;
-            npc.goalY = npc.y + (Math.random() - 0.5) * 280;
+            npc.path = null;
+            npc.pathTimer = 0;
+            const rawGoalX = npc.x + (Math.random() - 0.5) * 360;
+            const rawGoalY = npc.y + (Math.random() - 0.5) * 360;
+            const safeGoal = world.findNearestWalkablePoint(rawGoalX, rawGoalY, npc.bodyRadius);
+            if (safeGoal) {
+              npc.goalX = safeGoal.x;
+              npc.goalY = safeGoal.y;
+            }
           }
           npc.lastCheckX = npc.x;
           npc.lastCheckY = npc.y;
@@ -3072,13 +4134,15 @@
 
         const ncx = Math.floor(npc.x / CHUNK_PX);
         const ncy = Math.floor(npc.y / CHUNK_PX);
-        const scanChunks = npc.rank === UnitRank.BOSS ? 2 : 1;
+        const hasPistol = npc.rank === UnitRank.BOSS || npc.rank === UnitRank.UNDERBOSS;
+        const scanChunks = hasPistol ? 2 : 1;
 
         for (let dy = -scanChunks; dy <= scanChunks; dy++) {
           for (let dx = -scanChunks; dx <= scanChunks; dx++) {
-            const bucket = spatialBuckets.get(`${ncx + dx},${ncy + dy}`);
+            const bucket = spatialBuckets.get(packChunkKey(ncx + dx, ncy + dy));
             if (!bucket) continue;
-            for (const other of bucket) {
+            for (let j = 0; j < bucket.length; j++) {
+              const other = bucket[j];
               if (other.id === npc.id) continue;
               const d = Math.hypot(other.x - npc.x, other.y - npc.y);
               if (other.faction === npc.faction) {
@@ -3090,7 +4154,7 @@
                   nearestEnemy = other;
                 }
                 if (
-                  npc.rank === UnitRank.BOSS &&
+                  hasPistol &&
                   d >= 100 &&
                   d <= MAX_PISTOL_RANGE &&
                   d < bestRangedDist
@@ -3116,7 +4180,7 @@
             };
           }
           if (
-            npc.rank === UnitRank.BOSS &&
+            hasPistol &&
             dPlayer >= 100 &&
             dPlayer <= MAX_PISTOL_RANGE &&
             dPlayer < bestRangedDist
@@ -3141,22 +4205,25 @@
 
           for (let dy = -1; dy <= 1; dy++) {
             for (let dx = -1; dx <= 1; dx++) {
-              const bucket = spatialBuckets.get(`${bcx + dx},${bcy + dy}`);
+              const bucket = spatialBuckets.get(packChunkKey(bcx + dx, bcy + dy));
               if (!bucket) continue;
-              for (const other of bucket) {
-                if (other.faction === npc.faction) continue;
-                const dBoss = Math.hypot(other.x - myBoss.x, other.y - myBoss.y);
+              for (let j = 0; j < bucket.length; j++) {
+                const foe = bucket[j];
+                if (foe.faction === npc.faction) continue;
+                const dBoss = Math.hypot(foe.x - myBoss.x, foe.y - myBoss.y);
                 if (dBoss < closestToBoss) {
                   closestToBoss = dBoss;
                   bossUnderThreat = true;
-                  bossThreatTarget = other;
+                  bossThreatTarget = foe;
                 }
               }
             }
           }
+
           if (player.alive && npc.faction !== Faction.PLAYER) {
-            const dBossPlayer = Math.hypot(player.x - myBoss.x, player.y - myBoss.y);
-            if (dBossPlayer < closestToBoss) {
+            const dPlayerBoss = Math.hypot(player.x - myBoss.x, player.y - myBoss.y);
+            if (dPlayerBoss < closestToBoss) {
+              closestToBoss = dPlayerBoss;
               bossUnderThreat = true;
               bossThreatTarget = {
                 isPlayer: true,
@@ -3168,26 +4235,66 @@
           }
         }
 
-        // A. BOSS AI: Escape & Regroup when overwhelmed or low HP (while firing back if in pistol range)
-        if (npc.rank === UnitRank.BOSS) {
+        // A. BOSS & UNDERBOSS AI: Ranged 9mm Pistol + Switchblade Slash (Bosses also use Armor & Sprint)
+        if (npc.rank === UnitRank.BOSS || npc.rank === UnitRank.UNDERBOSS) {
+          const isTrueBoss = npc.rank === UnitRank.BOSS;
+          if (isTrueBoss) {
+            tryBuyNpcBossArmor(npc, enemiesWithin320, alliesWithin320);
+          }
+
+          const effectiveHp = npc.hp + (npc.armor || 0) * 0.85;
           const isOverwhelmed =
-            enemiesWithin320 > alliesWithin320 + 1 ||
-            (npc.hp < npc.maxHp * 0.45 && enemiesWithin320 > 0);
+            isTrueBoss &&
+            (enemiesWithin320 > alliesWithin320 + 1 ||
+              (effectiveHp < npc.maxHp * 0.5 && enemiesWithin320 > 0));
 
           if (isOverwhelmed && nearestEnemy) {
-            if (bestRangedEnemy && npc.attackCooldown <= 0) {
+            if (nearestDist <= 52 && npc.attackCooldown <= 0) {
+              performBossKnifeSlash(npc);
+            } else if (bestRangedEnemy && npc.attackCooldown <= 0) {
               const ang = Math.atan2(bestRangedEnemy.y - npc.y, bestRangedEnemy.x - npc.x);
               const los = traceBulletRay(npc.x, npc.y, ang, bestRangedDist);
               if (!los.blocked) {
                 performBossPistolShot(npc, false, bestRangedEnemy.x, bestRangedEnemy.y);
               }
             }
+            const sprintMult = updateNpcBossSprint(npc, true, dt);
             const fleeAngle = Math.atan2(npc.y - nearestEnemy.y, npc.x - nearestEnemy.x);
-            moveWithSteering(npc, fleeAngle, npc.speed * 1.15, dt);
+            navigateNpcToward(
+              npc,
+              npc.x + Math.cos(fleeAngle) * 260,
+              npc.y + Math.sin(fleeAngle) * 260,
+              npc.speed * sprintMult,
+              dt
+            );
             continue;
           }
 
-          // Boss prefers ranged 9mm pistol attack (100px-600px) whenever a target has clear line of sight
+          // Close-Quarters Switchblade Slash (<100px)
+          if (nearestEnemy && nearestDist < 100) {
+            if (nearestDist <= 52 && npc.attackCooldown <= 0) {
+              performBossKnifeSlash(npc);
+            }
+            if (isTrueBoss) {
+              const sprintMult = updateNpcBossSprint(npc, nearestDist < 75, dt);
+              const kiteAngle = Math.atan2(npc.y - nearestEnemy.y, npc.x - nearestEnemy.x);
+              navigateNpcToward(
+                npc,
+                npc.x + Math.cos(kiteAngle) * 180,
+                npc.y + Math.sin(kiteAngle) * 180,
+                npc.speed * sprintMult,
+                dt
+              );
+            } else {
+              // Underboss closes in for melee slash (<52px)
+              if (nearestDist > 38) {
+                navigateNpcToward(npc, nearestEnemy.x, nearestEnemy.y, npc.speed * 1.05, dt);
+              }
+            }
+            continue;
+          }
+
+          // Optimal Ranged 9mm Pistol Engagement (100px–1000px)
           if (bestRangedEnemy) {
             const ang = Math.atan2(bestRangedEnemy.y - npc.y, bestRangedEnemy.x - npc.x);
             const los = traceBulletRay(npc.x, npc.y, ang, bestRangedDist);
@@ -3196,13 +4303,31 @@
               if (npc.attackCooldown <= 0) {
                 performBossPistolShot(npc, false, bestRangedEnemy.x, bestRangedEnemy.y);
               }
-              if (bestRangedDist < 200) {
-                moveWithSteering(npc, ang + Math.PI, npc.speed * 0.75, dt);
-              } else if (bestRangedDist > 360) {
-                moveWithSteering(npc, ang, npc.speed * 0.85, dt);
+              if (isTrueBoss) {
+                if (bestRangedDist < 210) {
+                  const sprintMult = updateNpcBossSprint(npc, bestRangedDist < 145, dt);
+                  navigateNpcToward(
+                    npc,
+                    npc.x - Math.cos(ang) * 160,
+                    npc.y - Math.sin(ang) * 160,
+                    npc.speed * 0.85 * sprintMult,
+                    dt
+                  );
+                } else if (bestRangedDist > 420) {
+                  const sprintMult = updateNpcBossSprint(npc, alliesWithin320 >= enemiesWithin320, dt);
+                  navigateNpcToward(npc, bestRangedEnemy.x, bestRangedEnemy.y, npc.speed * 0.9 * sprintMult, dt);
+                } else {
+                  updateNpcBossSprint(npc, false, dt);
+                }
+              } else if (bestRangedDist > 340) {
+                navigateNpcToward(npc, bestRangedEnemy.x, bestRangedEnemy.y, npc.speed * 0.95, dt);
               }
               continue;
             }
+          }
+
+          if (isTrueBoss) {
+            updateNpcBossSprint(npc, false, dt);
           }
         }
 
@@ -3217,11 +4342,14 @@
           if (distThreat < 42) {
             npc.facing = Math.atan2(bossThreatTarget.y - npc.y, bossThreatTarget.x - npc.x);
             if (npc.attackCooldown <= 0) {
-              executeNpcAttack(npc, bossThreatTarget);
+              if (npc.rank === UnitRank.UNDERBOSS) {
+                performBossKnifeSlash(npc);
+              } else {
+                executeNpcAttack(npc, bossThreatTarget);
+              }
             }
           } else {
-            const angle = Math.atan2(bossThreatTarget.y - npc.y, bossThreatTarget.x - npc.x);
-            moveWithSteering(npc, angle, npc.speed * 1.15, dt);
+            navigateNpcToward(npc, bossThreatTarget.x, bossThreatTarget.y, npc.speed * 1.15, dt);
           }
           continue;
         }
@@ -3231,32 +4359,41 @@
           if (nearestDist < 42) {
             npc.facing = Math.atan2(nearestEnemy.y - npc.y, nearestEnemy.x - npc.x);
             if (npc.attackCooldown <= 0) {
-              executeNpcAttack(npc, nearestEnemy);
+              if (npc.rank === UnitRank.UNDERBOSS) {
+                performBossKnifeSlash(npc);
+              } else {
+                executeNpcAttack(npc, nearestEnemy);
+              }
             }
           } else {
-            const angle = Math.atan2(nearestEnemy.y - npc.y, nearestEnemy.x - npc.x);
-            moveWithSteering(npc, angle, npc.speed * 1.08, dt);
+            navigateNpcToward(npc, nearestEnemy.x, nearestEnemy.y, npc.speed * 1.08, dt);
           }
         } else {
           npc.aiTimer -= dt;
           const distGoal = Math.hypot(npc.goalX - npc.x, npc.goalY - npc.y);
-          if (npc.aiTimer <= 0 || distGoal < 20) {
-            npc.aiTimer = 2.2 + Math.random() * 2.0;
+          if (npc.aiTimer <= 0 || distGoal < 24) {
+            npc.aiTimer = 3.0 + Math.random() * 2.2;
             const targetChunk = chooseSmartTargetChunk(npc);
             if (targetChunk) {
+              const IN = CHUNK_SIZE - 2;
+              const MID = Math.floor(CHUNK_SIZE / 2);
               const spots = [
-                [1, 1], [8, 1], [1, 8], [8, 8],
-                [4, 1], [5, 8], [1, 4], [8, 5],
+                [1, 1], [IN, 1], [1, IN], [IN, IN],
+                [MID, 1], [MID, IN], [1, MID], [IN, MID],
+                [MID, MID],
               ];
               const [slx, sly] = spots[Math.floor(Math.random() * spots.length)];
-              npc.goalX = targetChunk.cx * CHUNK_PX + (slx + 0.5) * TILE_SIZE;
-              npc.goalY = targetChunk.cy * CHUNK_PX + (sly + 0.5) * TILE_SIZE;
+              const rawX = targetChunk.cx * CHUNK_PX + (slx + 0.5) * TILE_SIZE;
+              const rawY = targetChunk.cy * CHUNK_PX + (sly + 0.5) * TILE_SIZE;
+              const safeDest = world.findNearestWalkablePoint(rawX, rawY, npc.bodyRadius);
+              npc.goalX = safeDest ? safeDest.x : rawX;
+              npc.goalY = safeDest ? safeDest.y : rawY;
+              npc.path = null;
             }
           }
 
-          if (distGoal >= 10) {
-            const angle = Math.atan2(npc.goalY - npc.y, npc.goalX - npc.x);
-            moveWithSteering(npc, angle, npc.speed * 0.88, dt);
+          if (distGoal >= 12) {
+            navigateNpcToward(npc, npc.goalX, npc.goalY, npc.speed * 0.88, dt);
           }
         }
 
@@ -3267,6 +4404,7 @@
             nChunk.capturingFaction = npc.faction;
             nChunk.captureProgress = 0;
           }
+          // Uniform capture rate across all crew ranks (no aura)
           nChunk.captureProgress += dt * 0.275;
           if (nChunk.captureProgress >= 1) {
             nChunk.faction = npc.faction;
@@ -3292,20 +4430,21 @@
 
           for (let dy = -1; dy <= 1; dy++) {
             for (let dx = -1; dx <= 1; dx++) {
-              const bucket = spatialBuckets.get(`${acx + dx},${acy + dy}`);
+              const bucket = spatialBuckets.get(packChunkKey(acx + dx, acy + dy));
               if (!bucket) continue;
-              for (const b of bucket) {
+              for (let j = 0; j < bucket.length; j++) {
+                const b = bucket[j];
                 if (b.id <= a.id) continue;
                 const rB = getEntityCollisionRadius(b.rank);
                 const minDist = rA + rB;
                 const ox = b.x - a.x;
                 const oy = b.y - a.y;
-                const d = Math.hypot(ox, oy);
-                if (d < minDist) {
+                const dSq = ox * ox + oy * oy;
+                if (dSq < minDist * minDist) {
+                  const d = Math.sqrt(dSq);
                   const nx = d > 0.001 ? ox / d : 1;
                   const ny = d > 0.001 ? oy / d : 0;
                   const sameFaction = a.faction === b.faction;
-                  // Friendly units gently yield out of each other's way; enemies remain hard-blocked
                   const pushFactor = sameFaction ? 0.14 : 0.52;
                   const overlap = (minDist - d) * pushFactor;
 
@@ -3335,12 +4474,12 @@
             const minDist = rA + rP;
             const ox = a.x - player.x;
             const oy = a.y - player.y;
-            const d = Math.hypot(ox, oy);
-            if (d < minDist) {
+            const dSq = ox * ox + oy * oy;
+            if (dSq < minDist * minDist) {
+              const d = Math.sqrt(dSq);
               const nx = d > 0.001 ? ox / d : 1;
               const ny = d > 0.001 ? oy / d : 0;
               const sameFaction = a.faction === Faction.PLAYER;
-              // Allied crew step aside as the Player Boss pushes through; enemies stay completely solid
               const overlap = sameFaction ? (minDist - d) * 0.28 : minDist - d + 0.5;
               const axNew = a.x + nx * overlap;
               const ayNew = a.y + ny * overlap;
@@ -3351,6 +4490,11 @@
             }
           }
         }
+      }
+
+      // Cap active particles during large brawls to protect frame time
+      if (bloodParticles.length > 140) {
+        bloodParticles.splice(0, bloodParticles.length - 140);
       }
 
       // 5. Blood Particles, Floating Texts, Bullet Tracers, Shell Casings & Sparks
@@ -3417,6 +4561,7 @@
         hudUpdateTimer = 0;
         updateHUD();
       }
+      minimapCacheTimer += dt;
     }
 
     // =========================================================================
@@ -3432,21 +4577,40 @@
       maxHp,
       slashAnimTimer,
       hitFlashTimer,
-      muzzleFlashTimer = 0
+      muzzleFlashTimer = 0,
+      armor = 0,
+      maxArmor = MAX_BOSS_ARMOR,
+      isSprinting = false
     ) {
       const meta = FACTION_META[faction];
       const isBoss = rank === UnitRank.BOSS;
-      const isElite = rank === UnitRank.ELITE;
-      const scale = isBoss ? 1.24 : isElite ? 1.12 : 1.0;
+      const isUnderboss = rank === UnitRank.UNDERBOSS;
+      const isCaptain = rank === UnitRank.CAPTAIN;
+      const scale = isBoss ? 1.24 : isUnderboss ? 1.18 : isCaptain ? 1.10 : 1.0;
 
       ctx.save();
       ctx.translate(x, y);
 
+      // Tactical Sprint Wind Streaks for Bosses
+      if (isSprinting) {
+        ctx.save();
+        ctx.rotate(facing + Math.PI);
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.55)';
+        ctx.lineWidth = 2;
+        for (let s = -1; s <= 1; s++) {
+          ctx.beginPath();
+          ctx.moveTo(10, s * 7 - 8);
+          ctx.lineTo(24 + Math.abs(s) * 4, s * 7 - 8);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
       if (slashAnimTimer > 0) {
         ctx.save();
         ctx.rotate(facing);
-        ctx.strokeStyle = isBoss ? '#fbbf24' : isElite ? '#a5b4fc' : meta.accent;
-        ctx.lineWidth = isBoss ? 4 : 2.5;
+        ctx.strokeStyle = isBoss ? '#fbbf24' : isUnderboss ? '#d8b4fe' : isCaptain ? '#a5b4fc' : meta.accent;
+        ctx.lineWidth = isBoss || isUnderboss ? 4 : 2.5;
         ctx.beginPath();
         ctx.arc(8, 0, isBoss ? 32 : 24, -Math.PI * 0.38, Math.PI * 0.38);
         ctx.stroke();
@@ -3465,12 +4629,12 @@
       ctx.roundRect(-8.5 * scale, -18 * scale, 17 * scale, 19 * scale, 5);
       ctx.fill();
 
-      ctx.strokeStyle = isBoss ? '#fbbf24' : isElite ? '#818cf8' : meta.badge;
-      ctx.lineWidth = isBoss ? 2 : isElite ? 1.6 : 1.2;
+      ctx.strokeStyle = isBoss ? '#fbbf24' : isUnderboss ? '#c084fc' : isCaptain ? '#818cf8' : meta.badge;
+      ctx.lineWidth = isBoss ? 2 : isUnderboss ? 1.8 : isCaptain ? 1.5 : 1.2;
       ctx.stroke();
 
-      // Kevlar Tactical Armor Vest visual when Player Boss has active armor
-      if (isBoss && faction === Faction.PLAYER && player.armor > 0) {
+      // Kevlar Tactical Armor Vest visual when Boss or Underboss has active armor
+      if ((isBoss || isUnderboss) && armor > 0) {
         ctx.fillStyle = 'rgba(14, 165, 233, 0.42)';
         ctx.beginPath();
         ctx.roundRect(-7.5 * scale, -16.5 * scale, 15 * scale, 14 * scale, 3.5);
@@ -3498,7 +4662,7 @@
       ctx.arc(0, -23 * scale, 6.2 * scale, 0, Math.PI * 2);
       ctx.fill();
 
-      // Fedora / Crown Hat for Bosses & Gold Beret Trim for Elites
+      // Headgear: Fedora Hat for Bosses, Homburg Hat for Underbosses, Beret for Captains
       if (isBoss) {
         ctx.fillStyle = '#18181b';
         ctx.beginPath();
@@ -3507,21 +4671,29 @@
         ctx.fillRect(-6 * scale, -32 * scale, 12 * scale, 5 * scale);
         ctx.fillStyle = '#fbbf24';
         ctx.fillRect(-6 * scale, -28.5 * scale, 12 * scale, 1.5);
-      } else if (isElite) {
+      } else if (isUnderboss) {
+        ctx.fillStyle = '#27272a';
+        ctx.beginPath();
+        ctx.ellipse(0, -27 * scale, 9.2 * scale, 2.6 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(-5 * scale, -30.5 * scale, 10 * scale, 3.8 * scale);
+        ctx.fillStyle = '#c084fc';
+        ctx.fillRect(-5 * scale, -28 * scale, 10 * scale, 1.3);
+      } else if (isCaptain) {
         ctx.fillStyle = '#312e81';
         ctx.beginPath();
         ctx.ellipse(0, -27.5 * scale, 7.5 * scale, 2.8 * scale, -0.15, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // Weapon: 9mm Pistol + Muzzle Flash for Bosses, Switchblade / Knife for Soldiers & Elites
+      // Weapon: 9mm Pistol + Muzzle Flash for Bosses & Underbosses, Blade for Captains/Soldiers
       const weaponX = Math.cos(facing) * 10 * scale;
       const weaponY = -8 * scale + Math.sin(facing) * 5 * scale;
       ctx.save();
       ctx.translate(weaponX, weaponY);
       ctx.rotate(facing + (slashAnimTimer > 0 ? 0.9 : 0));
 
-      if (isBoss && slashAnimTimer <= 0) {
+      if ((isBoss || isUnderboss) && slashAnimTimer <= 0) {
         ctx.fillStyle = '#18181b';
         ctx.fillRect(0, -2.2, 11 * scale, 4.2);
         ctx.fillStyle = '#71717a';
@@ -3538,19 +4710,19 @@
           ctx.fill();
         }
       } else {
-        ctx.fillStyle = '#e4e4e7';
+        ctx.fillStyle = isUnderboss ? '#e9d5ff' : '#e4e4e7';
         ctx.beginPath();
         ctx.moveTo(0, -1.8);
-        ctx.lineTo(11 * scale, 0);
+        ctx.lineTo((isUnderboss ? 13 : 11) * scale, 0);
         ctx.lineTo(0, 1.8);
         ctx.closePath();
         ctx.fill();
       }
       ctx.restore();
 
-      // Health Bar & Rank Tag
-      const barW = isBoss ? 34 : isElite ? 28 : 24;
-      const barY = isBoss ? -40 : isElite ? -36 : -34;
+      // Health Bar & Faction-Specific Rank Title Tag
+      const barW = isBoss ? 34 : isUnderboss ? 30 : isCaptain ? 28 : 24;
+      const barY = isBoss ? -40 : isUnderboss ? -38 : isCaptain ? -36 : -34;
       const hpRatio = Math.max(0, hp / maxHp);
 
       ctx.fillStyle = 'rgba(9, 9, 11, 0.88)';
@@ -3559,10 +4731,10 @@
       ctx.fillStyle = isBoss ? '#fbbf24' : hpRatio > 0.45 ? meta.badge : '#f43f5e';
       ctx.fillRect(-barW / 2, barY, barW * hpRatio, 3.5);
 
-      // Sky-blue Armor Bar above HP bar when Boss Armor is active
-      const hasPlayerArmor = isBoss && faction === Faction.PLAYER && player.armor > 0;
-      if (hasPlayerArmor) {
-        const armorRatio = Math.max(0, player.armor / player.maxArmor);
+      // Sky-blue Armor Bar above HP bar when active
+      const hasArmor = (isBoss || isUnderboss) && armor > 0 && maxArmor > 0;
+      if (hasArmor) {
+        const armorRatio = Math.max(0, armor / maxArmor);
         const armorBarY = barY - 5.5;
         ctx.fillStyle = 'rgba(9, 9, 11, 0.9)';
         ctx.fillRect(-barW / 2 - 1, armorBarY - 1, barW + 2, 4.5);
@@ -3570,14 +4742,15 @@
         ctx.fillRect(-barW / 2, armorBarY, barW * armorRatio, 2.8);
       }
 
-      if (isBoss || isElite) {
+      if (isBoss || isUnderboss || isCaptain) {
         ctx.font = 'bold 8.5px Inter, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillStyle = isBoss ? '#fde047' : '#c7d2fe';
+        ctx.fillStyle = isBoss ? '#fde047' : isUnderboss ? '#e9d5ff' : '#c7d2fe';
+        const customTitle = (meta.ranks[rank] || rank).toUpperCase();
         ctx.fillText(
-          isBoss ? (faction === Faction.PLAYER ? 'YOU (BOSS)' : 'BOSS') : 'ELITE',
+          isBoss && faction === Faction.PLAYER ? `YOU (${customTitle})` : customTitle,
           0,
-          (hasPlayerArmor ? barY - 8.5 : barY - 3)
+          (hasArmor ? barY - 8.5 : barY - 3)
         );
       }
 
@@ -3587,8 +4760,6 @@
     function renderMinimap() {
       const w = minimapCanvas.width;
       const h = minimapCanvas.height;
-      minimapCtx.fillStyle = '#09090b';
-      minimapCtx.fillRect(0, 0, w, h);
 
       let minCx = Infinity, maxCx = -Infinity, minCy = Infinity, maxCy = -Infinity;
       for (const c of world.chunks.values()) {
@@ -3605,22 +4776,36 @@
       const offsetX = (w - cols * cellSize) / 2;
       const offsetY = (h - rows * cellSize) / 2;
 
-      for (const chunk of world.chunks.values()) {
-        const gx = offsetX + (chunk.cx - minCx) * cellSize;
-        const gy = offsetY + (chunk.cy - minCy) * cellSize;
-        const meta = FACTION_META[chunk.faction];
+      if (minimapCacheTimer >= 0.12) {
+        minimapCacheTimer = 0;
+        minimapCacheCtx.fillStyle = '#09090b';
+        minimapCacheCtx.fillRect(0, 0, w, h);
 
-        minimapCtx.fillStyle =
-          chunk.faction === Faction.NEUTRAL ? '#27272a' : meta.badge;
-        minimapCtx.fillRect(
-          gx + 0.5,
-          gy + 0.5,
-          Math.max(2, cellSize - 1),
-          Math.max(2, cellSize - 1)
-        );
+        for (const chunk of world.chunks.values()) {
+          const gx = offsetX + (chunk.cx - minCx) * cellSize;
+          const gy = offsetY + (chunk.cy - minCy) * cellSize;
+          const meta = FACTION_META[chunk.faction];
+
+          minimapCacheCtx.fillStyle =
+            chunk.faction === Faction.NEUTRAL ? '#27272a' : meta.badge;
+          minimapCacheCtx.fillRect(
+            gx + 0.5,
+            gy + 0.5,
+            Math.max(2, cellSize - 1),
+            Math.max(2, cellSize - 1)
+          );
+        }
+
+        const focusX = player.alive ? player.x : camera.x;
+        const focusY = player.alive ? player.y : camera.y;
+        const pTile = world.worldToTile(focusX, focusY);
+        hudEls.minimapCoords.textContent = `(${pTile.cx}, ${pTile.cy})`;
       }
 
-      for (const npc of npcs) {
+      minimapCtx.drawImage(minimapCacheCanvas, 0, 0);
+
+      for (let i = 0; i < npcs.length; i++) {
+        const npc = npcs[i];
         if (npc.rank !== UnitRank.BOSS) continue;
         const bx = offsetX + (npc.x / CHUNK_PX - minCx) * cellSize;
         const by = offsetY + (npc.y / CHUNK_PX - minCy) * cellSize;
@@ -3646,11 +4831,6 @@
       minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
       minimapCtx.lineWidth = 1;
       minimapCtx.strokeRect(camLeft, camTop, camW, camH);
-
-      const focusX = player.alive ? player.x : camera.x;
-      const focusY = player.alive ? player.y : camera.y;
-      const pTile = world.worldToTile(focusX, focusY);
-      document.getElementById('minimap-coords').textContent = `(${pTile.cx}, ${pTile.cy})`;
     }
 
     function render() {
@@ -3694,54 +4874,11 @@
             ctx.drawImage(chunk.groundCanvas, chunkOriginX, chunkOriginY);
           }
 
-          for (let ly = 0; ly < CHUNK_SIZE; ly++) {
-            for (let lx = 0; lx < CHUNK_SIZE; lx++) {
-              const tile = chunk.ground[ly][lx];
-              const wx = chunkOriginX + lx * TILE_SIZE;
-              const wy = chunkOriginY + ly * TILE_SIZE;
-
-              if (tile === TileType.BUILDING) {
-                const elev = chunk.elevation[ly][lx];
-                const style = chunk.buildingStyle[ly][lx];
-                const hasSouthBuilding =
-                  ly + 1 < CHUNK_SIZE && chunk.ground[ly + 1][lx] === TileType.BUILDING;
-                const hasEastBuilding =
-                  lx + 1 < CHUNK_SIZE && chunk.ground[ly][lx + 1] === TileType.BUILDING;
-                const hasWestBuilding =
-                  lx - 1 >= 0 && chunk.ground[ly][lx - 1] === TileType.BUILDING;
-
-                depthRenderables.push({
-                  type: 'building',
-                  sortY: wy + TILE_SIZE,
-                  wx,
-                  wy,
-                  elev,
-                  style,
-                  hasSouthBuilding,
-                  hasEastBuilding,
-                  hasWestBuilding,
-                });
-              }
-
-              const prop = chunk.props[ly][lx];
-              if (prop !== PropType.NONE) {
-                let propSortY = wy + TILE_SIZE * 0.72;
-                if (prop === PropType.CAR) {
-                  propSortY = chunk.propVertical[ly][lx] ? wy + 39 : wy + 28;
-                } else if (prop === PropType.STREETLIGHT || prop === PropType.TREE) {
-                  propSortY = wy + 26;
-                }
-                depthRenderables.push({
-                  type: 'prop',
-                  sortY: propSortY,
-                  wx,
-                  wy,
-                  prop,
-                  color: chunk.propColors[ly][lx],
-                  vertical: chunk.propVertical[ly][lx],
-                });
-              }
-            }
+          for (let bi = 0; bi < chunk.buildingRenderList.length; bi++) {
+            depthRenderables.push(chunk.buildingRenderList[bi]);
+          }
+          for (let pi = 0; pi < chunk.propRenderList.length; pi++) {
+            depthRenderables.push(chunk.propRenderList[pi]);
           }
 
           const meta = FACTION_META[chunk.faction];
@@ -3879,29 +5016,44 @@
             ctx.fill();
           } else if (item.prop === PropType.CAR) {
             ctx.fillStyle = 'rgba(0,0,0,0.45)';
+            const side = item.curbSide || 'N';
             if (item.vertical) {
-              ctx.fillRect(item.wx + 15, item.wy + 7, 18, 34);
+              const carX = side === 'W' ? item.wx + 21 : item.wx + 5;
+              ctx.fillRect(carX + 2, item.wy + 7, 18, 34);
               ctx.fillStyle = item.color;
               ctx.beginPath();
-              ctx.roundRect(item.wx + 13, item.wy + 5, 18, 34, 4);
+              ctx.roundRect(carX, item.wy + 5, 18, 34, 4);
               ctx.fill();
               ctx.fillStyle = '#38bdf8';
               ctx.globalAlpha = 0.45;
-              ctx.fillRect(item.wx + 15, item.wy + 11, 14, 6);
-              ctx.fillRect(item.wx + 15, item.wy + 27, 14, 5);
+              ctx.fillRect(carX + 2, item.wy + 11, 14, 6);
+              ctx.fillRect(carX + 2, item.wy + 27, 14, 5);
               ctx.globalAlpha = 1;
             } else {
-              ctx.fillRect(item.wx + 7, item.wy + 12, 34, 18);
+              const carY = side === 'N' ? item.wy + 21 : item.wy + 5;
+              ctx.fillRect(item.wx + 7, carY + 2, 34, 18);
               ctx.fillStyle = item.color;
               ctx.beginPath();
-              ctx.roundRect(item.wx + 5, item.wy + 10, 34, 18, 4);
+              ctx.roundRect(item.wx + 5, carY, 34, 18, 4);
               ctx.fill();
               ctx.fillStyle = '#38bdf8';
               ctx.globalAlpha = 0.45;
-              ctx.fillRect(item.wx + 11, item.wy + 12, 6, 14);
-              ctx.fillRect(item.wx + 27, item.wy + 12, 5, 14);
+              ctx.fillRect(item.wx + 11, carY + 2, 6, 14);
+              ctx.fillRect(item.wx + 27, carY + 2, 5, 14);
               ctx.globalAlpha = 1;
             }
+          } else if (item.prop === PropType.DUMPSTER) {
+            ctx.fillStyle = 'rgba(0,0,0,0.45)';
+            ctx.fillRect(item.wx + 11, item.wy + 13, 26, 22);
+            ctx.fillStyle = '#14532d';
+            ctx.beginPath();
+            ctx.roundRect(item.wx + 9, item.wy + 10, 26, 22, 3);
+            ctx.fill();
+            ctx.strokeStyle = '#22c55e';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(item.wx + 11, item.wy + 12, 22, 9);
+            ctx.fillStyle = '#18181b';
+            ctx.fillRect(item.wx + 11, item.wy + 23, 22, 7);
           } else if (item.prop === PropType.TREE) {
             ctx.fillStyle = 'rgba(0,0,0,0.35)';
             ctx.beginPath();
@@ -3936,7 +5088,10 @@
             n.maxHp,
             n.slashAnimTimer,
             n.hitFlashTimer,
-            n.muzzleFlashTimer || 0
+            n.muzzleFlashTimer || 0,
+            n.armor || 0,
+            n.maxArmor || MAX_BOSS_ARMOR,
+            Boolean(n.isSprinting)
           );
         } else if (item.type === 'player') {
           drawCharacter(
@@ -3949,7 +5104,10 @@
             player.maxHp,
             player.slashAnimTimer,
             player.hitFlashTimer,
-            player.muzzleFlashTimer || 0
+            player.muzzleFlashTimer || 0,
+            player.armor,
+            player.maxArmor,
+            player.isSprinting
           );
         }
       }
@@ -4003,6 +5161,75 @@
         ctx.restore();
       }
 
+      // Live Distance & Accuracy Tactical Crosshair
+      if (gameStarted && player.alive && mouse.inside && mouse.screenX !== null) {
+        const aimWx = mouse.screenX - canvas.width / 2 + camera.x;
+        const aimWy = mouse.screenY - canvas.height / 2 + camera.y;
+        const aimDist = Math.round(Math.hypot(aimWx - player.x, aimWy - player.y));
+        const accInfo = getPistolAccuracyInfo(aimDist);
+
+        ctx.save();
+        ctx.strokeStyle = accInfo.color;
+        ctx.globalAlpha = 0.28;
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y - 10);
+        ctx.lineTo(aimWx, aimWy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.globalAlpha = 0.92;
+        ctx.lineWidth = 1.6;
+        const spreadRadius =
+          aimDist > MAX_PISTOL_RANGE
+            ? 14
+            : 9 + Math.round(accInfo.failChance * 28);
+
+        ctx.beginPath();
+        ctx.arc(aimWx, aimWy, spreadRadius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        const tickIn = 4;
+        const tickOut = spreadRadius + 5;
+        ctx.beginPath();
+        ctx.moveTo(aimWx - tickOut, aimWy);
+        ctx.lineTo(aimWx - tickIn, aimWy);
+        ctx.moveTo(aimWx + tickIn, aimWy);
+        ctx.lineTo(aimWx + tickOut, aimWy);
+        ctx.moveTo(aimWx, aimWy - tickOut);
+        ctx.lineTo(aimWx, aimWy - tickIn);
+        ctx.moveTo(aimWx, aimWy + tickIn);
+        ctx.lineTo(aimWx, aimWy + tickOut);
+        ctx.stroke();
+
+        ctx.fillStyle = accInfo.color;
+        ctx.beginPath();
+        ctx.arc(aimWx, aimWy, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        const badgeText = `${aimDist}px · ${accInfo.label}`;
+        ctx.font = 'bold 10px Inter, sans-serif';
+        const textW = ctx.measureText(badgeText).width;
+        const boxW = textW + 12;
+        const boxH = 18;
+        const boxX = aimWx - boxW / 2;
+        const boxY = aimWy + spreadRadius + 8;
+
+        ctx.fillStyle = 'rgba(9, 9, 11, 0.86)';
+        ctx.beginPath();
+        ctx.roundRect(boxX, boxY, boxW, boxH, 5);
+        ctx.fill();
+        ctx.strokeStyle = accInfo.color;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.textAlign = 'center';
+        ctx.fillStyle = accInfo.color;
+        ctx.fillText(badgeText, aimWx, boxY + 12.5);
+        ctx.restore();
+      }
+
       ctx.restore();
       renderMinimap();
     }
@@ -4026,8 +5253,9 @@
 
     window.onload = function () {
       resizeCanvas();
+      renderFactionSlotSelectors();
       syncSetupPreview(DEFAULT_GRID_SIZE, DEFAULT_TICK_DURATION, 'HIGH');
-      initWorld(DEFAULT_GRID_SIZE, false, DEFAULT_TICK_DURATION, 'HIGH');
+      initWorld(DEFAULT_GRID_SIZE, false, DEFAULT_TICK_DURATION, 'HIGH', 4, ['COSA_NOSTRA', 'BRATVA', 'TRIADS', 'CARTEL']);
       requestAnimationFrame(gameLoop);
     };
   </script>
