@@ -1157,32 +1157,32 @@
     const CHUNK_SIZE = 15; // 50% larger neighborhoods (15x15 tiles = 660x660px)
     const TILE_SIZE = 44;
     const CHUNK_PX = CHUNK_SIZE * TILE_SIZE;
-    const DEFAULT_GRID_SIZE = 20;
+    const DEFAULT_GRID_SIZE = 15;
     const DEFAULT_TICK_DURATION = 10;
 
     const INCOME_TIERS = {
-      LOW: { label: 'Low', min: 450, max: 750 },
-      MID: { label: 'Mid', min: 750, max: 1250 },
-      HIGH: { label: 'High', min: 1200, max: 2000 },
+      LOW: { label: 'Low', min: 250, max: 500 },
+      MID: { label: 'Mid', min: 500, max: 1000 },
+      HIGH: { label: 'High', min: 1000, max: 1500 },
     };
 
     const COST_SOLDIER = 1200;
     const COST_CAPTAIN = 2200;
     const COST_UNDERBOSS = 3800;
     const COST_BOSS_ARMOR = 3500;
-    const BOSS_MAX_HP = 350;
-    const MAX_BOSS_ARMOR = 200;
+    const BOSS_MAX_HP = 400;
+    const MAX_BOSS_ARMOR = 300;
 
     // Hourly Unit Payroll Upkeep (50% of balanced proposal)
-    const UPKEEP_SOLDIER = 25;
-    const UPKEEP_CAPTAIN = 50;
-    const UPKEEP_UNDERBOSS = 87.5;
+    const UPKEEP_SOLDIER = 50;
+    const UPKEEP_CAPTAIN = 100;
+    const UPKEEP_UNDERBOSS = 150;
     const UNIT_ATTACK_COOLDOWN = 1.0;
 
     const MAX_PISTOL_RANGE = 1000;
     const SPRINT_MAX_DURATION = 2.0;
-    const SPRINT_COOLDOWN_DURATION = 2.0;
-    const SPRINT_SPEED_MULTIPLIER = 1.68;
+    const SPRINT_COOLDOWN_DURATION = 4.0;
+    const SPRINT_SPEED_MULTIPLIER = 1.6;
 
     const TileType = {
       ASPHALT: 0,
@@ -1360,8 +1360,8 @@
 
     function getUnitCaps() {
       const totalNeighborhoods = Math.max(25, world.chunks.size || currentGridSize * currentGridSize);
-      const maxUnderbosses = Math.max(1, Math.floor(totalNeighborhoods * 0.10));
-      const maxCaptains = Math.max(2, Math.floor(totalNeighborhoods * 0.20));
+      const maxUnderbosses = Math.max(1, Math.floor(totalNeighborhoods * 0.05));
+      const maxCaptains = Math.max(1, Math.floor(totalNeighborhoods * 0.10));
       const maxSoldiers = Math.max(1, totalNeighborhoods - maxCaptains - maxUnderbosses);
       return { totalNeighborhoods, maxSoldiers, maxCaptains, maxUnderbosses };
     }
