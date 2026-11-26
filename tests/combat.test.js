@@ -73,6 +73,11 @@ function makeWorld(options = {}) {
 
 function makePlayer(overrides = {}) {
   return {
+    id: 0,
+    faction: Faction.PLAYER,
+    rank: UnitRank.BOSS,
+    control: 'local',
+    bodyRadius: 13.5,
     x: 0,
     y: 0,
     hp: BOSS_MAX_HP,
@@ -355,6 +360,63 @@ test('combat: boss damage is absorbed by armor and death is a defeat', () => {
     assertEqual(deaths[0].payload.isPlayer, true);
     assertEqual(deaths[0].payload.isBoss, true);
     assertEqual(deaths[0].payload.faction, Faction.PLAYER);
+  });
+});
+
+test('combat: the player goes through the shared damage pipeline', () => {
+  withCombatState({}, ({ events }) => {
+    state.player.hp = 30;
+    state.player.armor = 50;
+    state.npcs = [];
+
+    const absorbedHit = applyDamageToNpc(state.player, 40, '#f43f5e', '', 0, Faction.RIVAL_1);
+    assertEqual(absorbedHit, false);
+    assertEqual(state.player.armor, 10);
+    assertEqual(state.player.hp, 30);
+    assertEqual(state.player.hitFlashTimer, 0.15);
+    assertEqual(state.npcs.length, 0);
+
+    const hits = eventsOf(events, 'unit:damaged');
+    assertEqual(hits.length, 1);
+    assertEqual(hits[0].payload.isPlayer, true);
+    assertEqual(hits[0].payload.absorbed, 40);
+    assertEqual(hits[0].payload.remaining, 0);
+
+    const lethalHit = applyDamageToNpc(state.player, 100, '#f43f5e', '', 0, Faction.RIVAL_1);
+    assertEqual(lethalHit, true);
+    assertEqual(state.player.alive, false);
+    assertEqual(state.gameOver, true);
+    assertEqual(state.npcs.length, 0);
+    assertEqual(state.factionKills[Faction.RIVAL_1], 1);
+
+    const deaths = eventsOf(events, 'unit:died');
+    assertEqual(deaths.length, 1);
+    assertEqual(deaths[0].payload.isPlayer, true);
+    assertEqual(deaths[0].payload.isBoss, true);
+    assertEqual(deaths[0].payload.faction, Faction.PLAYER);
+    assertEqual(eventsOf(events, 'match:defeat').length, 1);
+
+    // A dead player ignores further damage and never re-emits death/defeat.
+    assertEqual(applyDamageToNpc(state.player, 100, '#f43f5e', '', 0, Faction.RIVAL_1), false);
+    assertEqual(eventsOf(events, 'unit:damaged').length, 2);
+    assertEqual(eventsOf(events, 'unit:died').length, 1);
+    assertEqual(eventsOf(events, 'match:defeat').length, 1);
+  });
+});
+
+test('combat: damagePlayerBoss credits the killer exactly once', () => {
+  withCombatState({}, ({ events }) => {
+    state.player.hp = 5;
+    damagePlayerBoss(50, '#f43f5e', '', 0, Faction.RIVAL_2);
+    assertEqual(state.player.alive, false);
+    assertEqual(state.factionKills[Faction.RIVAL_2], 1);
+    assertEqual(eventsOf(events, 'unit:died').length, 1);
+    assertEqual(eventsOf(events, 'match:defeat').length, 1);
+
+    damagePlayerBoss(50, '#f43f5e', '', 0, Faction.RIVAL_2);
+    assertEqual(state.factionKills[Faction.RIVAL_2], 1);
+    assertEqual(eventsOf(events, 'unit:died').length, 1);
+    assertEqual(eventsOf(events, 'match:defeat').length, 1);
   });
 });
 

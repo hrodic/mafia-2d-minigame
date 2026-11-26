@@ -15,7 +15,7 @@ architecture description here.
   - AI extracted to `sim/ai.js`
   - HUD cadence moved to `ui/hudCadence.js`
   - UI/UX overhaul: primary status, crew management, action bar, leaderboard + kills
-- **Phase 3 — IN PROGRESS (`0.4.3`; 3.1–3.2 done):** unified entity model, commands,
+- **Phase 3 — IN PROGRESS (`0.4.4`; 3.1–3.3 done):** unified entity model, commands,
   fixed timestep.
 - **Phases 4–5 — pending:** netcode hardening, quality gates.
 
@@ -37,9 +37,9 @@ scattered manual resets. Verify New Game / restart flows.
 `rank: UnitRank.BOSS`, `control: 'local'`, `bodyRadius` to the player object (still
 separate for now). Fixes the latent `player.faction` undefined read.
 
-**3.3 Unify damage.** Make `damagePlayerBoss` delegate to `applyDamageToNpc` (player is not
-in `npcs`; elimination on death). One damage pipeline. Verify both directions (you kill,
-you die).
+**3.3 Unify damage — DONE (`0.4.4`).** `damagePlayerBoss` now delegates to
+`applyDamageToNpc`; the player stays outside `npcs` and elimination runs on death. One
+damage pipeline. Verified both directions (you kill, you die).
 
 **3.4 Unify slash.** One `performSlash(attacker, params)`; existing player/rival/AI variants
 delegate. Preserve differences as parameters (human cooldown `0.34` vs AI `1.0`, arc

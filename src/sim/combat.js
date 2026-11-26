@@ -29,7 +29,11 @@ export function applyDamageToNpc(
   killerFaction = null
 ) {
   if (!target) return false;
-  target.hitFlashTimer = 0.16;
+  const isPlayer = target === state.player;
+  if (isPlayer && !target.alive) return false;
+
+  // The local boss keeps its slightly shorter hit flash; everyone else uses 0.16s.
+  target.hitFlashTimer = isPlayer ? 0.15 : 0.16;
 
   let remainingDmg = dmg;
   let absorbed = 0;
@@ -50,7 +54,7 @@ export function applyDamageToNpc(
     absorbed,
     remaining: remainingDmg,
     isKill,
-    isPlayer: false,
+    isPlayer,
     hitAngle,
     textColor,
     suffix,
@@ -58,31 +62,35 @@ export function applyDamageToNpc(
 
   if (absorbed > 0 && target.armor <= 0) {
     target.armor = 0;
-    emit('armor:broken', { unit: target, isPlayer: false });
+    emit('armor:broken', { unit: target, isPlayer });
   }
 
   if (isKill) {
-    const deadIdx = state.npcs.indexOf(target);
-    if (deadIdx !== -1) {
-      const deadFaction = target.faction;
-      const wasBoss = target.rank === UnitRank.BOSS;
-      const fallAngle = hitAngle ?? target.facing;
-      creditKill(killerFaction, deadFaction);
-      state.npcs.splice(deadIdx, 1);
-      emit('unit:died', {
-        unit: target,
-        faction: deadFaction,
-        rank: target.rank,
-        x: target.x,
-        y: target.y,
-        facing: target.facing,
-        fallAngle,
-        isBoss: wasBoss,
-        isPlayer: false,
-      });
-      if (wasBoss) {
-        eliminateFaction(deadFaction);
-      }
+    const deadFaction = target.faction;
+    const wasBoss = target.rank === UnitRank.BOSS;
+    const fallAngle = hitAngle ?? target.facing;
+    let deadIdx = -1;
+    if (!isPlayer) {
+      deadIdx = state.npcs.indexOf(target);
+      // Non-player targets that are not in the roster do not emit death.
+      if (deadIdx === -1) return isKill;
+    }
+
+    creditKill(killerFaction, deadFaction);
+    if (deadIdx !== -1) state.npcs.splice(deadIdx, 1);
+    emit('unit:died', {
+      unit: target,
+      faction: deadFaction,
+      rank: target.rank,
+      x: target.x,
+      y: target.y,
+      facing: target.facing,
+      fallAngle,
+      isBoss: wasBoss,
+      isPlayer,
+    });
+    if (wasBoss) {
+      eliminateFaction(deadFaction);
     }
   }
   return isKill;
@@ -464,54 +472,7 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
 }
 
 export function damagePlayerBoss(dmg, textColor = '#f43f5e', suffix = '', hitAngle = null, killerFaction = null) {
-  if (!state.player.alive) return;
-  state.player.hitFlashTimer = 0.15;
-
-  let remainingDmg = dmg;
-  let absorbed = 0;
-  if (state.player.armor > 0) {
-    absorbed = Math.min(state.player.armor, remainingDmg);
-    state.player.armor -= absorbed;
-    remainingDmg -= absorbed;
-  }
-
-  if (remainingDmg > 0) {
-    state.player.hp -= remainingDmg;
-  }
-
-  const isKill = state.player.hp <= 0 && state.player.alive;
-  emit('unit:damaged', {
-    unit: state.player,
-    amount: dmg,
-    absorbed,
-    remaining: remainingDmg,
-    isKill,
-    isPlayer: true,
-    hitAngle,
-    textColor,
-    suffix,
-  });
-
-  if (absorbed > 0 && state.player.armor <= 0) {
-    state.player.armor = 0;
-    emit('armor:broken', { unit: state.player, isPlayer: true });
-  }
-
-  if (isKill) {
-    creditKill(killerFaction, Faction.PLAYER);
-    emit('unit:died', {
-      unit: state.player,
-      faction: Faction.PLAYER,
-      rank: UnitRank.BOSS,
-      x: state.player.x,
-      y: state.player.y,
-      facing: state.player.facing,
-      fallAngle: hitAngle ?? state.player.facing,
-      isBoss: true,
-      isPlayer: true,
-    });
-    eliminateFaction(Faction.PLAYER);
-  }
+  return applyDamageToNpc(state.player, dmg, textColor, suffix, hitAngle, killerFaction);
 }
 
 export function executeBuyArmorForFaction(faction) {
