@@ -11,8 +11,7 @@ import {
   ensureUniqueOrgs,
 } from '../config/organizations.js';
 import { state, getLocalBoss } from '../core/state.js';
-import { runtime } from '../core/runtime.js';
-import { resetEffects } from '../render/effects.js';
+import { emit } from '../core/events.js';
 import { resetDefaultPlayerSpawnCaps, spawnUnitInChunk } from './units.js';
 
 
@@ -53,7 +52,6 @@ export function initWorld(
   };
   state.world.clear();
   state.npcs.length = 0;
-  resetEffects();
   state.spatialBuckets.clear();
   state.gameStarted = autoStart;
   state.isSpectating = false;
@@ -64,8 +62,6 @@ export function initWorld(
   state.minimapCacheTimer = 1.0;
   state.gameHour = 12;
   state.nextNpcId = 1;
-
-  runtime.resetMatchUI(state.tickDuration);
 
   for (const f of ALL_FACTION_SLOTS) {
     const isActive = state.activeFactions.includes(f);
@@ -80,7 +76,6 @@ export function initWorld(
   }
 
   resetDefaultPlayerSpawnCaps();
-  runtime.syncRecruitButtonLabels();
 
   state.player.x = 1.5 * TILE_SIZE;
   state.player.y = 1.5 * TILE_SIZE;
@@ -121,5 +116,5 @@ export function initWorld(
   state.camera.x = localBoss.x;
   state.camera.y = localBoss.y;
 
-  runtime.updateHUD();
+  emit('match:initialized', { tickDuration: state.tickDuration });
 }

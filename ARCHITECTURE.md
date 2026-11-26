@@ -52,6 +52,7 @@ src/
     effects.js             blood/decals/tracers/casings/sparks/floating text
     combatFx.js            event subscribers: combat facts -> visual effects
     recruitFx.js           event subscriber: unit:recruited -> floating text
+    territoryFx.js         event subscriber: chunk:captured -> turf text + radar
     minimap.js             cached radar layer + live dots/viewport
     interpolation.js       guest-side position smoothing + animation timer decay
   audio/
@@ -121,27 +122,25 @@ without importing the net module (which would create a cycle).
 
 | Hook | Used by | Effect |
 |---|---|---|
-| `updateHUD` | match setup, simulation, territory | refresh HUD |
-| `syncRecruitButtonLabels` | match setup | refresh recruit buttons |
-| `resetMatchUI` | match setup | hide banners + tick tooltip |
-| `onVictory` / `onDefeat` | territory | banners + SFX |
-| `onFactionEliminated` | territory | toast + SFX |
+| `updateHUD` | simulation | refresh HUD (cadence) |
 
-Combat no longer uses runtime hooks: `ui:toast` replaces `showToast`, and the HUD
-subscriber refreshes on the `armor:equipped` fact (no command-style refresh event). Phase 2
-is replacing the remaining hooks with the event bus in `core/events.js` (see `EVENTS.md`).
+Combat, units, economy, territory and match no longer use runtime hooks: their presentation
+is wired through events (`ui:toast`, `chunk:captured`, `faction:eliminated`, `match:*`, etc.).
+Only `simulation.js` retains the periodic `updateHUD` call; Phase 3 can move that cadence to
+the render/UI loop and delete `core/runtime.js` (see `EVENTS.md`).
 
 ### Event bus (Phase 2)
 
 `core/events.js` is a synchronous, isolated bus. `main.js` wires subscribers once; `sim/`
-emits and never imports presentation layers. Combat, units and economy are migrated:
-combat visuals live in `render/combatFx.js`, recruitment text in `render/recruitFx.js`,
-audio in `audio/combatSfx.js`, and toasts/HUD/net in `main.js`. Benefits, tradeoffs, when
-to use/skip, and the full performance budget are in `EVENTS.md`.
+emits and never imports presentation layers. Combat, units, economy, territory and match are
+migrated: visuals live in `render/combatFx.js`, `render/recruitFx.js`,
+`render/territoryFx.js`; audio in `audio/combatSfx.js`; toasts/HUD/banners/net/match reset in
+`main.js`. Benefits, tradeoffs, when to use/skip, and the full performance budget are in
+`EVENTS.md`.
 
 `tools/check.ps1` enforces this as a ratchet: `sim/` may not import `render/`, `audio/`,
-`ui/` or `net/`. The remaining Phase 2 debt (`match`, `simulation`, `territory`) is
-explicitly allowlisted and must only shrink.
+`ui/` or `net/`. Only `simulation.js` remains allowlisted (canvas aim, per-frame particles,
+guest presentation; Phase 3).
 
 The non-negotiable rule: **discrete facts only** — never per-frame or per-NPC-per-frame.
 Continuous visuals (positions, HP bars, timers, interpolation) are read from `state` during
@@ -163,7 +162,9 @@ One exported `state` object in `core/state.js` holds the match:
 - `net`: the multiplayer module (set by `main.js`)
 
 `sim/match.js:initWorld` resets match state, sets the world generation context, builds
-chunks, spawns rival bosses and positions the camera.
+chunks, spawns rival bosses and positions the camera. At the end it emits
+`match:initialized` (`{ tickDuration }`); `main.js` subscribers reset effects, setup UI,
+recruit labels and HUD.
 
 ## World
 
@@ -222,8 +223,10 @@ It emits `hour:tick` with `{ hour, income, upkeep, treasuries }`; the HUD subscr
 
 ### Territory
 `sim/territory.js`: capture starts/resets/completes at rank-based rates
-(boss .375/s → soldier .12/s), presents turf captures (float text, radar, HUD), neutralizes
-a dead faction's turf, triggers defeat for the local boss and victory when no rival remains.
+(boss .375/s → soldier .12/s), neutralizes a dead faction's turf, and emits
+`chunk:captured`, `faction:eliminated`, `match:victory` or `match:defeat`.
+`render/territoryFx.js` draws the turf label/radar refresh; HUD, banners, SFX and toasts
+subscribe in `main.js`.
 
 ## Networking
 
@@ -311,9 +314,9 @@ distance from the camera.
 
 ## Known limitations / next phases
 
-- Phase 2: finish migrating runtime hooks to the event bus (bus implemented; combat, units
-  and economy migrated; remaining presentation imports in `match/simulation/territory` are
-  allowlisted in `tools/check.ps1`); deduplicate prop geometry, minimap layout,
+- Phase 2: finish migrating the last runtime HUD cadence out of `simulation.js` (bus
+  implemented; combat, units, economy, territory and match migrated; only `simulation.js`
+  is allowlisted in `tools/check.ps1`); deduplicate prop geometry, minimap layout,
   faction slot selection and `GAME_VERSION`; data-driven balance tables; explicit RNG
   (remove `withSeed`'s `Math.random` patch); extract AI decisions to `sim/ai.js`.
 - Phase 3: player boss folded into the unit model (`control: local/ai/remote`), one

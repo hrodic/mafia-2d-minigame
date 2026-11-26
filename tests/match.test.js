@@ -4,7 +4,8 @@ import { Faction, UnitRank } from '../src/config/enums.js';
 import { INCOME_TIERS } from '../src/config/balance.js';
 import { FACTION_META, ORGANIZATIONS } from '../src/config/organizations.js';
 import { state } from '../src/core/state.js';
-import { runtime } from '../src/core/runtime.js';
+import { on } from '../src/core/events.js';
+import { resetEffects } from '../src/render/effects.js';
 import { CityMap } from '../src/world/city.js';
 import { initWorld } from '../src/sim/match.js';
 
@@ -57,37 +58,26 @@ function withMatchState(fn) {
   state.playerSpawnCaps = { ...saved.playerSpawnCaps };
   state.factionRecruitmentPrefs = JSON.parse(JSON.stringify(saved.factionRecruitmentPrefs));
 
-  const calls = { hud: 0, labels: 0, ui: [] };
-  const original = {
-    updateHUD: runtime.updateHUD,
-    syncRecruitButtonLabels: runtime.syncRecruitButtonLabels,
-    resetMatchUI: runtime.resetMatchUI,
-  };
-  runtime.updateHUD = () => {
-    calls.hud++;
-  };
-  runtime.syncRecruitButtonLabels = () => {
-    calls.labels++;
-  };
-  runtime.resetMatchUI = (tickSeconds) => {
-    calls.ui.push(tickSeconds);
-  };
+  const events = [];
+  const unsubscribers = [
+    on('match:initialized', (payload) => events.push({ type: 'match:initialized', payload })),
+    // Mirror production wiring so the effects-reset assertion stays meaningful.
+    on('match:initialized', resetEffects),
+  ];
 
   try {
-    return fn({ calls });
+    return fn({ events });
   } finally {
+    for (const unsubscribe of unsubscribers) unsubscribe();
     for (const key of STATE_KEYS) state[key] = saved[key];
     for (const faction of Object.keys(savedMeta)) {
       if (savedMeta[faction]) FACTION_META[faction] = savedMeta[faction];
     }
-    runtime.updateHUD = original.updateHUD;
-    runtime.syncRecruitButtonLabels = original.syncRecruitButtonLabels;
-    runtime.resetMatchUI = original.resetMatchUI;
   }
 }
 
 test('match: initWorld configures a 2-faction 5x5 match deterministically', () => {
-  withMatchState(({ calls }) => {
+  withMatchState(({ events }) => {
     initWorld(5, false, 12, 'LOW', 2, ['COSA_NOSTRA', 'BRATVA'], 12345);
 
     assertEqual(state.currentGridSize, 5);
@@ -106,10 +96,9 @@ test('match: initWorld configures a 2-faction 5x5 match deterministically', () =
     assertEqual(FACTION_META[Faction.PLAYER].name, ORGANIZATIONS.COSA_NOSTRA.name);
     assertEqual(FACTION_META[Faction.RIVAL_3].name, ORGANIZATIONS.BRATVA.name);
 
-    assertEqual(calls.ui.length, 1);
-    assertEqual(calls.ui[0], 12);
-    assert(calls.hud >= 1, 'HUD should refresh after setup');
-    assert(calls.labels >= 1, 'recruit labels should refresh after setup');
+    const started = events.filter((entry) => entry.type === 'match:initialized');
+    assertEqual(started.length, 1);
+    assertEqual(started[0].payload.tickDuration, 12);
   });
 });
 

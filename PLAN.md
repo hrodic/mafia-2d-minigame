@@ -15,9 +15,16 @@ This is the living plan. Read `AGENTS.md` for the working contract and
   - Fix: guest movement crash (`canvas` missing import in `net/mpNet.js`); static guard
     added so `canvas.*` usage requires the canvas import. Guest movement re-verified.
   - Step 3 DONE: units migrated (`unit:recruited` -> `render/recruitFx.js`); allowlist debt
-    is now match/simulation/territory.
+    shrank.
   - Step 4 DONE: economy migrated (`hour:tick` -> HUD subscriber); runtime import removed.
-  - Next: territory → match migration; then dedup/balance/RNG/AI work
+  - Step 5 DONE: territory migrated (`chunk:captured`, `faction:eliminated`,
+    `match:victory`, `match:defeat`); `render/territoryFx.js` + main subscribers; runtime
+    hooks removed from `runtime.js`.
+  - Step 6 DONE: match setup migrated to `match:initialized` (effects/UI/labels/HUD
+    subscribers). Allowlist debt is now only `simulation.js` (canvas aim, per-frame
+    particles, guest presentation; Phase 3).
+  - Next: Phase 2 dedup/balance/RNG/AI work (or move the periodic HUD cadence out of
+    `simulation.js` and delete `core/runtime.js`)
   - Guardrails: benefits/tradeoffs/use-skip rules and the many-NPC + multiplayer
     performance budget are documented in `EVENTS.md`
 - Phases 3-5 - pending (unified entity model/commands/fixed timestep, net hardening, quality)

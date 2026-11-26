@@ -9,7 +9,6 @@ import {
   UNIT_ATTACK_COOLDOWN,
 } from '../src/config/balance.js';
 import { state } from '../src/core/state.js';
-import { runtime } from '../src/core/runtime.js';
 import { on } from '../src/core/events.js';
 import { bloodParticles, bulletTracers, shellCasings, resetEffects } from '../src/render/effects.js';
 import {
@@ -154,6 +153,9 @@ const CAPTURED_EVENTS = [
   'shot:started',
   'shot:fired',
   'ui:toast',
+  'faction:eliminated',
+  'match:victory',
+  'match:defeat',
 ];
 
 function eventsOf(events, type) {
@@ -181,18 +183,6 @@ function withCombatState(opts, fn) {
   state.keys = new Set();
   resetEffects();
 
-  const calls = { defeat: 0, eliminated: [], victory: [] };
-  const original = {
-    onDefeat: runtime.onDefeat,
-    onFactionEliminated: runtime.onFactionEliminated,
-    onVictory: runtime.onVictory,
-  };
-  runtime.onDefeat = () => {
-    calls.defeat++;
-  };
-  runtime.onFactionEliminated = (faction) => calls.eliminated.push(faction);
-  runtime.onVictory = (summary) => calls.victory.push(summary);
-
   const events = [];
   const unsubscribers = [
     ...CAPTURED_EVENTS.map((type) => on(type, (payload) => events.push({ type, payload }))),
@@ -207,12 +197,9 @@ function withCombatState(opts, fn) {
   ];
 
   try {
-    return fn({ calls, events });
+    return fn({ events });
   } finally {
     for (const unsubscribe of unsubscribers) unsubscribe();
-    runtime.onDefeat = original.onDefeat;
-    runtime.onFactionEliminated = original.onFactionEliminated;
-    runtime.onVictory = original.onVictory;
     for (const key of STATE_KEYS) state[key] = saved[key];
     resetEffects();
   }
@@ -300,14 +287,16 @@ test('combat: lethal damage removes the unit and spawns gore', () => {
 });
 
 test('combat: killing a boss eliminates the syndicate', () => {
-  withCombatState({}, ({ calls, events }) => {
+  withCombatState({}, ({ events }) => {
     const boss = makeNpc({ rank: UnitRank.BOSS, hp: 10, x: 0, y: 0 });
     state.npcs = [boss];
     assertEqual(applyDamageToNpc(boss, 20), true);
     assertEqual(state.factionAlive[Faction.RIVAL_1], false);
-    assertEqual(calls.eliminated.length, 1);
-    assertEqual(calls.eliminated[0], Faction.RIVAL_1);
-    assertEqual(calls.victory.length, 0);
+
+    const eliminations = eventsOf(events, 'faction:eliminated');
+    assertEqual(eliminations.length, 1);
+    assertEqual(eliminations[0].payload.faction, Faction.RIVAL_1);
+    assertEqual(eventsOf(events, 'match:victory').length, 0);
 
     const deaths = eventsOf(events, 'unit:died');
     assertEqual(deaths.length, 1);
@@ -317,7 +306,7 @@ test('combat: killing a boss eliminates the syndicate', () => {
 });
 
 test('combat: boss damage is absorbed by armor and death is a defeat', () => {
-  withCombatState({ player: makePlayer({ armor: 100 }) }, ({ calls, events }) => {
+  withCombatState({ player: makePlayer({ armor: 100 }) }, ({ events }) => {
     damagePlayerBoss(40);
     assertEqual(state.player.armor, 60);
     assertEqual(state.player.hp, BOSS_MAX_HP);
@@ -331,7 +320,10 @@ test('combat: boss damage is absorbed by armor and death is a defeat', () => {
     damagePlayerBoss(500);
     assertEqual(state.player.alive, false);
     assertEqual(state.gameOver, true);
-    assertEqual(calls.defeat, 1);
+
+    const defeats = eventsOf(events, 'match:defeat');
+    assertEqual(defeats.length, 1);
+    assertEqual(defeats[0].payload.faction, Faction.PLAYER);
 
     const deaths = eventsOf(events, 'unit:died');
     assertEqual(deaths.length, 1);

@@ -35,6 +35,7 @@ Naming: `domain:pastTense` (`unit:damaged`, `chunk:captured`, `match:victory`).
 
 | Event | Payload | Emitted by |
 |---|---|---|
+| `match:initialized` | `{ tickDuration }` | match setup (new match built, even when autoStart is false) |
 | `unit:damaged` | `{ unit, amount, absorbed, remaining, isKill, isPlayer, hitAngle, textColor, suffix }` | combat |
 | `unit:died` | `{ unit, faction, rank, x, y, facing, fallAngle, isBoss, isPlayer }` | combat |
 | `boss:died` | `{ faction, boss, x, y }` | combat/territory |
@@ -47,7 +48,7 @@ Naming: `domain:pastTense` (`unit:damaged`, `chunk:captured`, `match:victory`).
 | `armor:broken` | `{ unit, isPlayer }` | combat |
 | `unit:recruited` | `{ unit, faction, rank, cost }` (silent recruits do not emit) | units/economy |
 | `hour:tick` | `{ hour, income, upkeep, treasuries }` | economy |
-| `match:victory` | `{ summary }` | territory |
+| `match:victory` | `{ faction, blocks, totalBlocks, cash, crew }` | territory |
 | `match:defeat` | `{ faction }` | territory |
 | `ui:toast` | `{ message }` | any sim system |
 
@@ -62,8 +63,11 @@ the simulation RNG sequence.
 | `render/combatFx.js` | `unit:damaged`, `unit:died`, `armor:*`, `slash:performed`, `shot:started`, `shot:fired` | blood/sparks, corpses, floating text, arcs, tracers/casings/muzzle flash |
 | `audio/combatSfx.js` | `unit:died`, `armor:equipped`, `slash:performed`, `shot:started`, `shot:fired` | synthesized combat SFX |
 | `render/recruitFx.js` | `unit:recruited` | `+RANK ($cost)` floating text |
-| `ui/hud.js` | `armor:equipped`, `chunk:captured`, `hour:tick`, `unit:recruited`, `match:*` | refresh HUD; show/hide banners |
+| `render/territoryFx.js` | `chunk:captured` | `SHORT TURF` floating text + minimap refresh |
+| `ui/hud.js` | `chunk:captured`, `faction:eliminated`, `armor:equipped`, `hour:tick`, `unit:recruited`, `match:defeat` | refresh HUD |
 | `ui/menus.js` | `ui:toast`, `match:victory`, `match:defeat` | toast + banner content |
+| `main.js` (presentation) | `faction:eliminated`, `match:victory` | elimination SFX/toast; victory SFX + banner |
+| `main.js` (match setup) | `match:initialized` | reset effects, setup UI, recruit labels, HUD |
 | `net/mpNet.js` (host, wired in `main.js`) | `shot:fired` | broadcast the ephemeral SHOT event to guests |
 
 Snapshot state still comes from the host; events are only for ephemeral presentation.
@@ -76,9 +80,14 @@ Snapshot state still comes from the host; events are only for ephemeral presenta
    `audio/combatSfx.js`, toasts/HUD/net wired in `main.js`.
 3. **Units DONE** — `sim/units.js` emits `unit:recruited`; text in `render/recruitFx.js`.
 4. **Economy DONE** — `sim/economy.js` emits `hour:tick`; HUD subscribes.
-5. Next systems: territory → match. One system per step; add `emit` calls, wire subscribers,
-   and delete the old `runtime` calls/callback in the same change.
-6. When `runtime.js` has no remaining hooks, delete it and update `ARCHITECTURE.md`.
+5. **Territory DONE** — `sim/territory.js` emits `chunk:captured`, `faction:eliminated`,
+   `match:victory`, `match:defeat`; text in `render/territoryFx.js`, banners/HUD/SFX wired in
+   `main.js`.
+6. **Match DONE** — `sim/match.js` emits `match:initialized`; effects/UI/labels/HUD reset in
+   `main.js`. Only `sim/simulation.js` remains allowlisted (canvas aim, per-frame particles,
+   guest presentation; Phase 3).
+7. When the last `runtime.updateHUD` call moves out of `simulation.js`, delete
+   `core/runtime.js` and update `ARCHITECTURE.md`.
 
 ## Testing
 
@@ -89,11 +98,11 @@ Snapshot state still comes from the host; events are only for ephemeral presenta
 
 ## Benefits
 
-- **Headless simulation.** `sim/combat.js`, `sim/units.js` and `sim/economy.js` now import
-  only sim/core modules: they emit facts, while `render/combatFx.js`, `render/recruitFx.js`
-  and `audio/combatSfx.js` subscribe. The remaining direct presentation imports in
-  `match/simulation/territory` are Phase 2 debt, allowlisted in `tools/check.ps1` until each
-  migrates.
+- **Headless simulation.** `sim/combat.js`, `sim/units.js`, `sim/economy.js`,
+  `sim/territory.js` and `sim/match.js` now import only sim/core modules: they emit facts,
+  while `render/combatFx.js`, `render/recruitFx.js`, `render/territoryFx.js` and
+  `audio/combatSfx.js` subscribe. Only `sim/simulation.js` remains allowlisted (canvas aim,
+  per-frame particles, guest presentation; Phase 3).
 - **One-to-many facts.** One `unit:damaged` can drive floating text, blood, SFX, HUD
   invalidation and an optional network effect without editing the damage function.
 - **One wiring point.** Subscribers are registered once in `main.js`, not scattered across

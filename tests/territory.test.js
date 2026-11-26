@@ -2,12 +2,12 @@
 import { test, assert, assertEqual } from './harness.js';
 import { Faction, UnitRank } from '../src/config/enums.js';
 import { state } from '../src/core/state.js';
-import { runtime } from '../src/core/runtime.js';
+import { on } from '../src/core/events.js';
+import { onChunkCaptured } from '../src/render/territoryFx.js';
 import {
   CAPTURE_RATES,
   getCaptureRate,
   progressCapture,
-  onChunkCaptured,
   checkVictoryCondition,
   eliminateFaction,
 } from '../src/sim/territory.js';
@@ -36,6 +36,12 @@ function makeChunk(cx, cy, faction = Faction.NEUTRAL) {
   return { cx, cy, faction, captureProgress: 0, capturingFaction: null, income: 1000 };
 }
 
+const CAPTURED_EVENTS = ['chunk:captured', 'faction:eliminated', 'match:victory', 'match:defeat'];
+
+function eventsOf(events, type) {
+  return events.filter((entry) => entry.type === type);
+}
+
 function withTerritoryState(opts, fn) {
   const saved = {};
   for (const key of STATE_KEYS) saved[key] = state[key];
@@ -52,29 +58,17 @@ function withTerritoryState(opts, fn) {
   state.minimapCacheTimer = 0;
   state.floatingTexts = [];
 
-  const calls = { victory: [], defeat: 0, eliminated: [], hud: 0 };
-  const original = {
-    onVictory: runtime.onVictory,
-    onDefeat: runtime.onDefeat,
-    onFactionEliminated: runtime.onFactionEliminated,
-    updateHUD: runtime.updateHUD,
-  };
-  runtime.onVictory = (summary) => calls.victory.push(summary);
-  runtime.onDefeat = () => {
-    calls.defeat++;
-  };
-  runtime.onFactionEliminated = (faction) => calls.eliminated.push(faction);
-  runtime.updateHUD = () => {
-    calls.hud++;
-  };
+  const events = [];
+  const unsubscribers = [
+    ...CAPTURED_EVENTS.map((type) => on(type, (payload) => events.push({ type, payload }))),
+    // Mirror production wiring so the capture floating-text assertion stays meaningful.
+    on('chunk:captured', onChunkCaptured),
+  ];
 
   try {
-    return fn({ calls });
+    return fn({ events });
   } finally {
-    runtime.onVictory = original.onVictory;
-    runtime.onDefeat = original.onDefeat;
-    runtime.onFactionEliminated = original.onFactionEliminated;
-    runtime.updateHUD = original.updateHUD;
+    for (const unsubscribe of unsubscribers) unsubscribe();
     for (const key of STATE_KEYS) state[key] = saved[key];
   }
 }
@@ -89,7 +83,7 @@ test('territory: capture rates match the unit hierarchy', () => {
 });
 
 test('territory: capture fills progress and flips the chunk when complete', () => {
-  withTerritoryState({}, () => {
+  withTerritoryState({}, ({ events }) => {
     const chunk = makeChunk(0, 0, Faction.NEUTRAL);
     assertEqual(progressCapture(chunk, Faction.PLAYER, 1, 0.375), false);
     assertEqual(chunk.captureProgress, 0.375);
@@ -99,6 +93,11 @@ test('territory: capture fills progress and flips the chunk when complete', () =
     assertEqual(chunk.faction, Faction.PLAYER);
     assertEqual(chunk.captureProgress, 0);
     assertEqual(chunk.capturingFaction, null);
+
+    const captures = eventsOf(events, 'chunk:captured');
+    assertEqual(captures.length, 1);
+    assertEqual(captures[0].payload.chunk, chunk);
+    assertEqual(captures[0].payload.faction, Faction.PLAYER);
   });
 });
 
@@ -126,14 +125,14 @@ test('territory: own chunks and dead factions cannot capture', () => {
 });
 
 test('territory: captured chunks float a turf label and refresh presentation', () => {
-  withTerritoryState({}, ({ calls }) => {
-    const chunk = makeChunk(2, 3, Faction.PLAYER);
-    onChunkCaptured(chunk, Faction.PLAYER);
+  withTerritoryState({}, ({ events }) => {
+    const chunk = makeChunk(2, 3, Faction.NEUTRAL);
+    assertEqual(progressCapture(chunk, Faction.PLAYER, 3, 0.375), true);
     assertEqual(state.floatingTexts.length, 1);
     assert(state.floatingTexts[0].text.includes('TURF'));
     assertEqual(state.floatingTexts[0].color, '#34d399');
     assertEqual(state.minimapCacheTimer, 1.0);
-    assertEqual(calls.hud, 1);
+    assertEqual(eventsOf(events, 'chunk:captured').length, 1);
   });
 });
 
@@ -147,7 +146,7 @@ test('territory: eliminating a rival neutralizes their turf and captures', () =>
       world: makeWorld([makeChunk(0, 0, Faction.PLAYER), owned, capturing]),
       treasuries: { [Faction.RIVAL_1]: 500 },
     },
-    ({ calls }) => {
+    ({ events }) => {
       eliminateFaction(Faction.RIVAL_1);
       assertEqual(state.factionAlive[Faction.RIVAL_1], false);
       assertEqual(state.treasuries[Faction.RIVAL_1], 0);
@@ -156,23 +155,28 @@ test('territory: eliminating a rival neutralizes their turf and captures', () =>
       assertEqual(owned.capturingFaction, null);
       assertEqual(capturing.capturingFaction, null);
       assertEqual(capturing.captureProgress, 0);
-      assertEqual(calls.eliminated.length, 1);
-      assertEqual(calls.eliminated[0], Faction.RIVAL_1);
-      assertEqual(calls.defeat, 0);
       assertEqual(state.gameOver, false);
-      assertEqual(calls.hud, 1);
+
+      const eliminations = eventsOf(events, 'faction:eliminated');
+      assertEqual(eliminations.length, 1);
+      assertEqual(eliminations[0].payload.faction, Faction.RIVAL_1);
+      assertEqual(eventsOf(events, 'match:victory').length, 0);
+      assertEqual(eventsOf(events, 'match:defeat').length, 0);
     }
   );
 });
 
 test('territory: eliminating the local boss ends the match in defeat', () => {
-  withTerritoryState({ player: { alive: true } }, ({ calls }) => {
+  withTerritoryState({ player: { alive: true } }, ({ events }) => {
     eliminateFaction(Faction.PLAYER);
     assertEqual(state.player.alive, false);
     assertEqual(state.gameOver, true);
-    assertEqual(calls.defeat, 1);
-    assertEqual(calls.eliminated.length, 0);
-    assertEqual(calls.victory.length, 0);
+
+    const defeats = eventsOf(events, 'match:defeat');
+    assertEqual(defeats.length, 1);
+    assertEqual(defeats[0].payload.faction, Faction.PLAYER);
+    assertEqual(eventsOf(events, 'faction:eliminated').length, 0);
+    assertEqual(eventsOf(events, 'match:victory').length, 0);
   });
 });
 
@@ -185,30 +189,32 @@ test('territory: victory fires once when the last rival falls', () => {
         { faction: Faction.PLAYER, rank: UnitRank.CAPTAIN },
       ],
     },
-    ({ calls }) => {
+    ({ events }) => {
       eliminateFaction(Faction.RIVAL_1);
-      assertEqual(calls.victory.length, 0);
+      assertEqual(eventsOf(events, 'match:victory').length, 0);
       eliminateFaction(Faction.RIVAL_2);
-      assertEqual(calls.victory.length, 0);
+      assertEqual(eventsOf(events, 'match:victory').length, 0);
       eliminateFaction(Faction.RIVAL_3);
-      assertEqual(calls.victory.length, 1, 'victory should fire when the last rival is eliminated');
+
+      const victories = eventsOf(events, 'match:victory');
+      assertEqual(victories.length, 1, 'victory should fire when the last rival is eliminated');
       assertEqual(state.victoryShown, true);
-      const summary = calls.victory[0];
-      assert(summary.includes('Cosa Nostra'), `summary missing org name: ${summary}`);
-      assert(summary.includes('1/1 neighborhoods'), `summary missing turf count: ${summary}`);
-      assert(summary.includes('$4,321'), `summary missing treasury: ${summary}`);
-      assert(summary.includes('2 surviving crew'), `summary missing crew count: ${summary}`);
+      assertEqual(victories[0].payload.faction, Faction.PLAYER);
+      assertEqual(victories[0].payload.blocks, 1);
+      assertEqual(victories[0].payload.totalBlocks, 1);
+      assertEqual(victories[0].payload.cash, 4321);
+      assertEqual(victories[0].payload.crew, 2);
 
       eliminateFaction(Faction.PLAYER);
-      assertEqual(calls.victory.length, 1, 'victory must not repeat');
+      assertEqual(eventsOf(events, 'match:victory').length, 1, 'victory must not repeat');
     }
   );
 });
 
 test('territory: no victory while a rival is alive or the local boss is dead', () => {
-  withTerritoryState({}, ({ calls }) => {
+  withTerritoryState({}, ({ events }) => {
     checkVictoryCondition();
-    assertEqual(calls.victory.length, 0);
+    assertEqual(eventsOf(events, 'match:victory').length, 0);
   });
   withTerritoryState(
     {
@@ -219,9 +225,9 @@ test('territory: no victory while a rival is alive or the local boss is dead', (
       },
       gameOver: true,
     },
-    ({ calls }) => {
+    ({ events }) => {
       checkVictoryCondition();
-      assertEqual(calls.victory.length, 0);
+      assertEqual(eventsOf(events, 'match:victory').length, 0);
     }
   );
 });
@@ -237,10 +243,11 @@ test('territory: multiplayer guest wins for its own rival syndicate', () => {
         [Faction.RIVAL_3]: false,
       },
     },
-    ({ calls }) => {
+    ({ events }) => {
       checkVictoryCondition();
-      assertEqual(calls.victory.length, 1);
-      assert(calls.victory[0].includes('Bratva'), calls.victory[0]);
+      const victories = eventsOf(events, 'match:victory');
+      assertEqual(victories.length, 1);
+      assertEqual(victories[0].payload.faction, Faction.RIVAL_1);
     }
   );
 });

@@ -55,6 +55,7 @@ command, number or test result; read the file or run the check.
 | Combat / weapons / armor | `src/sim/combat.js` |
 | Combat presentation (effects / SFX) | `src/render/combatFx.js`, `src/audio/combatSfx.js` |
 | Capture / victory / defeat | `src/sim/territory.js` |
+| Territory presentation (turf text / banners / SFX) | `src/render/territoryFx.js`, `src/main.js` |
 | Economy / recruitment tick | `src/sim/economy.js`, `src/sim/units.js` |
 | Recruitment feedback (floating text) | `src/render/recruitFx.js` |
 | Remote-human boss / waypoints | `src/sim/movement.js` |
@@ -65,6 +66,7 @@ command, number or test result; read the file or run the check.
 | Rendering / minimap / effects | `src/render/*` |
 | Audio | `src/audio/*` |
 | Wiring / hooks / loop | `src/main.js`, `src/core/runtime.js` |
+| Match setup reset (effects / UI / labels / HUD) | `src/main.js` (`match:initialized` subscribers) |
 | Event bus / presentation events | `src/core/events.js`, `EVENTS.md` |
 
 ## Invariants

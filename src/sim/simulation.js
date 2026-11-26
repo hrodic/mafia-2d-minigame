@@ -27,7 +27,7 @@ import {
   updateHumanControlledRivalBoss,
   computeSteeringPath,
 } from './movement.js';
-import { progressCapture, getCaptureRate, onChunkCaptured } from './territory.js';
+import { progressCapture, getCaptureRate } from './territory.js';
 import { processHourlyTick } from './economy.js';
 import {
   applyDamageToNpc,
@@ -172,9 +172,7 @@ export function update(dt) {
 
     const pTile = state.world.worldToTile(state.player.x, state.player.y);
     const pChunk = state.world.getChunk(pTile.cx, pTile.cy);
-    if (progressCapture(pChunk, Faction.PLAYER, dt, getCaptureRate(UnitRank.BOSS))) {
-      onChunkCaptured(pChunk, Faction.PLAYER);
-    }
+    progressCapture(pChunk, Faction.PLAYER, dt, getCaptureRate(UnitRank.BOSS));
 
     state.camera.x += (state.player.x - state.camera.x) * Math.min(1, dt * 12);
     state.camera.y += (state.player.y - state.camera.y) * Math.min(1, dt * 12);
@@ -365,9 +363,7 @@ export function update(dt) {
     // Territory capture by NPCs
     const uTile = state.world.worldToTile(u.x, u.y);
     const uChunk = state.world.getChunk(uTile.cx, uTile.cy);
-    if (progressCapture(uChunk, u.faction, dt, getCaptureRate(u.rank))) {
-      onChunkCaptured(uChunk, u.faction);
-    }
+    progressCapture(uChunk, u.faction, dt, getCaptureRate(u.rank));
   }
 
   // Hourly Economy & Auto-Recruitment Tick

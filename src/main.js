@@ -8,8 +8,10 @@ import { runtime } from './core/runtime.js';
 import { on } from './core/events.js';
 import { CityMap } from './world/city.js';
 import { render, resizeCanvas } from './render/renderer.js';
+import { resetEffects } from './render/effects.js';
 import * as combatFx from './render/combatFx.js';
 import * as recruitFx from './render/recruitFx.js';
+import * as territoryFx from './render/territoryFx.js';
 import { updateHUD, syncRecruitButtonLabels } from './ui/hud.js';
 import {
   initMenus,
@@ -36,18 +38,6 @@ state.net = mpNet;
 // Presentation hooks used by simulation modules. Phase 2 replaces these with the
 // event bus; keeping them here makes sim/ headless-importable.
 runtime.updateHUD = updateHUD;
-runtime.syncRecruitButtonLabels = syncRecruitButtonLabels;
-runtime.resetMatchUI = resetMatchUI;
-runtime.onDefeat = showDefeatBanner;
-runtime.onFactionEliminated = (faction) => {
-  sfx.playFactionEliminated();
-  const meta = FACTION_META[faction];
-  showToast(`${meta.name}'s ${meta.ranks.BOSS} killed! Their turf is now Neutral.`);
-};
-runtime.onVictory = (summary) => {
-  sfx.playVictory();
-  showVictoryBanner(summary);
-};
 
 // Combat facts -> presentation subscribers. sim/combat.js only emits events.
 on('unit:damaged', combatFx.onUnitDamaged);
@@ -79,6 +69,29 @@ on('shot:fired', (event) => {
 on('ui:toast', ({ message }) => showToast(message));
 on('unit:recruited', recruitFx.onUnitRecruited);
 on('hour:tick', updateHUD);
+on('chunk:captured', territoryFx.onChunkCaptured);
+on('chunk:captured', updateHUD);
+on('faction:eliminated', (event) => {
+  sfx.playFactionEliminated();
+  const meta = FACTION_META[event.faction];
+  showToast(`${meta.name}'s ${meta.ranks.BOSS} killed! Their turf is now Neutral.`);
+});
+on('faction:eliminated', updateHUD);
+on('match:victory', ({ faction, blocks, totalBlocks, cash, crew }) => {
+  sfx.playVictory();
+  const meta = FACTION_META[faction];
+  showVictoryBanner(
+    `All rival Supreme Leaders have been eliminated! ${meta.name} (${meta.ranks.BOSS}) rules ` +
+      `${blocks}/${totalBlocks} neighborhoods with $${cash.toLocaleString()} in cash and ` +
+      `${crew} surviving crew.`
+  );
+});
+on('match:defeat', () => showDefeatBanner());
+on('match:defeat', updateHUD);
+on('match:initialized', resetEffects);
+on('match:initialized', ({ tickDuration }) => resetMatchUI(tickDuration));
+on('match:initialized', syncRecruitButtonLabels);
+on('match:initialized', updateHUD);
 
 // Main loop. Variable timestep for now (fixed timestep is Phase 3).
 let lastFrameTime = performance.now();
