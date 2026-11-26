@@ -9,7 +9,7 @@ import {
   SPRINT_COOLDOWN_DURATION,
   SPRINT_SPEED_MULTIPLIER,
 } from '../config/constants.js';
-import { UNIT_ATTACK_COOLDOWN } from '../config/balance.js';
+import { SLASH } from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
 import { state, getLocalBoss, isLocalBossAlive } from '../core/state.js';
 import { runtime } from '../core/runtime.js';
@@ -243,18 +243,19 @@ export function update(dt) {
 
     const isRangedShooter = u.rank === UnitRank.BOSS || u.rank === UnitRank.UNDERBOSS;
     const aggroRange = isRangedShooter ? 680 : 480;
+    const melee = SLASH.aiMelee;
 
     if (nearestEnemy && nearestEnemyDist <= aggroRange) {
       u.goalX = nearestEnemy.x;
       u.goalY = nearestEnemy.y;
 
-      if (nearestEnemyDist <= 46) {
+      if (nearestEnemyDist <= melee.reach) {
         u.facing = Math.atan2(nearestEnemy.y - u.y, nearestEnemy.x - u.x);
         if (u.rank === UnitRank.BOSS) {
           performBossKnifeSlash(u);
         } else if (u.attackCooldown <= 0) {
-          u.attackCooldown = UNIT_ATTACK_COOLDOWN;
-          u.slashAnimTimer = 0.18;
+          u.attackCooldown = melee.cooldown;
+          u.slashAnimTimer = melee.anim;
           emit('slash:performed', {
             x: u.x,
             y: u.y,

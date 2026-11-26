@@ -80,6 +80,20 @@ no external relays): `tests/mp-harness.html`.
 - Multiplayer: Trystero WebRTC signaling (`nostr`/`mqtt` from CDN) + same-origin
   BroadcastChannel/localStorage fallback; host simulates, guests stream input.
 
+## Tuning
+
+All gameplay numbers live in **`src/config/balance.js`**:
+
+- `RANK_STATS` — HP, armor, damage, AI/human speed, radius, capture rate, cost/upkeep.
+- `UNIT_CAPS` — crew caps, neighborhood floor, human cap fraction.
+- `SLASH` — reach, targets, arc, close-range, knockback, cooldown per attacker profile.
+- `PISTOL` — damage, cooldown, knockback, accuracy bands.
+- `INCOME_TIERS`, costs/upkeep and boss aliases.
+
+Presentation feel and AI decision logic stay in their own modules. Changing balance values
+is a normal patch/balance commit; the tables are locked by `tests/balance.test.js`, so update
+its expected values in the same change when the tuning is intentional.
+
 ## Versioning
 
 SemVer (`MAJOR.MINOR.PATCH`) starting at `0.1.0`. The single source is

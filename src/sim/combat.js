@@ -2,7 +2,7 @@
 
 import { Faction, UnitRank } from '../config/enums.js';
 import { CHUNK_SIZE, TILE_SIZE, MAX_PISTOL_RANGE } from '../config/constants.js';
-import { UNIT_ATTACK_COOLDOWN, COST_BOSS_ARMOR, MAX_BOSS_ARMOR } from '../config/balance.js';
+import { COST_BOSS_ARMOR, MAX_BOSS_ARMOR, PISTOL, SLASH } from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
 import { getPropFootprint, rectContains } from '../world/geometry.js';
 import { state, isLocalBossAlive } from '../core/state.js';
@@ -83,11 +83,12 @@ export function executeBossSlashForFaction(faction) {
   const bossNpc = state.npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS);
   if (!bossNpc || bossNpc.attackCooldown > 0) return;
 
-  bossNpc.attackCooldown = 0.34;
-  bossNpc.slashAnimTimer = 0.18;
+  const profile = SLASH.rivalBoss;
+  bossNpc.attackCooldown = profile.cooldown;
+  bossNpc.slashAnimTimer = profile.anim;
 
-  const reach = 52;
-  const maxTargets = 3;
+  const reach = profile.reach;
+  const maxTargets = profile.maxTargets;
   const candidates = [];
 
   if (state.player.alive && faction !== Faction.PLAYER) {
@@ -97,7 +98,7 @@ export function executeBossSlashForFaction(faction) {
     if (dist <= reach) {
       let angleDiff = Math.abs(Math.atan2(dy, dx) - bossNpc.facing);
       if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
-      if (angleDiff <= Math.PI * 0.45 || dist < 32) {
+      if (angleDiff <= Math.PI * profile.arc || dist < profile.closeRange) {
         candidates.push({ isPlayer: true, entity: state.player, dist, dx, dy });
       }
     }
@@ -112,7 +113,7 @@ export function executeBossSlashForFaction(faction) {
     if (dist <= reach) {
       let angleDiff = Math.abs(Math.atan2(dy, dx) - bossNpc.facing);
       if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
-      if (angleDiff <= Math.PI * 0.45 || dist < 32) {
+      if (angleDiff <= Math.PI * profile.arc || dist < profile.closeRange) {
         candidates.push({ isPlayer: false, entity: other, dist, dx, dy });
       }
     }
@@ -135,8 +136,8 @@ export function executeBossSlashForFaction(faction) {
     if (item.isPlayer) {
       damagePlayerBoss(dmg, '#f43f5e', '', strikeAngle);
     } else {
-      const knockX = item.entity.x + Math.cos(strikeAngle) * 14;
-      const knockY = item.entity.y + Math.sin(strikeAngle) * 14;
+      const knockX = item.entity.x + Math.cos(strikeAngle) * profile.knockback;
+      const knockY = item.entity.y + Math.sin(strikeAngle) * profile.knockback;
       const nRad = getEntityCollisionRadius(item.entity.rank);
       if (canOccupyPosition(knockX, knockY, nRad, item.entity.id, false)) {
         item.entity.x = knockX;
@@ -156,11 +157,12 @@ export function performKnifeSlash() {
   }
   if (!state.player.alive || state.player.attackCooldown > 0) return;
 
-  state.player.attackCooldown = 0.34;
-  state.player.slashAnimTimer = 0.18;
+  const profile = SLASH.player;
+  state.player.attackCooldown = profile.cooldown;
+  state.player.slashAnimTimer = profile.anim;
 
-  const reach = 52;
-  const maxTargets = 3;
+  const reach = profile.reach;
+  const maxTargets = profile.maxTargets;
   const candidates = [];
 
   for (let i = 0; i < state.npcs.length; i++) {
@@ -173,7 +175,7 @@ export function performKnifeSlash() {
       const angleToNpc = Math.atan2(dy, dx);
       let angleDiff = Math.abs(angleToNpc - state.player.facing);
       if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
-      if (angleDiff <= Math.PI * 0.42 || dist < 30) {
+      if (angleDiff <= Math.PI * profile.arc || dist < profile.closeRange) {
         candidates.push({ npc, dist, dx, dy });
       }
     }
@@ -196,8 +198,8 @@ export function performKnifeSlash() {
     const dmg = rollDamage(state.player.minDmg, state.player.maxDmg);
 
     const pushAngle = dist > 0.01 ? Math.atan2(dy, dx) : state.player.facing;
-    const knockX = npc.x + Math.cos(pushAngle) * 14;
-    const knockY = npc.y + Math.sin(pushAngle) * 14;
+    const knockX = npc.x + Math.cos(pushAngle) * profile.knockback;
+    const knockY = npc.y + Math.sin(pushAngle) * profile.knockback;
     const nRad = getEntityCollisionRadius(npc.rank);
     if (canOccupyPosition(knockX, knockY, nRad, npc.id, false)) {
       npc.x = knockX;
@@ -210,11 +212,12 @@ export function performKnifeSlash() {
 
 export function performBossKnifeSlash(bossNpc) {
   if (bossNpc.attackCooldown > 0) return false;
-  bossNpc.attackCooldown = UNIT_ATTACK_COOLDOWN;
-  bossNpc.slashAnimTimer = 0.18;
+  const profile = SLASH.aiBoss;
+  bossNpc.attackCooldown = profile.cooldown;
+  bossNpc.slashAnimTimer = profile.anim;
 
-  const reach = 52;
-  const maxTargets = 3;
+  const reach = profile.reach;
+  const maxTargets = profile.maxTargets;
   const candidates = [];
 
   if (state.player.alive && bossNpc.faction !== Faction.PLAYER) {
@@ -257,8 +260,8 @@ export function performBossKnifeSlash(bossNpc) {
     if (item.isPlayer) {
       damagePlayerBoss(dmg, '#f43f5e', '🔪', pushAngle);
     } else {
-      const knockX = item.entity.x + Math.cos(pushAngle) * 12;
-      const knockY = item.entity.y + Math.sin(pushAngle) * 12;
+      const knockX = item.entity.x + Math.cos(pushAngle) * profile.knockback;
+      const knockY = item.entity.y + Math.sin(pushAngle) * profile.knockback;
       const nRad = getEntityCollisionRadius(item.entity.rank);
       if (canOccupyPosition(knockX, knockY, nRad, item.entity.id, false)) {
         item.entity.x = knockX;
@@ -300,28 +303,11 @@ export function traceBulletRay(x0, y0, angle, maxDist) {
 }
 
 export function getPistolAccuracyInfo(dist) {
-  if (dist > MAX_PISTOL_RANGE) {
-    return { failChance: 1, dmgMult: 0, label: 'OUT OF RANGE', color: '#71717a' };
+  if (dist > MAX_PISTOL_RANGE) return PISTOL.outOfRange;
+  for (const band of PISTOL.accuracyBands) {
+    if (band.inclusive ? dist <= band.maxDist : dist < band.maxDist) return band;
   }
-  if (dist <= 50) {
-    return { failChance: 0, dmgMult: 0.25, label: 'POINT-BLANK · -75% DMG', color: '#f97316' };
-  }
-  if (dist < 100) {
-    return { failChance: 0, dmgMult: 0.5, label: 'CLOSE · -50% DMG', color: '#fb923c' };
-  }
-  if (dist < MAX_PISTOL_RANGE * 0.25) {
-    return { failChance: 0, dmgMult: 1, label: '100% ACC · FULL DMG', color: '#34d399' };
-  }
-  if (dist < MAX_PISTOL_RANGE * 0.50) {
-    return { failChance: 0.05, dmgMult: 1, label: '95% ACC (5% MISS)', color: '#a3e635' };
-  }
-  if (dist < MAX_PISTOL_RANGE * 0.75) {
-    return { failChance: 0.10, dmgMult: 1, label: '90% ACC (10% MISS)', color: '#fbbf24' };
-  }
-  if (dist < MAX_PISTOL_RANGE * 0.90) {
-    return { failChance: 0.25, dmgMult: 1, label: '75% ACC (25% MISS)', color: '#fb923c' };
-  }
-  return { failChance: 0.50, dmgMult: 1, label: '50% ACC (50% MISS)', color: '#f43f5e' };
+  return PISTOL.outOfRange;
 }
 
 export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY) {
@@ -332,7 +318,7 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
   const angle = Math.atan2(dy, dx);
   shooter.facing = angle;
   const isHumanShooter = isPlayerShooter || Boolean(shooter.humanPeerId);
-  shooter.attackCooldown = isHumanShooter ? 0.65 : UNIT_ATTACK_COOLDOWN;
+  shooter.attackCooldown = isHumanShooter ? PISTOL.cooldownHuman : PISTOL.cooldownAi;
   shooter.muzzleFlashTimer = 0.09;
 
   const shooterFaction = isPlayerShooter ? Faction.PLAYER : shooter.faction;
@@ -435,7 +421,7 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
   });
 
   if (bestTarget && !shotMissed) {
-    let dmg = rollDamage(40, 80);
+    let dmg = rollDamage(PISTOL.minDmg, PISTOL.maxDmg);
     const { dmgMult } = getPistolAccuracyInfo(bestProjDist);
     if (dmgMult < 1) {
       dmg = Math.max(1, Math.round(dmg * dmgMult));
@@ -443,8 +429,8 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
     if (bestTargetIsPlayer) {
       damagePlayerBoss(dmg, `${FACTION_META[shooterFaction].accent}`, '🔫', angle);
     } else {
-      const knockX = bestTarget.x + cos * 16;
-      const knockY = bestTarget.y + sin * 16;
+      const knockX = bestTarget.x + cos * PISTOL.knockback;
+      const knockY = bestTarget.y + sin * PISTOL.knockback;
       const nRad = getEntityCollisionRadius(bestTarget.rank);
       if (canOccupyPosition(knockX, knockY, nRad, bestTarget.id, false)) {
         bestTarget.x = knockX;

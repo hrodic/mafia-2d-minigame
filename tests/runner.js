@@ -6,6 +6,7 @@ import './rng.test.js';
 import './events.test.js';
 import './version.test.js';
 import './config.test.js';
+import './balance.test.js';
 import './state.test.js';
 import './ui.test.js';
 import './world.test.js';

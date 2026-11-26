@@ -34,7 +34,10 @@ This is the living plan. Read `AGENTS.md` for the working contract and
     `src/render/minimapLayout.js`; drawing and click mapping share it.
   - Step 11 DONE (`0.1.3`): active faction slots centralized in
     `getActiveFactionSlots`/`clampFactionCount`; match setup and MP lobby seats share it.
-  - Next: data-driven balance tables, explicit RNG, AI extraction
+  - Step 12 DONE (`0.1.4`): data-driven balance tables (`RANK_STATS`, `UNIT_CAPS`, `SLASH`,
+    `PISTOL`/accuracy bands) drive spawn, collision/capture, combat and caps; values locked
+    by `tests/balance.test.js`.
+  - Next: explicit RNG for worldgen, AI extraction to `sim/ai.js`
   - Guardrails: benefits/tradeoffs/use-skip rules and the many-NPC + multiplayer
     performance budget are documented in `EVENTS.md`
 - Phases 3-5 - pending (unified entity model/commands/fixed timestep, net hardening, quality)

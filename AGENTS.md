@@ -28,6 +28,8 @@ command, number or test result; read the file or run the check.
 - Every commit-sized step bumps the version in the same commit.
 - **MINOR** for a new user-visible capability; **PATCH** for fixes, refactors, docs, tests,
   performance or internal changes.
+- Intentional balance tuning updates `tests/balance.test.js` expected values in the same
+  commit.
 - `1.0.0` is the first stable release; while `0.x`, breaking changes may still land in a
   MINOR.
 - Peers must run the same `GAME_VERSION`: it gates the multiplayer handshake.
@@ -60,6 +62,7 @@ command, number or test result; read the file or run the check.
 | Task | Files |
 |---|---|
 | Unit stats / costs / caps | `src/config/balance.js`, `src/sim/units.js` |
+| Balance tuning (weapons / accuracy / ranks) | `src/config/balance.js` |
 | Organizations / faction colors | `src/config/organizations.js` |
 | Player-count slot mapping | `src/config/organizations.js` (`getActiveFactionSlots`) |
 | Worldgen / props / collision | `src/world/chunk.js`, `src/world/city.js`, `src/world/geometry.js` |

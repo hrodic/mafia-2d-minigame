@@ -2,14 +2,15 @@
 // Emits facts; presentation lives in subscribers (see EVENTS.md).
 
 import { Faction, UnitRank } from '../config/enums.js';
+import { RANK_STATS } from '../config/balance.js';
 import { state, getLocalFaction } from '../core/state.js';
 import { emit } from '../core/events.js';
 
 export const CAPTURE_RATES = {
-  [UnitRank.BOSS]: 0.375,
-  [UnitRank.UNDERBOSS]: 0.24,
-  [UnitRank.CAPTAIN]: 0.18,
-  [UnitRank.SOLDIER]: 0.12,
+  [UnitRank.BOSS]: RANK_STATS[UnitRank.BOSS].captureRate,
+  [UnitRank.UNDERBOSS]: RANK_STATS[UnitRank.UNDERBOSS].captureRate,
+  [UnitRank.CAPTAIN]: RANK_STATS[UnitRank.CAPTAIN].captureRate,
+  [UnitRank.SOLDIER]: RANK_STATS[UnitRank.SOLDIER].captureRate,
 };
 
 export function getCaptureRate(rank) {
