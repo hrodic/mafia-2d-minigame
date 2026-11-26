@@ -34,6 +34,7 @@ src/
   world/
     chunk.js               DistrictChunk: seeded 15×15 block generation
     city.js                CityMap: chunk store, tile queries, collision, ring expansion
+    geometry.js            prop footprints (collision + raycast + drawing source)
     pathfinding.js         A* over tiles with a per-frame budget
   sim/                     headless gameplay logic (no DOM, no audio)
     match.js               initWorld: city/factions/economy/bosses for a new match
@@ -183,6 +184,9 @@ recruit labels and HUD.
   (local player and remote bosses).
 - **Spatial index** (`core/spatial.js`) buckets entities by chunk; neighbors are scanned
   in a 3×3 chunk neighborhood.
+- **Prop geometry** (`world/geometry.js`) is the single source for car/dumpster footprints,
+  used by collision (`CityMap.canMoveTo`), bullet raycast (`sim/combat.js`) and drawing
+  (`render/world.js`), so the three cannot drift.
 
 ## Simulation
 

@@ -239,6 +239,19 @@ test('combat: raycast reports clear paths and building impacts', () => {
   });
 });
 
+test('combat: car footprints block bullet rays', () => {
+  const world = makeWorld();
+  const chunk = world.getChunk();
+  chunk.props[0][0] = PropType.CAR;
+  chunk.propVertical[0][0] = true;
+  chunk.propCurbSide[0][0] = 'W';
+  withCombatState({ world }, () => {
+    const hit = traceBulletRay(0, 10, 0, MAX_PISTOL_RANGE);
+    assertEqual(hit.blocked, true);
+    assert(hit.x >= 21 && hit.x <= 39, `car ray hit x=${hit.x}`);
+  });
+});
+
 test('combat: armor absorbs damage before HP', () => {
   withCombatState({}, ({ events }) => {
     const target = makeNpc({ hp: 100, maxHp: 100, armor: 50, maxArmor: 50 });

@@ -28,8 +28,10 @@ This is the living plan. Read `AGENTS.md` for the working contract and
     labels applied by `src/ui/version.js`; static check rejects duplicated literals.
   - Step 8 DONE: SemVer baseline `0.1.0`; patch/minor bump policy documented and enforced
     (format + single source).
-  - Next: deduplicate prop footprints (`world/geometry.js`), minimap layout, faction-slot
-    selection; then data-driven balance, explicit RNG, AI extraction
+  - Step 9 DONE (`0.1.1`): prop footprints centralized in `src/world/geometry.js`; collision,
+    bullet raycast and drawing share it; characterization tests added.
+  - Next: minimap layout dedup, faction-slot selection, data-driven balance, explicit RNG,
+    AI extraction
   - Guardrails: benefits/tradeoffs/use-skip rules and the many-NPC + multiplayer
     performance budget are documented in `EVENTS.md`
 - Phases 3-5 - pending (unified entity model/commands/fixed timestep, net hardening, quality)

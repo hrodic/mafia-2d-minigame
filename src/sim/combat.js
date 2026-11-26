@@ -1,9 +1,10 @@
 // Combat: shared damage/armor pipeline, melee slashes, pistol raycast and armor purchases.
 
-import { Faction, UnitRank, PropType } from '../config/enums.js';
+import { Faction, UnitRank } from '../config/enums.js';
 import { CHUNK_SIZE, TILE_SIZE, MAX_PISTOL_RANGE } from '../config/constants.js';
 import { UNIT_ATTACK_COOLDOWN, COST_BOSS_ARMOR, MAX_BOSS_ARMOR } from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
+import { getPropFootprint, rectContains } from '../world/geometry.js';
 import { state, isLocalBossAlive } from '../core/state.js';
 import { emit } from '../core/events.js';
 import { canOccupyPosition, getEntityCollisionRadius } from './movement.js';
@@ -283,24 +284,16 @@ export function traceBulletRay(x0, y0, angle, maxDist) {
     const chunk = state.world.getChunk(cx, cy);
     if (!chunk) return { blocked: true, dist: d, x: px, y: py };
     const prop = chunk.props[ly][lx];
-    if (prop === PropType.CAR) {
-      const tileWx = (cx * CHUNK_SIZE + lx) * TILE_SIZE;
-      const tileWy = (cy * CHUNK_SIZE + ly) * TILE_SIZE;
-      const isVert = chunk.propVertical[ly][lx];
-      const side = chunk.propCurbSide[ly][lx];
-      const rx = isVert ? (side === 'W' ? tileWx + 21 : tileWx + 5) : tileWx + 5;
-      const ry = isVert ? tileWy + 5 : (side === 'N' ? tileWy + 21 : tileWy + 5);
-      const rw = isVert ? 18 : 34;
-      const rh = isVert ? 34 : 18;
-      if (px >= rx && px <= rx + rw && py >= ry && py <= ry + rh) {
-        return { blocked: true, dist: d, x: px, y: py };
-      }
-    } else if (prop === PropType.DUMPSTER) {
-      const tileWx = (cx * CHUNK_SIZE + lx) * TILE_SIZE;
-      const tileWy = (cy * CHUNK_SIZE + ly) * TILE_SIZE;
-      if (px >= tileWx + 9 && px <= tileWx + 35 && py >= tileWy + 10 && py <= tileWy + 32) {
-        return { blocked: true, dist: d, x: px, y: py };
-      }
+    if (!prop) continue;
+    const rect = getPropFootprint(
+      prop,
+      (cx * CHUNK_SIZE + lx) * TILE_SIZE,
+      (cy * CHUNK_SIZE + ly) * TILE_SIZE,
+      chunk.propVertical[ly][lx],
+      chunk.propCurbSide[ly][lx]
+    );
+    if (rect && rectContains(rect, px, py)) {
+      return { blocked: true, dist: d, x: px, y: py };
     }
   }
   return { blocked: false, dist: maxDist, x: x0 + cos * maxDist, y: y0 + sin * maxDist };
