@@ -49,7 +49,8 @@ src/
   net/
     transport.js           Trystero 0.27 loader + curated Nostr relays + local bus
     protocol.js            message types, versioned envelope, snapshot encode/decode
-    mpNet.js               host-authoritative multiplayer (lobby, snapshots, input)
+    lobby.js               UI-agnostic seats, capacity and roster snapshots
+    mpNet.js               host-authoritative multiplayer (lobby UI, snapshots, input)
   render/
     canvas.js              shared canvas/context references (guarded for tests)
     renderer.js            frame orchestration: culling, depth sort, layers
@@ -292,6 +293,9 @@ thresholds are deliberately not here.
 - **Protocol (`net/protocol.js`):** message type constants, the versioned envelope/version
   gate, and snapshot encode/decode. The wire shape is unchanged; the module has no state
   mutation or presentation imports.
+- **Lobby rules (`net/lobby.js`):** UI-agnostic host seat assignment, human capacity,
+  roster snapshots and guest seat lookup. The lobby DOM renderer still lives in `mpNet.js`
+  and will move to `ui/lobbyUI.js`.
 - **Relays:** an explicit curated `RELAY_URLS` pool (10–12 public relays) replaces
   Trystero's large default pool. All listed relays are used and Trystero fails over when one
   is down. Gameplay does not depend on any single relay.
@@ -367,7 +371,8 @@ distance from the camera.
 - `tests/mp-harness.html` embeds the game in an iframe to force the local bus; open it in
   two tabs for deterministic host/guest testing without external relays.
 - Coverage includes config/RNG, transport API normalization (Trystero 0.27 vs local bus),
-  protocol envelope/version/snapshot encoding, event bus, state selectors, chunk determinism, collision,
+  protocol envelope/version/snapshot encoding, lobby seats/capacity/rosters, event bus,
+  state selectors, chunk determinism, collision,
   pathfinding (including wall detours and no corner cutting), units/recruitment, economy,
   territory, combat math/accuracy/armor/aim geometry, effects and casings, interpolation,
   match setup, fixed-step accumulation, command dispatch/equivalence, 600-step headless

@@ -36,6 +36,7 @@ import './actionBar.test.js';
 import './menus.test.js';
 import './transport.test.js';
 import './protocol.test.js';
+import './lobby.test.js';
 
 runAll().catch((err) => {
   const root = document.getElementById('test-results');

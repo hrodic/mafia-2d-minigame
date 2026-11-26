@@ -5,7 +5,7 @@
 import { Faction, UnitRank } from '../config/enums.js';
 import { GAME_VERSION } from '../config/version.js';
 import { RANK_STATS } from '../config/balance.js';
-import { ORGANIZATIONS, FACTION_META, ensureUniqueOrgs, getActiveFactionSlots } from '../config/organizations.js';
+import { ORGANIZATIONS, FACTION_META, ensureUniqueOrgs } from '../config/organizations.js';
 import { state, getLocalBoss, getUnitById } from '../core/state.js';
 import { randomWorldSeed } from '../core/rng.js';
 import { initWorld } from '../sim/match.js';
@@ -25,6 +25,13 @@ import {
   encodeSnapshot,
   decodeSnapshot,
 } from './protocol.js';
+import {
+  getSeatedPeers,
+  reassignHostSeats,
+  getOpenHumanCapacity,
+  buildLobbyRosterSnapshot,
+  findGuestSeat,
+} from './lobby.js';
 
 
 export const mpNet = (() => {
@@ -83,57 +90,15 @@ export const mpNet = (() => {
     });
   }
 
-  function reassignHostSeats() {
-    const cfg = getCurrentHostConfig();
-    const slots = getActiveFactionSlots(cfg.factionCount);
-
-    for (let i = 1; i < 4; i++) {
-      if (i >= cfg.factionCount) slotClosedAsAI[i] = false;
-    }
-
-    const hostPeer = peers.get(selfPeerId);
-    if (hostPeer) {
-      hostPeer.faction = slots[0];
-      hostPeer.slotIdx = 0;
-    }
-
-    const guestPeers = Array.from(peers.values()).filter((p) => !p.isHost);
-    const availableSlotIndices = [];
-    for (let idx = 1; idx < cfg.factionCount; idx++) {
-      if (!slotClosedAsAI[idx]) availableSlotIndices.push(idx);
-    }
-
-    guestPeers.forEach((gp, i) => {
-      if (i < availableSlotIndices.length) {
-        const slotIdx = availableSlotIndices[i];
-        gp.slotIdx = slotIdx;
-        gp.faction = slots[slotIdx];
-      } else {
-        gp.slotIdx = -1;
-        gp.faction = null;
-      }
-    });
-  }
-
-  function getOpenHumanCapacity() {
-    const cfg = getCurrentHostConfig();
-    let open = 1; // Host
-    for (let idx = 1; idx < cfg.factionCount; idx++) {
-      if (!slotClosedAsAI[idx]) open++;
-    }
-    return open;
-  }
-
   function updateHostLobbyUI() {
     if (mode !== 'HOST') return;
-    reassignHostSeats();
     const cfg = getCurrentHostConfig();
-    const slots = getActiveFactionSlots(cfg.factionCount);
+    const slots = reassignHostSeats({ peers, selfPeerId, config: cfg, slotClosedAsAI });
     const rosterEl = document.getElementById('mp-host-roster');
     const countEl = document.getElementById('mp-host-player-count');
     const startBtn = document.getElementById('btn-start-game');
 
-    const seatedPeers = Array.from(peers.values()).filter((p) => p.faction !== null);
+    const seatedPeers = getSeatedPeers(peers);
     let aiCount = 0;
     let html = '';
 
@@ -197,7 +162,7 @@ export const mpNet = (() => {
     });
 
     const humanCount = seatedPeers.length;
-    const openHumans = getOpenHumanCapacity();
+    const openHumans = getOpenHumanCapacity(cfg, slotClosedAsAI);
     countEl.textContent = `${humanCount}/${openHumans} Humans · ${aiCount} AI`;
 
     if (startBtn && mode === 'HOST') {
@@ -220,9 +185,7 @@ export const mpNet = (() => {
     const settingsEl = document.getElementById('mp-guest-settings-summary');
     const rosterEl = document.getElementById('mp-guest-roster');
 
-    const me =
-      guestLobbyRoster.find((p) => p.peerId === selfPeerId) ||
-      guestLobbyRoster.find((p) => !p.isHost && !p.isAI);
+    const me = findGuestSeat(guestLobbyRoster, selfPeerId);
     if (me && guestSettings) {
       localFaction = me.faction || Faction.RIVAL_1;
       const org = ORGANIZATIONS[guestSettings.orgRoster?.[me.slotIdx]] || ORGANIZATIONS.BRATVA;
@@ -254,50 +217,19 @@ export const mpNet = (() => {
     rosterEl.innerHTML = html;
   }
 
-  function buildLobbyRosterSnapshot(cfg) {
-    const slots = getActiveFactionSlots(cfg.factionCount);
-    const seatedPeers = Array.from(peers.values()).filter((p) => p.faction !== null);
-    const roster = [];
-    for (let idx = 0; idx < cfg.factionCount; idx++) {
-      const slotFaction = slots[idx];
-      const occupant = seatedPeers.find((p) => p.faction === slotFaction);
-      if (occupant) {
-        roster.push({
-          peerId: occupant.peerId,
-          name: occupant.name,
-          faction: occupant.faction,
-          slotIdx: occupant.slotIdx,
-          isHost: occupant.isHost,
-          isAI: false,
-        });
-      } else if (idx > 0 && slotClosedAsAI[idx]) {
-        const org = ORGANIZATIONS[cfg.orgRoster[idx]];
-        roster.push({
-          peerId: `AI_${idx}`,
-          name: `AI (${org.ranks.BOSS})`,
-          faction: slotFaction,
-          slotIdx: idx,
-          isHost: false,
-          isAI: true,
-        });
-      }
-    }
-    return roster;
-  }
-
   function broadcastHostLobbyState() {
     if (!room || mode !== 'HOST' || !sendLobby) return;
-    reassignHostSeats();
     const cfg = getCurrentHostConfig();
-    const roster = buildLobbyRosterSnapshot(cfg);
+    reassignHostSeats({ peers, selfPeerId, config: cfg, slotClosedAsAI });
+    const roster = buildLobbyRosterSnapshot({ config: cfg, peers, slotClosedAsAI });
     sendLobby(envelope(MSG.LOBBY_STATE, 0, { roster, settings: cfg }));
   }
 
   function sendLobbyStateToPeer(targetPeerId) {
     if (!room || mode !== 'HOST' || !sendLobby) return;
-    reassignHostSeats();
     const cfg = getCurrentHostConfig();
-    const roster = buildLobbyRosterSnapshot(cfg);
+    reassignHostSeats({ peers, selfPeerId, config: cfg, slotClosedAsAI });
+    const roster = buildLobbyRosterSnapshot({ config: cfg, peers, slotClosedAsAI });
     sendLobby(
       envelope(MSG.LOBBY_STATE, 0, {
         yourPeerId: targetPeerId,
@@ -532,7 +464,7 @@ export const mpNet = (() => {
               }
               showToast(`${leftName} disconnected. AI took control of ${FACTION_META[leftFaction].short}.`);
             } else {
-              reassignHostSeats();
+              reassignHostSeats({ peers, selfPeerId, config: getCurrentHostConfig(), slotClosedAsAI });
               updateHostLobbyUI();
               broadcastHostLobbyState();
               showToast(`${leftName} left the lobby.`);
@@ -560,8 +492,9 @@ export const mpNet = (() => {
             sendLobbyStateToPeer(peerId);
             return;
           }
-          reassignHostSeats();
-          const openCapacity = getOpenHumanCapacity();
+          const cfg = getCurrentHostConfig();
+          reassignHostSeats({ peers, selfPeerId, config: cfg, slotClosedAsAI });
+          const openCapacity = getOpenHumanCapacity(cfg, slotClosedAsAI);
           if (peers.size >= openCapacity) {
             sendLobby(envelope(MSG.REJECT, 0, { reason: 'Lobby is full' }), peerId);
             return;
@@ -576,7 +509,7 @@ export const mpNet = (() => {
             lastInput: { mx: 0, my: 0, sprint: false, facing: 0 },
             lastInputAt: 0,
           });
-          reassignHostSeats();
+          reassignHostSeats({ peers, selfPeerId, config: cfg, slotClosedAsAI });
           updateHostLobbyUI();
           sendLobbyStateToPeer(peerId);
           broadcastHostLobbyState();
@@ -791,7 +724,7 @@ export const mpNet = (() => {
 
   function launchMultiplayerMatch(gridSize, tickSeconds, incomeTier, factionCount, orgRoster, seedOverride = null) {
     if (mode !== 'HOST' || !room) return;
-    reassignHostSeats();
+    reassignHostSeats({ peers, selfPeerId, config: getCurrentHostConfig(), slotClosedAsAI });
     const worldSeed = seedOverride ?? randomWorldSeed();
     localFaction = Faction.PLAYER;
     matchStarted = true;
