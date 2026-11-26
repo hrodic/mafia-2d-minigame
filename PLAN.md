@@ -15,7 +15,7 @@ architecture description here.
   - AI extracted to `sim/ai.js`
   - HUD cadence moved to `ui/hudCadence.js`
   - UI/UX overhaul: primary status, crew management, action bar, leaderboard + kills
-- **Phase 3 — IN PROGRESS (`0.4.2`; 3.1 done):** unified entity model, commands,
+- **Phase 3 — IN PROGRESS (`0.4.3`; 3.1–3.2 done):** unified entity model, commands,
   fixed timestep.
 - **Phases 4–5 — pending:** netcode hardening, quality gates.
 
@@ -33,9 +33,9 @@ today's initial values. `initWorld` builds config, copies fresh values onto the 
 `state` (identity preserved for importers), generates chunks, spawns bosses. Remove
 scattered manual resets. Verify New Game / restart flows.
 
-**3.2 Player unit fields.** Add `id: 0`, `faction: Faction.PLAYER`, `rank: UnitRank.BOSS`,
-`control: 'local'`, `bodyRadius` to the player object (still separate for now). This fixes
-the latent `player.faction` undefined read.
+**3.2 Player unit fields — DONE (`0.4.3`).** Added `id: 0`, `faction: Faction.PLAYER`,
+`rank: UnitRank.BOSS`, `control: 'local'`, `bodyRadius` to the player object (still
+separate for now). Fixes the latent `player.faction` undefined read.
 
 **3.3 Unify damage.** Make `damagePlayerBoss` delegate to `applyDamageToNpc` (player is not
 in `npcs`; elimination on death). One damage pipeline. Verify both directions (you kill,

@@ -8,7 +8,7 @@
 // is null until main.js assigns the multiplayer bridge.
 
 import { Faction, UnitRank } from '../config/enums.js';
-import { BOSS_MAX_HP, INCOME_TIERS, MAX_BOSS_ARMOR } from '../config/balance.js';
+import { BOSS_MAX_HP, INCOME_TIERS, MAX_BOSS_ARMOR, RANK_STATS } from '../config/balance.js';
 import { DEFAULT_GRID_SIZE, DEFAULT_TICK_DURATION, TILE_SIZE } from '../config/constants.js';
 import {
   ALL_FACTION_SLOTS,
@@ -64,12 +64,17 @@ export function createGameState(config = {}) {
 
     // --- local player boss --------------------------------------------------
     player: {
+      id: 0,
+      faction: Faction.PLAYER,
+      rank: UnitRank.BOSS,
+      control: 'local',
       x: playerSpawnX,
       y: playerSpawnY,
       targetX: null,
       targetY: null,
       path: null,
       pathTimer: 0,
+      bodyRadius: RANK_STATS[UnitRank.BOSS].radius,
       speed: 225,
       facing: 0,
       hp: BOSS_MAX_HP,

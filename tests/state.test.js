@@ -2,7 +2,7 @@
 // The state object is a singleton; tests save/restore the fields they mutate.
 import { test, assert, assertEqual, assertDeepEqual } from './harness.js';
 import { Faction, UnitRank } from '../src/config/enums.js';
-import { BOSS_MAX_HP, MAX_BOSS_ARMOR } from '../src/config/balance.js';
+import { BOSS_MAX_HP, MAX_BOSS_ARMOR, RANK_STATS } from '../src/config/balance.js';
 import { DEFAULT_GRID_SIZE, DEFAULT_TICK_DURATION, TILE_SIZE } from '../src/config/constants.js';
 import {
   state,
@@ -190,6 +190,16 @@ test('state factory: exported singleton is built from the same field set', () =>
   const fresh = createGameState();
   assertDeepEqual(Object.keys(fresh).sort(), Object.keys(state).sort());
   assertDeepEqual(Object.keys(fresh.player).sort(), Object.keys(state.player).sort());
+});
+
+test('state factory: player carries the boss unit identity fields', () => {
+  const fresh = createGameState();
+  assertEqual(fresh.player.id, 0);
+  assertEqual(fresh.player.faction, Faction.PLAYER);
+  assertEqual(fresh.player.rank, UnitRank.BOSS);
+  assertEqual(fresh.player.control, 'local');
+  assertEqual(fresh.player.bodyRadius, RANK_STATS[UnitRank.BOSS].radius);
+  assert(fresh.player.id < fresh.nextNpcId, 'player id must not collide with the NPC id counter');
 });
 
 test('state factory: default player is at full health in the top-left corner', () => {

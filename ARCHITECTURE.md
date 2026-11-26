@@ -163,7 +163,8 @@ The match state holds:
 
 - world/entities: `world`, `npcs`, `floatingTexts`, `spatialBuckets`, `nextNpcId`
 - factions/economy: `treasuries`, `factionAlive`, `factionKills`
-- local boss: `player`, `camera`, `mouse`, `keys`
+- local boss: `player` (unit identity fields `id`/`faction`/`rank`/`control`/`bodyRadius`),
+  `camera`, `mouse`, `keys`
 - match config: `activeFactions`, `selectedFactionOrgs`, `activeFactionCount`,
   `currentGridSize`, `tickDuration`, `currentIncomeTier`, `currentWorldSeed`
 - recruitment: caps + per-faction preferences
