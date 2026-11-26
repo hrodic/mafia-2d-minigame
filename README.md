@@ -100,7 +100,8 @@ http://localhost:8000/tests/tests.html
 
 It prints a green/red list and sets the page title to `PASS`/`FAIL`. The suite grows
 with the refactor; it must be green at every commit. See `tests/SMOKE.md` for the manual
-smoke checklist (quick smoke per commit, full checklist per phase).
+smoke checklist (quick smoke per commit, full checklist per phase), and
+`tests/mp-harness.html` for deterministic two-tab multiplayer testing over the local bus.
 
 ## Repository layout
 

@@ -19,6 +19,10 @@ Serve the repo over http first (`python -m http.server 8000` or any static serve
 
 ## Multiplayer quick check (two tabs) — any change touching sim/net/shared state
 
+> **Deterministic offline variant:** open `tests/mp-harness.html` in two tabs. It embeds
+> the game in an iframe, which forces the same-origin BroadcastChannel/localStorage bus
+> instead of the external Trystero relays (useful when relays are down or flaky).
+
 - [ ] Tab A: Host creates a room (room code shown).
 - [ ] Tab B: Join with `RoomCode:Secret`; lobby shows both players.
 - [ ] Slot toggles (human/AI) sync to the guest; guest settings summary matches host.
@@ -31,6 +35,8 @@ Serve the repo over http first (`python -m http.server 8000` or any static serve
 
 ### Setup & shell
 - [ ] No console errors; Tailwind styles applied; HUD header renders.
+- [ ] Ko-fi **Support me** button renders bottom-left; clicking it opens the Ko-fi panel.
+- [ ] Setup modal shows the version where "Criminal Empire Edition" used to be (no duplicate).
 - [ ] Setup modal: mode buttons (Single/Host/Join), faction count 2/3/4, org dropdowns
       (unique orgs enforced), map size slider 5–25 + presets + cap preview,
       tick speed 10–30 s, income tier Low/Mid/High.

@@ -178,10 +178,10 @@
 
         <!-- Modal Header -->
         <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
-          <span class="text-[10px] font-extrabold uppercase tracking-[0.22em] text-amber-400/90">
-            Criminal Empire Edition
+          <span id="modal-version-label" class="text-[10px] font-extrabold uppercase tracking-[0.22em] text-amber-400/90">
+            BETA.2026.11.26
           </span>
-          <span class="text-[10px] font-mono text-zinc-500">4 SYNDICATES · 1 CITY · BETA.2026.11.26</span>
+          <span class="text-[10px] font-mono text-zinc-500">4 SYNDICATES · 1 CITY</span>
         </div>
         <div class="flex flex-wrap items-center gap-2.5 mb-2">
           <h2 class="font-display-mafia text-4xl sm:text-5xl title-gold-chrome leading-none">
@@ -189,9 +189,6 @@
           </h2>
           <span class="px-2 py-0.5 rounded-md bg-gradient-to-b from-rose-500 to-rose-700 text-white font-display-mafia text-xl tracking-wider shadow">
             2D
-          </span>
-          <span class="px-2 py-1 rounded-md bg-amber-500/15 border border-amber-500/45 text-amber-300 font-mono text-xs font-bold tracking-wider">
-            BETA.2026.11.26
           </span>
         </div>
 
@@ -551,5 +548,20 @@
   </main>
 
   <script type="module" src="./src/main.js"></script>
+
+  <!-- Ko-fi support button (floating chat, bottom-left per Ko-fi's widget CSS). -->
+  <script src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js" defer></script>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      if (window.kofiWidgetOverlay) {
+        kofiWidgetOverlay.draw('hrodic', {
+          'type': 'floating-chat',
+          'floating-chat.donateButton.text': 'Support me',
+          'floating-chat.donateButton.background-color': '#5cb85c',
+          'floating-chat.donateButton.text-color': '#fff'
+        });
+      }
+    });
+  </script>
 </body>
 </html>

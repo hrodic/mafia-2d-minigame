@@ -114,5 +114,18 @@
     <div id="test-results"></div>
   </main>
   <script type="module" src="./runner.js"></script>
+  <script>
+    // Watchdog: module load failures (e.g. a 404 import) never reach the runner,
+    // so report them instead of leaving the page stuck on "Running…".
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        if (window.__TEST_RESULTS__) return;
+        const summary = document.getElementById('test-summary');
+        summary.textContent = 'FAIL: test modules failed to load (check the console for the import error)';
+        summary.className = 'summary fail';
+        document.title = 'FAIL — test modules did not load';
+      }, 4000);
+    });
+  </script>
 </body>
 </html>

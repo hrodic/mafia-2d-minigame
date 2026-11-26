@@ -1,3 +1,40 @@
+// Extracted modules (Phase 1). Game logic still lives in this file; imports grow as
+// each subsystem is moved out.
+import {
+  CHUNK_SIZE,
+  TILE_SIZE,
+  CHUNK_PX,
+  DEFAULT_GRID_SIZE,
+  DEFAULT_TICK_DURATION,
+  MAX_PISTOL_RANGE,
+  SPRINT_MAX_DURATION,
+  SPRINT_COOLDOWN_DURATION,
+  SPRINT_SPEED_MULTIPLIER,
+} from './config/constants.js';
+import {
+  INCOME_TIERS,
+  COST_SOLDIER,
+  COST_CAPTAIN,
+  COST_UNDERBOSS,
+  COST_BOSS_ARMOR,
+  BOSS_MAX_HP,
+  MAX_BOSS_ARMOR,
+  UPKEEP_SOLDIER,
+  UPKEEP_CAPTAIN,
+  UPKEEP_UNDERBOSS,
+  UNIT_ATTACK_COOLDOWN,
+} from './config/balance.js';
+import { TileType, PropType, Faction, UnitRank } from './config/enums.js';
+import {
+  ORGANIZATIONS,
+  ALL_ORG_IDS,
+  FACTION_META,
+  ALL_FACTION_SLOTS,
+  ensureUniqueOrgs,
+} from './config/organizations.js';
+import { createMulberry32, hashChunkSeed, withSeed } from './core/rng.js';
+import { state, getLocalFaction, getLocalBoss, isLocalBossAlive } from './core/state.js';
+
     // =========================================================================
     // 1. SYNTHESIZED AUDIO FX & DUAL-TRACK DARK NOIR MAFIA MUSIC ENGINE
     // =========================================================================
@@ -302,7 +339,7 @@
 
     function getSfxDistanceGain(wx, wy) {
       if (wx === undefined || wy === undefined || wx === null || wy === null) return 1.0;
-      const dist = Math.hypot(wx - camera.x, wy - camera.y);
+      const dist = Math.hypot(wx - state.camera.x, wy - state.camera.y);
       if (dist <= SFX_FULL_VOLUME_RADIUS) return 1.0;
       if (dist >= SFX_MAX_HEAR_RADIUS) return 0.0;
       return 1.0 - dist / SFX_MAX_HEAR_RADIUS;
@@ -685,242 +722,13 @@
     }
 
     // =========================================================================
-    // 3. DATA STRUCTURES, DETERMINISTIC PRNG & CONSTANTS
+    // 3. GAME STATE HELPERS (shared state object lives in core/state.js)
     // =========================================================================
-    const CHUNK_SIZE = 15;
-    const TILE_SIZE = 44;
-    const CHUNK_PX = CHUNK_SIZE * TILE_SIZE;
-    const DEFAULT_GRID_SIZE = 15;
-    const DEFAULT_TICK_DURATION = 10;
-
-    function createMulberry32(seed) {
-      let a = seed >>> 0;
-      return function () {
-        a |= 0;
-        a = (a + 0x6d2b79f5) | 0;
-        let t = Math.imul(a ^ (a >>> 15), 1 | a);
-        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-      };
-    }
-
-    let currentWorldSeed = null;
-
-    function hashChunkSeed(baseSeed, cx, cy) {
-      let h = (baseSeed ^ Math.imul(cx + 512, 374761393) ^ Math.imul(cy + 512, 668265263)) >>> 0;
-      h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
-      return (h ^ (h >>> 16)) >>> 0;
-    }
-
-    function withSeed(seed, fn) {
-      if (seed === null || seed === undefined) return fn();
-      const origRandom = Math.random;
-      Math.random = createMulberry32(seed);
-      try {
-        return fn();
-      } finally {
-        Math.random = origRandom;
-      }
-    }
-
-    const INCOME_TIERS = {
-      LOW: { label: 'Low', min: 250, max: 500 },
-      MID: { label: 'Mid', min: 500, max: 1000 },
-      HIGH: { label: 'High', min: 1000, max: 1500 },
-    };
-
-    const COST_SOLDIER = 1200;
-    const COST_CAPTAIN = 2200;
-    const COST_UNDERBOSS = 3800;
-    const COST_BOSS_ARMOR = 3500;
-    const BOSS_MAX_HP = 400;
-    const MAX_BOSS_ARMOR = 300;
-
-    const UPKEEP_SOLDIER = 50;
-    const UPKEEP_CAPTAIN = 100;
-    const UPKEEP_UNDERBOSS = 150;
-    const UNIT_ATTACK_COOLDOWN = 1.0;
-
-    const MAX_PISTOL_RANGE = 1000;
-    const SPRINT_MAX_DURATION = 2.0;
-    const SPRINT_COOLDOWN_DURATION = 4.0;
-    const SPRINT_SPEED_MULTIPLIER = 1.6;
-
-    const TileType = {
-      ASPHALT: 0,
-      SIDEWALK: 1,
-      BUILDING: 2,
-      ALLEY: 3,
-      PLAZA: 4,
-    };
-
-    const PropType = {
-      NONE: 0,
-      STREETLIGHT: 1,
-      HYDRANT: 2,
-      CAR: 3,
-      DUMPSTER: 4,
-      TREE: 5,
-    };
-
-    const Faction = {
-      NEUTRAL: 'NEUTRAL',
-      PLAYER: 'PLAYER',
-      RIVAL_1: 'RIVAL_1',
-      RIVAL_2: 'RIVAL_2',
-      RIVAL_3: 'RIVAL_3',
-    };
-
-    const UnitRank = {
-      SOLDIER: 'SOLDIER',
-      CAPTAIN: 'CAPTAIN',
-      UNDERBOSS: 'UNDERBOSS',
-      BOSS: 'BOSS',
-    };
-
-    const ORGANIZATIONS = {
-      COSA_NOSTRA: {
-        id: 'COSA_NOSTRA',
-        name: 'Cosa Nostra',
-        origin: 'Sicily & USA',
-        short: 'Cosa Nostra',
-        ranks: {
-          BOSS: 'Don',
-          UNDERBOSS: 'Sottocapo',
-          CAPTAIN: 'Caporegime',
-          SOLDIER: 'Soldato',
-        },
-        tint: 'rgba(16, 185, 129, 0.14)',
-        border: 'rgba(16, 185, 129, 0.85)',
-        badge: '#10b981',
-        coat: '#065f46',
-        accent: '#34d399',
-      },
-      BRATVA: {
-        id: 'BRATVA',
-        name: 'Russian Bratva',
-        origin: 'Russia / Post-Soviet',
-        short: 'Bratva',
-        ranks: {
-          BOSS: 'Pakhan',
-          UNDERBOSS: 'Avtoritet',
-          CAPTAIN: 'Brigadier',
-          SOLDIER: 'Boyevik',
-        },
-        tint: 'rgba(59, 130, 246, 0.14)',
-        border: 'rgba(59, 130, 246, 0.85)',
-        badge: '#3b82f6',
-        coat: '#1e3a8a',
-        accent: '#60a5fa',
-      },
-      YAKUZA: {
-        id: 'YAKUZA',
-        name: 'Yakuza',
-        origin: 'Japan',
-        short: 'Yakuza',
-        ranks: {
-          BOSS: 'Oyabun',
-          UNDERBOSS: 'Wakagashira',
-          CAPTAIN: 'Shateigashira',
-          SOLDIER: 'Kobun',
-        },
-        tint: 'rgba(244, 63, 94, 0.14)',
-        border: 'rgba(244, 63, 94, 0.85)',
-        badge: '#f43f5e',
-        coat: '#881337',
-        accent: '#fb7185',
-      },
-      TRIADS: {
-        id: 'TRIADS',
-        name: 'Chinese Triads',
-        origin: 'Hong Kong / China',
-        short: 'Triads',
-        ranks: {
-          BOSS: 'Shan Chu',
-          UNDERBOSS: 'Fu Shan Chu',
-          CAPTAIN: 'Hung Kwan',
-          SOLDIER: 'Sei Kau Tsai',
-        },
-        tint: 'rgba(245, 158, 11, 0.14)',
-        border: 'rgba(245, 158, 11, 0.85)',
-        badge: '#f59e0b',
-        coat: '#78350f',
-        accent: '#fbbf24',
-      },
-      NDRANGHETA: {
-        id: 'NDRANGHETA',
-        name: "'Ndrangheta",
-        origin: 'Calabria, Italy',
-        short: "'Ndrangheta",
-        ranks: {
-          BOSS: 'Capobastone',
-          UNDERBOSS: 'Contabile',
-          CAPTAIN: 'Caposocietà',
-          SOLDIER: 'Picciotto',
-        },
-        tint: 'rgba(168, 85, 247, 0.14)',
-        border: 'rgba(168, 85, 247, 0.85)',
-        badge: '#a855f7',
-        coat: '#581c87',
-        accent: '#c084fc',
-      },
-      CARTEL: {
-        id: 'CARTEL',
-        name: 'Mexican Cartels',
-        origin: 'Mexico',
-        short: 'Cartel',
-        ranks: {
-          BOSS: 'Patrón',
-          UNDERBOSS: 'Lugarteniente',
-          CAPTAIN: 'Jefe de Plaza',
-          SOLDIER: 'Sicario',
-        },
-        tint: 'rgba(249, 115, 22, 0.14)',
-        border: 'rgba(249, 115, 22, 0.85)',
-        badge: '#f97316',
-        coat: '#7c2d12',
-        accent: '#fb923c',
-      },
-    };
-
-    const ALL_ORG_IDS = Object.keys(ORGANIZATIONS);
-
-    const FACTION_META = {
-      [Faction.NEUTRAL]: {
-        name: 'Neutral',
-        short: 'Neutral',
-        ranks: { BOSS: 'Boss', UNDERBOSS: '2IC', CAPTAIN: 'Captain', SOLDIER: 'Enforcer' },
-        tint: 'rgba(113, 113, 122, 0.04)',
-        border: 'rgba(113, 113, 122, 0.32)',
-        badge: '#52525b',
-        coat: '#52525b',
-        accent: '#a1a1aa',
-      },
-      [Faction.PLAYER]: { ...ORGANIZATIONS.COSA_NOSTRA },
-      [Faction.RIVAL_1]: { ...ORGANIZATIONS.BRATVA },
-      [Faction.RIVAL_2]: { ...ORGANIZATIONS.TRIADS },
-      [Faction.RIVAL_3]: { ...ORGANIZATIONS.CARTEL },
-    };
-
-    const ALL_FACTION_SLOTS = [
-      Faction.PLAYER,
-      Faction.RIVAL_1,
-      Faction.RIVAL_2,
-      Faction.RIVAL_3,
-    ];
-
-    let activeFactionCount = 4;
-    let selectedFactionOrgs = ['COSA_NOSTRA', 'BRATVA', 'TRIADS', 'CARTEL'];
-    let activeFactions = [...ALL_FACTION_SLOTS];
 
     const CAR_PALETTE = ['#18181b', '#27272a', '#e4e4e7', '#1e293b', '#3f3f46', '#7f1d1d'];
 
-    let currentGridSize = DEFAULT_GRID_SIZE;
-    let tickDuration = DEFAULT_TICK_DURATION;
-    let currentIncomeTier = 'HIGH';
-
     function getUnitCaps() {
-      const totalNeighborhoods = Math.max(25, world.chunks.size || currentGridSize * currentGridSize);
+      const totalNeighborhoods = Math.max(25, state.world.chunks.size || state.currentGridSize * state.currentGridSize);
       const maxUnderbosses = Math.max(1, Math.floor(totalNeighborhoods * 0.05));
       const maxCaptains = Math.max(1, Math.floor(totalNeighborhoods * 0.10));
       const maxSoldiers = Math.max(1, totalNeighborhoods - maxCaptains - maxUnderbosses);
@@ -954,9 +762,9 @@
         this.buildingRenderList = [];
         this.propRenderList = [];
 
-        const chunkSeed = currentWorldSeed !== null ? hashChunkSeed(currentWorldSeed, cx, cy) : null;
+        const chunkSeed = state.currentWorldSeed !== null ? hashChunkSeed(state.currentWorldSeed, cx, cy) : null;
         withSeed(chunkSeed, () => {
-          const tier = INCOME_TIERS[currentIncomeTier] || INCOME_TIERS.HIGH;
+          const tier = INCOME_TIERS[state.currentIncomeTier] || INCOME_TIERS.HIGH;
           this.income = tier.min + Math.floor(Math.random() * (tier.max - tier.min + 1));
           this.incomeLabel = `$${this.income.toLocaleString()}/hr`;
           this.generateUrbanBlock();
@@ -1030,11 +838,11 @@
       }
 
       determineInitialFaction(cx, cy) {
-        const last = currentGridSize - 1;
-        if (cx === 0 && cy === 0 && activeFactions.includes(Faction.PLAYER)) return Faction.PLAYER;
-        if (cx === last && cy === 0 && activeFactions.includes(Faction.RIVAL_1)) return Faction.RIVAL_1;
-        if (cx === 0 && cy === last && activeFactions.includes(Faction.RIVAL_2)) return Faction.RIVAL_2;
-        if (cx === last && cy === last && activeFactions.includes(Faction.RIVAL_3)) return Faction.RIVAL_3;
+        const last = state.currentGridSize - 1;
+        if (cx === 0 && cy === 0 && state.activeFactions.includes(Faction.PLAYER)) return Faction.PLAYER;
+        if (cx === last && cy === 0 && state.activeFactions.includes(Faction.RIVAL_1)) return Faction.RIVAL_1;
+        if (cx === 0 && cy === last && state.activeFactions.includes(Faction.RIVAL_2)) return Faction.RIVAL_2;
+        if (cx === last && cy === last && state.activeFactions.includes(Faction.RIVAL_3)) return Faction.RIVAL_3;
         return Faction.NEUTRAL;
       }
 
@@ -1429,81 +1237,10 @@
     const ctx = canvas.getContext('2d');
     const minimapCanvas = document.getElementById('minimapCanvas');
     const minimapCtx = minimapCanvas.getContext('2d');
-    const world = new CityMap();
+    state.world = new CityMap();
 
-    const treasuries = {
-      [Faction.PLAYER]: 3000,
-      [Faction.RIVAL_1]: 3000,
-      [Faction.RIVAL_2]: 3000,
-      [Faction.RIVAL_3]: 3000,
-    };
-
-    const factionAlive = {
-      [Faction.PLAYER]: true,
-      [Faction.RIVAL_1]: true,
-      [Faction.RIVAL_2]: true,
-      [Faction.RIVAL_3]: true,
-    };
-
-    const player = {
-      x: 1.5 * TILE_SIZE,
-      y: 1.5 * TILE_SIZE,
-      targetX: null,
-      targetY: null,
-      speed: 225,
-      facing: 0,
-      hp: BOSS_MAX_HP,
-      maxHp: BOSS_MAX_HP,
-      armor: 0,
-      maxArmor: MAX_BOSS_ARMOR,
-      armorCooldown: 0,
-      sprintTimer: 0,
-      sprintCooldown: 0,
-      isSprinting: false,
-      minDmg: 20,
-      maxDmg: 40,
-      alive: true,
-      attackCooldown: 0,
-      slashAnimTimer: 0,
-      muzzleFlashTimer: 0,
-      hitFlashTimer: 0,
-    };
-
-    const camera = {
-      x: player.x,
-      y: player.y,
-    };
-
-    const mouse = {
-      screenX: null,
-      screenY: null,
-      inside: false,
-    };
-
-    const npcs = [];
-    const floatingTexts = [];
-    const spatialBuckets = new Map();
-    const bucketPool = [];
-    let nextNpcId = 1;
-    let astarBudgetThisFrame = 0;
     const MAX_ASTAR_PER_FRAME = 10;
 
-    function getLocalFaction() {
-      return typeof mpNet !== 'undefined' && mpNet.isActive() ? mpNet.localFaction : Faction.PLAYER;
-    }
-
-    function getLocalBoss() {
-      const f = getLocalFaction();
-      if (f === Faction.PLAYER) return player;
-      const bossNpc = npcs.find((n) => n.faction === f && n.rank === UnitRank.BOSS);
-      return bossNpc || { x: camera.x, y: camera.y, facing: 0, hp: 0, maxHp: BOSS_MAX_HP, armor: 0, maxArmor: MAX_BOSS_ARMOR, alive: false, armorCooldown: 0, sprintTimer: 0, sprintCooldown: 0, isSprinting: false };
-    }
-
-    function isLocalBossAlive() {
-      const f = getLocalFaction();
-      if (f === Faction.PLAYER) return player.alive;
-      return factionAlive[f] && npcs.some((n) => n.faction === f && n.rank === UnitRank.BOSS);
-    }
 
     // Tile-level A* pathfinder
     const astarOpen = [];
@@ -1517,15 +1254,15 @@
       let goalGx = Math.floor(goalWx / TILE_SIZE);
       let goalGy = Math.floor(goalWy / TILE_SIZE);
 
-      if (!world.isTileNavigable(goalGx, goalGy)) {
-        const snapped = world.findNearestWalkablePoint(goalWx, goalWy, 12);
+      if (!state.world.isTileNavigable(goalGx, goalGy)) {
+        const snapped = state.world.findNearestWalkablePoint(goalWx, goalWy, 12);
         if (!snapped) return null;
         goalGx = Math.floor(snapped.x / TILE_SIZE);
         goalGy = Math.floor(snapped.y / TILE_SIZE);
       }
 
-      if (!world.isTileNavigable(startGx, startGy)) {
-        const snappedStart = world.findNearestWalkablePoint(startWx, startWy, 11);
+      if (!state.world.isTileNavigable(startGx, startGy)) {
+        const snappedStart = state.world.findNearestWalkablePoint(startWx, startWy, 11);
         if (!snappedStart) return null;
         startGx = Math.floor(snappedStart.x / TILE_SIZE);
         startGy = Math.floor(snappedStart.y / TILE_SIZE);
@@ -1588,9 +1325,9 @@
           const nx = current.gx + dx;
           const ny = current.gy + dy;
 
-          if (!world.isTileNavigable(nx, ny)) continue;
+          if (!state.world.isTileNavigable(nx, ny)) continue;
           if (dx !== 0 && dy !== 0) {
-            if (!world.isTileNavigable(current.gx + dx, current.gy) || !world.isTileNavigable(current.gx, current.gy + dy)) {
+            if (!state.world.isTileNavigable(current.gx + dx, current.gy) || !state.world.isTileNavigable(current.gx, current.gy + dy)) {
               continue;
             }
           }
@@ -1631,7 +1368,6 @@
     minimapCacheCanvas.width = minimapCanvas.width;
     minimapCacheCanvas.height = minimapCanvas.height;
     const minimapCacheCtx = minimapCacheCanvas.getContext('2d');
-    let minimapCacheTimer = 1.0;
 
     const hudEls = {
       statsBadge: document.getElementById('stats-badge'),
@@ -1650,42 +1386,16 @@
       minimapCoords: document.getElementById('minimap-coords'),
     };
 
-    let gameStarted = false;
-    let isSpectating = false;
-    let showBorders = true;
-    let allowClickExpand = false;
-    let autoRecruitSoldier = true;
-    let autoRecruitCaptain = true;
-    let autoRecruitUnderboss = true;
-    const playerSpawnCaps = {
-      [UnitRank.SOLDIER]: 96,
-      [UnitRank.CAPTAIN]: 11,
-      [UnitRank.UNDERBOSS]: 6,
-    };
-
-    // Per-faction recruitment preferences (used by remote human players in multiplayer)
-    const factionRecruitmentPrefs = {
-      [Faction.PLAYER]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { [UnitRank.SOLDIER]: 96, [UnitRank.CAPTAIN]: 11, [UnitRank.UNDERBOSS]: 6 } },
-      [Faction.RIVAL_1]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { [UnitRank.SOLDIER]: 192, [UnitRank.CAPTAIN]: 22, [UnitRank.UNDERBOSS]: 11 } },
-      [Faction.RIVAL_2]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { [UnitRank.SOLDIER]: 192, [UnitRank.CAPTAIN]: 22, [UnitRank.UNDERBOSS]: 11 } },
-      [Faction.RIVAL_3]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { [UnitRank.SOLDIER]: 192, [UnitRank.CAPTAIN]: 22, [UnitRank.UNDERBOSS]: 11 } },
-    };
-
-    let gameOver = false;
-    let victoryShown = false;
-    let tickTimer = 0;
-    let gameHour = 12;
-    let hudUpdateTimer = 0;
 
     function resetDefaultPlayerSpawnCaps() {
       const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
-      playerSpawnCaps[UnitRank.SOLDIER] = Math.min(maxSoldiers, Math.max(1, Math.round(maxSoldiers * 0.5)));
-      playerSpawnCaps[UnitRank.CAPTAIN] = Math.min(maxCaptains, Math.max(1, Math.round(maxCaptains * 0.5)));
-      playerSpawnCaps[UnitRank.UNDERBOSS] = Math.min(maxUnderbosses, Math.max(1, Math.round(maxUnderbosses * 0.5)));
+      state.playerSpawnCaps[UnitRank.SOLDIER] = Math.min(maxSoldiers, Math.max(1, Math.round(maxSoldiers * 0.5)));
+      state.playerSpawnCaps[UnitRank.CAPTAIN] = Math.min(maxCaptains, Math.max(1, Math.round(maxCaptains * 0.5)));
+      state.playerSpawnCaps[UnitRank.UNDERBOSS] = Math.min(maxUnderbosses, Math.max(1, Math.round(maxUnderbosses * 0.5)));
       for (const f of ALL_FACTION_SLOTS) {
         const isHumanRemote = f !== Faction.PLAYER && typeof mpNet !== 'undefined' && mpNet.isHumanFaction(f);
         const mult = f === Faction.PLAYER || isHumanRemote ? 0.5 : 1.0;
-        factionRecruitmentPrefs[f] = {
+        state.factionRecruitmentPrefs[f] = {
           autoSoldier: true,
           autoCaptain: true,
           autoUnderboss: true,
@@ -1700,9 +1410,9 @@
 
     function clampPlayerSpawnCaps() {
       const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
-      playerSpawnCaps[UnitRank.SOLDIER] = Math.max(1, Math.min(maxSoldiers, playerSpawnCaps[UnitRank.SOLDIER]));
-      playerSpawnCaps[UnitRank.CAPTAIN] = Math.max(1, Math.min(maxCaptains, playerSpawnCaps[UnitRank.CAPTAIN]));
-      playerSpawnCaps[UnitRank.UNDERBOSS] = Math.max(1, Math.min(maxUnderbosses, playerSpawnCaps[UnitRank.UNDERBOSS]));
+      state.playerSpawnCaps[UnitRank.SOLDIER] = Math.max(1, Math.min(maxSoldiers, state.playerSpawnCaps[UnitRank.SOLDIER]));
+      state.playerSpawnCaps[UnitRank.CAPTAIN] = Math.max(1, Math.min(maxCaptains, state.playerSpawnCaps[UnitRank.CAPTAIN]));
+      state.playerSpawnCaps[UnitRank.UNDERBOSS] = Math.max(1, Math.min(maxUnderbosses, state.playerSpawnCaps[UnitRank.UNDERBOSS]));
     }
 
     function calculateFactionUpkeep() {
@@ -1712,8 +1422,8 @@
         [Faction.RIVAL_2]: 0,
         [Faction.RIVAL_3]: 0,
       };
-      for (let i = 0; i < npcs.length; i++) {
-        const u = npcs[i];
+      for (let i = 0; i < state.npcs.length; i++) {
+        const u = state.npcs[i];
         if (totals[u.faction] === undefined) continue;
         if (u.rank === UnitRank.SOLDIER) totals[u.faction] += UPKEEP_SOLDIER;
         else if (u.rank === UnitRank.CAPTAIN) totals[u.faction] += UPKEEP_CAPTAIN;
@@ -1730,24 +1440,24 @@
     }
 
     function canOccupyPosition(wx, wy, radius, ignoreNpcId = -1, ignorePlayer = false, moverFaction = null) {
-      if (!world.canMoveTo(wx, wy, radius)) return false;
+      if (!state.world.canMoveTo(wx, wy, radius)) return false;
 
-      if (!ignorePlayer && player.alive) {
+      if (!ignorePlayer && state.player.alive) {
         const pRad = getEntityCollisionRadius(UnitRank.BOSS);
         const sameFaction = moverFaction !== null && moverFaction === Faction.PLAYER;
         const minDist = sameFaction ? (radius + pRad) * 0.45 : radius + pRad - 1.0;
-        const dx = wx - player.x;
-        const dy = wy - player.y;
+        const dx = wx - state.player.x;
+        const dy = wy - state.player.y;
         if (dx * dx + dy * dy < minDist * minDist) return false;
       }
 
       const cx = Math.floor(wx / CHUNK_PX);
       const cy = Math.floor(wy / CHUNK_PX);
 
-      if (spatialBuckets.size > 0) {
+      if (state.spatialBuckets.size > 0) {
         for (let dy = -1; dy <= 1; dy++) {
           for (let dx = -1; dx <= 1; dx++) {
-            const bucket = spatialBuckets.get(packChunkKey(cx + dx, cy + dy));
+            const bucket = state.spatialBuckets.get(packChunkKey(cx + dx, cy + dy));
             if (!bucket) continue;
             for (let i = 0; i < bucket.length; i++) {
               const other = bucket[i];
@@ -1766,17 +1476,17 @@
     }
 
     function isPushingFriendly(wx, wy, radius, faction, ignoreNpcId = -1, ignorePlayer = false) {
-      if (!ignorePlayer && player.alive && faction === Faction.PLAYER) {
+      if (!ignorePlayer && state.player.alive && faction === Faction.PLAYER) {
         const minDist = radius + getEntityCollisionRadius(UnitRank.BOSS);
-        const dx = wx - player.x;
-        const dy = wy - player.y;
+        const dx = wx - state.player.x;
+        const dy = wy - state.player.y;
         if (dx * dx + dy * dy < minDist * minDist) return true;
       }
       const cx = Math.floor(wx / CHUNK_PX);
       const cy = Math.floor(wy / CHUNK_PX);
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
-          const bucket = spatialBuckets.get(packChunkKey(cx + dx, cy + dy));
+          const bucket = state.spatialBuckets.get(packChunkKey(cx + dx, cy + dy));
           if (!bucket) continue;
           for (let i = 0; i < bucket.length; i++) {
             const other = bucket[i];
@@ -1792,10 +1502,10 @@
     }
 
     function addFloatingText(x, y, text, color = '#fbbf24') {
-      if (floatingTexts.length >= 48) {
-        floatingTexts.shift();
+      if (state.floatingTexts.length >= 48) {
+        state.floatingTexts.shift();
       }
-      floatingTexts.push({ x, y, text, color, life: 0.9, vy: -30 });
+      state.floatingTexts.push({ x, y, text, color, life: 0.9, vy: -30 });
     }
 
     let toastTimeout = null;
@@ -1816,7 +1526,7 @@
         [Faction.RIVAL_2]: 0,
         [Faction.RIVAL_3]: 0,
       };
-      for (const chunk of world.chunks.values()) {
+      for (const chunk of state.world.chunks.values()) {
         if (totals[chunk.faction] !== undefined) {
           totals[chunk.faction] += chunk.income;
         }
@@ -1838,7 +1548,7 @@
       const bodyRadius = getEntityCollisionRadius(rank);
 
       for (let attempt = 0; attempt < spots.length; attempt++) {
-        const [lx, ly] = spots[(attempt + nextNpcId) % spots.length];
+        const [lx, ly] = spots[(attempt + state.nextNpcId) % spots.length];
         const wx = chunk.cx * CHUNK_PX + (lx + 0.5) * TILE_SIZE;
         const wy = chunk.cy * CHUNK_PX + (ly + 0.5) * TILE_SIZE;
 
@@ -1853,7 +1563,7 @@
           const assignedPeerId = isBoss && typeof mpNet !== 'undefined' ? mpNet.getPeerForFaction(faction) : null;
 
           const unit = {
-            id: nextNpcId++,
+            id: state.nextNpcId++,
             faction,
             rank,
             humanPeerId: assignedPeerId,
@@ -1888,7 +1598,7 @@
             lastCheckY: wy,
             stuckTimer: 0,
           };
-          npcs.push(unit);
+          state.npcs.push(unit);
           return unit;
         }
       }
@@ -1896,14 +1606,14 @@
     }
 
     function recruitUnit(faction, rank, silent = false, cachedCounts = null, cachedOwnedChunks = null) {
-      if (!factionAlive[faction]) return false;
+      if (!state.factionAlive[faction]) return false;
       const cost =
         rank === UnitRank.UNDERBOSS
           ? COST_UNDERBOSS
           : rank === UnitRank.CAPTAIN
           ? COST_CAPTAIN
           : COST_SOLDIER;
-      if (treasuries[faction] < cost) return false;
+      if (state.treasuries[faction] < cost) return false;
 
       const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
       const countKey =
@@ -1914,7 +1624,7 @@
           : 'soldiers';
       const currentCount = cachedCounts
         ? cachedCounts[faction][countKey]
-        : npcs.filter((n) => n.faction === faction && n.rank === rank).length;
+        : state.npcs.filter((n) => n.faction === faction && n.rank === rank).length;
       const hardLimit =
         rank === UnitRank.UNDERBOSS
           ? maxUnderbosses
@@ -1924,9 +1634,9 @@
 
       let limit = hardLimit;
       if (faction === Faction.PLAYER) {
-        limit = Math.max(1, Math.min(hardLimit, playerSpawnCaps[rank] || hardLimit));
+        limit = Math.max(1, Math.min(hardLimit, state.playerSpawnCaps[rank] || hardLimit));
       } else if (typeof mpNet !== 'undefined' && mpNet.isHumanFaction(faction)) {
-        const prefCap = factionRecruitmentPrefs[faction]?.caps?.[rank];
+        const prefCap = state.factionRecruitmentPrefs[faction]?.caps?.[rank];
         if (prefCap) limit = Math.max(1, Math.min(hardLimit, prefCap));
       }
       if (currentCount >= limit) return false;
@@ -1934,31 +1644,31 @@
       let ownedChunks = cachedOwnedChunks;
       if (!ownedChunks) {
         ownedChunks = [];
-        for (const c of world.chunks.values()) {
+        for (const c of state.world.chunks.values()) {
           if (c.faction === faction) ownedChunks.push(c);
         }
       }
       if (ownedChunks.length === 0) return false;
 
       let spawnChunk = ownedChunks[Math.floor(Math.random() * ownedChunks.length)];
-      if (faction === Faction.PLAYER && player.alive) {
-        const pTile = world.worldToTile(player.x, player.y);
-        const pChunk = world.getChunk(pTile.cx, pTile.cy);
+      if (faction === Faction.PLAYER && state.player.alive) {
+        const pTile = state.world.worldToTile(state.player.x, state.player.y);
+        const pChunk = state.world.getChunk(pTile.cx, pTile.cy);
         if (pChunk && pChunk.faction === Faction.PLAYER) {
           spawnChunk = pChunk;
         }
       } else {
-        const boss = npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS);
+        const boss = state.npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS);
         if (boss) {
-          const bTile = world.worldToTile(boss.x, boss.y);
-          const bChunk = world.getChunk(bTile.cx, bTile.cy);
+          const bTile = state.world.worldToTile(boss.x, boss.y);
+          const bChunk = state.world.getChunk(bTile.cx, bTile.cy);
           if (bChunk && bChunk.faction === faction) {
             spawnChunk = bChunk;
           }
         }
       }
 
-      treasuries[faction] -= cost;
+      state.treasuries[faction] -= cost;
       const unit = spawnUnitInChunk(faction, spawnChunk, rank);
       if (unit) {
         if (cachedCounts) cachedCounts[faction][countKey]++;
@@ -1968,38 +1678,38 @@
         }
         return true;
       } else {
-        treasuries[faction] += cost;
+        state.treasuries[faction] += cost;
         return false;
       }
     }
 
     function checkVictoryCondition() {
       const myFac = getLocalFaction();
-      if (victoryShown || gameOver || !factionAlive[myFac]) return;
-      const anyRivalAlive = activeFactions.some(
-        (f) => f !== myFac && factionAlive[f]
+      if (state.victoryShown || state.gameOver || !state.factionAlive[myFac]) return;
+      const anyRivalAlive = state.activeFactions.some(
+        (f) => f !== myFac && state.factionAlive[f]
       );
 
       if (!anyRivalAlive) {
-        victoryShown = true;
+        state.victoryShown = true;
         sfx.playVictory();
-        const myBlocks = Array.from(world.chunks.values()).filter(
+        const myBlocks = Array.from(state.world.chunks.values()).filter(
           (c) => c.faction === myFac
         ).length;
-        const survivingCrew = npcs.filter((n) => n.faction === myFac).length;
+        const survivingCrew = state.npcs.filter((n) => n.faction === myFac).length;
         const myOrg = FACTION_META[myFac];
         document.getElementById('victory-summary').textContent =
-          `All rival Supreme Leaders have been eliminated! ${myOrg.name} (${myOrg.ranks.BOSS}) rules ${myBlocks}/${world.chunks.size} neighborhoods with $${treasuries[myFac].toLocaleString()} in cash and ${survivingCrew} surviving crew.`;
+          `All rival Supreme Leaders have been eliminated! ${myOrg.name} (${myOrg.ranks.BOSS}) rules ${myBlocks}/${state.world.chunks.size} neighborhoods with $${state.treasuries[myFac].toLocaleString()} in cash and ${survivingCrew} surviving crew.`;
         document.getElementById('victory-banner').classList.remove('hidden');
       }
     }
 
     function eliminateFaction(faction) {
-      if (!factionAlive[faction]) return;
-      factionAlive[faction] = false;
-      treasuries[faction] = 0;
+      if (!state.factionAlive[faction]) return;
+      state.factionAlive[faction] = false;
+      state.treasuries[faction] = 0;
 
-      for (const chunk of world.chunks.values()) {
+      for (const chunk of state.world.chunks.values()) {
         if (chunk.faction === faction) {
           chunk.faction = Faction.NEUTRAL;
           chunk.captureProgress = 0;
@@ -2012,11 +1722,11 @@
       }
 
       if (faction === Faction.PLAYER) {
-        player.alive = false;
+        state.player.alive = false;
       }
 
       if (faction === getLocalFaction()) {
-        gameOver = true;
+        state.gameOver = true;
         document.getElementById('defeat-banner').classList.remove('hidden');
       } else {
         sfx.playFactionEliminated();
@@ -2035,50 +1745,50 @@
       const btnS = document.getElementById('btn-toggle-soldier');
       const btnC = document.getElementById('btn-toggle-captain');
       const btnU = document.getElementById('btn-toggle-underboss');
-      btnS.textContent = `Auto ${pRanks.SOLDIER}: ${autoRecruitSoldier ? 'ON' : 'OFF'} ($${COST_SOLDIER.toLocaleString()})`;
-      btnC.textContent = `Auto ${pRanks.CAPTAIN}: ${autoRecruitCaptain ? 'ON' : 'OFF'} ($${COST_CAPTAIN.toLocaleString()})`;
-      btnU.textContent = `Auto ${pRanks.UNDERBOSS}: ${autoRecruitUnderboss ? 'ON' : 'OFF'} ($${COST_UNDERBOSS.toLocaleString()})`;
+      btnS.textContent = `Auto ${pRanks.SOLDIER}: ${state.autoRecruitSoldier ? 'ON' : 'OFF'} ($${COST_SOLDIER.toLocaleString()})`;
+      btnC.textContent = `Auto ${pRanks.CAPTAIN}: ${state.autoRecruitCaptain ? 'ON' : 'OFF'} ($${COST_CAPTAIN.toLocaleString()})`;
+      btnU.textContent = `Auto ${pRanks.UNDERBOSS}: ${state.autoRecruitUnderboss ? 'ON' : 'OFF'} ($${COST_UNDERBOSS.toLocaleString()})`;
 
       document.getElementById('cap-soldier-label').textContent =
-        `${playerSpawnCaps[UnitRank.SOLDIER]}/${maxSoldiers}`;
+        `${state.playerSpawnCaps[UnitRank.SOLDIER]}/${maxSoldiers}`;
       document.getElementById('cap-captain-label').textContent =
-        `${playerSpawnCaps[UnitRank.CAPTAIN]}/${maxCaptains}`;
+        `${state.playerSpawnCaps[UnitRank.CAPTAIN]}/${maxCaptains}`;
       document.getElementById('cap-underboss-label').textContent =
-        `${playerSpawnCaps[UnitRank.UNDERBOSS]}/${maxUnderbosses}`;
+        `${state.playerSpawnCaps[UnitRank.UNDERBOSS]}/${maxUnderbosses}`;
     }
 
     function initWorld(
-      gridSize = currentGridSize,
+      gridSize = state.currentGridSize,
       autoStart = true,
-      selectedTickSeconds = tickDuration,
-      selectedIncomeTier = currentIncomeTier,
-      factionCount = activeFactionCount,
-      orgRoster = selectedFactionOrgs,
+      selectedTickSeconds = state.tickDuration,
+      selectedIncomeTier = state.currentIncomeTier,
+      factionCount = state.activeFactionCount,
+      orgRoster = state.selectedFactionOrgs,
       seedOverride = null
     ) {
-      currentWorldSeed = seedOverride;
-      currentGridSize = Math.max(5, Math.min(25, gridSize));
-      tickDuration = Math.max(10, Math.min(30, selectedTickSeconds));
-      currentIncomeTier = INCOME_TIERS[selectedIncomeTier] ? selectedIncomeTier : 'HIGH';
-      activeFactionCount = Math.max(2, Math.min(4, Number(factionCount) || 4));
-      selectedFactionOrgs = ensureUniqueOrgs(orgRoster);
+      state.currentWorldSeed = seedOverride;
+      state.currentGridSize = Math.max(5, Math.min(25, gridSize));
+      state.tickDuration = Math.max(10, Math.min(30, selectedTickSeconds));
+      state.currentIncomeTier = INCOME_TIERS[selectedIncomeTier] ? selectedIncomeTier : 'HIGH';
+      state.activeFactionCount = Math.max(2, Math.min(4, Number(factionCount) || 4));
+      state.selectedFactionOrgs = ensureUniqueOrgs(orgRoster);
 
-      if (activeFactionCount === 2) {
-        activeFactions = [Faction.PLAYER, Faction.RIVAL_3];
-      } else if (activeFactionCount === 3) {
-        activeFactions = [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2];
+      if (state.activeFactionCount === 2) {
+        state.activeFactions = [Faction.PLAYER, Faction.RIVAL_3];
+      } else if (state.activeFactionCount === 3) {
+        state.activeFactions = [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2];
       } else {
-        activeFactions = [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3];
+        state.activeFactions = [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3];
       }
 
-      activeFactions.forEach((slot, idx) => {
-        const orgId = selectedFactionOrgs[idx] || ALL_ORG_IDS[idx];
+      state.activeFactions.forEach((slot, idx) => {
+        const orgId = state.selectedFactionOrgs[idx] || ALL_ORG_IDS[idx];
         FACTION_META[slot] = { ...ORGANIZATIONS[orgId] };
       });
 
-      world.chunks.clear();
-      npcs.length = 0;
-      floatingTexts.length = 0;
+      state.world.chunks.clear();
+      state.npcs.length = 0;
+      state.floatingTexts.length = 0;
       bloodParticles.length = 0;
       bloodDecals.length = 0;
       bulletTracers.length = 0;
@@ -2087,74 +1797,74 @@
       slashArcs.length = 0;
       muzzleFlashes.length = 0;
       deadBodies.length = 0;
-      spatialBuckets.clear();
-      gameStarted = autoStart;
-      isSpectating = false;
-      gameOver = false;
-      victoryShown = false;
-      tickTimer = 0;
-      hudUpdateTimer = 0;
-      minimapCacheTimer = 1.0;
-      gameHour = 12;
-      nextNpcId = 1;
+      state.spatialBuckets.clear();
+      state.gameStarted = autoStart;
+      state.isSpectating = false;
+      state.gameOver = false;
+      state.victoryShown = false;
+      state.tickTimer = 0;
+      state.hudUpdateTimer = 0;
+      state.minimapCacheTimer = 1.0;
+      state.gameHour = 12;
+      state.nextNpcId = 1;
 
       document.getElementById('defeat-banner').classList.add('hidden');
       document.getElementById('victory-banner').classList.add('hidden');
       document.getElementById('spectator-banner').classList.add('hidden');
       document.getElementById('hour-hud-box').title =
-        `Every ${tickDuration} seconds an hour passes: blocks pay & toggled units spawn`;
+        `Every ${state.tickDuration} seconds an hour passes: blocks pay & toggled units spawn`;
 
       for (const f of ALL_FACTION_SLOTS) {
-        const isActive = activeFactions.includes(f);
-        treasuries[f] = isActive ? 3000 : 0;
-        factionAlive[f] = isActive;
+        const isActive = state.activeFactions.includes(f);
+        state.treasuries[f] = isActive ? 3000 : 0;
+        state.factionAlive[f] = isActive;
       }
 
-      for (let cy = 0; cy < currentGridSize; cy++) {
-        for (let cx = 0; cx < currentGridSize; cx++) {
-          world.generateChunk(cx, cy);
+      for (let cy = 0; cy < state.currentGridSize; cy++) {
+        for (let cx = 0; cx < state.currentGridSize; cx++) {
+          state.world.generateChunk(cx, cy);
         }
       }
 
       resetDefaultPlayerSpawnCaps();
       syncRecruitButtonLabels();
 
-      player.x = 1.5 * TILE_SIZE;
-      player.y = 1.5 * TILE_SIZE;
-      player.targetX = null;
-      player.targetY = null;
-      player.hp = BOSS_MAX_HP;
-      player.maxHp = BOSS_MAX_HP;
-      player.armor = 0;
-      player.armorCooldown = 0;
-      player.sprintTimer = 0;
-      player.sprintCooldown = 0;
-      player.isSprinting = false;
-      player.alive = true;
-      player.attackCooldown = 0;
-      player.slashAnimTimer = 0;
-      player.muzzleFlashTimer = 0;
-      player.hitFlashTimer = 0;
+      state.player.x = 1.5 * TILE_SIZE;
+      state.player.y = 1.5 * TILE_SIZE;
+      state.player.targetX = null;
+      state.player.targetY = null;
+      state.player.hp = BOSS_MAX_HP;
+      state.player.maxHp = BOSS_MAX_HP;
+      state.player.armor = 0;
+      state.player.armorCooldown = 0;
+      state.player.sprintTimer = 0;
+      state.player.sprintCooldown = 0;
+      state.player.isSprinting = false;
+      state.player.alive = true;
+      state.player.attackCooldown = 0;
+      state.player.slashAnimTimer = 0;
+      state.player.muzzleFlashTimer = 0;
+      state.player.hitFlashTimer = 0;
 
-      const last = currentGridSize - 1;
+      const last = state.currentGridSize - 1;
       const cornerCoords = {
         [Faction.RIVAL_1]: { cx: last, cy: 0 },
         [Faction.RIVAL_2]: { cx: 0, cy: last },
         [Faction.RIVAL_3]: { cx: last, cy: last },
       };
 
-      for (const slot of activeFactions) {
+      for (const slot of state.activeFactions) {
         if (slot === Faction.PLAYER) continue;
         const pos = cornerCoords[slot];
-        const hq = world.getChunk(pos.cx, pos.cy);
+        const hq = state.world.getChunk(pos.cx, pos.cy);
         if (hq) {
           spawnUnitInChunk(slot, hq, UnitRank.BOSS);
         }
       }
 
       const localBoss = getLocalBoss();
-      camera.x = localBoss.x;
-      camera.y = localBoss.y;
+      state.camera.x = localBoss.x;
+      state.camera.y = localBoss.y;
 
       recalculateHourlyIncome();
       updateHUD();
@@ -2202,12 +1912,12 @@
       }
 
       if (isKill) {
-        const deadIdx = npcs.indexOf(target);
+        const deadIdx = state.npcs.indexOf(target);
         if (deadIdx !== -1) {
           const deadFaction = target.faction;
           const wasBoss = target.rank === UnitRank.BOSS;
           spawnDeadBody(target.x, target.y, deadFaction, target.rank, target.facing, hitAngle ?? target.facing);
-          npcs.splice(deadIdx, 1);
+          state.npcs.splice(deadIdx, 1);
           if (wasBoss) {
             sfx.playDeath(true, target.x, target.y);
             addFloatingText(target.x, target.y - 44, 'BOSS KILLED!', '#f43f5e');
@@ -2226,7 +1936,7 @@
         performKnifeSlash();
         return;
       }
-      const bossNpc = npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS);
+      const bossNpc = state.npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS);
       if (!bossNpc || bossNpc.attackCooldown > 0) return;
 
       bossNpc.attackCooldown = 0.34;
@@ -2237,21 +1947,21 @@
       const maxTargets = 3;
       const candidates = [];
 
-      if (player.alive && faction !== Faction.PLAYER) {
-        const dx = player.x - bossNpc.x;
-        const dy = player.y - bossNpc.y;
+      if (state.player.alive && faction !== Faction.PLAYER) {
+        const dx = state.player.x - bossNpc.x;
+        const dy = state.player.y - bossNpc.y;
         const dist = Math.hypot(dx, dy);
         if (dist <= reach) {
           let angleDiff = Math.abs(Math.atan2(dy, dx) - bossNpc.facing);
           if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
           if (angleDiff <= Math.PI * 0.45 || dist < 32) {
-            candidates.push({ isPlayer: true, entity: player, dist, dx, dy });
+            candidates.push({ isPlayer: true, entity: state.player, dist, dx, dy });
           }
         }
       }
 
-      for (let i = 0; i < npcs.length; i++) {
-        const other = npcs[i];
+      for (let i = 0; i < state.npcs.length; i++) {
+        const other = state.npcs[i];
         if (other.faction === faction) continue;
         const dx = other.x - bossNpc.x;
         const dy = other.y - bossNpc.y;
@@ -2288,31 +1998,31 @@
     }
 
     function performKnifeSlash() {
-      if (!gameStarted) return;
+      if (!state.gameStarted) return;
       if (typeof mpNet !== 'undefined' && mpNet.isGuest()) {
         if (!isLocalBossAlive()) return;
         mpNet.sendCommand({ cmd: 'SLASH' });
         return;
       }
-      if (!player.alive || player.attackCooldown > 0) return;
+      if (!state.player.alive || state.player.attackCooldown > 0) return;
 
-      player.attackCooldown = 0.34;
-      player.slashAnimTimer = 0.18;
-      spawnSlashArc(player.x, player.y, player.facing, '#f43f5e');
+      state.player.attackCooldown = 0.34;
+      state.player.slashAnimTimer = 0.18;
+      spawnSlashArc(state.player.x, state.player.y, state.player.facing, '#f43f5e');
 
       const reach = 52;
       const maxTargets = 3;
       const candidates = [];
 
-      for (let i = 0; i < npcs.length; i++) {
-        const npc = npcs[i];
+      for (let i = 0; i < state.npcs.length; i++) {
+        const npc = state.npcs[i];
         if (npc.faction === Faction.PLAYER) continue;
-        const dx = npc.x - player.x;
-        const dy = npc.y - player.y;
+        const dx = npc.x - state.player.x;
+        const dy = npc.y - state.player.y;
         const dist = Math.hypot(dx, dy);
         if (dist <= reach) {
           const angleToNpc = Math.atan2(dy, dx);
-          let angleDiff = Math.abs(angleToNpc - player.facing);
+          let angleDiff = Math.abs(angleToNpc - state.player.facing);
           if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
           if (angleDiff <= Math.PI * 0.42 || dist < 30) {
             candidates.push({ npc, dist, dx, dy });
@@ -2323,13 +2033,13 @@
       candidates.sort((a, b) => a.dist - b.dist);
       const targets = candidates.slice(0, maxTargets);
       const hitCount = targets.length;
-      sfx.playSlash(hitCount > 0, player.x, player.y);
+      sfx.playSlash(hitCount > 0, state.player.x, state.player.y);
 
       for (const item of targets) {
         const { npc, dist, dx, dy } = item;
-        const dmg = rollDamage(player.minDmg, player.maxDmg);
+        const dmg = rollDamage(state.player.minDmg, state.player.maxDmg);
 
-        const pushAngle = dist > 0.01 ? Math.atan2(dy, dx) : player.facing;
+        const pushAngle = dist > 0.01 ? Math.atan2(dy, dx) : state.player.facing;
         const knockX = npc.x + Math.cos(pushAngle) * 14;
         const knockY = npc.y + Math.sin(pushAngle) * 14;
         const nRad = getEntityCollisionRadius(npc.rank);
@@ -2343,8 +2053,8 @@
 
       if (hitCount === 0) {
         addFloatingText(
-          player.x + Math.cos(player.facing) * 20,
-          player.y + Math.sin(player.facing) * 20 - 16,
+          state.player.x + Math.cos(state.player.facing) * 20,
+          state.player.y + Math.sin(state.player.facing) * 20 - 16,
           'Slash!',
           '#a1a1aa'
         );
@@ -2360,17 +2070,17 @@
       const maxTargets = 3;
       const candidates = [];
 
-      if (player.alive && bossNpc.faction !== Faction.PLAYER) {
-        const dx = player.x - bossNpc.x;
-        const dy = player.y - bossNpc.y;
+      if (state.player.alive && bossNpc.faction !== Faction.PLAYER) {
+        const dx = state.player.x - bossNpc.x;
+        const dy = state.player.y - bossNpc.y;
         const dist = Math.hypot(dx, dy);
         if (dist <= reach) {
-          candidates.push({ isPlayer: true, entity: player, dist, dx, dy });
+          candidates.push({ isPlayer: true, entity: state.player, dist, dx, dy });
         }
       }
 
-      for (let i = 0; i < npcs.length; i++) {
-        const other = npcs[i];
+      for (let i = 0; i < state.npcs.length; i++) {
+        const other = state.npcs[i];
         if (other.faction === bossNpc.faction) continue;
         const dx = other.x - bossNpc.x;
         const dy = other.y - bossNpc.y;
@@ -2414,11 +2124,11 @@
       for (let d = 14; d <= maxDist; d += step) {
         const px = x0 + cos * d;
         const py = y0 + sin * d;
-        if (!world.isWalkable(px, py)) {
+        if (!state.world.isWalkable(px, py)) {
           return { blocked: true, dist: d, x: px, y: py };
         }
-        const { cx, cy, lx, ly } = world.worldToTile(px, py);
-        const chunk = world.getChunk(cx, cy);
+        const { cx, cy, lx, ly } = state.world.worldToTile(px, py);
+        const chunk = state.world.getChunk(cx, cy);
         if (!chunk) return { blocked: true, dist: d, x: px, y: py };
         const prop = chunk.props[ly][lx];
         if (prop === PropType.CAR) {
@@ -2510,8 +2220,8 @@
       const cos = Math.cos(angle);
       const sin = Math.sin(angle);
 
-      for (let i = 0; i < npcs.length; i++) {
-        const npc = npcs[i];
+      for (let i = 0; i < state.npcs.length; i++) {
+        const npc = state.npcs[i];
         if (npc.faction === shooterFaction) continue;
         const rx = npc.x - shooter.x;
         const ry = npc.y - shooter.y;
@@ -2526,16 +2236,16 @@
         }
       }
 
-      if (!isPlayerShooter && player.alive && shooterFaction !== Faction.PLAYER) {
-        const rx = player.x - shooter.x;
-        const ry = player.y - shooter.y;
+      if (!isPlayerShooter && state.player.alive && shooterFaction !== Faction.PLAYER) {
+        const rx = state.player.x - shooter.x;
+        const ry = state.player.y - shooter.y;
         const proj = rx * cos + ry * sin;
         if (proj >= 16 && proj <= bestProjDist) {
           const perp = Math.abs(-rx * sin + ry * cos);
           const hitRadius = getEntityCollisionRadius(UnitRank.BOSS) + 4;
           if (perp <= hitRadius) {
             bestProjDist = proj;
-            bestTarget = player;
+            bestTarget = state.player;
             bestTargetIsPlayer = true;
           }
         }
@@ -2624,66 +2334,66 @@
     // 8. BOSS ARMOR, SMART NPC BOSS UPGRADES & INPUT HANDLING
     // =========================================================================
     function damagePlayerBoss(dmg, textColor = '#f43f5e', suffix = '', hitAngle = null) {
-      if (!player.alive) return;
-      player.hitFlashTimer = 0.15;
+      if (!state.player.alive) return;
+      state.player.hitFlashTimer = 0.15;
 
       let remainingDmg = dmg;
       let absorbed = 0;
-      if (player.armor > 0) {
-        absorbed = Math.min(player.armor, remainingDmg);
-        player.armor -= absorbed;
+      if (state.player.armor > 0) {
+        absorbed = Math.min(state.player.armor, remainingDmg);
+        state.player.armor -= absorbed;
         remainingDmg -= absorbed;
       }
 
       if (remainingDmg > 0) {
-        player.hp -= remainingDmg;
+        state.player.hp -= remainingDmg;
       }
 
-      const isKill = player.hp <= 0 && player.alive;
+      const isKill = state.player.hp <= 0 && state.player.alive;
       if (remainingDmg > 0) {
-        spawnBloodSplash(player.x, player.y, 1.35, isKill, hitAngle);
+        spawnBloodSplash(state.player.x, state.player.y, 1.35, isKill, hitAngle);
       } else {
-        spawnSparks(player.x, player.y - 12);
+        spawnSparks(state.player.x, state.player.y - 12);
       }
 
       if (absorbed > 0 && remainingDmg === 0) {
-        addFloatingText(player.x, player.y - 30, `-${absorbed} 🛡️`, '#38bdf8');
+        addFloatingText(state.player.x, state.player.y - 30, `-${absorbed} 🛡️`, '#38bdf8');
       } else if (absorbed > 0 && remainingDmg > 0) {
-        addFloatingText(player.x, player.y - 30, `-${absorbed}🛡️ -${remainingDmg} ${suffix}`, '#f43f5e');
+        addFloatingText(state.player.x, state.player.y - 30, `-${absorbed}🛡️ -${remainingDmg} ${suffix}`, '#f43f5e');
       } else {
-        addFloatingText(player.x, player.y - 30, `-${remainingDmg} ${suffix}`.trim(), textColor);
+        addFloatingText(state.player.x, state.player.y - 30, `-${remainingDmg} ${suffix}`.trim(), textColor);
       }
 
-      if (absorbed > 0 && player.armor <= 0) {
-        player.armor = 0;
-        addFloatingText(player.x, player.y - 44, 'ARMOR BROKEN!', '#7dd3fc');
+      if (absorbed > 0 && state.player.armor <= 0) {
+        state.player.armor = 0;
+        addFloatingText(state.player.x, state.player.y - 44, 'ARMOR BROKEN!', '#7dd3fc');
       }
 
       if (isKill) {
-        spawnDeadBody(player.x, player.y, Faction.PLAYER, UnitRank.BOSS, player.facing, hitAngle ?? player.facing);
-        sfx.playDeath(true, player.x, player.y);
+        spawnDeadBody(state.player.x, state.player.y, Faction.PLAYER, UnitRank.BOSS, state.player.facing, hitAngle ?? state.player.facing);
+        sfx.playDeath(true, state.player.x, state.player.y);
         eliminateFaction(Faction.PLAYER);
       }
     }
 
     function executeBuyArmorForFaction(faction) {
-      if (!factionAlive[faction]) return false;
+      if (!state.factionAlive[faction]) return false;
       if (faction === Faction.PLAYER) {
-        if (!player.alive || player.armorCooldown > 0 || player.armor >= MAX_BOSS_ARMOR) return false;
-        if (treasuries[Faction.PLAYER] < COST_BOSS_ARMOR) return false;
-        treasuries[Faction.PLAYER] -= COST_BOSS_ARMOR;
-        player.armor = MAX_BOSS_ARMOR;
-        player.armorCooldown = tickDuration;
-        sfx.playArmorEquip(player.x, player.y);
-        addFloatingText(player.x, player.y - 34, `+${MAX_BOSS_ARMOR} ARMOR 🛡️`, '#38bdf8');
+        if (!state.player.alive || state.player.armorCooldown > 0 || state.player.armor >= MAX_BOSS_ARMOR) return false;
+        if (state.treasuries[Faction.PLAYER] < COST_BOSS_ARMOR) return false;
+        state.treasuries[Faction.PLAYER] -= COST_BOSS_ARMOR;
+        state.player.armor = MAX_BOSS_ARMOR;
+        state.player.armorCooldown = state.tickDuration;
+        sfx.playArmorEquip(state.player.x, state.player.y);
+        addFloatingText(state.player.x, state.player.y - 34, `+${MAX_BOSS_ARMOR} ARMOR 🛡️`, '#38bdf8');
         return true;
       } else {
-        const bossNpc = npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS);
+        const bossNpc = state.npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS);
         if (!bossNpc || (bossNpc.armorCooldown || 0) > 0 || (bossNpc.armor || 0) >= MAX_BOSS_ARMOR) return false;
-        if (treasuries[faction] < COST_BOSS_ARMOR) return false;
-        treasuries[faction] -= COST_BOSS_ARMOR;
+        if (state.treasuries[faction] < COST_BOSS_ARMOR) return false;
+        state.treasuries[faction] -= COST_BOSS_ARMOR;
         bossNpc.armor = MAX_BOSS_ARMOR;
-        bossNpc.armorCooldown = tickDuration;
+        bossNpc.armorCooldown = state.tickDuration;
         sfx.playArmorEquip(bossNpc.x, bossNpc.y);
         addFloatingText(bossNpc.x, bossNpc.y - 34, `+${MAX_BOSS_ARMOR} ARMOR 🛡️`, '#38bdf8');
         return true;
@@ -2692,7 +2402,7 @@
 
     function buyBossArmor() {
       getAudioCtx();
-      if (!gameStarted) return;
+      if (!state.gameStarted) return;
       if (typeof mpNet !== 'undefined' && mpNet.isGuest()) {
         if (!isLocalBossAlive()) {
           showToast('Your Boss must be alive to equip armor!');
@@ -2701,25 +2411,25 @@
         mpNet.sendCommand({ cmd: 'BUY_ARMOR' });
         return;
       }
-      if (!player.alive || !factionAlive[Faction.PLAYER]) {
+      if (!state.player.alive || !state.factionAlive[Faction.PLAYER]) {
         showToast('Your Boss must be alive to equip armor!');
         return;
       }
-      if (player.armorCooldown > 0) {
-        showToast(`Armor restock on cooldown (${player.armorCooldown.toFixed(1)}s until next tick)!`);
+      if (state.player.armorCooldown > 0) {
+        showToast(`Armor restock on cooldown (${state.player.armorCooldown.toFixed(1)}s until next tick)!`);
         return;
       }
-      if (player.armor >= MAX_BOSS_ARMOR) {
+      if (state.player.armor >= MAX_BOSS_ARMOR) {
         showToast(`Kevlar Armor is already at full capacity (${MAX_BOSS_ARMOR} HP)!`);
         return;
       }
-      if (treasuries[Faction.PLAYER] < COST_BOSS_ARMOR) {
+      if (state.treasuries[Faction.PLAYER] < COST_BOSS_ARMOR) {
         showToast(`Need $${COST_BOSS_ARMOR.toLocaleString()} for Boss Kevlar Armor!`);
         return;
       }
 
       if (executeBuyArmorForFaction(Faction.PLAYER)) {
-        showToast(`Equipped Kevlar Armor! Next purchase available in ${tickDuration}s.`);
+        showToast(`Equipped Kevlar Armor! Next purchase available in ${state.tickDuration}s.`);
         updateHUD();
       }
     }
@@ -2727,9 +2437,9 @@
     function tryBuyNpcBossArmor(bossNpc, nearbyEnemies = 0, nearbyAllies = 0) {
       if (!bossNpc || bossNpc.rank !== UnitRank.BOSS || bossNpc.humanPeerId) return false;
       const faction = bossNpc.faction;
-      if (!factionAlive[faction]) return false;
+      if (!state.factionAlive[faction]) return false;
       if ((bossNpc.armorCooldown || 0) > 0) return false;
-      if (treasuries[faction] < COST_BOSS_ARMOR) return false;
+      if (state.treasuries[faction] < COST_BOSS_ARMOR) return false;
 
       const currentArmor = bossNpc.armor || 0;
       const isHpWounded = bossNpc.hp < bossNpc.maxHp * 0.85;
@@ -2741,9 +2451,9 @@
 
       if (!needsSurvivalRefresh && !needsInitialVest) return false;
 
-      treasuries[faction] -= COST_BOSS_ARMOR;
+      state.treasuries[faction] -= COST_BOSS_ARMOR;
       bossNpc.armor = MAX_BOSS_ARMOR;
-      bossNpc.armorCooldown = tickDuration;
+      bossNpc.armorCooldown = state.tickDuration;
       sfx.playArmorEquip(bossNpc.x, bossNpc.y);
       addFloatingText(bossNpc.x, bossNpc.y - 36, `+${MAX_BOSS_ARMOR} ARMOR 🛡️`, '#38bdf8');
       return true;
@@ -2819,9 +2529,9 @@
         }
       }
 
-      const bTile = world.worldToTile(bossNpc.x, bossNpc.y);
-      const currentChunk = world.getChunk(bTile.cx, bTile.cy);
-      if (currentChunk && currentChunk.faction !== bossNpc.faction && factionAlive[bossNpc.faction]) {
+      const bTile = state.world.worldToTile(bossNpc.x, bossNpc.y);
+      const currentChunk = state.world.getChunk(bTile.cx, bTile.cy);
+      if (currentChunk && currentChunk.faction !== bossNpc.faction && state.factionAlive[bossNpc.faction]) {
         if (currentChunk.capturingFaction !== bossNpc.faction) {
           currentChunk.capturingFaction = bossNpc.faction;
           currentChunk.captureProgress = 0;
@@ -2842,12 +2552,11 @@
       }
     }
 
-    const keys = new Set();
     window.addEventListener('keydown', (e) => {
       getAudioCtx();
       const k = e.key.toLowerCase();
-      const wasDown = keys.has(k);
-      keys.add(k);
+      const wasDown = state.keys.has(k);
+      state.keys.add(k);
       if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) {
         e.preventDefault();
       }
@@ -2861,7 +2570,7 @@
     });
     window.addEventListener('keyup', (e) => {
       const k = e.key.toLowerCase();
-      keys.delete(k);
+      state.keys.delete(k);
       if (typeof mpNet !== 'undefined' && mpNet.isGuest()) {
         if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift'].includes(k)) {
           mpNet.flushGuestInput();
@@ -2871,13 +2580,13 @@
 
     canvas.addEventListener('mousemove', (e) => {
       const rect = canvas.getBoundingClientRect();
-      mouse.screenX = e.clientX - rect.left;
-      mouse.screenY = e.clientY - rect.top;
-      mouse.inside = true;
+      state.mouse.screenX = e.clientX - rect.left;
+      state.mouse.screenY = e.clientY - rect.top;
+      state.mouse.inside = true;
     });
 
     canvas.addEventListener('mouseleave', () => {
-      mouse.inside = false;
+      state.mouse.inside = false;
     });
 
     canvas.addEventListener('contextmenu', (e) => {
@@ -2889,14 +2598,14 @@
       const sx = clientX - rect.left;
       const sy = clientY - rect.top;
       return {
-        wx: camera.x - rect.width / 2 + sx,
-        wy: camera.y - rect.height / 2 + sy,
+        wx: state.camera.x - rect.width / 2 + sx,
+        wy: state.camera.y - rect.height / 2 + sy,
       };
     }
 
     canvas.addEventListener('mousedown', (e) => {
       getAudioCtx();
-      if (!gameStarted) return;
+      if (!state.gameStarted) return;
       const { wx, wy } = screenToWorld(e.clientX, e.clientY);
 
       if (e.button === 2) {
@@ -2906,25 +2615,25 @@
           }
           return;
         }
-        if (player.alive && !gameOver) {
-          performBossPistolShot(player, true, wx, wy);
+        if (state.player.alive && !state.gameOver) {
+          performBossPistolShot(state.player, true, wx, wy);
         }
         return;
       }
 
       if (e.button !== 0) return;
 
-      const { cx, cy } = world.worldToTile(wx, wy);
-      const chunk = world.getChunk(cx, cy);
+      const { cx, cy } = state.world.worldToTile(wx, wy);
+      const chunk = state.world.getChunk(cx, cy);
 
       if (!chunk) {
-        if (allowClickExpand) {
+        if (state.allowClickExpand) {
           if (typeof mpNet !== 'undefined' && mpNet.isGuest()) {
             mpNet.sendCommand({ cmd: 'BUILD_BLOCK', cx, cy });
             return;
           }
           const myFac = getLocalFaction();
-          const newChunk = world.generateChunk(cx, cy, myFac);
+          const newChunk = state.world.generateChunk(cx, cy, myFac);
           addFloatingText(
             newChunk.cx * CHUNK_PX + CHUNK_PX / 2,
             newChunk.cy * CHUNK_PX + CHUNK_PX / 2,
@@ -2940,27 +2649,27 @@
 
       if (typeof mpNet !== 'undefined' && mpNet.isGuest()) {
         if (!isLocalBossAlive()) {
-          camera.x = wx;
-          camera.y = wy;
+          state.camera.x = wx;
+          state.camera.y = wy;
           return;
         }
-        const snapped = world.findNearestWalkablePoint(wx, wy, 12);
+        const snapped = state.world.findNearestWalkablePoint(wx, wy, 12);
         if (snapped) {
           mpNet.sendCommand({ cmd: 'MOVE_TO', x: snapped.x, y: snapped.y });
         }
         return;
       }
 
-      if (gameOver || !player.alive) {
-        camera.x = wx;
-        camera.y = wy;
+      if (state.gameOver || !state.player.alive) {
+        state.camera.x = wx;
+        state.camera.y = wy;
         return;
       }
 
-      const snapped = world.findNearestWalkablePoint(wx, wy, 12);
+      const snapped = state.world.findNearestWalkablePoint(wx, wy, 12);
       if (snapped) {
-        player.targetX = snapped.x;
-        player.targetY = snapped.y;
+        state.player.targetX = snapped.x;
+        state.player.targetY = snapped.y;
       } else {
         showToast('Blocked by building');
       }
@@ -2968,13 +2677,13 @@
 
     minimapCanvas.addEventListener('click', (e) => {
       getAudioCtx();
-      if (!gameStarted || world.chunks.size === 0) return;
+      if (!state.gameStarted || state.world.chunks.size === 0) return;
       const rect = minimapCanvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
 
       let minCx = Infinity, maxCx = -Infinity, minCy = Infinity, maxCy = -Infinity;
-      for (const chunk of world.chunks.values()) {
+      for (const chunk of state.world.chunks.values()) {
         if (chunk.cx < minCx) minCx = chunk.cx;
         if (chunk.cx > maxCx) maxCx = chunk.cx;
         if (chunk.cy < minCy) minCy = chunk.cy;
@@ -2994,11 +2703,11 @@
 
       if (typeof mpNet !== 'undefined' && mpNet.isGuest()) {
         if (!isLocalBossAlive()) {
-          camera.x = worldX;
-          camera.y = worldY;
+          state.camera.x = worldX;
+          state.camera.y = worldY;
           return;
         }
-        const snapped = world.findNearestWalkablePoint(worldX, worldY, 12);
+        const snapped = state.world.findNearestWalkablePoint(worldX, worldY, 12);
         if (snapped) {
           mpNet.sendCommand({ cmd: 'MOVE_TO', x: snapped.x, y: snapped.y });
           showToast('Boss waypoint set via Radar');
@@ -3006,16 +2715,16 @@
         return;
       }
 
-      if (gameOver || !player.alive) {
-        camera.x = worldX;
-        camera.y = worldY;
+      if (state.gameOver || !state.player.alive) {
+        state.camera.x = worldX;
+        state.camera.y = worldY;
         return;
       }
 
-      const snapped = world.findNearestWalkablePoint(worldX, worldY, 12);
+      const snapped = state.world.findNearestWalkablePoint(worldX, worldY, 12);
       if (snapped) {
-        player.targetX = snapped.x;
-        player.targetY = snapped.y;
+        state.player.targetX = snapped.x;
+        state.player.targetY = snapped.y;
         showToast('Boss waypoint set via Radar');
       }
     });
@@ -3024,21 +2733,21 @@
     // 9. SIMULATION UPDATE (PLAYER, AI STEERING, COMBAT, HOURLY TICK)
     // =========================================================================
     function rebuildSpatialBuckets() {
-      for (const bucket of spatialBuckets.values()) {
+      for (const bucket of state.spatialBuckets.values()) {
         bucket.length = 0;
-        bucketPool.push(bucket);
+        state.bucketPool.push(bucket);
       }
-      spatialBuckets.clear();
+      state.spatialBuckets.clear();
 
-      for (let i = 0; i < npcs.length; i++) {
-        const u = npcs[i];
+      for (let i = 0; i < state.npcs.length; i++) {
+        const u = state.npcs[i];
         const cx = Math.floor(u.x / CHUNK_PX);
         const cy = Math.floor(u.y / CHUNK_PX);
         const key = packChunkKey(cx, cy);
-        let bucket = spatialBuckets.get(key);
+        let bucket = state.spatialBuckets.get(key);
         if (!bucket) {
-          bucket = bucketPool.pop() || [];
-          spatialBuckets.set(key, bucket);
+          bucket = state.bucketPool.pop() || [];
+          state.spatialBuckets.set(key, bucket);
         }
         bucket.push(u);
       }
@@ -3116,62 +2825,62 @@
         if (s.life <= 0) sparks.splice(i, 1);
       }
 
-      for (let i = floatingTexts.length - 1; i >= 0; i--) {
-        const ft = floatingTexts[i];
+      for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+        const ft = state.floatingTexts[i];
         ft.y += ft.vy * dt;
         ft.life -= dt;
-        if (ft.life <= 0) floatingTexts.splice(i, 1);
+        if (ft.life <= 0) state.floatingTexts.splice(i, 1);
       }
     }
 
     function updateSpectatorCamera(dt) {
       let mx = 0;
       let my = 0;
-      if (keys.has('w') || keys.has('arrowup')) my -= 1;
-      if (keys.has('s') || keys.has('arrowdown')) my += 1;
-      if (keys.has('a') || keys.has('arrowleft')) mx -= 1;
-      if (keys.has('d') || keys.has('arrowright')) mx += 1;
+      if (state.keys.has('w') || state.keys.has('arrowup')) my -= 1;
+      if (state.keys.has('s') || state.keys.has('arrowdown')) my += 1;
+      if (state.keys.has('a') || state.keys.has('arrowleft')) mx -= 1;
+      if (state.keys.has('d') || state.keys.has('arrowright')) mx += 1;
       if (mx !== 0 || my !== 0) {
         const len = Math.hypot(mx, my);
-        const panSpeed = keys.has('shift') ? 820 : 480;
-        camera.x += (mx / len) * panSpeed * dt;
-        camera.y += (my / len) * panSpeed * dt;
+        const panSpeed = state.keys.has('shift') ? 820 : 480;
+        state.camera.x += (mx / len) * panSpeed * dt;
+        state.camera.y += (my / len) * panSpeed * dt;
       }
     }
 
     function processHourlyTick() {
-      gameHour = (gameHour + 1) % 24;
+      state.gameHour = (state.gameHour + 1) % 24;
       const incomeTotals = recalculateHourlyIncome();
       const upkeepTotals = calculateFactionUpkeep();
 
-      for (const f of activeFactions) {
-        if (!factionAlive[f]) continue;
+      for (const f of state.activeFactions) {
+        if (!state.factionAlive[f]) continue;
         const net = (incomeTotals[f] || 0) - (upkeepTotals[f] || 0);
-        treasuries[f] = Math.max(0, treasuries[f] + net);
+        state.treasuries[f] = Math.max(0, state.treasuries[f] + net);
       }
 
       const cachedCounts = {};
       const cachedOwned = {};
-      for (const f of activeFactions) {
+      for (const f of state.activeFactions) {
         cachedCounts[f] = { soldiers: 0, captains: 0, underbosses: 0 };
         cachedOwned[f] = [];
       }
-      for (let i = 0; i < npcs.length; i++) {
-        const u = npcs[i];
+      for (let i = 0; i < state.npcs.length; i++) {
+        const u = state.npcs[i];
         const bucket = cachedCounts[u.faction];
         if (!bucket) continue;
         if (u.rank === UnitRank.SOLDIER) bucket.soldiers++;
         else if (u.rank === UnitRank.CAPTAIN) bucket.captains++;
         else if (u.rank === UnitRank.UNDERBOSS) bucket.underbosses++;
       }
-      for (const chunk of world.chunks.values()) {
+      for (const chunk of state.world.chunks.values()) {
         if (cachedOwned[chunk.faction]) {
           cachedOwned[chunk.faction].push(chunk);
         }
       }
 
-      for (const f of activeFactions) {
-        if (!factionAlive[f]) continue;
+      for (const f of state.activeFactions) {
+        if (!state.factionAlive[f]) continue;
         const isHostPlayer = f === Faction.PLAYER;
         const isRemoteHuman = !isHostPlayer && typeof mpNet !== 'undefined' && mpNet.isHumanFaction(f);
 
@@ -3180,11 +2889,11 @@
         let wantSoldier = true;
 
         if (isHostPlayer) {
-          wantUnderboss = autoRecruitUnderboss;
-          wantCaptain = autoRecruitCaptain;
-          wantSoldier = autoRecruitSoldier;
+          wantUnderboss = state.autoRecruitUnderboss;
+          wantCaptain = state.autoRecruitCaptain;
+          wantSoldier = state.autoRecruitSoldier;
         } else if (isRemoteHuman) {
-          const prefs = factionRecruitmentPrefs[f];
+          const prefs = state.factionRecruitmentPrefs[f];
           if (prefs) {
             wantUnderboss = prefs.autoUnderboss;
             wantCaptain = prefs.autoCaptain;
@@ -3206,124 +2915,124 @@
         }
       }
 
-      minimapCacheTimer = 1.0;
+      state.minimapCacheTimer = 1.0;
       updateHUD();
     }
 
     function update(dt) {
-      if (!gameStarted) return;
+      if (!state.gameStarted) return;
 
       if (typeof mpNet !== 'undefined' && mpNet.isGuest()) {
         mpNet.updateGuest(dt);
         updateVisualParticles(dt);
 
         const localBoss = getLocalBoss();
-        if (localBoss && isLocalBossAlive() && !isSpectating) {
-          camera.x += (localBoss.x - camera.x) * Math.min(1, dt * 12);
-          camera.y += (localBoss.y - camera.y) * Math.min(1, dt * 12);
+        if (localBoss && isLocalBossAlive() && !state.isSpectating) {
+          state.camera.x += (localBoss.x - state.camera.x) * Math.min(1, dt * 12);
+          state.camera.y += (localBoss.y - state.camera.y) * Math.min(1, dt * 12);
         } else {
           updateSpectatorCamera(dt);
         }
 
-        tickTimer += dt;
-        if (tickTimer >= tickDuration) tickTimer %= tickDuration;
-        hudUpdateTimer += dt;
-        if (hudUpdateTimer >= 0.25) {
-          hudUpdateTimer = 0;
+        state.tickTimer += dt;
+        if (state.tickTimer >= state.tickDuration) state.tickTimer %= state.tickDuration;
+        state.hudUpdateTimer += dt;
+        if (state.hudUpdateTimer >= 0.25) {
+          state.hudUpdateTimer = 0;
           updateHUD();
         }
         return;
       }
 
-      astarBudgetThisFrame = 0;
+      state.astarBudgetThisFrame = 0;
       rebuildSpatialBuckets();
       updateVisualParticles(dt);
 
-      if (player.attackCooldown > 0) player.attackCooldown = Math.max(0, player.attackCooldown - dt);
-      if (player.slashAnimTimer > 0) player.slashAnimTimer = Math.max(0, player.slashAnimTimer - dt);
-      if (player.muzzleFlashTimer > 0) player.muzzleFlashTimer = Math.max(0, player.muzzleFlashTimer - dt);
-      if (player.hitFlashTimer > 0) player.hitFlashTimer = Math.max(0, player.hitFlashTimer - dt);
-      if (player.armorCooldown > 0) player.armorCooldown = Math.max(0, player.armorCooldown - dt);
+      if (state.player.attackCooldown > 0) state.player.attackCooldown = Math.max(0, state.player.attackCooldown - dt);
+      if (state.player.slashAnimTimer > 0) state.player.slashAnimTimer = Math.max(0, state.player.slashAnimTimer - dt);
+      if (state.player.muzzleFlashTimer > 0) state.player.muzzleFlashTimer = Math.max(0, state.player.muzzleFlashTimer - dt);
+      if (state.player.hitFlashTimer > 0) state.player.hitFlashTimer = Math.max(0, state.player.hitFlashTimer - dt);
+      if (state.player.armorCooldown > 0) state.player.armorCooldown = Math.max(0, state.player.armorCooldown - dt);
 
-      if (player.alive) {
+      if (state.player.alive) {
         let moveX = 0;
         let moveY = 0;
-        if (keys.has('w') || keys.has('arrowup')) moveY -= 1;
-        if (keys.has('s') || keys.has('arrowdown')) moveY += 1;
-        if (keys.has('a') || keys.has('arrowleft')) moveX -= 1;
-        if (keys.has('d') || keys.has('arrowright')) moveX += 1;
+        if (state.keys.has('w') || state.keys.has('arrowup')) moveY -= 1;
+        if (state.keys.has('s') || state.keys.has('arrowdown')) moveY += 1;
+        if (state.keys.has('a') || state.keys.has('arrowleft')) moveX -= 1;
+        if (state.keys.has('d') || state.keys.has('arrowright')) moveX += 1;
 
         if (moveX !== 0 || moveY !== 0) {
-          player.targetX = null;
-          player.targetY = null;
+          state.player.targetX = null;
+          state.player.targetY = null;
           const len = Math.hypot(moveX, moveY);
           moveX /= len;
           moveY /= len;
-        } else if (player.targetX !== null && player.targetY !== null) {
-          const dx = player.targetX - player.x;
-          const dy = player.targetY - player.y;
+        } else if (state.player.targetX !== null && state.player.targetY !== null) {
+          const dx = state.player.targetX - state.player.x;
+          const dy = state.player.targetY - state.player.y;
           const dist = Math.hypot(dx, dy);
           if (dist < 6) {
-            player.targetX = null;
-            player.targetY = null;
+            state.player.targetX = null;
+            state.player.targetY = null;
           } else {
             moveX = dx / dist;
             moveY = dy / dist;
-            player.facing = Math.atan2(moveY, moveX);
+            state.player.facing = Math.atan2(moveY, moveX);
           }
         }
 
-        if (mouse.inside && canvas.width > 0) {
+        if (state.mouse.inside && canvas.width > 0) {
           const rect = canvas.getBoundingClientRect();
-          const aimWx = camera.x - rect.width / 2 + mouse.screenX;
-          const aimWy = camera.y - rect.height / 2 + mouse.screenY;
-          player.facing = Math.atan2(aimWy - player.y, aimWx - player.x);
+          const aimWx = state.camera.x - rect.width / 2 + state.mouse.screenX;
+          const aimWy = state.camera.y - rect.height / 2 + state.mouse.screenY;
+          state.player.facing = Math.atan2(aimWy - state.player.y, aimWx - state.player.x);
         } else if (moveX !== 0 || moveY !== 0) {
-          player.facing = Math.atan2(moveY, moveX);
+          state.player.facing = Math.atan2(moveY, moveX);
         }
 
         const isMoving = moveX !== 0 || moveY !== 0;
-        const wantsSprint = keys.has('shift') && isMoving;
-        if (player.sprintCooldown > 0) {
-          player.sprintCooldown = Math.max(0, player.sprintCooldown - dt);
-          player.isSprinting = false;
+        const wantsSprint = state.keys.has('shift') && isMoving;
+        if (state.player.sprintCooldown > 0) {
+          state.player.sprintCooldown = Math.max(0, state.player.sprintCooldown - dt);
+          state.player.isSprinting = false;
         } else if (wantsSprint) {
-          player.isSprinting = true;
-          player.sprintTimer += dt;
-          if (player.sprintTimer >= SPRINT_MAX_DURATION) {
-            player.isSprinting = false;
-            player.sprintTimer = 0;
-            player.sprintCooldown = SPRINT_COOLDOWN_DURATION;
+          state.player.isSprinting = true;
+          state.player.sprintTimer += dt;
+          if (state.player.sprintTimer >= SPRINT_MAX_DURATION) {
+            state.player.isSprinting = false;
+            state.player.sprintTimer = 0;
+            state.player.sprintCooldown = SPRINT_COOLDOWN_DURATION;
           }
         } else {
-          if (player.isSprinting && player.sprintTimer > 0) {
-            player.sprintCooldown = SPRINT_COOLDOWN_DURATION * (player.sprintTimer / SPRINT_MAX_DURATION);
+          if (state.player.isSprinting && state.player.sprintTimer > 0) {
+            state.player.sprintCooldown = SPRINT_COOLDOWN_DURATION * (state.player.sprintTimer / SPRINT_MAX_DURATION);
           }
-          player.isSprinting = false;
-          player.sprintTimer = 0;
+          state.player.isSprinting = false;
+          state.player.sprintTimer = 0;
         }
 
         const pRad = getEntityCollisionRadius(UnitRank.BOSS);
-        const pushingCrew = isPushingFriendly(player.x, player.y, pRad, Faction.PLAYER, -1, true);
-        const sprintMult = player.isSprinting ? SPRINT_SPEED_MULTIPLIER : 1.0;
-        const currentSpeed = (pushingCrew ? player.speed * 0.45 : player.speed) * sprintMult;
+        const pushingCrew = isPushingFriendly(state.player.x, state.player.y, pRad, Faction.PLAYER, -1, true);
+        const sprintMult = state.player.isSprinting ? SPRINT_SPEED_MULTIPLIER : 1.0;
+        const currentSpeed = (pushingCrew ? state.player.speed * 0.45 : state.player.speed) * sprintMult;
 
         if (moveX !== 0) {
-          const nx = player.x + moveX * currentSpeed * dt;
-          if (canOccupyPosition(nx, player.y, pRad, -1, true, Faction.PLAYER)) {
-            player.x = nx;
+          const nx = state.player.x + moveX * currentSpeed * dt;
+          if (canOccupyPosition(nx, state.player.y, pRad, -1, true, Faction.PLAYER)) {
+            state.player.x = nx;
           }
         }
         if (moveY !== 0) {
-          const ny = player.y + moveY * currentSpeed * dt;
-          if (canOccupyPosition(player.x, ny, pRad, -1, true, Faction.PLAYER)) {
-            player.y = ny;
+          const ny = state.player.y + moveY * currentSpeed * dt;
+          if (canOccupyPosition(state.player.x, ny, pRad, -1, true, Faction.PLAYER)) {
+            state.player.y = ny;
           }
         }
 
-        const pTile = world.worldToTile(player.x, player.y);
-        const pChunk = world.getChunk(pTile.cx, pTile.cy);
-        if (pChunk && pChunk.faction !== Faction.PLAYER && factionAlive[Faction.PLAYER]) {
+        const pTile = state.world.worldToTile(state.player.x, state.player.y);
+        const pChunk = state.world.getChunk(pTile.cx, pTile.cy);
+        if (pChunk && pChunk.faction !== Faction.PLAYER && state.factionAlive[Faction.PLAYER]) {
           if (pChunk.capturingFaction !== Faction.PLAYER) {
             pChunk.capturingFaction = Faction.PLAYER;
             pChunk.captureProgress = 0;
@@ -3339,20 +3048,20 @@
               `${FACTION_META[Faction.PLAYER].short} TURF`,
               FACTION_META[Faction.PLAYER].accent
             );
-            minimapCacheTimer = 1.0;
+            state.minimapCacheTimer = 1.0;
             updateHUD();
           }
         }
 
-        camera.x += (player.x - camera.x) * Math.min(1, dt * 12);
-        camera.y += (player.y - camera.y) * Math.min(1, dt * 12);
+        state.camera.x += (state.player.x - state.camera.x) * Math.min(1, dt * 12);
+        state.camera.y += (state.player.y - state.camera.y) * Math.min(1, dt * 12);
       } else {
         updateSpectatorCamera(dt);
       }
 
       // Update NPCs & Human-Controlled Rival Bosses
-      for (let i = npcs.length - 1; i >= 0; i--) {
-        const u = npcs[i];
+      for (let i = state.npcs.length - 1; i >= 0; i--) {
+        const u = state.npcs[i];
         if (!u) continue;
 
         if (u.attackCooldown > 0) u.attackCooldown = Math.max(0, u.attackCooldown - dt);
@@ -3377,18 +3086,18 @@
         let nearbyEnemyCount = 0;
         let nearbyAllyCount = 0;
 
-        if (player.alive && player.faction !== u.faction && u.faction !== Faction.PLAYER) {
-          const d = Math.hypot(player.x - u.x, player.y - u.y);
+        if (state.player.alive && state.player.faction !== u.faction && u.faction !== Faction.PLAYER) {
+          const d = Math.hypot(state.player.x - u.x, state.player.y - u.y);
           if (d < 420) nearbyEnemyCount++;
           if (d < nearestEnemyDist) {
             nearestEnemyDist = d;
-            nearestEnemy = { isPlayer: true, entity: player, x: player.x, y: player.y };
+            nearestEnemy = { isPlayer: true, entity: state.player, x: state.player.x, y: state.player.y };
           }
         }
 
         for (let dy = -1; dy <= 1; dy++) {
           for (let dx = -1; dx <= 1; dx++) {
-            const bucket = spatialBuckets.get(packChunkKey(uCx + dx, uCy + dy));
+            const bucket = state.spatialBuckets.get(packChunkKey(uCx + dx, uCy + dy));
             if (!bucket) continue;
             for (let b = 0; b < bucket.length; b++) {
               const other = bucket[b];
@@ -3444,7 +3153,7 @@
           let bestChunkDist = Infinity;
           for (let cy = uCy - 3; cy <= uCy + 3; cy++) {
             for (let cx = uCx - 3; cx <= uCx + 3; cx++) {
-              const c = world.getChunk(cx, cy);
+              const c = state.world.getChunk(cx, cy);
               if (!c || c.faction === u.faction) continue;
               const d = Math.hypot((cx + 0.5) * CHUNK_PX - u.x, (cy + 0.5) * CHUNK_PX - u.y);
               if (d < bestChunkDist) {
@@ -3454,7 +3163,7 @@
             }
           }
           if (!targetChunk) {
-            for (const c of world.chunks.values()) {
+            for (const c of state.world.chunks.values()) {
               if (c.faction !== u.faction) {
                 targetChunk = c;
                 break;
@@ -3464,7 +3173,7 @@
           if (targetChunk) {
             const gx = targetChunk.cx * CHUNK_PX + (1 + Math.floor(Math.random() * (CHUNK_SIZE - 2)) + 0.5) * TILE_SIZE;
             const gy = targetChunk.cy * CHUNK_PX + (1 + Math.floor(Math.random() * (CHUNK_SIZE - 2)) + 0.5) * TILE_SIZE;
-            const snapped = world.findNearestWalkablePoint(gx, gy, u.bodyRadius);
+            const snapped = state.world.findNearestWalkablePoint(gx, gy, u.bodyRadius);
             if (snapped) {
               u.goalX = snapped.x;
               u.goalY = snapped.y;
@@ -3475,8 +3184,8 @@
         // Steering / A* movement
         const distToGoal = Math.hypot(u.goalX - u.x, u.goalY - u.y);
         if (distToGoal > 28) {
-          if ((!u.path || u.path.length === 0 || u.pathTimer <= 0) && astarBudgetThisFrame < MAX_ASTAR_PER_FRAME) {
-            astarBudgetThisFrame++;
+          if ((!u.path || u.path.length === 0 || u.pathTimer <= 0) && state.astarBudgetThisFrame < MAX_ASTAR_PER_FRAME) {
+            state.astarBudgetThisFrame++;
             u.pathTimer = 0.85 + Math.random() * 0.45;
             u.path = computeTilePath(u.x, u.y, u.goalX, u.goalY, 160);
           }
@@ -3525,9 +3234,9 @@
         }
 
         // Territory capture by NPCs
-        const uTile = world.worldToTile(u.x, u.y);
-        const uChunk = world.getChunk(uTile.cx, uTile.cy);
-        if (uChunk && uChunk.faction !== u.faction && factionAlive[u.faction]) {
+        const uTile = state.world.worldToTile(u.x, u.y);
+        const uChunk = state.world.getChunk(uTile.cx, uTile.cy);
+        if (uChunk && uChunk.faction !== u.faction && state.factionAlive[u.faction]) {
           if (uChunk.capturingFaction !== u.faction) {
             uChunk.capturingFaction = u.faction;
             uChunk.captureProgress = 0;
@@ -3544,21 +3253,21 @@
               `${FACTION_META[u.faction].short} TURF`,
               FACTION_META[u.faction].accent
             );
-            minimapCacheTimer = 1.0;
+            state.minimapCacheTimer = 1.0;
           }
         }
       }
 
       // Hourly Economy & Auto-Recruitment Tick
-      tickTimer += dt;
-      if (tickTimer >= tickDuration) {
-        tickTimer -= tickDuration;
+      state.tickTimer += dt;
+      if (state.tickTimer >= state.tickDuration) {
+        state.tickTimer -= state.tickDuration;
         processHourlyTick();
       }
 
-      hudUpdateTimer += dt;
-      if (hudUpdateTimer >= 0.25) {
-        hudUpdateTimer = 0;
+      state.hudUpdateTimer += dt;
+      if (state.hudUpdateTimer >= 0.25) {
+        state.hudUpdateTimer = 0;
         updateHUD();
       }
 
@@ -3920,7 +3629,7 @@
 
       ctx.restore();
 
-      // Overhead Rank/Boss Label, Armor Bar & HP Bar (anchored cleanly at world x, y)
+      // Overhead Rank/Boss Label, Armor Bar & HP Bar (anchored cleanly at state.world x, y)
       const hasArmor = armor > 0 && maxArmor > 0;
       const barW = isBoss ? 36 : 28;
       const barH = 3.5;
@@ -3969,8 +3678,8 @@
       resizeCanvas();
       const viewW = canvas.width;
       const viewH = canvas.height;
-      const camLeft = camera.x - viewW / 2;
-      const camTop = camera.y - viewH / 2;
+      const camLeft = state.camera.x - viewW / 2;
+      const camTop = state.camera.y - viewH / 2;
       const camRight = camLeft + viewW;
       const camBottom = camTop + viewH;
 
@@ -3990,7 +3699,7 @@
       // 1. Ground tiles + Faction territory overlays & borders
       for (let cy = minCy; cy <= maxCy; cy++) {
         for (let cx = minCx; cx <= maxCx; cx++) {
-          const chunk = world.getChunk(cx, cy);
+          const chunk = state.world.getChunk(cx, cy);
           if (!chunk) continue;
           const ox = cx * CHUNK_PX;
           const oy = cy * CHUNK_PX;
@@ -4003,7 +3712,7 @@
             ctx.fillRect(ox, oy, CHUNK_PX, CHUNK_PX);
           }
 
-          if (showBorders) {
+          if (state.showBorders) {
             ctx.strokeStyle = meta.border;
             ctx.lineWidth = chunk.faction === Faction.NEUTRAL ? 1 : 2.2;
             ctx.strokeRect(ox + 1, oy + 1, CHUNK_PX - 2, CHUNK_PX - 2);
@@ -4065,10 +3774,10 @@
           ctx.stroke();
         }
 
-        if (mouse.inside) {
+        if (state.mouse.inside) {
           const rect = canvas.getBoundingClientRect();
-          const aimWx = camera.x - rect.width / 2 + mouse.screenX;
-          const aimWy = camera.y - rect.height / 2 + mouse.screenY;
+          const aimWx = state.camera.x - rect.width / 2 + state.mouse.screenX;
+          const aimWy = state.camera.y - rect.height / 2 + state.mouse.screenY;
           const aimDist = Math.hypot(aimWx - localBoss.x, aimWy - localBoss.y);
           const accInfo = getPistolAccuracyInfo(aimDist);
 
@@ -4089,11 +3798,11 @@
       }
 
       // 4. Collect active characters into depth-sorted render list
-      if (player.alive) {
-        renderables.push({ type: 'player', sortY: player.y });
+      if (state.player.alive) {
+        renderables.push({ type: 'player', sortY: state.player.y });
       }
-      for (let i = 0; i < npcs.length; i++) {
-        const u = npcs[i];
+      for (let i = 0; i < state.npcs.length; i++) {
+        const u = state.npcs[i];
         if (u.x < camLeft - 60 || u.x > camRight + 60 || u.y < camTop - 60 || u.y > camBottom + 60) continue;
         renderables.push({ type: 'npc', sortY: u.y, unit: u });
       }
@@ -4109,20 +3818,20 @@
         } else if (item.type === 'player') {
           const pMeta = FACTION_META[Faction.PLAYER];
           const hostName = typeof mpNet !== 'undefined' && mpNet.isActive() ? mpNet.getAliasForFaction(Faction.PLAYER) : null;
-          drawCharacter(player.x, player.y, {
+          drawCharacter(state.player.x, state.player.y, {
             coatColor: pMeta.coat,
             accentColor: pMeta.accent,
             label: hostName ? `${hostName} (${pMeta.ranks.BOSS})` : `${pMeta.ranks.BOSS} (YOU)`,
-            hp: player.hp,
-            maxHp: player.maxHp,
-            armor: player.armor,
-            maxArmor: player.maxArmor,
-            facing: player.facing,
+            hp: state.player.hp,
+            maxHp: state.player.maxHp,
+            armor: state.player.armor,
+            maxArmor: state.player.maxArmor,
+            facing: state.player.facing,
             isBoss: true,
-            isAttacking: player.slashAnimTimer > 0,
-            slashProgress: player.slashAnimTimer > 0 ? 1 - player.slashAnimTimer / 0.18 : 0,
-            isShooting: player.muzzleFlashTimer > 0,
-            hitFlash: player.hitFlashTimer > 0,
+            isAttacking: state.player.slashAnimTimer > 0,
+            slashProgress: state.player.slashAnimTimer > 0 ? 1 - state.player.slashAnimTimer / 0.18 : 0,
+            isShooting: state.player.muzzleFlashTimer > 0,
+            hitFlash: state.player.hitFlashTimer > 0,
           });
         } else if (item.type === 'npc') {
           const u = item.unit;
@@ -4235,8 +3944,8 @@
         ctx.fillRect(s.x - 1.5, s.y - 1.5, 3, 3);
       }
 
-      for (let i = 0; i < floatingTexts.length; i++) {
-        const ft = floatingTexts[i];
+      for (let i = 0; i < state.floatingTexts.length; i++) {
+        const ft = state.floatingTexts[i];
         ctx.save();
         ctx.globalAlpha = Math.min(1, ft.life * 1.4);
         ctx.font = 'bold 11px Inter, sans-serif';
@@ -4253,10 +3962,10 @@
     }
 
     function renderMinimap() {
-      if (world.chunks.size === 0) return;
+      if (state.world.chunks.size === 0) return;
 
       let minCx = Infinity, maxCx = -Infinity, minCy = Infinity, maxCy = -Infinity;
-      for (const chunk of world.chunks.values()) {
+      for (const chunk of state.world.chunks.values()) {
         if (chunk.cx < minCx) minCx = chunk.cx;
         if (chunk.cx > maxCx) maxCx = chunk.cx;
         if (chunk.cy < minCy) minCy = chunk.cy;
@@ -4272,13 +3981,13 @@
       const offsetX = pad + (innerW - cellSize * cols) / 2;
       const offsetY = pad + (innerH - cellSize * rows) / 2;
 
-      minimapCacheTimer += 0.016;
-      if (minimapCacheTimer >= 0.4) {
-        minimapCacheTimer = 0;
+      state.minimapCacheTimer += 0.016;
+      if (state.minimapCacheTimer >= 0.4) {
+        state.minimapCacheTimer = 0;
         minimapCacheCtx.fillStyle = '#09090b';
         minimapCacheCtx.fillRect(0, 0, minimapCacheCanvas.width, minimapCacheCanvas.height);
 
-        for (const chunk of world.chunks.values()) {
+        for (const chunk of state.world.chunks.values()) {
           const rx = offsetX + (chunk.cx - minCx) * cellSize;
           const ry = offsetY + (chunk.cy - minCy) * cellSize;
           const meta = FACTION_META[chunk.faction] || FACTION_META[Faction.NEUTRAL];
@@ -4290,8 +3999,8 @@
       minimapCtx.drawImage(minimapCacheCanvas, 0, 0);
 
       // Draw unit & boss dots
-      for (let i = 0; i < npcs.length; i++) {
-        const u = npcs[i];
+      for (let i = 0; i < state.npcs.length; i++) {
+        const u = state.npcs[i];
         const mx = offsetX + (u.x / CHUNK_PX - minCx) * cellSize;
         const my = offsetY + (u.y / CHUNK_PX - minCy) * cellSize;
         minimapCtx.fillStyle = u.rank === UnitRank.BOSS ? '#ffffff' : (FACTION_META[u.faction]?.accent || '#a1a1aa');
@@ -4299,9 +4008,9 @@
         minimapCtx.fillRect(mx - r, my - r, r * 2, r * 2);
       }
 
-      if (player.alive) {
-        const px = offsetX + (player.x / CHUNK_PX - minCx) * cellSize;
-        const py = offsetY + (player.y / CHUNK_PX - minCy) * cellSize;
+      if (state.player.alive) {
+        const px = offsetX + (state.player.x / CHUNK_PX - minCx) * cellSize;
+        const py = offsetY + (state.player.y / CHUNK_PX - minCy) * cellSize;
         minimapCtx.fillStyle = '#fef08a';
         minimapCtx.beginPath();
         minimapCtx.arc(px, py, 2.8, 0, Math.PI * 2);
@@ -4309,8 +4018,8 @@
       }
 
       // Camera viewport rectangle
-      const camLeftCx = (camera.x - canvas.width / 2) / CHUNK_PX - minCx;
-      const camTopCy = (camera.y - canvas.height / 2) / CHUNK_PX - minCy;
+      const camLeftCx = (state.camera.x - canvas.width / 2) / CHUNK_PX - minCx;
+      const camTopCy = (state.camera.y - canvas.height / 2) / CHUNK_PX - minCy;
       const camW = (canvas.width / CHUNK_PX) * cellSize;
       const camH = (canvas.height / CHUNK_PX) * cellSize;
       minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
@@ -4318,7 +4027,7 @@
       minimapCtx.strokeRect(offsetX + camLeftCx * cellSize, offsetY + camTopCy * cellSize, camW, camH);
 
       const localBoss = getLocalBoss();
-      const bTile = world.worldToTile(localBoss.x, localBoss.y);
+      const bTile = state.world.worldToTile(localBoss.x, localBoss.y);
       hudEls.minimapCoords.textContent = `(${bTile.cx}, ${bTile.cy})`;
     }
 
@@ -4343,7 +4052,7 @@
         hudEls.armorBox.classList.remove('flex');
       }
 
-      const myCash = treasuries[myFac] || 0;
+      const myCash = state.treasuries[myFac] || 0;
       hudEls.cashText.textContent = `$${myCash.toLocaleString()}`;
 
       if (myBoss.sprintCooldown > 0) {
@@ -4359,9 +4068,9 @@
         hudEls.sprintText.textContent = 'RDY';
       }
 
-      const hourStr = String(gameHour).padStart(2, '0') + ':00';
+      const hourStr = String(state.gameHour).padStart(2, '0') + ':00';
       hudEls.hourText.textContent = hourStr;
-      hudEls.tickBarFill.style.width = `${Math.min(100, Math.round((tickTimer / tickDuration) * 100))}%`;
+      hudEls.tickBarFill.style.width = `${Math.min(100, Math.round((state.tickTimer / state.tickDuration) * 100))}%`;
 
       const incomeTotals = recalculateHourlyIncome();
       const upkeepTotals = calculateFactionUpkeep();
@@ -4378,23 +4087,23 @@
         [Faction.RIVAL_3]: 0,
       };
 
-      for (const chunk of world.chunks.values()) {
+      for (const chunk of state.world.chunks.values()) {
         if (blockCounts[chunk.faction] !== undefined) blockCounts[chunk.faction]++;
       }
-      for (let i = 0; i < npcs.length; i++) {
-        const u = npcs[i];
+      for (let i = 0; i < state.npcs.length; i++) {
+        const u = state.npcs[i];
         if (crewCounts[u.faction] !== undefined) crewCounts[u.faction]++;
       }
-      if (player.alive) crewCounts[Faction.PLAYER]++;
+      if (state.player.alive) crewCounts[Faction.PLAYER]++;
 
-      const totalBlocks = Math.max(1, world.chunks.size);
+      const totalBlocks = Math.max(1, state.world.chunks.size);
       const myNetIncome = (incomeTotals[myFac] || 0) - (upkeepTotals[myFac] || 0);
       hudEls.statsBadge.textContent = `Turf: ${blockCounts[myFac] || 0}/${totalBlocks} | Crew: ${crewCounts[myFac] || 0} | Net: ${myNetIncome >= 0 ? '+' : ''}$${myNetIncome.toLocaleString()}/hr`;
 
       let boardHtml = `<div class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-800 pb-1 flex justify-between"><span>Syndicate Standings</span><span>Turf · Crew</span></div>`;
-      for (const f of activeFactions) {
+      for (const f of state.activeFactions) {
         const meta = FACTION_META[f];
-        const alive = factionAlive[f];
+        const alive = state.factionAlive[f];
         const isMe = f === myFac;
         const alias = typeof mpNet !== 'undefined' && mpNet.isActive() ? mpNet.getAliasForFaction(f) : null;
         const displayName = alias ? `${meta.short} · ${alias}` : meta.short;
@@ -4478,9 +4187,9 @@
         return {
           gridSize: Number(document.getElementById('map-size-slider')?.value || 15),
           tickSeconds: Number(document.getElementById('tick-speed-slider')?.value || 10),
-          incomeTier: currentIncomeTier,
-          factionCount: activeFactionCount,
-          orgRoster: ensureUniqueOrgs(selectedFactionOrgs),
+          incomeTier: state.currentIncomeTier,
+          factionCount: state.activeFactionCount,
+          orgRoster: ensureUniqueOrgs(state.selectedFactionOrgs),
         };
       }
 
@@ -4832,9 +4541,9 @@
         const fac = peer.faction;
 
         if (payload.cmd === 'MOVE_TO') {
-          const bossNpc = npcs.find((n) => n.faction === fac && n.rank === UnitRank.BOSS);
+          const bossNpc = state.npcs.find((n) => n.faction === fac && n.rank === UnitRank.BOSS);
           if (bossNpc && typeof payload.x === 'number' && typeof payload.y === 'number') {
-            const snapped = world.findNearestWalkablePoint(payload.x, payload.y, 12);
+            const snapped = state.world.findNearestWalkablePoint(payload.x, payload.y, 12);
             if (snapped) {
               bossNpc.targetX = snapped.x;
               bossNpc.targetY = snapped.y;
@@ -4843,14 +4552,14 @@
         } else if (payload.cmd === 'SLASH') {
           executeBossSlashForFaction(fac);
         } else if (payload.cmd === 'SHOOT') {
-          const bossNpc = npcs.find((n) => n.faction === fac && n.rank === UnitRank.BOSS);
+          const bossNpc = state.npcs.find((n) => n.faction === fac && n.rank === UnitRank.BOSS);
           if (bossNpc && typeof payload.tx === 'number' && typeof payload.ty === 'number') {
             performBossPistolShot(bossNpc, false, payload.tx, payload.ty);
           }
         } else if (payload.cmd === 'BUY_ARMOR') {
           executeBuyArmorForFaction(fac);
         } else if (payload.cmd === 'RECRUIT_PREF') {
-          const prefs = factionRecruitmentPrefs[fac];
+          const prefs = state.factionRecruitmentPrefs[fac];
           if (prefs) {
             if (typeof payload.autoSoldier === 'boolean') prefs.autoSoldier = payload.autoSoldier;
             if (typeof payload.autoCaptain === 'boolean') prefs.autoCaptain = payload.autoCaptain;
@@ -4869,18 +4578,18 @@
             }
           }
         } else if (payload.cmd === 'EXPAND_RING') {
-          if (factionAlive[fac]) {
-            const added = world.expandPerimeterRing(fac);
+          if (state.factionAlive[fac]) {
+            const added = state.world.expandPerimeterRing(fac);
             if (added > 0) {
-              minimapCacheTimer = 1.0;
+              state.minimapCacheTimer = 1.0;
               showToast(`${FACTION_META[fac].short} expanded city perimeter (+${added} blocks)`);
             }
           }
         } else if (payload.cmd === 'BUILD_BLOCK') {
-          if (factionAlive[fac] && typeof payload.cx === 'number' && typeof payload.cy === 'number') {
-            if (!world.hasChunk(payload.cx, payload.cy)) {
-              world.generateChunk(payload.cx, payload.cy, fac);
-              minimapCacheTimer = 1.0;
+          if (state.factionAlive[fac] && typeof payload.cx === 'number' && typeof payload.cy === 'number') {
+            if (!state.world.hasChunk(payload.cx, payload.cy)) {
+              state.world.generateChunk(payload.cx, payload.cy, fac);
+              state.minimapCacheTimer = 1.0;
             }
           }
         }
@@ -4888,11 +4597,11 @@
 
       function buildSnapshotPayload() {
         const chunkStates = [];
-        for (const c of world.chunks.values()) {
+        for (const c of state.world.chunks.values()) {
           chunkStates.push([c.cx, c.cy, c.faction, Math.round(c.captureProgress * 100) / 100, c.capturingFaction || '']);
         }
 
-        const npcStates = npcs.map((u) => [
+        const npcStates = state.npcs.map((u) => [
           u.id,
           u.faction,
           u.rank,
@@ -4909,21 +4618,21 @@
         ]);
 
         return {
-          gameHour,
-          tickTimer: Math.round(tickTimer * 100) / 100,
-          treasuries: { ...treasuries },
-          factionAlive: { ...factionAlive },
+          gameHour: state.gameHour,
+          tickTimer: Math.round(state.tickTimer * 100) / 100,
+          treasuries: { ...state.treasuries },
+          factionAlive: { ...state.factionAlive },
           playerBoss: {
-            x: Math.round(player.x * 10) / 10,
-            y: Math.round(player.y * 10) / 10,
-            facing: Math.round(player.facing * 100) / 100,
-            hp: Math.round(player.hp),
-            maxHp: player.maxHp,
-            armor: Math.round(player.armor),
-            maxArmor: player.maxArmor,
-            alive: player.alive,
-            slash: player.slashAnimTimer > 0 ? 1 : 0,
-            shoot: player.muzzleFlashTimer > 0 ? 1 : 0,
+            x: Math.round(state.player.x * 10) / 10,
+            y: Math.round(state.player.y * 10) / 10,
+            facing: Math.round(state.player.facing * 100) / 100,
+            hp: Math.round(state.player.hp),
+            maxHp: state.player.maxHp,
+            armor: Math.round(state.player.armor),
+            maxArmor: state.player.maxArmor,
+            alive: state.player.alive,
+            slash: state.player.slashAnimTimer > 0 ? 1 : 0,
+            shoot: state.player.muzzleFlashTimer > 0 ? 1 : 0,
           },
           chunks: chunkStates,
           npcs: npcStates,
@@ -4932,42 +4641,42 @@
 
       function applyAuthoritativeSnapshot(snap) {
         if (!snap) return;
-        gameHour = snap.gameHour ?? gameHour;
-        tickTimer = snap.tickTimer ?? tickTimer;
+        state.gameHour = snap.gameHour ?? state.gameHour;
+        state.tickTimer = snap.tickTimer ?? state.tickTimer;
 
-        if (snap.treasuries) Object.assign(treasuries, snap.treasuries);
+        if (snap.treasuries) Object.assign(state.treasuries, snap.treasuries);
         if (snap.factionAlive) {
-          for (const f of activeFactions) {
-            const wasAlive = factionAlive[f];
+          for (const f of state.activeFactions) {
+            const wasAlive = state.factionAlive[f];
             const nowAlive = Boolean(snap.factionAlive[f]);
             if (wasAlive && !nowAlive) {
               eliminateFaction(f);
             }
-            factionAlive[f] = nowAlive;
+            state.factionAlive[f] = nowAlive;
           }
         }
 
         if (snap.playerBoss) {
           const pb = snap.playerBoss;
-          player.x += (pb.x - player.x) * 0.45;
-          player.y += (pb.y - player.y) * 0.45;
-          player.facing = pb.facing;
-          player.hp = pb.hp;
-          player.maxHp = pb.maxHp;
-          player.armor = pb.armor;
-          player.maxArmor = pb.maxArmor;
-          player.alive = pb.alive;
-          if (pb.slash) player.slashAnimTimer = 0.14;
-          if (pb.shoot) player.muzzleFlashTimer = 0.08;
+          state.player.x += (pb.x - state.player.x) * 0.45;
+          state.player.y += (pb.y - state.player.y) * 0.45;
+          state.player.facing = pb.facing;
+          state.player.hp = pb.hp;
+          state.player.maxHp = pb.maxHp;
+          state.player.armor = pb.armor;
+          state.player.maxArmor = pb.maxArmor;
+          state.player.alive = pb.alive;
+          if (pb.slash) state.player.slashAnimTimer = 0.14;
+          if (pb.shoot) state.player.muzzleFlashTimer = 0.08;
         }
 
         if (Array.isArray(snap.chunks)) {
           let dirtyMinimap = false;
           for (let i = 0; i < snap.chunks.length; i++) {
             const [cx, cy, fac, prog, capFac] = snap.chunks[i];
-            let chunk = world.getChunk(cx, cy);
+            let chunk = state.world.getChunk(cx, cy);
             if (!chunk) {
-              chunk = world.generateChunk(cx, cy, fac);
+              chunk = state.world.generateChunk(cx, cy, fac);
               dirtyMinimap = true;
             }
             if (chunk.faction !== fac) {
@@ -4977,7 +4686,7 @@
             chunk.captureProgress = prog;
             chunk.capturingFaction = capFac || null;
           }
-          if (dirtyMinimap) minimapCacheTimer = 1.0;
+          if (dirtyMinimap) state.minimapCacheTimer = 1.0;
         }
 
         if (Array.isArray(snap.npcs)) {
@@ -4985,7 +4694,7 @@
           for (let i = 0; i < snap.npcs.length; i++) {
             const [id, fac, rank, x, y, facing, hp, maxHp, armor, maxArmor, slash, shoot, hPeer] = snap.npcs[i];
             seenIds.add(id);
-            let unit = npcs.find((n) => n.id === id);
+            let unit = state.npcs.find((n) => n.id === id);
             if (!unit) {
               unit = {
                 id,
@@ -5023,7 +4732,7 @@
                 lastCheckY: y,
                 stuckTimer: 0,
               };
-              npcs.push(unit);
+              state.npcs.push(unit);
             } else {
               unit.x += (x - unit.x) * 0.45;
               unit.y += (y - unit.y) * 0.45;
@@ -5038,11 +4747,11 @@
             }
           }
 
-          for (let i = npcs.length - 1; i >= 0; i--) {
-            if (!seenIds.has(npcs[i].id)) {
-              const dead = npcs[i];
+          for (let i = state.npcs.length - 1; i >= 0; i--) {
+            if (!seenIds.has(state.npcs[i].id)) {
+              const dead = state.npcs[i];
               spawnDeadBody(dead.x, dead.y, dead.faction, dead.rank, dead.facing, dead.facing);
-              npcs.splice(i, 1);
+              state.npcs.splice(i, 1);
             }
           }
         }
@@ -5086,8 +4795,8 @@
         }
 
         const localBoss = getLocalBoss();
-        camera.x = localBoss.x;
-        camera.y = localBoss.y;
+        state.camera.x = localBoss.x;
+        state.camera.y = localBoss.y;
         showToast(`Joined match as ${FACTION_META[localFaction].name} (${FACTION_META[localFaction].ranks.BOSS})!`);
       }
 
@@ -5137,7 +4846,7 @@
                 const leftName = peer.name;
                 peers.delete(peerId);
                 if (matchStarted && leftFaction) {
-                  const bossNpc = npcs.find((n) => n.faction === leftFaction && n.rank === UnitRank.BOSS);
+                  const bossNpc = state.npcs.find((n) => n.faction === leftFaction && n.rank === UnitRank.BOSS);
                   if (bossNpc) {
                     bossNpc.humanPeerId = null;
                     bossNpc.speed = 152;
@@ -5447,18 +5156,18 @@
         if (mode !== 'JOIN' || !matchStarted || !sendInput || !hostPeerId) return;
         let mx = 0;
         let my = 0;
-        if (keys.has('w') || keys.has('arrowup')) my -= 1;
-        if (keys.has('s') || keys.has('arrowdown')) my += 1;
-        if (keys.has('a') || keys.has('arrowleft')) mx -= 1;
-        if (keys.has('d') || keys.has('arrowright')) mx += 1;
-        const sprint = keys.has('shift');
+        if (state.keys.has('w') || state.keys.has('arrowup')) my -= 1;
+        if (state.keys.has('s') || state.keys.has('arrowdown')) my += 1;
+        if (state.keys.has('a') || state.keys.has('arrowleft')) mx -= 1;
+        if (state.keys.has('d') || state.keys.has('arrowright')) mx += 1;
+        const sprint = state.keys.has('shift');
 
         const localBoss = getLocalBoss();
         let facing = localBoss ? localBoss.facing : 0;
-        if (mouse.inside && canvas.width > 0 && localBoss) {
+        if (state.mouse.inside && canvas.width > 0 && localBoss) {
           const rect = canvas.getBoundingClientRect();
-          const aimWx = camera.x - rect.width / 2 + mouse.screenX;
-          const aimWy = camera.y - rect.height / 2 + mouse.screenY;
+          const aimWx = state.camera.x - rect.width / 2 + state.mouse.screenX;
+          const aimWy = state.camera.y - rect.height / 2 + state.mouse.screenY;
           facing = Math.atan2(aimWy - localBoss.y, aimWx - localBoss.x);
         }
 
@@ -5498,7 +5207,7 @@
 
       function handleHostDisconnected() {
         matchStarted = false;
-        gameStarted = false;
+        state.gameStarted = false;
         document.getElementById('disconnect-banner').classList.remove('hidden');
       }
 
@@ -5617,31 +5326,21 @@
       };
     })();
 
+    // Net bridge (Convention 2): lets core/state.js selectors see the net layer
+    // without a circular import. The legacy `mpNet` guards are migrated in Step 1.10.
+    state.net = mpNet;
+
     // =========================================================================
     // 12. SETUP MODAL CONTROLS, HUD BUTTON BINDINGS & MAIN GAME LOOP
     // =========================================================================
-    function ensureUniqueOrgs(list) {
-      const used = new Set();
-      const result = [];
-      for (let i = 0; i < 4; i++) {
-        let candidate = list?.[i];
-        if (!candidate || !ORGANIZATIONS[candidate] || used.has(candidate)) {
-          candidate = ALL_ORG_IDS.find((id) => !used.has(id)) || ALL_ORG_IDS[0];
-        }
-        used.add(candidate);
-        result.push(candidate);
-      }
-      return result;
-    }
-
     function renderFactionSlotsUI() {
-      selectedFactionOrgs = ensureUniqueOrgs(selectedFactionOrgs);
+      state.selectedFactionOrgs = ensureUniqueOrgs(state.selectedFactionOrgs);
       const container = document.getElementById('faction-slots-container');
       const seatLabels = ['Seat 1 (Host)', 'Seat 2', 'Seat 3', 'Seat 4'];
       let html = '';
 
-      for (let i = 0; i < activeFactionCount; i++) {
-        const currentOrgId = selectedFactionOrgs[i];
+      for (let i = 0; i < state.activeFactionCount; i++) {
+        const currentOrgId = state.selectedFactionOrgs[i];
         const org = ORGANIZATIONS[currentOrgId];
         let optionsHtml = '';
         for (const id of ALL_ORG_IDS) {
@@ -5666,12 +5365,12 @@
         sel.addEventListener('change', (e) => {
           const idx = Number(e.target.getAttribute('data-slot-idx'));
           const chosen = e.target.value;
-          const prev = selectedFactionOrgs[idx];
-          const conflictIdx = selectedFactionOrgs.findIndex((id, k) => k !== idx && id === chosen);
+          const prev = state.selectedFactionOrgs[idx];
+          const conflictIdx = state.selectedFactionOrgs.findIndex((id, k) => k !== idx && id === chosen);
           if (conflictIdx !== -1) {
-            selectedFactionOrgs[conflictIdx] = prev;
+            state.selectedFactionOrgs[conflictIdx] = prev;
           }
-          selectedFactionOrgs[idx] = chosen;
+          state.selectedFactionOrgs[idx] = chosen;
           renderFactionSlotsUI();
           if (mpNet.mode === 'HOST') {
             mpNet.updateHostLobbyUI();
@@ -5707,9 +5406,9 @@
 
     document.querySelectorAll('.fcount-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        activeFactionCount = Number(btn.getAttribute('data-fcount')) || 4;
+        state.activeFactionCount = Number(btn.getAttribute('data-fcount')) || 4;
         document.querySelectorAll('.fcount-btn').forEach((b) => {
-          const active = Number(b.getAttribute('data-fcount')) === activeFactionCount;
+          const active = Number(b.getAttribute('data-fcount')) === state.activeFactionCount;
           b.className = active
             ? 'fcount-btn bg-amber-500/20 border border-amber-500 text-amber-300 px-2.5 py-0.5 rounded text-[11px] font-mono font-bold transition'
             : 'fcount-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 px-2.5 py-0.5 rounded text-[11px] font-mono font-bold transition';
@@ -5743,11 +5442,11 @@
 
     document.querySelectorAll('.income-tier-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        currentIncomeTier = btn.getAttribute('data-income') || 'HIGH';
-        const tier = INCOME_TIERS[currentIncomeTier];
+        state.currentIncomeTier = btn.getAttribute('data-income') || 'HIGH';
+        const tier = INCOME_TIERS[state.currentIncomeTier];
         document.getElementById('income-tier-display').textContent = `$${tier.min.toLocaleString()}–$${tier.max.toLocaleString()} / tick`;
         document.querySelectorAll('.income-tier-btn').forEach((b) => {
-          const active = b.getAttribute('data-income') === currentIncomeTier;
+          const active = b.getAttribute('data-income') === state.currentIncomeTier;
           b.className = active
             ? 'income-tier-btn bg-emerald-500/20 border border-emerald-500 text-emerald-300 py-2 px-2 rounded-lg text-center transition'
             : 'income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition';
@@ -5804,13 +5503,13 @@
 
       if (mpNet.mode === 'HOST') {
         document.getElementById('setup-modal').classList.add('hidden');
-        mpNet.launchMultiplayerMatch(gridSize, tickSeconds, currentIncomeTier, activeFactionCount, selectedFactionOrgs);
+        mpNet.launchMultiplayerMatch(gridSize, tickSeconds, state.currentIncomeTier, state.activeFactionCount, state.selectedFactionOrgs);
         return;
       }
 
       mpNet.cleanup(true);
       document.getElementById('setup-modal').classList.add('hidden');
-      initWorld(gridSize, true, tickSeconds, currentIncomeTier, activeFactionCount, selectedFactionOrgs, null);
+      initWorld(gridSize, true, tickSeconds, state.currentIncomeTier, state.activeFactionCount, state.selectedFactionOrgs, null);
     });
 
     // Top HUD Action Buttons
@@ -5818,58 +5517,58 @@
       if (mpNet.isGuest()) {
         mpNet.sendCommand({
           cmd: 'RECRUIT_PREF',
-          autoSoldier: autoRecruitSoldier,
-          autoCaptain: autoRecruitCaptain,
-          autoUnderboss: autoRecruitUnderboss,
-          caps: { ...playerSpawnCaps },
+          autoSoldier: state.autoRecruitSoldier,
+          autoCaptain: state.autoRecruitCaptain,
+          autoUnderboss: state.autoRecruitUnderboss,
+          caps: { ...state.playerSpawnCaps },
         });
       }
     }
 
     document.getElementById('btn-toggle-soldier').addEventListener('click', () => {
-      autoRecruitSoldier = !autoRecruitSoldier;
+      state.autoRecruitSoldier = !state.autoRecruitSoldier;
       syncRecruitButtonLabels();
       pushRecruitPrefsToHost();
     });
     document.getElementById('btn-cap-soldier-dec').addEventListener('click', () => {
-      playerSpawnCaps[UnitRank.SOLDIER]--;
+      state.playerSpawnCaps[UnitRank.SOLDIER]--;
       syncRecruitButtonLabels();
       pushRecruitPrefsToHost();
     });
     document.getElementById('btn-cap-soldier-inc').addEventListener('click', () => {
-      playerSpawnCaps[UnitRank.SOLDIER]++;
+      state.playerSpawnCaps[UnitRank.SOLDIER]++;
       syncRecruitButtonLabels();
       pushRecruitPrefsToHost();
     });
 
     document.getElementById('btn-toggle-captain').addEventListener('click', () => {
-      autoRecruitCaptain = !autoRecruitCaptain;
+      state.autoRecruitCaptain = !state.autoRecruitCaptain;
       syncRecruitButtonLabels();
       pushRecruitPrefsToHost();
     });
     document.getElementById('btn-cap-captain-dec').addEventListener('click', () => {
-      playerSpawnCaps[UnitRank.CAPTAIN]--;
+      state.playerSpawnCaps[UnitRank.CAPTAIN]--;
       syncRecruitButtonLabels();
       pushRecruitPrefsToHost();
     });
     document.getElementById('btn-cap-captain-inc').addEventListener('click', () => {
-      playerSpawnCaps[UnitRank.CAPTAIN]++;
+      state.playerSpawnCaps[UnitRank.CAPTAIN]++;
       syncRecruitButtonLabels();
       pushRecruitPrefsToHost();
     });
 
     document.getElementById('btn-toggle-underboss').addEventListener('click', () => {
-      autoRecruitUnderboss = !autoRecruitUnderboss;
+      state.autoRecruitUnderboss = !state.autoRecruitUnderboss;
       syncRecruitButtonLabels();
       pushRecruitPrefsToHost();
     });
     document.getElementById('btn-cap-underboss-dec').addEventListener('click', () => {
-      playerSpawnCaps[UnitRank.UNDERBOSS]--;
+      state.playerSpawnCaps[UnitRank.UNDERBOSS]--;
       syncRecruitButtonLabels();
       pushRecruitPrefsToHost();
     });
     document.getElementById('btn-cap-underboss-inc').addEventListener('click', () => {
-      playerSpawnCaps[UnitRank.UNDERBOSS]++;
+      state.playerSpawnCaps[UnitRank.UNDERBOSS]++;
       syncRecruitButtonLabels();
       pushRecruitPrefsToHost();
     });
@@ -5885,32 +5584,32 @@
       if (mpNet.isGuest()) {
         mpNet.sendCommand({ cmd: 'SHOOT', tx, ty });
       } else {
-        performBossPistolShot(player, true, tx, ty);
+        performBossPistolShot(state.player, true, tx, ty);
       }
     });
 
     document.getElementById('btn-toggle-expand-click').addEventListener('click', (e) => {
-      allowClickExpand = !allowClickExpand;
-      e.target.textContent = `Click-Build: ${allowClickExpand ? 'ON' : 'OFF'}`;
+      state.allowClickExpand = !state.allowClickExpand;
+      e.target.textContent = `Click-Build: ${state.allowClickExpand ? 'ON' : 'OFF'}`;
     });
 
     document.getElementById('btn-expand-ring').addEventListener('click', () => {
-      if (!gameStarted) return;
+      if (!state.gameStarted) return;
       if (mpNet.isGuest()) {
         mpNet.sendCommand({ cmd: 'EXPAND_RING' });
         return;
       }
-      const added = world.expandPerimeterRing(Faction.PLAYER);
+      const added = state.world.expandPerimeterRing(Faction.PLAYER);
       if (added > 0) {
-        minimapCacheTimer = 1.0;
+        state.minimapCacheTimer = 1.0;
         showToast(`Expanded city perimeter (+${added} neighborhoods)`);
         updateHUD();
       }
     });
 
     document.getElementById('btn-toggle-grid').addEventListener('click', (e) => {
-      showBorders = !showBorders;
-      e.target.textContent = `Borders: ${showBorders ? 'ON' : 'OFF'}`;
+      state.showBorders = !state.showBorders;
+      e.target.textContent = `Borders: ${state.showBorders ? 'ON' : 'OFF'}`;
     });
 
     document.getElementById('btn-toggle-music').addEventListener('click', (e) => {
@@ -5939,7 +5638,7 @@
     function openSetupMenu() {
       mpNet.cleanup(true);
       mpNet.setMode('SINGLE');
-      gameStarted = false;
+      state.gameStarted = false;
       document.getElementById('defeat-banner').classList.add('hidden');
       document.getElementById('victory-banner').classList.add('hidden');
       document.getElementById('spectator-banner').classList.add('hidden');
@@ -5958,7 +5657,7 @@
     });
 
     document.getElementById('btn-spectate-match').addEventListener('click', () => {
-      isSpectating = true;
+      state.isSpectating = true;
       document.getElementById('defeat-banner').classList.add('hidden');
       document.getElementById('spectator-banner').classList.remove('hidden');
     });
@@ -5969,7 +5668,7 @@
       const dt = Math.min(0.05, Math.max(0.001, (now - lastFrameTime) / 1000));
       lastFrameTime = now;
 
-      if (gameStarted) {
+      if (state.gameStarted) {
         update(dt);
         render();
       }

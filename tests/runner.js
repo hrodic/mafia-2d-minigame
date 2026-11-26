@@ -2,6 +2,10 @@
 // When new modules are extracted during the refactor, add their tests below.
 import { runAll } from './harness.js';
 import './self.test.js';
+import './rng.test.js';
+import './config.test.js';
+import './state.test.js';
+import './ui.test.js';
 
 runAll().catch((err) => {
   const root = document.getElementById('test-results');
