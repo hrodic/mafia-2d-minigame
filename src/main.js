@@ -72,6 +72,7 @@ import {
 } from './sim/units.js';
 import { runtime } from './core/runtime.js';
 import { calculateFactionUpkeep, recalculateHourlyIncome, processHourlyTick } from './sim/economy.js';
+import { progressCapture, getCaptureRate, onChunkCaptured, eliminateFaction } from './sim/territory.js';
 
 
     // =========================================================================
@@ -137,59 +138,6 @@ import { calculateFactionUpkeep, recalculateHourlyIncome, processHourlyTick } fr
 
 
 
-    function checkVictoryCondition() {
-      const myFac = getLocalFaction();
-      if (state.victoryShown || state.gameOver || !state.factionAlive[myFac]) return;
-      const anyRivalAlive = state.activeFactions.some(
-        (f) => f !== myFac && state.factionAlive[f]
-      );
-
-      if (!anyRivalAlive) {
-        state.victoryShown = true;
-        sfx.playVictory();
-        const myBlocks = Array.from(state.world.chunks.values()).filter(
-          (c) => c.faction === myFac
-        ).length;
-        const survivingCrew = state.npcs.filter((n) => n.faction === myFac).length;
-        const myOrg = FACTION_META[myFac];
-        document.getElementById('victory-summary').textContent =
-          `All rival Supreme Leaders have been eliminated! ${myOrg.name} (${myOrg.ranks.BOSS}) rules ${myBlocks}/${state.world.chunks.size} neighborhoods with $${state.treasuries[myFac].toLocaleString()} in cash and ${survivingCrew} surviving crew.`;
-        document.getElementById('victory-banner').classList.remove('hidden');
-      }
-    }
-
-    function eliminateFaction(faction) {
-      if (!state.factionAlive[faction]) return;
-      state.factionAlive[faction] = false;
-      state.treasuries[faction] = 0;
-
-      for (const chunk of state.world.chunks.values()) {
-        if (chunk.faction === faction) {
-          chunk.faction = Faction.NEUTRAL;
-          chunk.captureProgress = 0;
-          chunk.capturingFaction = null;
-        }
-        if (chunk.capturingFaction === faction) {
-          chunk.captureProgress = 0;
-          chunk.capturingFaction = null;
-        }
-      }
-
-      if (faction === Faction.PLAYER) {
-        state.player.alive = false;
-      }
-
-      if (faction === getLocalFaction()) {
-        state.gameOver = true;
-        document.getElementById('defeat-banner').classList.remove('hidden');
-      } else {
-        sfx.playFactionEliminated();
-        const meta = FACTION_META[faction];
-        showToast(`${meta.name}'s ${meta.ranks.BOSS} killed! Their turf is now Neutral.`);
-        checkVictoryCondition();
-      }
-      updateHUD();
-    }
 
     function syncRecruitButtonLabels() {
       clampPlayerSpawnCaps();
@@ -962,24 +910,8 @@ import { calculateFactionUpkeep, recalculateHourlyIncome, processHourlyTick } fr
 
       const bTile = state.world.worldToTile(bossNpc.x, bossNpc.y);
       const currentChunk = state.world.getChunk(bTile.cx, bTile.cy);
-      if (currentChunk && currentChunk.faction !== bossNpc.faction && state.factionAlive[bossNpc.faction]) {
-        if (currentChunk.capturingFaction !== bossNpc.faction) {
-          currentChunk.capturingFaction = bossNpc.faction;
-          currentChunk.captureProgress = 0;
-        }
-        currentChunk.captureProgress += dt * 0.375;
-        if (currentChunk.captureProgress >= 1) {
-          currentChunk.faction = bossNpc.faction;
-          currentChunk.captureProgress = 0;
-          currentChunk.capturingFaction = null;
-          addFloatingText(
-            currentChunk.cx * CHUNK_PX + CHUNK_PX / 2,
-            currentChunk.cy * CHUNK_PX + 28,
-            `${FACTION_META[bossNpc.faction].short} TURF`,
-            FACTION_META[bossNpc.faction].accent
-          );
-          updateHUD();
-        }
+      if (progressCapture(currentChunk, bossNpc.faction, dt, getCaptureRate(UnitRank.BOSS))) {
+        onChunkCaptured(currentChunk, bossNpc.faction);
       }
     }
 
@@ -1294,25 +1226,8 @@ import { calculateFactionUpkeep, recalculateHourlyIncome, processHourlyTick } fr
 
         const pTile = state.world.worldToTile(state.player.x, state.player.y);
         const pChunk = state.world.getChunk(pTile.cx, pTile.cy);
-        if (pChunk && pChunk.faction !== Faction.PLAYER && state.factionAlive[Faction.PLAYER]) {
-          if (pChunk.capturingFaction !== Faction.PLAYER) {
-            pChunk.capturingFaction = Faction.PLAYER;
-            pChunk.captureProgress = 0;
-          }
-          pChunk.captureProgress += dt * 0.375;
-          if (pChunk.captureProgress >= 1) {
-            pChunk.faction = Faction.PLAYER;
-            pChunk.captureProgress = 0;
-            pChunk.capturingFaction = null;
-            addFloatingText(
-              pChunk.cx * CHUNK_PX + CHUNK_PX / 2,
-              pChunk.cy * CHUNK_PX + 28,
-              `${FACTION_META[Faction.PLAYER].short} TURF`,
-              FACTION_META[Faction.PLAYER].accent
-            );
-            state.minimapCacheTimer = 1.0;
-            updateHUD();
-          }
+        if (progressCapture(pChunk, Faction.PLAYER, dt, getCaptureRate(UnitRank.BOSS))) {
+          onChunkCaptured(pChunk, Faction.PLAYER);
         }
 
         state.camera.x += (state.player.x - state.camera.x) * Math.min(1, dt * 12);
@@ -1498,25 +1413,8 @@ import { calculateFactionUpkeep, recalculateHourlyIncome, processHourlyTick } fr
         // Territory capture by NPCs
         const uTile = state.world.worldToTile(u.x, u.y);
         const uChunk = state.world.getChunk(uTile.cx, uTile.cy);
-        if (uChunk && uChunk.faction !== u.faction && state.factionAlive[u.faction]) {
-          if (uChunk.capturingFaction !== u.faction) {
-            uChunk.capturingFaction = u.faction;
-            uChunk.captureProgress = 0;
-          }
-          const capRate = u.rank === UnitRank.BOSS ? 0.375 : u.rank === UnitRank.UNDERBOSS ? 0.24 : u.rank === UnitRank.CAPTAIN ? 0.18 : 0.12;
-          uChunk.captureProgress += dt * capRate;
-          if (uChunk.captureProgress >= 1) {
-            uChunk.faction = u.faction;
-            uChunk.captureProgress = 0;
-            uChunk.capturingFaction = null;
-            addFloatingText(
-              uChunk.cx * CHUNK_PX + CHUNK_PX / 2,
-              uChunk.cy * CHUNK_PX + 28,
-              `${FACTION_META[u.faction].short} TURF`,
-              FACTION_META[u.faction].accent
-            );
-            state.minimapCacheTimer = 1.0;
-          }
+        if (progressCapture(uChunk, u.faction, dt, getCaptureRate(u.rank))) {
+          onChunkCaptured(uChunk, u.faction);
         }
       }
 
@@ -3594,6 +3492,19 @@ import { calculateFactionUpkeep, recalculateHourlyIncome, processHourlyTick } fr
 
     // Presentation hooks used by simulation modules (Phase 2 replaces this with events).
     runtime.updateHUD = updateHUD;
+    runtime.onDefeat = () => {
+      document.getElementById('defeat-banner').classList.remove('hidden');
+    };
+    runtime.onFactionEliminated = (faction) => {
+      sfx.playFactionEliminated();
+      const meta = FACTION_META[faction];
+      showToast(`${meta.name}'s ${meta.ranks.BOSS} killed! Their turf is now Neutral.`);
+    };
+    runtime.onVictory = (summary) => {
+      sfx.playVictory();
+      document.getElementById('victory-summary').textContent = summary;
+      document.getElementById('victory-banner').classList.remove('hidden');
+    };
 
     // =========================================================================
     // 12. SETUP MODAL CONTROLS, HUD BUTTON BINDINGS & MAIN GAME LOOP
