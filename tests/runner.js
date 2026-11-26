@@ -10,6 +10,7 @@ import './world.test.js';
 import './pathfinding.test.js';
 import './audio.test.js';
 import './effects.test.js';
+import './movement.test.js';
 
 runAll().catch((err) => {
   const root = document.getElementById('test-results');
