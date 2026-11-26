@@ -51,6 +51,7 @@ src/
     characters.js          characters + corpses
     effects.js             blood/decals/tracers/casings/sparks/floating text
     combatFx.js            event subscribers: combat facts -> visual effects
+    recruitFx.js           event subscriber: unit:recruited -> floating text
     minimap.js             cached radar layer + live dots/viewport
     interpolation.js       guest-side position smoothing + animation timer decay
   audio/
@@ -126,9 +127,9 @@ without importing the net module (which would create a cycle).
 | `onVictory` / `onDefeat` | territory | banners + SFX |
 | `onFactionEliminated` | territory | toast + SFX |
 
-Combat no longer uses runtime hooks: `ui:toast` and `hud:refresh` replace `showToast` and
-the armor-purchase HUD refresh. Phase 2 is replacing the remaining hooks with the event bus
-in `core/events.js` (see `EVENTS.md`).
+Combat no longer uses runtime hooks: `ui:toast` replaces `showToast`, and the HUD
+subscriber refreshes on the `armor:equipped` fact (no command-style refresh event). Phase 2
+is replacing the remaining hooks with the event bus in `core/events.js` (see `EVENTS.md`).
 
 ### Event bus (Phase 2)
 
@@ -139,8 +140,8 @@ in `main.js`. Benefits, tradeoffs, when to use/skip, and the full performance bu
 `EVENTS.md`.
 
 `tools/check.ps1` enforces this as a ratchet: `sim/` may not import `render/`, `audio/`,
-`ui/` or `net/`. The remaining Phase 2 debt (`match`, `simulation`, `territory`, `units`)
-is explicitly allowlisted and must only shrink.
+`ui/` or `net/`. The remaining Phase 2 debt (`match`, `simulation`, `territory`) is
+explicitly allowlisted and must only shrink.
 
 The non-negotiable rule: **discrete facts only** — never per-frame or per-NPC-per-frame.
 Continuous visuals (positions, HP bars, timers, interpolation) are read from `state` during
@@ -203,7 +204,8 @@ transitions only, never positions, timers or per-NPC updates.
 ### Units and recruitment
 `sim/units.js` owns per-rank caps (5% underbosses, 10% captains, rest soldiers, minimum
 25 blocks), unit stat tables (inline ternaries today), spawning near the boss/owned turf,
-and recruitment (cost, caps, treasury, cached counts). Rival bosses controlled by a human
+and recruitment (cost, caps, treasury, cached counts). It emits `unit:recruited`;
+`render/recruitFx.js` draws the `+RANK ($cost)` text. Rival bosses controlled by a human
 peer have `humanPeerId` and human speed (225 vs 152 for AI).
 
 ### Combat
@@ -308,8 +310,8 @@ distance from the camera.
 
 ## Known limitations / next phases
 
-- Phase 2: finish migrating runtime hooks to the event bus (bus implemented; combat
-  migrated; remaining presentation imports in `match/simulation/territory/units` are
+- Phase 2: finish migrating runtime hooks to the event bus (bus implemented; combat and
+  units migrated; remaining presentation imports in `match/simulation/territory` are
   allowlisted in `tools/check.ps1`); deduplicate prop geometry, minimap layout,
   faction slot selection and `GAME_VERSION`; data-driven balance tables; explicit RNG
   (remove `withSeed`'s `Math.random` patch); extract AI decisions to `sim/ai.js`.

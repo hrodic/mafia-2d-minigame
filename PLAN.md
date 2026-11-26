@@ -14,7 +14,9 @@ This is the living plan. Read `AGENTS.md` for the working contract and
     `tools/check.ps1` now enforces the `sim/` layering ratchet.
   - Fix: guest movement crash (`canvas` missing import in `net/mpNet.js`); static guard
     added so `canvas.*` usage requires the canvas import. Guest movement re-verified.
-  - Next: units → economy → territory → match migration; then dedup/balance/RNG/AI work
+  - Step 3 DONE: units migrated (`unit:recruited` -> `render/recruitFx.js`); allowlist debt
+    is now match/simulation/territory.
+  - Next: economy → territory → match migration; then dedup/balance/RNG/AI work
   - Guardrails: benefits/tradeoffs/use-skip rules and the many-NPC + multiplayer
     performance budget are documented in `EVENTS.md`
 - Phases 3-5 - pending (unified entity model/commands/fixed timestep, net hardening, quality)

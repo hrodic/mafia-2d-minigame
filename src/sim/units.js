@@ -9,9 +9,9 @@ import {
   COST_CAPTAIN,
   COST_UNDERBOSS,
 } from '../config/balance.js';
-import { ALL_FACTION_SLOTS, FACTION_META } from '../config/organizations.js';
+import { ALL_FACTION_SLOTS } from '../config/organizations.js';
 import { state } from '../core/state.js';
-import { addFloatingText } from '../render/effects.js';
+import { emit } from '../core/events.js';
 import { canOccupyPosition, getEntityCollisionRadius } from './movement.js';
 
 
@@ -190,8 +190,7 @@ export function recruitUnit(faction, rank, silent = false, cachedCounts = null, 
   if (unit) {
     if (cachedCounts) cachedCounts[faction][countKey]++;
     if (!silent) {
-      const rankLabel = (FACTION_META[faction].ranks[rank] || rank).toUpperCase();
-      addFloatingText(unit.x, unit.y - 26, `+${rankLabel} ($${cost.toLocaleString()})`, FACTION_META[faction].accent);
+      emit('unit:recruited', { unit, faction, rank, cost });
     }
     return true;
   } else {

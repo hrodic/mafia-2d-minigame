@@ -9,6 +9,7 @@ import { on } from './core/events.js';
 import { CityMap } from './world/city.js';
 import { render, resizeCanvas } from './render/renderer.js';
 import * as combatFx from './render/combatFx.js';
+import * as recruitFx from './render/recruitFx.js';
 import { updateHUD, syncRecruitButtonLabels } from './ui/hud.js';
 import {
   initMenus,
@@ -55,6 +56,9 @@ on('unit:died', combatSfx.onUnitDied);
 on('armor:broken', combatFx.onArmorBroken);
 on('armor:equipped', combatFx.onArmorEquipped);
 on('armor:equipped', combatSfx.onArmorEquipped);
+on('armor:equipped', (event) => {
+  if (event.isPlayer) updateHUD();
+});
 on('slash:performed', combatFx.onSlashPerformed);
 on('slash:performed', combatSfx.onSlashPerformed);
 on('shot:started', combatFx.onShotStarted);
@@ -73,7 +77,7 @@ on('shot:fired', (event) => {
   });
 });
 on('ui:toast', ({ message }) => showToast(message));
-on('hud:refresh', updateHUD);
+on('unit:recruited', recruitFx.onUnitRecruited);
 
 // Main loop. Variable timestep for now (fixed timestep is Phase 3).
 let lastFrameTime = performance.now();

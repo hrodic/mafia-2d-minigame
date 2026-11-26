@@ -154,7 +154,6 @@ const CAPTURED_EVENTS = [
   'shot:started',
   'shot:fired',
   'ui:toast',
-  'hud:refresh',
 ];
 
 function eventsOf(events, type) {
@@ -404,7 +403,6 @@ test('combat: armor purchase failures explain themselves', () => {
     buyBossArmor();
     const toasts = eventsOf(events, 'ui:toast').map((entry) => entry.payload.message);
     assert(toasts.some((msg) => msg.includes('Equipped Kevlar Armor')), toasts.join(' | '));
-    assertEqual(eventsOf(events, 'hud:refresh').length, 1);
     assertEqual(eventsOf(events, 'armor:equipped').length, 1);
   });
 });

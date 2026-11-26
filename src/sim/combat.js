@@ -591,7 +591,6 @@ export function buyBossArmor() {
     emit('ui:toast', {
       message: `Equipped Kevlar Armor! Next purchase available in ${state.tickDuration}s.`,
     });
-    emit('hud:refresh');
   }
 }
 

@@ -5,6 +5,7 @@ import { Faction, UnitRank, PropType } from '../src/config/enums.js';
 import { CHUNK_SIZE, TILE_SIZE } from '../src/config/constants.js';
 import { state } from '../src/core/state.js';
 import { runtime } from '../src/core/runtime.js';
+import { on } from '../src/core/events.js';
 import { isSoundEnabled, setSoundEnabled } from '../src/audio/engine.js';
 import { resetEffects } from '../src/render/effects.js';
 import { update } from '../src/sim/simulation.js';
@@ -283,6 +284,25 @@ test('simulation: NPC AI runs and spatial buckets are rebuilt', () => {
     assertEqual(state.spatialBuckets.size, 1, 'spatial buckets should include the NPC');
     assert(npc.x !== 200 || npc.y !== 0, 'NPC should move/patrol');
     assert(state.world.chunks.get('0,0').faction === Faction.PLAYER);
+  });
+});
+
+test('simulation: non-boss melee emits slash:performed', () => {
+  const player = makePlayer({ x: 100, y: 100 });
+  const npc = makeNpc({ x: 130, y: 100, faction: Faction.RIVAL_1 });
+  withSimState({ player, npcs: [npc] }, () => {
+    const slashes = [];
+    const unsubscribe = on('slash:performed', (payload) => slashes.push(payload));
+    try {
+      update(0.016);
+      assertEqual(slashes.length, 1);
+      assertEqual(slashes[0].hitCount, 1);
+      assertEqual(slashes[0].isPlayer, false);
+      assertEqual(slashes[0].x, 130);
+      assert(state.player.hp < 400, 'the melee should still damage the player');
+    } finally {
+      unsubscribe();
+    }
   });
 });
 

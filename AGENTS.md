@@ -56,6 +56,7 @@ command, number or test result; read the file or run the check.
 | Combat presentation (effects / SFX) | `src/render/combatFx.js`, `src/audio/combatSfx.js` |
 | Capture / victory / defeat | `src/sim/territory.js` |
 | Economy / recruitment tick | `src/sim/economy.js`, `src/sim/units.js` |
+| Recruitment feedback (floating text) | `src/render/recruitFx.js` |
 | Remote-human boss / waypoints | `src/sim/movement.js` |
 | HUD | `src/ui/hud.js` |
 | Setup modal / banners / toasts | `src/ui/menus.js` |

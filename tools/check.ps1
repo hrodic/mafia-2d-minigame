@@ -51,7 +51,7 @@ foreach ($file in $jsFiles) {
 # Layering ratchet: sim/ must not import presentation/net layers. The remaining Phase 2
 # debt is allowlisted; remove entries as each module migrates and never add new ones.
 $simDir = Join-Path $root 'src/sim'
-$simPresentationDebt = @('match.js', 'simulation.js', 'territory.js', 'units.js')
+$simPresentationDebt = @('match.js', 'simulation.js', 'territory.js')
 $simDebtFound = New-Object System.Collections.Generic.List[string]
 foreach ($file in (Get-ChildItem $simDir -Filter *.js)) {
   $text = [IO.File]::ReadAllText($file.FullName)

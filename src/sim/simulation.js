@@ -13,13 +13,13 @@ import { UNIT_ATTACK_COOLDOWN } from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
 import { state, getLocalBoss, isLocalBossAlive } from '../core/state.js';
 import { runtime } from '../core/runtime.js';
+import { emit } from '../core/events.js';
 import { rebuildSpatialBuckets } from '../core/spatial.js';
 import { packChunkKey } from '../world/city.js';
 import { computeTilePath, MAX_ASTAR_PER_FRAME } from '../world/pathfinding.js';
 import { canvas } from '../render/canvas.js';
 import { stepGuestPresentation } from '../render/interpolation.js';
-import { updateVisualParticles, spawnSlashArc } from '../render/effects.js';
-import { sfx } from '../audio/sfx.js';
+import { updateVisualParticles } from '../render/effects.js';
 import {
   canOccupyPosition,
   isPushingFriendly,
@@ -257,8 +257,14 @@ export function update(dt) {
         } else if (u.attackCooldown <= 0) {
           u.attackCooldown = UNIT_ATTACK_COOLDOWN;
           u.slashAnimTimer = 0.18;
-          spawnSlashArc(u.x, u.y, u.facing, FACTION_META[u.faction].accent);
-          sfx.playSlash(true, u.x, u.y);
+          emit('slash:performed', {
+            x: u.x,
+            y: u.y,
+            facing: u.facing,
+            color: FACTION_META[u.faction].accent,
+            hitCount: 1,
+            isPlayer: false,
+          });
           const dmg = rollDamage(u.minDmg, u.maxDmg);
           if (nearestEnemy.isPlayer) {
             damagePlayerBoss(dmg, FACTION_META[u.faction].accent, '', u.facing);

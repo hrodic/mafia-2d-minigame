@@ -5,7 +5,9 @@ import { UPKEEP_SOLDIER, UPKEEP_CAPTAIN, UPKEEP_UNDERBOSS, COST_SOLDIER } from '
 import { ALL_FACTION_SLOTS } from '../src/config/organizations.js';
 import { state } from '../src/core/state.js';
 import { runtime } from '../src/core/runtime.js';
+import { on } from '../src/core/events.js';
 import { CityMap } from '../src/world/city.js';
+import { onUnitRecruited } from '../src/render/recruitFx.js';
 import {
   calculateFactionUpkeep,
   recalculateHourlyIncome,
@@ -64,9 +66,11 @@ function withEconomyState(opts, fn) {
   runtime.updateHUD = () => {
     hudCalls++;
   };
+  const unsubscribeRecruitFx = on('unit:recruited', onUnitRecruited);
   try {
     return fn({ map, hudCalls: () => hudCalls });
   } finally {
+    unsubscribeRecruitFx();
     runtime.updateHUD = originalHud;
     for (const key of STATE_KEYS) state[key] = saved[key];
   }

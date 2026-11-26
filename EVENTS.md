@@ -45,12 +45,11 @@ Naming: `domain:pastTense` (`unit:damaged`, `chunk:captured`, `match:victory`).
 | `shot:fired` | `{ shooterFaction, isPlayerShooter, x1, y1, x2, y2, color, missed, targetX, targetY, impact: { blocked, x, y } }` | combat |
 | `armor:equipped` | `{ unit, amount, faction, isPlayer, textOffset }` | combat |
 | `armor:broken` | `{ unit, isPlayer }` | combat |
-| `unit:recruited` | `{ unit, faction, rank, cost, silent }` | units/economy |
+| `unit:recruited` | `{ unit, faction, rank, cost }` (silent recruits do not emit) | units/economy |
 | `hour:tick` | `{ hour, income, upkeep, treasuries }` | economy |
 | `match:victory` | `{ summary }` | territory |
 | `match:defeat` | `{ faction }` | territory |
 | `ui:toast` | `{ message }` | any sim system |
-| `hud:refresh` | none | any sim system (discrete, not per frame) |
 
 `shot:started` and `shot:fired` are split deliberately: cosmetic casing randomness runs
 synchronously in `shot:started` at the same point it did before the migration, preserving
@@ -62,7 +61,8 @@ the simulation RNG sequence.
 |---|---|---|
 | `render/combatFx.js` | `unit:damaged`, `unit:died`, `armor:*`, `slash:performed`, `shot:started`, `shot:fired` | blood/sparks, corpses, floating text, arcs, tracers/casings/muzzle flash |
 | `audio/combatSfx.js` | `unit:died`, `armor:equipped`, `slash:performed`, `shot:started`, `shot:fired` | synthesized combat SFX |
-| `ui/hud.js` | `hud:refresh`, `chunk:captured`, `hour:tick`, `unit:recruited`, `match:*` | refresh HUD; show/hide banners |
+| `render/recruitFx.js` | `unit:recruited` | `+RANK ($cost)` floating text |
+| `ui/hud.js` | `armor:equipped`, `chunk:captured`, `hour:tick`, `unit:recruited`, `match:*` | refresh HUD; show/hide banners |
 | `ui/menus.js` | `ui:toast`, `match:victory`, `match:defeat` | toast + banner content |
 | `net/mpNet.js` (host, wired in `main.js`) | `shot:fired` | broadcast the ephemeral SHOT event to guests |
 
@@ -74,9 +74,10 @@ Snapshot state still comes from the host; events are only for ephemeral presenta
    throw isolation, snapshot dispatch, clear).
 2. **Combat DONE** — `sim/combat.js` emits only; visuals in `render/combatFx.js`, audio in
    `audio/combatSfx.js`, toasts/HUD/net wired in `main.js`.
-3. Next systems: units → economy → territory → match. One system per step; add `emit`
-   calls, wire subscribers, and delete the old `runtime` calls/callback in the same change.
-4. When `runtime.js` has no remaining hooks, delete it and update `ARCHITECTURE.md`.
+3. **Units DONE** — `sim/units.js` emits `unit:recruited`; text in `render/recruitFx.js`.
+4. Next systems: economy → territory → match. One system per step; add `emit` calls, wire
+   subscribers, and delete the old `runtime` calls/callback in the same change.
+5. When `runtime.js` has no remaining hooks, delete it and update `ARCHITECTURE.md`.
 
 ## Testing
 
@@ -87,10 +88,11 @@ Snapshot state still comes from the host; events are only for ephemeral presenta
 
 ## Benefits
 
-- **Headless simulation.** `sim/combat.js` now imports only sim/core modules: it emits
-  facts, while `render/combatFx.js` and `audio/combatSfx.js` subscribe. The remaining
-  direct presentation imports in `match/simulation/territory/units` are Phase 2 debt,
-  allowlisted in `tools/check.ps1` until each migrates.
+- **Headless simulation.** `sim/combat.js` and `sim/units.js` now import only sim/core
+  modules: they emit facts, while `render/combatFx.js`, `render/recruitFx.js` and
+  `audio/combatSfx.js` subscribe. The remaining direct presentation imports in
+  `match/simulation/territory` are Phase 2 debt, allowlisted in `tools/check.ps1` until each
+  migrates.
 - **One-to-many facts.** One `unit:damaged` can drive floating text, blood, SFX, HUD
   invalidation and an optional network effect without editing the damage function.
 - **One wiring point.** Subscribers are registered once in `main.js`, not scattered across
@@ -129,6 +131,8 @@ Use them for **discrete, cross-layer facts**:
 - **Authoritative state or replication.** Snapshots are the source of truth; never rely on
   event delivery for correctness or late joiners.
 - **Input/commands.** Use the command path (Phase 3 dispatcher); events are not requests.
+- **Command-style events** such as “refresh the HUD now”. Subscribe to the fact that caused
+  it (`armor:equipped`, `chunk:captured`) instead; one fact can drive several subscribers.
 - **Intra-simulation control flow/AI communication.** Direct calls and data are simpler.
 - **Request/response** where a return value is needed.
 - **Expensive or async work** (network serialization, layout, file I/O) inside a handler.
