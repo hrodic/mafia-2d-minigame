@@ -27,7 +27,8 @@ src/
   core/
     rng.js                 mulberry32, chunk seed hashing, withSeed (legacy)
     state.js               the single shared `state` object + faction/boss selectors
-    runtime.js             transitional presentation hooks (Phase 2 replaces with events)
+    events.js              synchronous, isolated event bus (sim -> presentation facts)
+    runtime.js             transitional presentation hooks (being replaced by events)
     spatial.js             per-chunk spatial buckets for neighbour queries
   world/
     chunk.js               DistrictChunk: seeded 15×15 block generation
@@ -124,7 +125,9 @@ without importing the net module (which would create a cycle).
 | `onVictory` / `onDefeat` | territory | banners + SFX |
 | `onFactionEliminated` | territory | toast + SFX |
 
-Phase 2 replaces these with a typed event bus so the simulation is fully headless.
+Phase 2 is replacing these with the event bus in `core/events.js` (see `EVENTS.md`). The
+bus is implemented and tested; hooks are removed one system at a time so the game stays
+playable during migration.
 
 ## State model
 
@@ -255,7 +258,7 @@ distance from the camera.
   so render/HUD/menu tests can run headlessly. State is saved/restored per test.
 - `tests/mp-harness.html` embeds the game in an iframe to force the local bus; open it in
   two tabs for deterministic host/guest testing without external relays.
-- Coverage includes config/RNG, state selectors, chunk determinism, collision,
+- Coverage includes config/RNG, event bus, state selectors, chunk determinism, collision,
   pathfinding (including wall detours and no corner cutting), units/recruitment, economy,
   territory, combat math/accuracy/armor, effects, interpolation, match setup, simulation
   orchestration, HUD, menus and rendering.

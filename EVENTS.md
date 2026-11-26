@@ -1,23 +1,26 @@
-# Events — Phase 2 contract (proposed, not implemented yet)
+# Events — Phase 2 contract
 
-This is the intended event-bus design for Phase 2. It replaces the transitional
-`core/runtime.js` hooks so `sim/` becomes fully headless and presentation is a set of
-independent subscribers.
+Status: the bus is implemented in `src/core/events.js` with tests in
+`tests/events.test.js`. Migration of simulation side effects to events is in progress; the
+transitional `core/runtime.js` hooks remain active until each one is replaced. The end state
+is a fully headless `sim/` plus independent presentation subscribers.
 
 ## Bus API
 
 ```js
-// src/core/events.js
-export function on(type, handler) {}   // subscribe; returns an unsubscribe function
+// src/core/events.js (implemented)
+export function on(type, handler) {}   // subscribe; returns an idempotent unsubscribe
 export function off(type, handler) {}
-export function emit(type, payload) {} // notify subscribers synchronously
-export function clear() {}             // tests: remove all subscribers
+export function emit(type, payload) {} // synchronous dispatch
+export function clear() {}             // tests / full match reset: remove all subscribers
 ```
 
 Rules:
 
 - Handlers are synchronous and isolated: a throwing subscriber is caught and logged, and
   never interrupts the simulation or other subscribers.
+- Dispatch uses a snapshot: subscribing or unsubscribing during `emit` affects the next
+  emit, not the current one.
 - Events are **facts** (past tense). Emit them after the state mutation that produced them.
 - Subscribers must not mutate gameplay state; they only render/play/send/log.
 - `sim/` emits events and must not import subscribers (`render/`, `audio/`, `ui/`, `net/`).
@@ -59,8 +62,8 @@ Snapshot state still comes from the host; events are only for ephemeral presenta
 
 ## Migration plan
 
-1. Add `src/core/events.js` + `tests/events.test.js` (subscribe/emit/unsubscribe,
-   throw isolation, clear).
+1. **DONE** — `src/core/events.js` + `tests/events.test.js` (subscribe/emit/unsubscribe,
+   throw isolation, snapshot dispatch, clear).
 2. Add `emit(...)` calls at the existing `runtime.*` call sites, one system at a time:
    combat → units/economy → territory → match.
 3. Wire subscribers in `main.js` (effects/audio/HUD/toasts/banners/net). Remove the

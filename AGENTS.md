@@ -62,11 +62,13 @@ command, number or test result; read the file or run the check.
 | Rendering / minimap / effects | `src/render/*` |
 | Audio | `src/audio/*` |
 | Wiring / hooks / loop | `src/main.js`, `src/core/runtime.js` |
+| Event bus / presentation events | `src/core/events.js`, `EVENTS.md` |
 
 ## Invariants
 
 - `sim/` is headless: never import `ui/`, `render/`, `audio/` or `net/`; never touch the
-  DOM. Use `core/runtime.js` hooks until the event bus replaces them.
+  DOM. Use `core/runtime.js` hooks until each is migrated to `core/events.js`; emit facts
+  and let subscribers in `main.js` handle presentation.
 - Host is authoritative. Guests never simulate; they stream input/commands and interpolate
   snapshots.
 - Worldgen is deterministic from the seed; host and guests must build the same city.

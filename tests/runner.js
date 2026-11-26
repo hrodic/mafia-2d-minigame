@@ -3,6 +3,7 @@
 import { runAll } from './harness.js';
 import './self.test.js';
 import './rng.test.js';
+import './events.test.js';
 import './config.test.js';
 import './state.test.js';
 import './ui.test.js';

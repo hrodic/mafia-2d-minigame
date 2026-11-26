@@ -6,14 +6,16 @@ This is the living plan. Read `AGENTS.md` for the working contract and
 ## Status
 
 - Phase 0 - DONE (docs, zero-dependency test harness, smoke checklist)
-- Phase 1 - DONE (full modular split; 183 browser tests; `src/main.js` is 81 lines)
-- Phase 2 - NEXT (event bus, deduplication, data-driven balance, explicit RNG, AI module)
+- Phase 1 - DONE (full modular split; tests green; `src/main.js` is a thin composition root)
+- Phase 2 - IN PROGRESS
+  - Step 1 DONE: `core/events.js` event bus + `tests/events.test.js` (additive; hooks intact)
+  - Next: migrate sim side effects to events, then dedup/balance/RNG/AI work
+- Phases 3-5 - pending (unified entity model/commands/fixed timestep, net hardening, quality)
 
 Safety nets in place before Phase 2:
 - `tests/world-golden.test.js` pins seeded chunk hashes (guards the explicit-RNG refactor).
-- `tools/check.ps1` statically verifies imports, test registration and DOM ids.
-- `EVENTS.md` defines the target event-bus API, catalog and subscriber map.
-- Phases 3-5 - pending (unified entity model/commands/fixed timestep, net hardening, quality)
+- `tools/check.ps1` statically verifies imports, test registration, DOM ids and skills.
+- `EVENTS.md` defines the event-bus API, catalog and subscriber map (bus implemented).
 
 Every step must keep the game playable, deployable, and the tests green. Pause after each
 phase for owner validation. Do not commit/push without approval; always work on a branch.
@@ -33,10 +35,11 @@ phase for owner validation. Do not commit/push without approval; always work on 
   interpolation; shell casings are now rendered.
 - The old code-map line ranges are obsolete; use `ARCHITECTURE.md`.
 
-## Phase 2 starting point (next session)
+## Phase 2 starting point
 
-1. `core/events.js`: event bus; move sim presentation side effects (damage, shot, death,
-   capture, tick, victory/defeat) to events; wire subscribers in main/UI/audio/net.
+1. `core/events.js`: event bus **DONE** (`tests/events.test.js`). Still to do: add `emit`
+   calls for damage/shot/death/capture/tick/victory/defeat, wire subscribers in
+   main/UI/audio/net, then remove each `runtime` hook.
 2. Deduplicate prop footprints (`world/geometry.js`), minimap layout, faction-slot
    selection, and `GAME_VERSION` single source.
 3. Data-driven balance tables (`RANK_STATS`, weapons) and remove inline numbers.
