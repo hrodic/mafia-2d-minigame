@@ -36,7 +36,7 @@ bundler, no server. Deploys to GitHub Pages as-is.
 | Right-click or Pistol button | Pistol shot at cursor |
 | Q or Armor button | Buy kevlar armor |
 | Crew Management panel | Recruit toggles/caps |
-| Utility buttons | Music, SFX, New Game |
+| Utility buttons | Music, SFX, Tip me (Ko-fi), New Game |
 
 ## Run locally
 
@@ -85,17 +85,18 @@ no external relays): `tests/mp-harness.html`.
 
 ## Tuning
 
-All gameplay numbers live in **`src/config/balance.js`**:
+Gameplay and feel tuning is split by concern:
 
-- `RANK_STATS` — HP, armor, damage, AI/human speed, radius, capture rate, cost/upkeep.
-- `UNIT_CAPS` — crew caps, neighborhood floor, human cap fraction.
-- `SLASH` — reach, targets, arc, close-range, knockback, cooldown per attacker profile.
-- `PISTOL` — damage, cooldown, knockback, accuracy bands.
-- `INCOME_TIERS`, costs/upkeep and boss aliases.
+- **`src/config/balance.js`** — `RANK_STATS` (HP, armor, damage, AI/human speed, radius,
+  capture rate, cost/upkeep), `UNIT_CAPS`, `SLASH` (`humanBoss`/`aiBoss`/`aiMelee`),
+  `PISTOL` (damage, cooldown, knockback, accuracy bands) and `INCOME_TIERS`.
+- **`src/config/constants.js`** — world/map defaults, sprint tuning, pistol range, hit-flash
+  duration, fixed simulation step and catch-up limits.
+- **`src/config/organizations.js`** — syndicate names, colors and rank labels.
 
-Presentation feel and AI decision logic stay in their own modules. Changing balance values
-is a normal patch/balance commit; the tables are locked by `tests/balance.test.js`, so update
-its expected values in the same change when the tuning is intentional.
+Presentation feel and AI decision logic stay in their own modules. Balance tables are locked
+by `tests/balance.test.js`; update its expected values in the same change when tuning is
+intentional.
 
 ## Seeds
 

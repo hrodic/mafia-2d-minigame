@@ -74,6 +74,7 @@ src/
     menus.js               setup modal, lobby buttons, banners, toast, map-size controls
     input.js               keyboard/mouse/minimap + HUD action bindings
     commandBridge.js       input boundary: guests stream, host/single dispatch
+    support.js             top-bar Tip me -> Ko-fi popup (fallback link)
 tests/
   tests.html               zero-dependency test runner page
   harness.js               test/assert helpers + results UI
@@ -266,12 +267,13 @@ It emits `hour:tick` with `{ hour, income, upkeep, treasuries }`; the HUD subscr
 subscribe in `main.js`.
 
 ### Balance data
-`config/balance.js` is the tuning surface: `RANK_STATS` (HP, armor, damage, AI/human speed,
-radius, capture rate, cost/upkeep), `UNIT_CAPS`, `SLASH` profiles, and `PISTOL` stats +
-accuracy bands. Non-boss AI ranks share a `150` base speed; bosses use `140` for both AI
-and human control, so sprint is the boss mobility advantage. Local and remote humans share
-one `SLASH.humanBoss` profile, while
-AI keeps its own no-arc/longer-cooldown profiles. The local player's HP, damage, speed and
+`config/balance.js` is the gameplay tuning surface: `RANK_STATS` (HP, armor, damage,
+AI/human speed, radius, capture rate, cost/upkeep), `UNIT_CAPS`, `SLASH` profiles, and
+`PISTOL` stats + accuracy bands. `config/constants.js` owns world/map defaults, sprint,
+pistol range, hit flash, the fixed sim step and catch-up limits. Non-boss AI ranks share a
+`150` base speed; bosses use `140` for both AI and human control, so sprint is the boss
+mobility advantage. Local and remote humans share one `SLASH.humanBoss` profile, while AI
+keeps its own no-arc/longer-cooldown profiles. The local player's HP, damage, speed and
 radius derive from `RANK_STATS.BOSS`. Systems read the tables at spawn/attack time and copy
 derived stats onto units (state is snapshotted). Presentation feel and AI decision
 thresholds are deliberately not here.
@@ -336,6 +338,8 @@ distance from the camera.
   on blur/visibility loss; exports `initInput`.
 - `ui/commandBridge.js`: the only guest/local branch for actions. Guests stream the command
   payload through `state.net.sendCommand`; host/single call `sim/commands.js` directly.
+- `ui/support.js`: the top-bar **Tip me** link opens the official Ko-fi popup; the floating
+  launcher is hidden in CSS and the link falls back to ko-fi.com/hrodic.
 - `sim/commands.js`: `dispatchCommand(faction, payload)` for move, slash, shoot, armor and
   recruit prefs. Local input and the host's remote-command receiver share it.
 
@@ -350,8 +354,9 @@ distance from the camera.
   two tabs for deterministic host/guest testing without external relays.
 - Coverage includes config/RNG, event bus, state selectors, chunk determinism, collision,
   pathfinding (including wall detours and no corner cutting), units/recruitment, economy,
-  territory, combat math/accuracy/armor, effects, interpolation, match setup, simulation
-  orchestration, HUD, menus and rendering.
+  territory, combat math/accuracy/armor/aim geometry, effects and casings, interpolation,
+  match setup, fixed-step accumulation, command dispatch/equivalence, 600-step headless
+  simulation, HUD, menus, support link and rendering.
 - **Golden tests** (`tests/world-golden.test.js`) pin an FNV-1a hash of each seeded chunk's
   tiles, props, income and faction. They prove that RNG/generation refactors (Phase 2) do
   not alter maps; update the expected hashes only for an intentional generation change.
@@ -359,7 +364,7 @@ distance from the camera.
   every relative `.js` import resolves, no bare static imports exist, every `*.test.js`
   suite is registered in `tests/runner.js`, `index.html` has no duplicate ids, each
   `.opencode/skills/<id>/SKILL.md` has valid frontmatter and existing references, the
-  `sim/` layering ratchet, and that modules using `canvas.*` import the canvas singleton.
+  `sim/` headless ratchet, and that modules using `canvas.*` import the canvas singleton.
   `tests/runner.js` is the manifest — a new suite that is not imported there silently
   does not run.
 

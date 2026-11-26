@@ -21,66 +21,17 @@ architecture description here.
 - **Phase 4 — NEXT:** netcode hardening.
 - **Phase 5 — pending:** quality gates.
 
-Work on `refactor/phase-3-unified-entity` (verify with `git branch --show-current`). Use
-the `AGENTS.md` verification loop; bump `GAME_VERSION` for every commit-sized step.
+Phase 3 is complete on `refactor/phase-3-unified-entity`. Create a `refactor/phase-4-*`
+branch for Phase 4; use the `AGENTS.md` verification loop and bump `GAME_VERSION` for every
+commit-sized step.
 
-## Phase 3 — Unified entity model, state factory, commands, fixed timestep
+## Phase 3 — DONE (`0.4.11`)
 
-Goal: one code path per mechanic, a shared unit contract, clean match reset. The player
-stays a local singleton outside `state.npcs`; explicit views cover all-combatant systems.
-**Riskiest phase: do these as small verified steps in order; gameplay must feel identical
-after each one.** Run MP checks after any `sim/`, `net/` or shared-state step.
-
-**3.1 `createGameState(config)` — DONE (`0.4.2`).** In `core/state.js`: return a fresh state object with
-today's initial values. `initWorld` builds config, copies fresh values onto the exported
-`state` (identity preserved for importers), generates chunks, spawns bosses. Remove
-scattered manual resets. Verify New Game / restart flows.
-
-**3.2 Player unit fields — DONE (`0.4.3`).** Added `id: 0`, `faction: Faction.PLAYER`,
-`rank: UnitRank.BOSS`, `control: 'local'`, `bodyRadius` to the player object (still
-separate for now). Fixes the latent `player.faction` undefined read.
-
-**3.3 Unify damage — DONE (`0.4.4`).** `damagePlayerBoss` now delegates to
-`applyDamageToNpc`; the player stays outside `npcs` and elimination runs on death. One
-damage pipeline. Verified both directions (you kill, you die).
-
-**3.4 Unify slash — DONE (`0.4.5`).** One `performSlash(attacker, params)`; player, rival
-boss, AI boss and AI melee delegate. Human controls share one `SLASH.humanBoss` profile
-(cooldown `0.34`, arc `0.42`, knockback `14`); AI keeps its own profiles (`1.0` cooldown,
-no arc, knockback `12`). Hit flash is the shared `HIT_FLASH_DURATION` (`0.16s`).
-
-**3.5 Unify movement + sprint — DONE (`0.4.7`).** One `moveUnit(unit, input, dt)` and
-`updateUnitSprint` drive the local player, AI steering and remote-human bosses. Cleanup:
-player HP/damage/speed/radius derive from `RANK_STATS.BOSS`; movement/capture use the
-unit's rank and body radius; guest snapshot units derive damage stats from rank. Verified
-solo, AI bosses and MP guest.
-
-**3.6 Unified unit contract + explicit views — DONE (`0.4.8`).** Keep `state.player` as a
-local singleton and `state.npcs` as non-player-only; both share the same unit shape. Added
-`forEachUnit` (living player + NPCs) and `getUnitById`; used them for slash candidates and
-HUD crew counts. Snapshot apply ignores any NPC entry with the player id, so `playerBoss`
-remains the single player channel. NPC-only systems (upkeep, recruit caps, crew filters,
-victory crew) keep using `state.npcs` and cannot accidentally include the player.
-
-**3.7 `sim/commands.js` — DONE (`0.4.9`).** `dispatchCommand(faction, payload)` now handles
-move, slash, shoot, armor and recruit prefs for local input and remote guests.
-`ui/commandBridge.js` is the only guest/local branch: guests stream the payload, host/single
-dispatch it. `processRemoteCommand` and the guest branches inside combat are gone. Verified
-solo + MP.
-
-**3.8 Fixed timestep — DONE (`0.4.10`).** `main.js` runs fixed `1/120` sim steps through
-`advanceFixedStep` (frame delta clamped to `0.25s`, max `8` catch-up steps) and one
-presentation/render pass with render dt. Host/single `update` is sim-only; guests use
-`updateGuest(renderDt)`; camera/particles use `updatePresentation(renderDt)`. Minimap uses
-real dt. 120 Hz keeps every rendered frame advancing on 75/120 Hz displays while staying
-frame-rate independent; tests cover 20/30/60/144 Hz and stall clamping. Verified solo + MP.
-
-**3.9 Tests — DONE (`0.4.11`).** Added `tests/phase3.test.js`: seeded 600-step headless
-simulation (finite state, walkable units, tick wrap/accumulation), capture completion and
-boss-death elimination. Added local == remote command-equivalence coverage for move, slash,
-shoot, armor and recruit prefs. Replaced the per-call `getLocalBoss` dead fallback with one
-reused object; moved guest/aim/camera/particles to `render/presentation.js`, so `sim/` is
-fully headless. Full checklist green.
+Delivered: `createGameState()` reset factory; shared unit contract with the player as a
+local singleton outside `state.npcs`; one damage/slash/movement pipeline; unified local +
+remote command dispatch; fixed `1/120` timestep with render-time presentation; `sim/`
+fully headless; seeded 600-step headless, command-equivalence and fixed-step tests.
+Implementation details live in `ARCHITECTURE.md`; step history is in git.
 
 ## Phase 4 — Netcode hardening
 
@@ -112,17 +63,15 @@ never commit a half-split net module.
 
 ## Pitfalls / known bugs
 
-- `player.faction` was read but undefined — fix in 3.2.
 - Peer names in `innerHTML` — XSS risk; Phase 4.
 - Guest snapshot apply can re-run elimination DOM/SFX; make guest effects idempotent in
   Phase 4.
-- Minimap cache timer uses hardcoded `0.016` — fix with real dt in 3.8.
 - Background host tabs throttle rAF and stall MP — Phase 4.
 - ESM: relative imports need `.js`; no top-level reads in cycles; modules are deferred;
   `file://` is blocked. Test over http.
-- Do not change gameplay numbers during Phase 3 except encoding existing differences as
-  parameters.
 - A* uses a linear open list; fine at current node counts; optimize only if profiling says so.
+- Prefer no gameplay-number changes during structural refactors unless intentional; lock
+  balance changes in `tests/balance.test.js`.
 
 ## Out of scope
 
