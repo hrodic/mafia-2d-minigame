@@ -15,7 +15,8 @@ architecture description here.
   - AI extracted to `sim/ai.js`
   - HUD cadence moved to `ui/hudCadence.js`
   - UI/UX overhaul: primary status, crew management, action bar, leaderboard + kills
-- **Phase 3 — NEXT:** unified entity model, state factory, commands, fixed timestep.
+- **Phase 3 — IN PROGRESS (`0.4.2`; 3.1 done):** unified entity model, commands,
+  fixed timestep.
 - **Phases 4–5 — pending:** netcode hardening, quality gates.
 
 Work on `refactor/phase-3-unified-entity` (verify with `git branch --show-current`). Use
@@ -27,7 +28,7 @@ Goal: remove the player special case, one code path per mechanic, clean match re
 **Riskiest phase: do these as small verified steps in order; gameplay must feel identical
 after each one.** Run MP checks after any `sim/`, `net/` or shared-state step.
 
-**3.1 `createGameState(config)`** in `core/state.js`: return a fresh state object with
+**3.1 `createGameState(config)` — DONE (`0.4.2`).** In `core/state.js`: return a fresh state object with
 today's initial values. `initWorld` builds config, copies fresh values onto the exported
 `state` (identity preserved for importers), generates chunks, spawns bosses. Remove
 scattered manual resets. Verify New Game / restart flows.

@@ -27,7 +27,7 @@ src/
     organizations.js       6 organizations, FACTION_META, slot helpers, ensureUniqueOrgs
   core/
     rng.js                 mulberry32, chunk seed hashing, explicit per-chunk RNG
-    state.js               the single shared `state` object + faction/boss selectors
+    state.js               `createGameState()` reset factory, shared `state`, selectors
     events.js              synchronous, isolated event bus (sim -> presentation facts)
     spatial.js             per-chunk spatial buckets for neighbour queries
   world/
@@ -152,7 +152,14 @@ of truth.
 
 ## State model
 
-One exported `state` object in `core/state.js` holds the match:
+`core/state.js` owns one exported `state` object plus a `createGameState(config)`
+factory that is the single source for a fresh match. `config` carries the setup values
+(grid, tick, income tier, faction count, org roster, seed, auto-start) and the long-lived
+`world`/`net` references. `initWorld` builds that config, copies the fresh values onto the
+exported singleton with `Object.assign` — importers keep the same identity, and the
+`CityMap`/net bridge survive — then regenerates chunks and spawns bosses.
+
+The match state holds:
 
 - world/entities: `world`, `npcs`, `floatingTexts`, `spatialBuckets`, `nextNpcId`
 - factions/economy: `treasuries`, `factionAlive`, `factionKills`
@@ -164,10 +171,10 @@ One exported `state` object in `core/state.js` holds the match:
   `hudUpdateTimer`, `minimapCacheTimer`, `isSpectating`, ...
 - `net`: the multiplayer module (set by `main.js`)
 
-`sim/match.js:initWorld` resets match state, sets the world generation context, builds
-chunks, spawns rival bosses and positions the camera. At the end it emits
-`match:initialized` (`{ tickDuration, worldSeed }`); `main.js` subscribers reset effects,
-setup UI, recruit labels, seed display and HUD.
+`sim/match.js:initWorld` sets the world generation context, builds chunks, spawns rival
+bosses and positions the camera. At the end it emits `match:initialized`
+(`{ tickDuration, worldSeed }`); `main.js` subscribers reset effects, setup UI, recruit
+labels, seed display and HUD.
 
 ## World
 

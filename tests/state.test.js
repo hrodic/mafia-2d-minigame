@@ -3,9 +3,10 @@
 import { test, assert, assertEqual, assertDeepEqual } from './harness.js';
 import { Faction, UnitRank } from '../src/config/enums.js';
 import { BOSS_MAX_HP, MAX_BOSS_ARMOR } from '../src/config/balance.js';
-import { DEFAULT_GRID_SIZE, DEFAULT_TICK_DURATION } from '../src/config/constants.js';
+import { DEFAULT_GRID_SIZE, DEFAULT_TICK_DURATION, TILE_SIZE } from '../src/config/constants.js';
 import {
   state,
+  createGameState,
   getLocalFaction,
   getLocalBoss,
   isLocalBossAlive,
@@ -146,4 +147,153 @@ test('state: isLocalBossAlive requires faction alive AND a boss NPC for rivals',
   withState({ net, npcs: [bossNpc], factionAlive: { ...state.factionAlive, [Faction.RIVAL_1]: false } }, () => {
     assertEqual(isLocalBossAlive(), false);
   });
+});
+
+// --- createGameState: match reset factory ----------------------------------
+
+test('state factory: fresh default state matches the exported initial values', () => {
+  const fresh = createGameState();
+  assert(fresh !== state, 'factory must return a new object');
+  assertEqual(fresh.world, null);
+  assertEqual(fresh.net, null);
+  assertEqual(fresh.npcs.length, 0);
+  assertEqual(fresh.floatingTexts.length, 0);
+  assert(fresh.spatialBuckets instanceof Map);
+  assertEqual(fresh.spatialBuckets.size, 0);
+  assert(Array.isArray(fresh.bucketPool));
+  assertEqual(fresh.bucketPool.length, 0);
+  assertEqual(fresh.nextNpcId, 1);
+  assertEqual(fresh.astarBudgetThisFrame, 0);
+  assertEqual(fresh.gameStarted, false);
+  assertEqual(fresh.isSpectating, false);
+  assertEqual(fresh.gameOver, false);
+  assertEqual(fresh.victoryShown, false);
+  assertEqual(fresh.tickTimer, 0);
+  assertEqual(fresh.gameHour, 12);
+  assertEqual(fresh.hudUpdateTimer, 0);
+  assertEqual(fresh.minimapCacheTimer, 1.0);
+  assertEqual(fresh.currentGridSize, DEFAULT_GRID_SIZE);
+  assertEqual(fresh.tickDuration, DEFAULT_TICK_DURATION);
+  assertEqual(fresh.currentIncomeTier, 'HIGH');
+  assertEqual(fresh.currentWorldSeed, null);
+  assertEqual(fresh.activeFactionCount, 4);
+  assertDeepEqual(fresh.activeFactions, [
+    Faction.PLAYER,
+    Faction.RIVAL_1,
+    Faction.RIVAL_2,
+    Faction.RIVAL_3,
+  ]);
+  assertDeepEqual(fresh.selectedFactionOrgs, ['COSA_NOSTRA', 'BRATVA', 'TRIADS', 'CARTEL']);
+});
+
+test('state factory: exported singleton is built from the same field set', () => {
+  const fresh = createGameState();
+  assertDeepEqual(Object.keys(fresh).sort(), Object.keys(state).sort());
+  assertDeepEqual(Object.keys(fresh.player).sort(), Object.keys(state.player).sort());
+});
+
+test('state factory: default player is at full health in the top-left corner', () => {
+  const fresh = createGameState({ autoStart: true });
+  assertEqual(fresh.gameStarted, true);
+  assertEqual(fresh.player.x, 1.5 * TILE_SIZE);
+  assertEqual(fresh.player.y, 1.5 * TILE_SIZE);
+  assertEqual(fresh.player.hp, BOSS_MAX_HP);
+  assertEqual(fresh.player.maxHp, BOSS_MAX_HP);
+  assertEqual(fresh.player.armor, 0);
+  assertEqual(fresh.player.maxArmor, MAX_BOSS_ARMOR);
+  assertEqual(fresh.player.alive, true);
+  assertEqual(fresh.player.targetX, null);
+  assertEqual(fresh.player.targetY, null);
+  assertEqual(fresh.player.path, null);
+  assertEqual(fresh.player.pathTimer, 0);
+  assertEqual(fresh.player.attackCooldown, 0);
+  assertEqual(fresh.player.slashAnimTimer, 0);
+  assertEqual(fresh.player.muzzleFlashTimer, 0);
+  assertEqual(fresh.player.hitFlashTimer, 0);
+  assertEqual(fresh.player.sprintTimer, 0);
+  assertEqual(fresh.player.sprintCooldown, 0);
+  assertEqual(fresh.player.isSprinting, false);
+  assertEqual(fresh.camera.x, fresh.player.x);
+  assertEqual(fresh.camera.y, fresh.player.y);
+  assertEqual(fresh.mouse.inside, false);
+  assertEqual(fresh.keys.size, 0);
+});
+
+test('state factory: applies and clamps match configuration', () => {
+  const fresh = createGameState({
+    gridSize: 100,
+    tickDuration: 1,
+    incomeTier: 'ULTRA',
+    factionCount: 2,
+    orgRoster: ['BRATVA', 'BRATVA', 'NOPE', 'CARTEL'],
+    seed: 4242,
+    autoStart: true,
+  });
+  assertEqual(fresh.currentGridSize, 25);
+  assertEqual(fresh.tickDuration, 10);
+  assertEqual(fresh.currentIncomeTier, 'HIGH');
+  assertEqual(fresh.activeFactionCount, 2);
+  assertDeepEqual(fresh.activeFactions, [Faction.PLAYER, Faction.RIVAL_3]);
+  assertDeepEqual(fresh.selectedFactionOrgs, ['BRATVA', 'COSA_NOSTRA', 'YAKUZA', 'CARTEL']);
+  assertEqual(fresh.currentWorldSeed, 4242);
+  assertEqual(fresh.gameStarted, true);
+});
+
+test('state factory: active factions get cash and inactive slots are zeroed', () => {
+  const fresh = createGameState({ factionCount: 2, orgRoster: ['COSA_NOSTRA', 'BRATVA'] });
+  assertEqual(fresh.treasuries[Faction.PLAYER], 3000);
+  assertEqual(fresh.treasuries[Faction.RIVAL_3], 3000);
+  assertEqual(fresh.treasuries[Faction.RIVAL_1], 0);
+  assertEqual(fresh.treasuries[Faction.RIVAL_2], 0);
+  assertEqual(fresh.factionAlive[Faction.PLAYER], true);
+  assertEqual(fresh.factionAlive[Faction.RIVAL_3], true);
+  assertEqual(fresh.factionAlive[Faction.RIVAL_1], false);
+  assertEqual(fresh.factionAlive[Faction.RIVAL_2], false);
+  for (const faction of [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3]) {
+    assertEqual(fresh.factionKills[faction], 0);
+  }
+});
+
+test('state factory: caps and recruitment preferences reset to defaults', () => {
+  const fresh = createGameState();
+  assertEqual(fresh.playerSpawnCaps[UnitRank.SOLDIER], 96);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.CAPTAIN], 11);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.UNDERBOSS], 6);
+  for (const faction of [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3]) {
+    const prefs = fresh.factionRecruitmentPrefs[faction];
+    assert(prefs, `missing prefs for ${faction}`);
+    assertEqual(prefs.autoSoldier, true);
+    assertEqual(prefs.autoCaptain, true);
+    assertEqual(prefs.autoUnderboss, true);
+  }
+  assertEqual(fresh.autoRecruitSoldier, true);
+  assertEqual(fresh.autoRecruitCaptain, true);
+  assertEqual(fresh.autoRecruitUnderboss, true);
+});
+
+test('state factory: each call returns independent nested containers', () => {
+  const first = createGameState();
+  const second = createGameState();
+  assert(first.npcs !== second.npcs);
+  assert(first.floatingTexts !== second.floatingTexts);
+  assert(first.spatialBuckets !== second.spatialBuckets);
+  assert(first.bucketPool !== second.bucketPool);
+  assert(first.treasuries !== second.treasuries);
+  assert(first.factionAlive !== second.factionAlive);
+  assert(first.factionKills !== second.factionKills);
+  assert(first.player !== second.player);
+  assert(first.camera !== second.camera);
+  assert(first.mouse !== second.mouse);
+  assert(first.keys !== second.keys);
+  assert(first.playerSpawnCaps !== second.playerSpawnCaps);
+  assert(first.factionRecruitmentPrefs !== second.factionRecruitmentPrefs);
+
+  first.treasuries[Faction.PLAYER] = 1;
+  first.player.hp = 1;
+  first.npcs.push({ id: 1 });
+  first.keys.add('w');
+  assertEqual(second.treasuries[Faction.PLAYER], 3000);
+  assertEqual(second.player.hp, BOSS_MAX_HP);
+  assertEqual(second.npcs.length, 0);
+  assertEqual(second.keys.size, 0);
 });
