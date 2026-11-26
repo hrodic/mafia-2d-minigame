@@ -39,7 +39,7 @@ src/
     match.js               initWorld: city/factions/economy/bosses for a new match
     simulation.js          update(dt): host/single-player step + guest presentation loop
     ai.js                  NPC perception, attacks, patrol goals, A* steering, capture
-    movement.js            collision helpers, sprint, remote-human boss, waypoint steering
+    movement.js            moveUnit/sprint, collision, remote-human boss, waypoint steering
     units.js               caps, spawning, recruitment
     combat.js              damage/armor, slashes, pistol raycast, armor purchases
     territory.js           capture progress, elimination, victory
@@ -204,10 +204,11 @@ labels, seed display and HUD.
   (`stepGuestPresentation`: interpolate `netX/netY`, decay animation timers), particles,
   camera follow/spectate and HUD cadence, then returns. Guests never simulate gameplay.
 - **Host/single:** resets the A* budget, rebuilds spatial buckets, updates particles,
-  ticks player timers, handles player input/movement/sprint/aim, capture progress and camera;
-  then for each NPC either updates a remote-human boss (`updateHumanControlledRivalBoss`) or
-  runs `updateNpcAi` (perception, armor, attacks, patrol, A* steering, capture); then runs
-  the hourly economy tick and HUD cadence, and finally `net.updateHost` (snapshot broadcast).
+  ticks player timers, handles player input/aim, capture progress and camera; movement and
+  sprint go through the shared `moveUnit`/`updateUnitSprint`. Then for each NPC either
+  updates a remote-human boss (`updateHumanControlledRivalBoss`) or runs `updateNpcAi`
+  (perception, armor, attacks, patrol, A* steering, capture); then runs the hourly economy
+  tick and HUD cadence, and finally `net.updateHost` (snapshot broadcast).
 
 `initWorld` builds a fresh match; `update` is the only per-frame simulator entry point.
 Per-frame presentation stays state-driven: combat/capture/economy emit discrete events on
@@ -255,9 +256,10 @@ subscribe in `main.js`.
 radius, capture rate, cost/upkeep), `UNIT_CAPS`, `SLASH` profiles, and `PISTOL` stats +
 accuracy bands. All AI ranks currently share a `150` base speed; human-controlled bosses
 use `speedHuman` (`225`). Local and remote humans share one `SLASH.humanBoss` profile, while
-AI keeps its own no-arc/longer-cooldown profiles. Systems read the tables at spawn/attack
-time and copy derived stats onto units (state is snapshotted). Presentation feel and AI
-decision thresholds are deliberately not here.
+AI keeps its own no-arc/longer-cooldown profiles. The local player's HP, damage, speed and
+radius derive from `RANK_STATS.BOSS`. Systems read the tables at spawn/attack time and copy
+derived stats onto units (state is snapshotted). Presentation feel and AI decision
+thresholds are deliberately not here.
 
 ## Networking
 

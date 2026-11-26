@@ -202,6 +202,19 @@ test('state factory: player carries the boss unit identity fields', () => {
   assert(fresh.player.id < fresh.nextNpcId, 'player id must not collide with the NPC id counter');
 });
 
+test('state factory: player combat stats derive from the boss rank row', () => {
+  const fresh = createGameState();
+  const boss = RANK_STATS[UnitRank.BOSS];
+  assertEqual(fresh.player.speed, boss.speedHuman);
+  assertEqual(fresh.player.hp, boss.hp);
+  assertEqual(fresh.player.maxHp, boss.hp);
+  assertEqual(fresh.player.armor, boss.startArmor);
+  assertEqual(fresh.player.maxArmor, boss.maxArmor);
+  assertEqual(fresh.player.minDmg, boss.minDmg);
+  assertEqual(fresh.player.maxDmg, boss.maxDmg);
+  assertEqual(fresh.player.bodyRadius, boss.radius);
+});
+
 test('state factory: default player is at full health in the top-left corner', () => {
   const fresh = createGameState({ autoStart: true });
   assertEqual(fresh.gameStarted, true);

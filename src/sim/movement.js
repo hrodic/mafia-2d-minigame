@@ -76,26 +76,82 @@ export function isPushingFriendly(wx, wy, radius, faction, ignoreNpcId = -1, ign
   return false;
 }
 
-export function updateNpcBossSprint(bossNpc, wantsSprint, dt) {
-  if (bossNpc.sprintCooldown > 0) {
-    bossNpc.sprintCooldown = Math.max(0, bossNpc.sprintCooldown - dt);
-    bossNpc.isSprinting = false;
+export function updateUnitSprint(unit, wantsSprint, dt) {
+  if (unit.sprintCooldown > 0) {
+    unit.sprintCooldown = Math.max(0, unit.sprintCooldown - dt);
+    unit.isSprinting = false;
   } else if (wantsSprint) {
-    bossNpc.isSprinting = true;
-    bossNpc.sprintTimer += dt;
-    if (bossNpc.sprintTimer >= SPRINT_MAX_DURATION) {
-      bossNpc.isSprinting = false;
-      bossNpc.sprintTimer = 0;
-      bossNpc.sprintCooldown = SPRINT_COOLDOWN_DURATION;
+    unit.isSprinting = true;
+    unit.sprintTimer += dt;
+    if (unit.sprintTimer >= SPRINT_MAX_DURATION) {
+      unit.isSprinting = false;
+      unit.sprintTimer = 0;
+      unit.sprintCooldown = SPRINT_COOLDOWN_DURATION;
     }
   } else {
-    if (bossNpc.isSprinting && bossNpc.sprintTimer > 0) {
-      bossNpc.sprintCooldown = SPRINT_COOLDOWN_DURATION * (bossNpc.sprintTimer / SPRINT_MAX_DURATION);
+    if (unit.isSprinting && unit.sprintTimer > 0) {
+      unit.sprintCooldown = SPRINT_COOLDOWN_DURATION * (unit.sprintTimer / SPRINT_MAX_DURATION);
     }
-    bossNpc.isSprinting = false;
-    bossNpc.sprintTimer = 0;
+    unit.isSprinting = false;
+    unit.sprintTimer = 0;
   }
-  return bossNpc.isSprinting ? SPRINT_SPEED_MULTIPLIER : 1.0;
+  return unit.isSprinting ? SPRINT_SPEED_MULTIPLIER : 1.0;
+}
+
+/**
+ * Move any unit for one step. Input carries the direction and control-specific flags;
+ * collision, friendly pushing and sprint are shared by the player, AI and guest bosses.
+ */
+export function moveUnit(unit, input = {}, dt = 0) {
+  const rawX = input.mx || 0;
+  const rawY = input.my || 0;
+  const len = Math.hypot(rawX, rawY);
+  const hasInput = len > 0;
+  const dirX = hasInput ? rawX / len : 0;
+  const dirY = hasInput ? rawY / len : 0;
+
+  const sprintMult = updateUnitSprint(unit, Boolean(input.sprint) && hasInput, dt);
+
+  const isPlayer = unit === state.player;
+  const radius =
+    unit.bodyRadius ??
+    getEntityCollisionRadius(unit.rank ?? (isPlayer ? UnitRank.BOSS : UnitRank.SOLDIER));
+  const faction = unit.faction ?? (isPlayer ? Faction.PLAYER : null);
+  const ignorePlayer = input.ignorePlayer ?? isPlayer;
+  const ignoreNpcId = input.ignoreNpcId ?? (isPlayer ? -1 : unit.id);
+
+  const pushingCrew = isPushingFriendly(unit.x, unit.y, radius, faction, ignoreNpcId, ignorePlayer);
+  const speed = (pushingCrew ? unit.speed * 0.45 : unit.speed) * sprintMult;
+
+  let moved = false;
+  if (dirX !== 0) {
+    const nextX = unit.x + dirX * speed * dt;
+    if (canOccupyPosition(nextX, unit.y, radius, ignoreNpcId, ignorePlayer, faction)) {
+      unit.x = nextX;
+      moved = true;
+    }
+  }
+  if (dirY !== 0) {
+    const nextY = unit.y + dirY * speed * dt;
+    if (canOccupyPosition(unit.x, nextY, radius, ignoreNpcId, ignorePlayer, faction)) {
+      unit.y = nextY;
+      moved = true;
+    }
+  }
+
+  if (!moved && hasInput && input.dodge) {
+    const angle = Math.atan2(dirY, dirX);
+    const perpAngle = angle + (Math.PI / 2) * (input.dodgeDir ?? unit.dodgeDir ?? 1);
+    const px = unit.x + Math.cos(perpAngle) * speed * dt;
+    const py = unit.y + Math.sin(perpAngle) * speed * dt;
+    if (canOccupyPosition(px, py, radius, ignoreNpcId, ignorePlayer, faction)) {
+      unit.x = px;
+      unit.y = py;
+      moved = true;
+    }
+  }
+
+  return { moved, dirX, dirY, speed, sprintMult };
 }
 
 export function computeSteeringPath(entity, targetX, targetY, dt, maxNodes = 400) {
@@ -125,9 +181,6 @@ export function updateHumanControlledRivalBoss(bossNpc, dt) {
     bossNpc.targetY = null;
     bossNpc.path = null;
     bossNpc.pathTimer = 0;
-    const len = Math.hypot(moveX, moveY);
-    moveX /= len;
-    moveY /= len;
   } else if (bossNpc.targetX !== null && bossNpc.targetY !== null) {
     const steer = computeSteeringPath(bossNpc, bossNpc.targetX, bossNpc.targetY, dt);
     const dx = steer.x - bossNpc.x;
@@ -148,25 +201,19 @@ export function updateHumanControlledRivalBoss(bossNpc, dt) {
     bossNpc.facing = peerInput.facing;
   }
 
-  const bRadius = getEntityCollisionRadius(UnitRank.BOSS);
-  const pushingCrew = isPushingFriendly(bossNpc.x, bossNpc.y, bRadius, bossNpc.faction, bossNpc.id, false);
-  const sprintMult = updateNpcBossSprint(bossNpc, wantsSprint && (moveX !== 0 || moveY !== 0), dt);
-  const currentSpeed = (pushingCrew ? bossNpc.speed * 0.45 : bossNpc.speed) * sprintMult;
-
-  if (moveX !== 0) {
-    const nextX = bossNpc.x + moveX * currentSpeed * dt;
-    if (canOccupyPosition(nextX, bossNpc.y, bRadius, bossNpc.id, false, bossNpc.faction)) {
-      bossNpc.x = nextX;
-    }
-  }
-  if (moveY !== 0) {
-    const nextY = bossNpc.y + moveY * currentSpeed * dt;
-    if (canOccupyPosition(bossNpc.x, nextY, bRadius, bossNpc.id, false, bossNpc.faction)) {
-      bossNpc.y = nextY;
-    }
-  }
+  moveUnit(
+    bossNpc,
+    {
+      mx: moveX,
+      my: moveY,
+      sprint: wantsSprint,
+      ignorePlayer: false,
+      ignoreNpcId: bossNpc.id,
+    },
+    dt
+  );
 
   const bTile = state.world.worldToTile(bossNpc.x, bossNpc.y);
   const currentChunk = state.world.getChunk(bTile.cx, bTile.cy);
-  progressCapture(currentChunk, bossNpc.faction, dt, getCaptureRate(UnitRank.BOSS));
+  progressCapture(currentChunk, bossNpc.faction, dt, getCaptureRate(bossNpc.rank));
 }

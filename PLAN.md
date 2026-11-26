@@ -15,7 +15,7 @@ architecture description here.
   - AI extracted to `sim/ai.js`
   - HUD cadence moved to `ui/hudCadence.js`
   - UI/UX overhaul: primary status, crew management, action bar, leaderboard + kills
-- **Phase 3 — IN PROGRESS (`0.4.6`; 3.1–3.4 done):** unified entity model, commands,
+- **Phase 3 — IN PROGRESS (`0.4.7`; 3.1–3.5 done):** unified entity model, commands,
   fixed timestep. Balance pass: one human slash rule; all AI ranks base speed 150.
 - **Phases 4–5 — pending:** netcode hardening, quality gates.
 
@@ -46,9 +46,11 @@ boss, AI boss and AI melee delegate. Human controls share one `SLASH.humanBoss` 
 (cooldown `0.34`, arc `0.42`, knockback `14`); AI keeps its own profiles (`1.0` cooldown,
 no arc, knockback `12`). Hit flash is the shared `HIT_FLASH_DURATION` (`0.16s`).
 
-**3.5 Unify movement + sprint.** One `moveUnit(unit, input, dt)` and one sprint updater
-used by local player, AI steering result and remote-human boss. Verify solo, AI bosses,
-MP guest.
+**3.5 Unify movement + sprint — DONE (`0.4.7`).** One `moveUnit(unit, input, dt)` and
+`updateUnitSprint` drive the local player, AI steering and remote-human bosses. Cleanup:
+player HP/damage/speed/radius derive from `RANK_STATS.BOSS`; movement/capture use the
+unit's rank and body radius; guest snapshot units derive damage stats from rank. Verified
+solo, AI bosses and MP guest.
 
 **3.6 Fold player into `state.npcs`.** Player becomes a unit with `control: 'local'`;
 `state.player` aliases it. Audit every site that iterates npcs or special-cases the player:

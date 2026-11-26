@@ -1,20 +1,13 @@
 // Simulation step: host/single-player world update and guest presentation loop.
 
 import { Faction, UnitRank } from '../config/enums.js';
-import {
-  SPRINT_MAX_DURATION,
-  SPRINT_COOLDOWN_DURATION,
-  SPRINT_SPEED_MULTIPLIER,
-} from '../config/constants.js';
 import { state, getLocalBoss, isLocalBossAlive } from '../core/state.js';
 import { rebuildSpatialBuckets } from '../core/spatial.js';
 import { canvas } from '../render/canvas.js';
 import { stepGuestPresentation } from '../render/interpolation.js';
 import { updateVisualParticles } from '../render/effects.js';
 import {
-  canOccupyPosition,
-  isPushingFriendly,
-  getEntityCollisionRadius,
+  moveUnit,
   updateHumanControlledRivalBoss,
   computeSteeringPath,
 } from './movement.js';
@@ -82,9 +75,6 @@ export function update(dt) {
       state.player.targetY = null;
       state.player.path = null;
       state.player.pathTimer = 0;
-      const len = Math.hypot(moveX, moveY);
-      moveX /= len;
-      moveY /= len;
     } else if (state.player.targetX !== null && state.player.targetY !== null) {
       const steer = computeSteeringPath(state.player, state.player.targetX, state.player.targetY, dt);
       const dx = steer.x - state.player.x;
@@ -110,48 +100,22 @@ export function update(dt) {
       state.player.facing = Math.atan2(moveY, moveX);
     }
 
-    const isMoving = moveX !== 0 || moveY !== 0;
-    const wantsSprint = (state.keys.has('shift') || state.sprintButtonHeld) && isMoving;
-    if (state.player.sprintCooldown > 0) {
-      state.player.sprintCooldown = Math.max(0, state.player.sprintCooldown - dt);
-      state.player.isSprinting = false;
-    } else if (wantsSprint) {
-      state.player.isSprinting = true;
-      state.player.sprintTimer += dt;
-      if (state.player.sprintTimer >= SPRINT_MAX_DURATION) {
-        state.player.isSprinting = false;
-        state.player.sprintTimer = 0;
-        state.player.sprintCooldown = SPRINT_COOLDOWN_DURATION;
-      }
-    } else {
-      if (state.player.isSprinting && state.player.sprintTimer > 0) {
-        state.player.sprintCooldown = SPRINT_COOLDOWN_DURATION * (state.player.sprintTimer / SPRINT_MAX_DURATION);
-      }
-      state.player.isSprinting = false;
-      state.player.sprintTimer = 0;
-    }
-
-    const pRad = getEntityCollisionRadius(UnitRank.BOSS);
-    const pushingCrew = isPushingFriendly(state.player.x, state.player.y, pRad, Faction.PLAYER, -1, true);
-    const sprintMult = state.player.isSprinting ? SPRINT_SPEED_MULTIPLIER : 1.0;
-    const currentSpeed = (pushingCrew ? state.player.speed * 0.45 : state.player.speed) * sprintMult;
-
-    if (moveX !== 0) {
-      const nx = state.player.x + moveX * currentSpeed * dt;
-      if (canOccupyPosition(nx, state.player.y, pRad, -1, true, Faction.PLAYER)) {
-        state.player.x = nx;
-      }
-    }
-    if (moveY !== 0) {
-      const ny = state.player.y + moveY * currentSpeed * dt;
-      if (canOccupyPosition(state.player.x, ny, pRad, -1, true, Faction.PLAYER)) {
-        state.player.y = ny;
-      }
-    }
+    const wantsSprint = state.keys.has('shift') || state.sprintButtonHeld;
+    moveUnit(
+      state.player,
+      {
+        mx: moveX,
+        my: moveY,
+        sprint: wantsSprint,
+        ignorePlayer: true,
+        ignoreNpcId: -1,
+      },
+      dt
+    );
 
     const pTile = state.world.worldToTile(state.player.x, state.player.y);
     const pChunk = state.world.getChunk(pTile.cx, pTile.cy);
-    progressCapture(pChunk, Faction.PLAYER, dt, getCaptureRate(UnitRank.BOSS));
+    progressCapture(pChunk, Faction.PLAYER, dt, getCaptureRate(state.player.rank));
 
     state.camera.x += (state.player.x - state.camera.x) * Math.min(1, dt * 12);
     state.camera.y += (state.player.y - state.camera.y) * Math.min(1, dt * 12);

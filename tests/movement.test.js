@@ -1,6 +1,6 @@
 // Movement/collision helper tests: entity radii, occupancy rules, friendly pushing
 // and NPC boss sprint state.
-import { test, assert, assertEqual } from './harness.js';
+import { test, assert, assertEqual, assertClose } from './harness.js';
 import { Faction, UnitRank } from '../src/config/enums.js';
 import { CHUNK_PX, SPRINT_COOLDOWN_DURATION, SPRINT_MAX_DURATION } from '../src/config/constants.js';
 import { state } from '../src/core/state.js';
@@ -9,7 +9,8 @@ import {
   getEntityCollisionRadius,
   canOccupyPosition,
   isPushingFriendly,
-  updateNpcBossSprint,
+  updateUnitSprint,
+  moveUnit,
   updateHumanControlledRivalBoss,
 } from '../src/sim/movement.js';
 
@@ -110,23 +111,23 @@ test('movement: friendly pushing detects nearby friends only', () => {
   });
 });
 
-test('movement: NPC sprint drains, triggers cooldown and returns the multiplier', () => {
+test('movement: unit sprint drains, triggers cooldown and returns the multiplier', () => {
   const boss = { sprintCooldown: 0, sprintTimer: 0, isSprinting: false };
-  assertEqual(updateNpcBossSprint(boss, true, SPRINT_MAX_DURATION * 0.5), 1.6);
+  assertEqual(updateUnitSprint(boss, true, SPRINT_MAX_DURATION * 0.5), 1.6);
   assertEqual(boss.isSprinting, true);
-  assertEqual(updateNpcBossSprint(boss, true, SPRINT_MAX_DURATION * 0.5), 1.0);
+  assertEqual(updateUnitSprint(boss, true, SPRINT_MAX_DURATION * 0.5), 1.0);
   assertEqual(boss.isSprinting, false);
   assertEqual(boss.sprintTimer, 0);
   assertEqual(boss.sprintCooldown, SPRINT_COOLDOWN_DURATION);
-  assertEqual(updateNpcBossSprint(boss, false, 1), 1.0);
+  assertEqual(updateUnitSprint(boss, false, 1), 1.0);
   assertEqual(boss.sprintCooldown, SPRINT_COOLDOWN_DURATION - 1);
 });
 
 test('movement: releasing sprint early converts remaining burst into cooldown', () => {
   const boss = { sprintCooldown: 0, sprintTimer: 0, isSprinting: false };
-  updateNpcBossSprint(boss, true, 1);
+  updateUnitSprint(boss, true, 1);
   assertEqual(boss.isSprinting, true);
-  updateNpcBossSprint(boss, false, 0.1);
+  updateUnitSprint(boss, false, 0.1);
   assertEqual(boss.isSprinting, false);
   assertEqual(boss.sprintTimer, 0);
   assertEqual(boss.sprintCooldown, SPRINT_COOLDOWN_DURATION * 0.5);
@@ -134,9 +135,101 @@ test('movement: releasing sprint early converts remaining burst into cooldown', 
 
 test('movement: standing still never starts a cooldown', () => {
   const boss = { sprintCooldown: 0, sprintTimer: 0, isSprinting: false };
-  assertEqual(updateNpcBossSprint(boss, false, 1), 1.0);
+  assertEqual(updateUnitSprint(boss, false, 1), 1.0);
   assertEqual(boss.sprintCooldown, 0);
   assertEqual(boss.isSprinting, false);
+});
+
+function makeMovableUnit(overrides = {}) {
+  return {
+    id: 0,
+    faction: Faction.PLAYER,
+    rank: UnitRank.BOSS,
+    control: 'local',
+    bodyRadius: 13.5,
+    x: 0,
+    y: 0,
+    speed: 225,
+    sprintTimer: 0,
+    sprintCooldown: 0,
+    isSprinting: false,
+    ...overrides,
+  };
+}
+
+test('movement: moveUnit applies base speed, sprint and body radius to any unit', () => {
+  const unit = makeMovableUnit();
+  withState(basePatch({ player: { ...unit, alive: true } }), () => {
+    const result = moveUnit(
+      unit,
+      { mx: 1, my: 0, sprint: true, ignorePlayer: true, ignoreNpcId: -1 },
+      0.1
+    );
+    assertEqual(result.moved, true);
+    assertEqual(unit.x, 36);
+    assertEqual(unit.y, 0);
+    assertEqual(unit.isSprinting, true);
+    assertEqual(result.sprintMult, 1.6);
+  });
+});
+
+test('movement: moveUnit normalizes diagonal input', () => {
+  const unit = makeMovableUnit({ speed: 200 });
+  withState(basePatch({ player: { ...unit, alive: true } }), () => {
+    moveUnit(unit, { mx: 1, my: 1, ignorePlayer: true, ignoreNpcId: -1 }, 0.1);
+    assertClose(unit.x, (200 * 0.1) / Math.SQRT2);
+    assertClose(unit.y, (200 * 0.1) / Math.SQRT2);
+  });
+});
+
+test('movement: moveUnit dodges perpendicular when blocked and dodge is enabled', () => {
+  const unit = makeMovableUnit({
+    id: 5,
+    faction: Faction.RIVAL_1,
+    rank: UnitRank.SOLDIER,
+    bodyRadius: 11,
+    speed: 150,
+    dodgeDir: 1,
+  });
+  const world = { canMoveTo: (x, y) => y > 0 };
+  withState(basePatch({ world, player: { x: -1000, y: -1000, alive: false } }), () => {
+    const result = moveUnit(
+      unit,
+      {
+        mx: 1,
+        my: 0,
+        ignorePlayer: false,
+        ignoreNpcId: unit.id,
+        dodge: true,
+        dodgeDir: unit.dodgeDir,
+      },
+      0.1
+    );
+    assertEqual(result.moved, true);
+    assertClose(unit.x, 0);
+    assert(unit.y > 0, `dodge should move perpendicular, y=${unit.y}`);
+  });
+});
+
+test('movement: moveUnit without dodge stays blocked', () => {
+  const unit = makeMovableUnit({
+    id: 6,
+    faction: Faction.RIVAL_1,
+    rank: UnitRank.SOLDIER,
+    bodyRadius: 11,
+    speed: 150,
+  });
+  const world = { canMoveTo: (x, y) => y > 0 };
+  withState(basePatch({ world, player: { x: -1000, y: -1000, alive: false } }), () => {
+    const result = moveUnit(
+      unit,
+      { mx: 1, my: 0, ignorePlayer: false, ignoreNpcId: unit.id, dodge: false },
+      0.1
+    );
+    assertEqual(result.moved, false);
+    assertEqual(unit.x, 0);
+    assertEqual(unit.y, 0);
+  });
 });
 
 function makeBossWorld(chunkFaction = Faction.NEUTRAL) {

@@ -46,6 +46,7 @@ export function createGameState(config = {}) {
 
   const playerSpawnX = 1.5 * TILE_SIZE;
   const playerSpawnY = 1.5 * TILE_SIZE;
+  const bossStats = RANK_STATS[UnitRank.BOSS];
 
   return {
     // --- world / entities ---------------------------------------------------
@@ -74,19 +75,19 @@ export function createGameState(config = {}) {
       targetY: null,
       path: null,
       pathTimer: 0,
-      bodyRadius: RANK_STATS[UnitRank.BOSS].radius,
-      speed: 225,
+      bodyRadius: bossStats.radius,
+      speed: bossStats.speedHuman,
       facing: 0,
-      hp: BOSS_MAX_HP,
-      maxHp: BOSS_MAX_HP,
-      armor: 0,
-      maxArmor: MAX_BOSS_ARMOR,
+      hp: bossStats.hp,
+      maxHp: bossStats.hp,
+      armor: bossStats.startArmor,
+      maxArmor: bossStats.maxArmor,
       armorCooldown: 0,
       sprintTimer: 0,
       sprintCooldown: 0,
       isSprinting: false,
-      minDmg: 20,
-      maxDmg: 40,
+      minDmg: bossStats.minDmg,
+      maxDmg: bossStats.maxDmg,
       alive: true,
       attackCooldown: 0,
       slashAnimTimer: 0,
