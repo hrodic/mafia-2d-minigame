@@ -1,6 +1,7 @@
 // Static UI integration checks for index.html (zero dependencies, no network beyond
 // fetching the page itself). Guards the Ko-fi support button and the modal header.
 import { test, assert } from './harness.js';
+import { GAME_VERSION } from '../src/config/version.js';
 
 async function fetchIndexHtml() {
   const response = await fetch('../index.html', { cache: 'no-store' });
@@ -49,11 +50,11 @@ test('ui: Ko-fi init runs after the page is ready (does not block the game)', as
 test('ui: setup modal shows the version in place of the old edition label', async () => {
   const html = await fetchIndexHtml();
   assert(!html.includes('Criminal Empire Edition'), 'old "Criminal Empire Edition" text still present');
-  const label = html.match(/id="modal-version-label"[^>]*>\s*([^<]+?)\s*</);
+  const label = html.match(/id="modal-version-label"[^>]*>\s*([^<]*?)\s*</);
   assert(label, 'modal version label not found');
   assert(
-    /^BETA\.\d{4}\.\d{2}\.\d{2}$/.test(label[1].trim()),
-    `unexpected modal version label: ${label[1]}`
+    !html.includes(GAME_VERSION),
+    'index.html must not hardcode GAME_VERSION; applyVersionLabels() sets it at runtime'
   );
   assert(
     !html.includes('4 SYNDICATES · 1 CITY · BETA'),

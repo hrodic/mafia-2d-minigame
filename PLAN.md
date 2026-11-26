@@ -7,6 +7,7 @@ This is the living plan. Read `AGENTS.md` for the working contract and
 
 - Phase 0 - DONE (docs, zero-dependency test harness, smoke checklist)
 - Phase 1 - DONE (full modular split; tests green; `src/main.js` is a thin composition root)
+- Versioning: SemVer started at `0.1.0`; bump PATCH/MINOR on every commit-sized step
 - Phase 2 - IN PROGRESS
   - Step 1 DONE: `core/events.js` event bus + `tests/events.test.js` (additive; hooks intact)
   - Step 2 DONE: combat migrated to events (`sim/combat.js` emits only; presentation in
@@ -23,8 +24,12 @@ This is the living plan. Read `AGENTS.md` for the working contract and
   - Step 6 DONE: match setup migrated to `match:initialized` (effects/UI/labels/HUD
     subscribers). Allowlist debt is now only `simulation.js` (canvas aim, per-frame
     particles, guest presentation; Phase 3).
-  - Next: Phase 2 dedup/balance/RNG/AI work (or move the periodic HUD cadence out of
-    `simulation.js` and delete `core/runtime.js`)
+  - Step 7 DONE: `GAME_VERSION` single source in `src/config/version.js`; title/HUD/modal
+    labels applied by `src/ui/version.js`; static check rejects duplicated literals.
+  - Step 8 DONE: SemVer baseline `0.1.0`; patch/minor bump policy documented and enforced
+    (format + single source).
+  - Next: deduplicate prop footprints (`world/geometry.js`), minimap layout, faction-slot
+    selection; then data-driven balance, explicit RNG, AI extraction
   - Guardrails: benefits/tradeoffs/use-skip rules and the many-NPC + multiplayer
     performance budget are documented in `EVENTS.md`
 - Phases 3-5 - pending (unified entity model/commands/fixed timestep, net hardening, quality)

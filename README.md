@@ -80,6 +80,14 @@ no external relays): `tests/mp-harness.html`.
 - Multiplayer: Trystero WebRTC signaling (`nostr`/`mqtt` from CDN) + same-origin
   BroadcastChannel/localStorage fallback; host simulates, guests stream input.
 
+## Versioning
+
+SemVer (`MAJOR.MINOR.PATCH`) starting at `0.1.0`. The single source is
+`src/config/version.js`; the title, HUD/modal labels and multiplayer handshake read it.
+Every commit-sized step bumps the version: **PATCH** for fixes/refactors/docs/tests,
+**MINOR** for new user-visible capabilities. `1.0.0` will be the first stable release.
+Multiplayer requires both peers to run the same version.
+
 ## Documentation
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — layers, modules, data flow, netcode, testing.

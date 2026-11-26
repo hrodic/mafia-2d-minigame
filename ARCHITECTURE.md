@@ -21,6 +21,7 @@ src/
   main.js                  composition root (81 lines): net bridge, hooks, loop, bootstrap
   config/
     constants.js           tile/chunk sizes, tick/sprint/pistol tuning
+    version.js             GAME_VERSION single source (title/labels/net handshake)
     enums.js               TileType, PropType, Faction, UnitRank
     balance.js             income tiers, costs, upkeep, boss HP/armor, attack cooldown
     organizations.js       6 organizations, FACTION_META, ensureUniqueOrgs
@@ -61,6 +62,7 @@ src/
     combatSfx.js           event subscribers: combat facts -> SFX
   ui/
     hud.js                 top-bar values, sprint/timer bars, standings, recruit labels
+    version.js             applies GAME_VERSION to title + HUD/modal labels
     menus.js               setup modal, lobby buttons, banners, toast, map-size controls
     input.js               keyboard/mouse/minimap + HUD action bindings
 tests/
@@ -107,7 +109,7 @@ inside functions called after module evaluation (never at top level).
 3. Wires presentation hooks in `core/runtime.js`.
 4. Starts the rAF loop (`update` then `render` when `state.gameStarted`) with a variable
    timestep capped at 50 ms.
-5. Boots UI/input (`initMenus`, `initInput`) and setup renderers.
+5. Boots UI/input (`applyVersionLabels`, `initMenus`, `initInput`) and setup renderers.
 6. Detects `?room=&secret=` invite URLs and pre-fills the join panel.
 
 ### Net bridge
@@ -306,6 +308,9 @@ distance from the camera.
 ## Conventions
 
 - Native ESM, relative `.js` imports, no bare specifiers, no npm.
+- **SemVer:** `GAME_VERSION` in `config/version.js` is the single source. Every
+  commit-sized step bumps PATCH (fix/refactor/docs/tests/perf) or MINOR (new capability);
+  `1.0.0` is the first stable release. The same value gates multiplayer.
 - 2-space indentation in `src/` modules; keep modules focused.
 - Gameplay constants/balance live in `config/` (Phase 2 completes the move from inline
   numbers to tables).

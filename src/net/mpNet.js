@@ -3,6 +3,7 @@
 // Phase 4 splits it into transport/protocol/lobby/host/guest modules.
 
 import { Faction, UnitRank } from '../config/enums.js';
+import { GAME_VERSION } from '../config/version.js';
 import { ORGANIZATIONS, FACTION_META, ensureUniqueOrgs } from '../config/organizations.js';
 import { state, getLocalBoss } from '../core/state.js';
 import { initWorld } from '../sim/match.js';
@@ -21,7 +22,6 @@ import { showToast } from '../ui/menus.js';
 
 
 export const mpNet = (() => {
-  const GAME_VERSION = 'BETA.2026.11.26';
   const APP_ID = 'hrodic-mafia-2d-p2p-v26';
   const TRYSTERO_URLS = [
     'https://esm.sh/@trystero-p2p/nostr@0.27.0?bundle',

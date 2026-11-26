@@ -63,7 +63,8 @@ Serve the repo over http first (`python -m http.server 8000` or any static serve
 - [ ] Host creates/room code copies invite link; invite URL auto-fills join panel.
 - [ ] Guest joins, gets assigned a syndicate and settings echo the host's.
 - [ ] Human/AI slot toggles and org changes broadcast to the guest.
-- [ ] Version mismatch rejection works (simulate by editing GAME_VERSION in a tab).
+- [ ] Version mismatch rejection works (simulate by editing `GAME_VERSION` in
+  `src/config/version.js` in one tab).
 - [ ] Launch: world identical on both peers (same seed); guest sees all factions.
 - [ ] Guest input: movement, sprint, facing/aim, slash, shoot, armor, recruit prefs,
       expand ring, build block all take effect on host simulation.

@@ -23,6 +23,7 @@ import {
   showDefeatBanner,
 } from './ui/menus.js';
 import { initInput } from './ui/input.js';
+import { applyVersionLabels } from './ui/version.js';
 import { mpNet } from './net/mpNet.js';
 import { sfx } from './audio/sfx.js';
 import * as combatSfx from './audio/combatSfx.js';
@@ -108,6 +109,7 @@ function gameLoop(now) {
 }
 
 // Bootstrap UI, input bindings and invite-link auto-detection.
+applyVersionLabels();
 initMenus();
 initInput();
 renderFactionSlotsUI();

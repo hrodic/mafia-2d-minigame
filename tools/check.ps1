@@ -48,6 +48,33 @@ foreach ($file in $jsFiles) {
   }
 }
 
+# Single version source: GAME_VERSION lives in one file; no duplicates in src/index.html.
+$versionFile = Join-Path $root 'src/config/version.js'
+$gameVersion = $null
+if (-not (Test-Path $versionFile -PathType Leaf)) {
+  $errors.Add('missing required file: src/config/version.js')
+} else {
+  $versionSource = [IO.File]::ReadAllText($versionFile)
+  $versionMatch = [regex]::Match($versionSource, "GAME_VERSION\s*=\s*'([^']+)'")
+  if (-not $versionMatch.Success) {
+    $errors.Add('src/config/version.js must export GAME_VERSION as a single-quoted string')
+  } elseif ($versionMatch.Groups[1].Value -notmatch '^\d+\.\d+\.\d+$') {
+    $errors.Add("GAME_VERSION must be SemVer MAJOR.MINOR.PATCH: $($versionMatch.Groups[1].Value)")
+  } else {
+    $gameVersion = $versionMatch.Groups[1].Value
+  }
+}
+if ($gameVersion) {
+  $versionFiles = @($jsFiles) + @(Get-Item (Join-Path $root 'index.html'))
+  foreach ($file in $versionFiles) {
+    if ($file.FullName -eq $versionFile) { continue }
+    $versionContent = [IO.File]::ReadAllText($file.FullName)
+    if ($versionContent.Contains($gameVersion)) {
+      $errors.Add("version literal duplicated in $($file.FullName); use GAME_VERSION")
+    }
+  }
+}
+
 # Layering ratchet: sim/ must not import presentation/net layers. The remaining Phase 2
 # debt is allowlisted; remove entries as each module migrates and never add new ones.
 $simDir = Join-Path $root 'src/sim'

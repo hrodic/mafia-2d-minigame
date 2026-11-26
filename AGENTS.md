@@ -21,6 +21,17 @@ command, number or test result; read the file or run the check.
 5. Zero-build is non-negotiable: no npm, bundler, transpiler, or asset pipeline. Native ES
    modules with relative `.js` imports; Tailwind and Trystero stay on their CDNs.
 
+## Versioning (SemVer)
+
+`GAME_VERSION` in `src/config/version.js` is the single source (`MAJOR.MINOR.PATCH`).
+
+- Every commit-sized step bumps the version in the same commit.
+- **MINOR** for a new user-visible capability; **PATCH** for fixes, refactors, docs, tests,
+  performance or internal changes.
+- `1.0.0` is the first stable release; while `0.x`, breaking changes may still land in a
+  MINOR.
+- Peers must run the same `GAME_VERSION`: it gates the multiplayer handshake.
+
 ## Commands (Windows/PowerShell; `python`/`node` not assumed)
 
 | Task | Command / URL |
@@ -85,7 +96,8 @@ command, number or test result; read the file or run the check.
 - Worldgen is deterministic from the seed; host and guests must build the same city.
 - `state.net` is the bridge for `core/state.js` selectors; `main.js` sets it before UI init.
 - Do not rebalance or change gameplay numbers during refactors unless asked.
-- Keep `GAME_VERSION` (`src/net/mpNet.js`) aligned with the title/modal version.
+- Keep `GAME_VERSION` in `src/config/version.js` as the single source; the title, HUD/modal
+  labels and net handshake read it. Never hardcode it elsewhere.
 - ESM cycles: never read an imported binding at module top level; pass parameters or use a
   bridge.
 - Prefer extending existing helpers/config over inventing new abstractions.
@@ -105,5 +117,5 @@ command, number or test result; read the file or run the check.
 
 ## Done
 
-Static check OK, tests `PASS`, smoke clean, docs updated if structure changed. Report changed
-files and verification results. Do not commit.
+Static check OK, tests `PASS`, smoke clean, docs updated if structure changed, version
+bumped per policy. Report changed files and verification results. Do not commit.
