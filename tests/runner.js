@@ -23,6 +23,7 @@ import './interpolation.test.js';
 import './match.test.js';
 import './simulation.test.js';
 import './render.test.js';
+import './minimapLayout.test.js';
 import './hud.test.js';
 import './menus.test.js';
 

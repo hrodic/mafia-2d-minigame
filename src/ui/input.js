@@ -12,6 +12,7 @@ import {
   setSoundEnabled,
 } from '../audio/engine.js';
 import { canvas, minimapCanvas } from '../render/canvas.js';
+import { getMinimapLayout, minimapToWorld } from '../render/minimapLayout.js';
 import { addFloatingText } from '../render/effects.js';
 import { performKnifeSlash, buyBossArmor, performBossPistolShot } from '../sim/combat.js';
 import { updateHUD, syncRecruitButtonLabels } from './hud.js';
@@ -159,27 +160,12 @@ minimapCanvas.addEventListener('click', (e) => {
   getAudioCtx();
   if (!state.gameStarted || state.world.chunks.size === 0) return;
   const rect = minimapCanvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-
-  let minCx = Infinity, maxCx = -Infinity, minCy = Infinity, maxCy = -Infinity;
-  for (const chunk of state.world.chunks.values()) {
-    if (chunk.cx < minCx) minCx = chunk.cx;
-    if (chunk.cx > maxCx) maxCx = chunk.cx;
-    if (chunk.cy < minCy) minCy = chunk.cy;
-    if (chunk.cy > maxCy) maxCy = chunk.cy;
-  }
-  const cols = Math.max(1, maxCx - minCx + 1);
-  const rows = Math.max(1, maxCy - minCy + 1);
-  const pad = 6;
-  const innerW = minimapCanvas.width - pad * 2;
-  const innerH = minimapCanvas.height - pad * 2;
-  const cellSize = Math.min(innerW / cols, innerH / rows);
-  const offsetX = pad + (innerW - cellSize * cols) / 2;
-  const offsetY = pad + (innerH - cellSize * rows) / 2;
-
-  const worldX = (minCx + (mx - offsetX) / cellSize) * CHUNK_PX;
-  const worldY = (minCy + (my - offsetY) / cellSize) * CHUNK_PX;
+  if (!rect.width || !rect.height) return;
+  const mx = (e.clientX - rect.left) * (minimapCanvas.width / rect.width);
+  const my = (e.clientY - rect.top) * (minimapCanvas.height / rect.height);
+  const layout = getMinimapLayout(state.world.chunks.values(), minimapCanvas.width, minimapCanvas.height);
+  if (!layout) return;
+  const { x: worldX, y: worldY } = minimapToWorld(layout, mx, my);
 
   if (state.net && state.net.isGuest()) {
     if (!isLocalBossAlive()) {

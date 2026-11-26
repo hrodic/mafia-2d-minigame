@@ -75,6 +75,7 @@ command, number or test result; read the file or run the check.
 | Keyboard / mouse / HUD buttons | `src/ui/input.js` |
 | Snapshots / lobby / transport | `src/net/mpNet.js` |
 | Rendering / minimap / effects | `src/render/*` |
+| Radar layout math | `src/render/minimapLayout.js` |
 | Audio | `src/audio/*` |
 | Wiring / hooks / loop | `src/main.js`, `src/core/runtime.js` |
 | Match setup reset (effects / UI / labels / HUD) | `src/main.js` (`match:initialized` subscribers) |

@@ -30,8 +30,9 @@ This is the living plan. Read `AGENTS.md` for the working contract and
     (format + single source).
   - Step 9 DONE (`0.1.1`): prop footprints centralized in `src/world/geometry.js`; collision,
     bullet raycast and drawing share it; characterization tests added.
-  - Next: minimap layout dedup, faction-slot selection, data-driven balance, explicit RNG,
-    AI extraction
+  - Step 10 DONE (`0.1.2`): radar bounds/cell/offset + world<->map mapping centralized in
+    `src/render/minimapLayout.js`; drawing and click mapping share it.
+  - Next: faction-slot selection dedup, data-driven balance, explicit RNG, AI extraction
   - Guardrails: benefits/tradeoffs/use-skip rules and the many-NPC + multiplayer
     performance budget are documented in `EVENTS.md`
 - Phases 3-5 - pending (unified entity model/commands/fixed timestep, net hardening, quality)

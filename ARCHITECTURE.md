@@ -56,6 +56,7 @@ src/
     recruitFx.js           event subscriber: unit:recruited -> floating text
     territoryFx.js         event subscriber: chunk:captured -> turf text + radar
     minimap.js             cached radar layer + live dots/viewport
+    minimapLayout.js       bounds/cell math shared by radar drawing + click mapping
     interpolation.js       guest-side position smoothing + animation timer decay
   audio/
     engine.js              AudioContext, gains, procedural noir music scheduler
@@ -267,8 +268,9 @@ and characters into a depth-sorted list, and draws layers: ground + faction tint
 capture bars, blood decals/corpses, waypoint/aim UI, characters (with HP/armor bars and
 rank labels), then effects (slash arcs, muzzle flashes, tracers, blood, sparks, casings,
 floating text). `render/minimap.js` caches the faction territory layer and overlays units,
-the boss, the camera rect and chunk coordinates. `render/canvas.js` owns canvas refs and
-is guarded so tests can import modules without a game DOM.
+the boss, the camera rect and chunk coordinates; `render/minimapLayout.js` owns the shared
+bounds/cell/offset and world<->map mapping (also used by radar clicks). `render/canvas.js`
+owns canvas refs and is guarded so tests can import modules without a game DOM.
 
 ## Audio
 
@@ -325,9 +327,9 @@ distance from the camera.
 
 - Phase 2: finish migrating the last runtime HUD cadence out of `simulation.js` (bus
   implemented; combat, units, economy, territory and match migrated; only `simulation.js`
-  is allowlisted in `tools/check.ps1`); deduplicate prop geometry, minimap layout,
-  faction slot selection and `GAME_VERSION`; data-driven balance tables; explicit RNG
-  (remove `withSeed`'s `Math.random` patch); extract AI decisions to `sim/ai.js`.
+  is allowlisted in `tools/check.ps1`); deduplicate faction-slot selection; data-driven
+  balance tables; explicit RNG (remove `withSeed`'s `Math.random` patch); extract AI
+  decisions to `sim/ai.js`.
 - Phase 3: player boss folded into the unit model (`control: local/ai/remote`), one
   damage/slash/movement pipeline, `createGameState()` reset factory, unified command
   dispatcher for local+remote, fixed timestep.
