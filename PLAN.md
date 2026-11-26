@@ -9,9 +9,14 @@ This is the living plan. Read `AGENTS.md` for the working contract and
 - Phase 1 - DONE (full modular split; tests green; `src/main.js` is a thin composition root)
 - Phase 2 - IN PROGRESS
   - Step 1 DONE: `core/events.js` event bus + `tests/events.test.js` (additive; hooks intact)
+  - Step 2 DONE: combat migrated to events (`sim/combat.js` emits only; presentation in
+    `render/combatFx.js` + `audio/combatSfx.js`; net SHOT broadcast moved to `main.js`).
+    `tools/check.ps1` now enforces the `sim/` layering ratchet.
+  - Fix: guest movement crash (`canvas` missing import in `net/mpNet.js`); static guard
+    added so `canvas.*` usage requires the canvas import. Guest movement re-verified.
+  - Next: units → economy → territory → match migration; then dedup/balance/RNG/AI work
   - Guardrails: benefits/tradeoffs/use-skip rules and the many-NPC + multiplayer
     performance budget are documented in `EVENTS.md`
-  - Next: migrate sim side effects to events, then dedup/balance/RNG/AI work
 - Phases 3-5 - pending (unified entity model/commands/fixed timestep, net hardening, quality)
 
 Safety nets in place before Phase 2:

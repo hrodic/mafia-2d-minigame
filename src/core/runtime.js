@@ -3,7 +3,6 @@
 
 export const runtime = {
   updateHUD: () => {},
-  showToast: () => {},
   syncRecruitButtonLabels: () => {},
   resetMatchUI: () => {},
   onVictory: () => {},

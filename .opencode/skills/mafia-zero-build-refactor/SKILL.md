@@ -29,6 +29,11 @@ procedure.
   `state.x` for reassigned primitives; exported `let` bindings cannot be reassigned.
 - Keep gameplay numbers unchanged unless the task is a balance change.
 - One subsystem per commit-sized step; the game must stay playable after each.
+- `tools/check.ps1` enforces a layering ratchet: `sim/` cannot import `render/`, `audio/`,
+  `ui/` or `net/`. The remaining debt allowlist may only shrink.
+- Migrating a system to events: emit facts in `sim/`, add handlers in
+  `render/combatFx.js`-style modules, wire them in `main.js`, and delete the old direct
+  calls/runtime hooks in the same step. Test the emitted payloads.
 
 ## Scripted extraction
 

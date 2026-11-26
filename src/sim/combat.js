@@ -5,19 +5,7 @@ import { CHUNK_SIZE, TILE_SIZE, MAX_PISTOL_RANGE } from '../config/constants.js'
 import { UNIT_ATTACK_COOLDOWN, COST_BOSS_ARMOR, MAX_BOSS_ARMOR } from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
 import { state, isLocalBossAlive } from '../core/state.js';
-import { runtime } from '../core/runtime.js';
-import { getAudioCtx } from '../audio/engine.js';
-import { sfx } from '../audio/sfx.js';
-import {
-  spawnBloodSplash,
-  spawnDeadBody,
-  spawnSparks,
-  spawnSlashArc,
-  spawnMuzzleFlash,
-  addFloatingText,
-  bulletTracers,
-  shellCasings,
-} from '../render/effects.js';
+import { emit } from '../core/events.js';
 import { canOccupyPosition, getEntityCollisionRadius } from './movement.js';
 import { eliminateFaction } from './territory.js';
 
@@ -43,23 +31,21 @@ export function applyDamageToNpc(target, dmg, textColor = '#fbbf24', suffix = ''
   }
 
   const isKill = target.hp <= 0;
-  if (remainingDmg > 0) {
-    spawnBloodSplash(target.x, target.y, target.rank === UnitRank.BOSS ? 1.45 : 1.2, isKill, hitAngle);
-  } else {
-    spawnSparks(target.x, target.y - 12);
-  }
-
-  if (absorbed > 0 && remainingDmg === 0) {
-    addFloatingText(target.x, target.y - 28, `-${absorbed} 🛡️`, '#38bdf8');
-  } else if (absorbed > 0 && remainingDmg > 0) {
-    addFloatingText(target.x, target.y - 28, `-${absorbed}🛡️ -${remainingDmg} ${suffix}`.trim(), textColor);
-  } else {
-    addFloatingText(target.x, target.y - 28, `-${remainingDmg} ${suffix}`.trim(), textColor);
-  }
+  emit('unit:damaged', {
+    unit: target,
+    amount: dmg,
+    absorbed,
+    remaining: remainingDmg,
+    isKill,
+    isPlayer: false,
+    hitAngle,
+    textColor,
+    suffix,
+  });
 
   if (absorbed > 0 && target.armor <= 0) {
     target.armor = 0;
-    addFloatingText(target.x, target.y - 42, 'ARMOR BROKEN!', '#7dd3fc');
+    emit('armor:broken', { unit: target, isPlayer: false });
   }
 
   if (isKill) {
@@ -67,15 +53,21 @@ export function applyDamageToNpc(target, dmg, textColor = '#fbbf24', suffix = ''
     if (deadIdx !== -1) {
       const deadFaction = target.faction;
       const wasBoss = target.rank === UnitRank.BOSS;
-      spawnDeadBody(target.x, target.y, deadFaction, target.rank, target.facing, hitAngle ?? target.facing);
+      const fallAngle = hitAngle ?? target.facing;
       state.npcs.splice(deadIdx, 1);
+      emit('unit:died', {
+        unit: target,
+        faction: deadFaction,
+        rank: target.rank,
+        x: target.x,
+        y: target.y,
+        facing: target.facing,
+        fallAngle,
+        isBoss: wasBoss,
+        isPlayer: false,
+      });
       if (wasBoss) {
-        sfx.playDeath(true, target.x, target.y);
-        addFloatingText(target.x, target.y - 44, 'BOSS KILLED!', '#f43f5e');
         eliminateFaction(deadFaction);
-      } else {
-        sfx.playDeath(false, target.x, target.y);
-        addFloatingText(target.x, target.y - 38, 'ELIMINATED', '#f43f5e');
       }
     }
   }
@@ -92,7 +84,6 @@ export function executeBossSlashForFaction(faction) {
 
   bossNpc.attackCooldown = 0.34;
   bossNpc.slashAnimTimer = 0.18;
-  spawnSlashArc(bossNpc.x, bossNpc.y, bossNpc.facing, FACTION_META[faction].accent);
 
   const reach = 52;
   const maxTargets = 3;
@@ -128,7 +119,14 @@ export function executeBossSlashForFaction(faction) {
 
   candidates.sort((a, b) => a.dist - b.dist);
   const targets = candidates.slice(0, maxTargets);
-  sfx.playSlash(targets.length > 0, bossNpc.x, bossNpc.y);
+  emit('slash:performed', {
+    x: bossNpc.x,
+    y: bossNpc.y,
+    facing: bossNpc.facing,
+    color: FACTION_META[faction].accent,
+    hitCount: targets.length,
+    isPlayer: false,
+  });
 
   for (const item of targets) {
     const dmg = rollDamage(bossNpc.minDmg, bossNpc.maxDmg);
@@ -159,7 +157,6 @@ export function performKnifeSlash() {
 
   state.player.attackCooldown = 0.34;
   state.player.slashAnimTimer = 0.18;
-  spawnSlashArc(state.player.x, state.player.y, state.player.facing, '#f43f5e');
 
   const reach = 52;
   const maxTargets = 3;
@@ -184,7 +181,14 @@ export function performKnifeSlash() {
   candidates.sort((a, b) => a.dist - b.dist);
   const targets = candidates.slice(0, maxTargets);
   const hitCount = targets.length;
-  sfx.playSlash(hitCount > 0, state.player.x, state.player.y);
+  emit('slash:performed', {
+    x: state.player.x,
+    y: state.player.y,
+    facing: state.player.facing,
+    color: '#f43f5e',
+    hitCount,
+    isPlayer: true,
+  });
 
   for (const item of targets) {
     const { npc, dist, dx, dy } = item;
@@ -200,15 +204,6 @@ export function performKnifeSlash() {
     }
 
     applyDamageToNpc(npc, dmg, '#fbbf24', '', pushAngle);
-  }
-
-  if (hitCount === 0) {
-    addFloatingText(
-      state.player.x + Math.cos(state.player.facing) * 20,
-      state.player.y + Math.sin(state.player.facing) * 20 - 16,
-      'Slash!',
-      '#a1a1aa'
-    );
   }
 }
 
@@ -246,8 +241,14 @@ export function performBossKnifeSlash(bossNpc) {
   if (targets.length === 0) return false;
 
   bossNpc.facing = Math.atan2(targets[0].dy, targets[0].dx);
-  spawnSlashArc(bossNpc.x, bossNpc.y, bossNpc.facing, FACTION_META[bossNpc.faction].accent);
-  sfx.playSlash(true, bossNpc.x, bossNpc.y);
+  emit('slash:performed', {
+    x: bossNpc.x,
+    y: bossNpc.y,
+    facing: bossNpc.facing,
+    color: FACTION_META[bossNpc.faction].accent,
+    hitCount: targets.length,
+    isPlayer: false,
+  });
 
   for (const item of targets) {
     const dmg = rollDamage(bossNpc.minDmg, bossNpc.maxDmg);
@@ -344,22 +345,16 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
   const shooterFaction = isPlayerShooter ? Faction.PLAYER : shooter.faction;
   const muzzleX = shooter.x + Math.cos(angle) * 18;
   const muzzleY = shooter.y - 14 + Math.sin(angle) * 6;
-  spawnMuzzleFlash(muzzleX, muzzleY, angle);
-
-  const ejectAngle = angle + Math.PI * 0.55 + (Math.random() - 0.5) * 0.3;
-  shellCasings.push({
-    x: shooter.x + Math.cos(angle) * 8,
-    y: shooter.y - 10,
-    z: 14,
-    vx: Math.cos(ejectAngle) * (45 + Math.random() * 35),
-    vy: Math.sin(ejectAngle) * (45 + Math.random() * 35),
-    vz: 75 + Math.random() * 35,
-    rot: Math.random() * Math.PI,
-    vrot: (Math.random() - 0.5) * 24,
-    life: 0.75,
+  emit('shot:started', {
+    shooter,
+    shooterX: shooter.x,
+    shooterY: shooter.y,
+    muzzleX,
+    muzzleY,
+    angle,
+    shooterFaction,
+    isPlayerShooter,
   });
-
-  sfx.playGunshot(shooter.x, shooter.y);
 
   const envHit = traceBulletRay(shooter.x, shooter.y, angle, MAX_PISTOL_RANGE);
   const maxRayDist = envHit.dist;
@@ -412,6 +407,9 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
 
   let endX = shooter.x + cos * bestProjDist;
   let endY = (shooter.y - 10) + sin * bestProjDist;
+  let missTargetX = null;
+  let missTargetY = null;
+  let impact = { blocked: false, x: null, y: null };
 
   if (bestTarget && shotMissed) {
     const missDir = Math.random() < 0.5 ? 1 : -1;
@@ -419,35 +417,29 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
     const missRay = traceBulletRay(shooter.x, shooter.y, deflectAngle, MAX_PISTOL_RANGE);
     endX = missRay.x;
     endY = missRay.y - 10;
-
-    addFloatingText(bestTarget.x, bestTarget.y - 34, 'MISS!', '#a1a1aa');
+    missTargetX = bestTarget.x;
+    missTargetY = bestTarget.y;
     if (missRay.blocked) {
-      spawnSparks(missRay.x, missRay.y);
-      sfx.playRicochet(missRay.x, missRay.y);
+      impact = { blocked: true, x: missRay.x, y: missRay.y };
     }
+  } else if (!bestTarget && envHit.blocked) {
+    impact = { blocked: true, x: envHit.x, y: envHit.y };
   }
 
   const tracerColor = isPlayerShooter ? '#fde047' : FACTION_META[shooterFaction].accent;
-  bulletTracers.push({
+  emit('shot:fired', {
+    shooterFaction,
+    isPlayerShooter,
     x1: muzzleX,
     y1: muzzleY,
     x2: endX,
     y2: endY,
     color: tracerColor,
-    life: 0.16,
-    maxLife: 0.16,
+    missed: shotMissed,
+    targetX: missTargetX,
+    targetY: missTargetY,
+    impact,
   });
-
-  if (state.net && state.net.isHost()) {
-    state.net.broadcastEvent({
-      kind: 'SHOT',
-      x1: Math.round(muzzleX),
-      y1: Math.round(muzzleY),
-      x2: Math.round(endX),
-      y2: Math.round(endY),
-      color: tracerColor,
-    });
-  }
 
   if (bestTarget && !shotMissed) {
     let dmg = rollDamage(40, 80);
@@ -473,9 +465,6 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
         angle
       );
     }
-  } else if (!bestTarget && envHit.blocked) {
-    spawnSparks(envHit.x, envHit.y);
-    sfx.playRicochet(envHit.x, envHit.y);
   }
 
   return true;
@@ -498,28 +487,35 @@ export function damagePlayerBoss(dmg, textColor = '#f43f5e', suffix = '', hitAng
   }
 
   const isKill = state.player.hp <= 0 && state.player.alive;
-  if (remainingDmg > 0) {
-    spawnBloodSplash(state.player.x, state.player.y, 1.35, isKill, hitAngle);
-  } else {
-    spawnSparks(state.player.x, state.player.y - 12);
-  }
-
-  if (absorbed > 0 && remainingDmg === 0) {
-    addFloatingText(state.player.x, state.player.y - 30, `-${absorbed} 🛡️`, '#38bdf8');
-  } else if (absorbed > 0 && remainingDmg > 0) {
-    addFloatingText(state.player.x, state.player.y - 30, `-${absorbed}🛡️ -${remainingDmg} ${suffix}`, '#f43f5e');
-  } else {
-    addFloatingText(state.player.x, state.player.y - 30, `-${remainingDmg} ${suffix}`.trim(), textColor);
-  }
+  emit('unit:damaged', {
+    unit: state.player,
+    amount: dmg,
+    absorbed,
+    remaining: remainingDmg,
+    isKill,
+    isPlayer: true,
+    hitAngle,
+    textColor,
+    suffix,
+  });
 
   if (absorbed > 0 && state.player.armor <= 0) {
     state.player.armor = 0;
-    addFloatingText(state.player.x, state.player.y - 44, 'ARMOR BROKEN!', '#7dd3fc');
+    emit('armor:broken', { unit: state.player, isPlayer: true });
   }
 
   if (isKill) {
-    spawnDeadBody(state.player.x, state.player.y, Faction.PLAYER, UnitRank.BOSS, state.player.facing, hitAngle ?? state.player.facing);
-    sfx.playDeath(true, state.player.x, state.player.y);
+    emit('unit:died', {
+      unit: state.player,
+      faction: Faction.PLAYER,
+      rank: UnitRank.BOSS,
+      x: state.player.x,
+      y: state.player.y,
+      facing: state.player.facing,
+      fallAngle: hitAngle ?? state.player.facing,
+      isBoss: true,
+      isPlayer: true,
+    });
     eliminateFaction(Faction.PLAYER);
   }
 }
@@ -532,8 +528,13 @@ export function executeBuyArmorForFaction(faction) {
     state.treasuries[Faction.PLAYER] -= COST_BOSS_ARMOR;
     state.player.armor = MAX_BOSS_ARMOR;
     state.player.armorCooldown = state.tickDuration;
-    sfx.playArmorEquip(state.player.x, state.player.y);
-    addFloatingText(state.player.x, state.player.y - 34, `+${MAX_BOSS_ARMOR} ARMOR 🛡️`, '#38bdf8');
+    emit('armor:equipped', {
+      unit: state.player,
+      amount: MAX_BOSS_ARMOR,
+      faction: Faction.PLAYER,
+      isPlayer: true,
+      textOffset: 34,
+    });
     return true;
   } else {
     const bossNpc = state.npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS);
@@ -542,43 +543,55 @@ export function executeBuyArmorForFaction(faction) {
     state.treasuries[faction] -= COST_BOSS_ARMOR;
     bossNpc.armor = MAX_BOSS_ARMOR;
     bossNpc.armorCooldown = state.tickDuration;
-    sfx.playArmorEquip(bossNpc.x, bossNpc.y);
-    addFloatingText(bossNpc.x, bossNpc.y - 34, `+${MAX_BOSS_ARMOR} ARMOR 🛡️`, '#38bdf8');
+    emit('armor:equipped', {
+      unit: bossNpc,
+      amount: MAX_BOSS_ARMOR,
+      faction,
+      isPlayer: false,
+      textOffset: 34,
+    });
     return true;
   }
 }
 
 export function buyBossArmor() {
-  getAudioCtx();
   if (!state.gameStarted) return;
   if (state.net && state.net.isGuest()) {
     if (!isLocalBossAlive()) {
-      runtime.showToast('Your Boss must be alive to equip armor!');
+      emit('ui:toast', { message: 'Your Boss must be alive to equip armor!' });
       return;
     }
     state.net.sendCommand({ cmd: 'BUY_ARMOR' });
     return;
   }
   if (!state.player.alive || !state.factionAlive[Faction.PLAYER]) {
-    runtime.showToast('Your Boss must be alive to equip armor!');
+    emit('ui:toast', { message: 'Your Boss must be alive to equip armor!' });
     return;
   }
   if (state.player.armorCooldown > 0) {
-    runtime.showToast(`Armor restock on cooldown (${state.player.armorCooldown.toFixed(1)}s until next tick)!`);
+    emit('ui:toast', {
+      message: `Armor restock on cooldown (${state.player.armorCooldown.toFixed(1)}s until next tick)!`,
+    });
     return;
   }
   if (state.player.armor >= MAX_BOSS_ARMOR) {
-    runtime.showToast(`Kevlar Armor is already at full capacity (${MAX_BOSS_ARMOR} HP)!`);
+    emit('ui:toast', {
+      message: `Kevlar Armor is already at full capacity (${MAX_BOSS_ARMOR} HP)!`,
+    });
     return;
   }
   if (state.treasuries[Faction.PLAYER] < COST_BOSS_ARMOR) {
-    runtime.showToast(`Need $${COST_BOSS_ARMOR.toLocaleString()} for Boss Kevlar Armor!`);
+    emit('ui:toast', {
+      message: `Need $${COST_BOSS_ARMOR.toLocaleString()} for Boss Kevlar Armor!`,
+    });
     return;
   }
 
   if (executeBuyArmorForFaction(Faction.PLAYER)) {
-    runtime.showToast(`Equipped Kevlar Armor! Next purchase available in ${state.tickDuration}s.`);
-    runtime.updateHUD();
+    emit('ui:toast', {
+      message: `Equipped Kevlar Armor! Next purchase available in ${state.tickDuration}s.`,
+    });
+    emit('hud:refresh');
   }
 }
 
@@ -602,7 +615,12 @@ export function tryBuyNpcBossArmor(bossNpc, nearbyEnemies = 0, nearbyAllies = 0)
   state.treasuries[faction] -= COST_BOSS_ARMOR;
   bossNpc.armor = MAX_BOSS_ARMOR;
   bossNpc.armorCooldown = state.tickDuration;
-  sfx.playArmorEquip(bossNpc.x, bossNpc.y);
-  addFloatingText(bossNpc.x, bossNpc.y - 36, `+${MAX_BOSS_ARMOR} ARMOR 🛡️`, '#38bdf8');
+  emit('armor:equipped', {
+    unit: bossNpc,
+    amount: MAX_BOSS_ARMOR,
+    faction,
+    isPlayer: false,
+    textOffset: 36,
+  });
   return true;
 }

@@ -34,7 +34,8 @@ command, number or test result; read the file or run the check.
 
 ## Verification (after every change)
 
-1. `tools/check.ps1` prints `OK: ...` (imports, runner manifest, DOM ids).
+1. `tools/check.ps1` prints `OK: ...` (imports, runner manifest, DOM ids, skill
+   frontmatter, and the `sim/` layering ratchet).
 2. Tests page title is `PASS`; check the browser console, not just the summary.
 3. Game loads over http, starts, moves, slashes/shoots; no console errors.
 4. If `sim/`, `net/` or shared state changed: two-tab MP check (lobby, launch, guest
@@ -52,6 +53,7 @@ command, number or test result; read the file or run the check.
 | Worldgen / props / collision | `src/world/chunk.js`, `src/world/city.js` |
 | AI behavior | `src/sim/simulation.js` (Phase 2 moves it to `src/sim/ai.js`) |
 | Combat / weapons / armor | `src/sim/combat.js` |
+| Combat presentation (effects / SFX) | `src/render/combatFx.js`, `src/audio/combatSfx.js` |
 | Capture / victory / defeat | `src/sim/territory.js` |
 | Economy / recruitment tick | `src/sim/economy.js`, `src/sim/units.js` |
 | Remote-human boss / waypoints | `src/sim/movement.js` |
@@ -68,7 +70,8 @@ command, number or test result; read the file or run the check.
 
 - `sim/` is headless: never import `ui/`, `render/`, `audio/` or `net/`; never touch the
   DOM. Use `core/runtime.js` hooks until each is migrated to `core/events.js`; emit facts
-  and let subscribers in `main.js` handle presentation.
+  and let subscribers in `main.js` handle presentation. `tools/check.ps1` enforces a
+  layering ratchet; the remaining allowlist may only shrink.
 - Events are discrete cross-layer facts: never emit per frame or per NPC per frame, and
   never route authoritative state or replication through events. Continuous visuals read
   `state`; snapshots stay authoritative. See `EVENTS.md`.
@@ -89,6 +92,8 @@ command, number or test result; read the file or run the check.
 - Background tabs throttle rAF (~1 fps): keep the host tab visible, or use two windows.
 - Bulk renames corrupt quoted DOM ids, object keys/shorthands and spreads; audit literals.
 - Missing imports often surface only at runtime; always load the game, not just tests.
+  `tools/check.ps1` catches unresolved imports and `canvas.*` without the canvas import,
+  but also exercise the **guest** flow after extracting/refactoring `net/`.
 - Guest stuck/pinned: keys clear on blur/visibilitychange and the host ignores peer input
   older than 500 ms. Keep both behaviors.
 - Event subscriptions are global: wire once in `main.js`; keep unsubscribers for

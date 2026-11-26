@@ -50,11 +50,13 @@ src/
     world.js               buildings/props
     characters.js          characters + corpses
     effects.js             blood/decals/tracers/casings/sparks/floating text
+    combatFx.js            event subscribers: combat facts -> visual effects
     minimap.js             cached radar layer + live dots/viewport
     interpolation.js       guest-side position smoothing + animation timer decay
   audio/
     engine.js              AudioContext, gains, procedural noir music scheduler
     sfx.js                 synthesized SFX with distance attenuation
+    combatSfx.js           event subscribers: combat facts -> SFX
   ui/
     hud.js                 top-bar values, sprint/timer bars, standings, recruit labels
     menus.js               setup modal, lobby buttons, banners, toast, map-size controls
@@ -120,20 +122,25 @@ without importing the net module (which would create a cycle).
 |---|---|---|
 | `updateHUD` | economy, territory, capture | refresh HUD |
 | `syncRecruitButtonLabels` | match setup | refresh recruit buttons |
-| `showToast` | combat, units, net | toast message |
 | `resetMatchUI` | match setup | hide banners + tick tooltip |
 | `onVictory` / `onDefeat` | territory | banners + SFX |
 | `onFactionEliminated` | territory | toast + SFX |
 
-Phase 2 is replacing these with the event bus in `core/events.js` (see `EVENTS.md`). The
-bus is implemented and tested; hooks are removed one system at a time so the game stays
-playable during migration.
+Combat no longer uses runtime hooks: `ui:toast` and `hud:refresh` replace `showToast` and
+the armor-purchase HUD refresh. Phase 2 is replacing the remaining hooks with the event bus
+in `core/events.js` (see `EVENTS.md`).
 
 ### Event bus (Phase 2)
 
 `core/events.js` is a synchronous, isolated bus. `main.js` wires subscribers once; `sim/`
-emits and never imports presentation layers. Benefits, tradeoffs, when to use/skip, and the
-full performance budget are in `EVENTS.md`.
+emits and never imports presentation layers. Combat (`sim/combat.js`) is fully migrated:
+its visuals live in `render/combatFx.js`, audio in `audio/combatSfx.js`, and toasts/HUD/net
+in `main.js`. Benefits, tradeoffs, when to use/skip, and the full performance budget are in
+`EVENTS.md`.
+
+`tools/check.ps1` enforces this as a ratchet: `sim/` may not import `render/`, `audio/`,
+`ui/` or `net/`. The remaining Phase 2 debt (`match`, `simulation`, `territory`, `units`)
+is explicitly allowlisted and must only shrink.
 
 The non-negotiable rule: **discrete facts only** — never per-frame or per-NPC-per-frame.
 Continuous visuals (positions, HP bars, timers, interpolation) are read from `state` during
@@ -202,8 +209,9 @@ peer have `humanPeerId` and human speed (225 vs 152 for AI).
 ### Combat
 `sim/combat.js`: unified armor→HP damage, death/elimination, three slash entry points
 (player, rival boss, remote faction), a pistol raycast with distance accuracy bands and
-point-blank damage falloff, tracers/casings/muzzle flashes, armor purchases (player, rival
-AI) and the guest command/notification flow.
+point-blank damage falloff, and armor purchases (player, rival AI). It emits facts only;
+`render/combatFx.js` draws blood/corpses/text/arcs/tracers and `audio/combatSfx.js` plays
+the combat SFX. The host's `shot:fired` subscriber broadcasts ephemeral tracers to guests.
 
 ### Economy
 `sim/economy.js`: income totals from owned chunks, upkeep per unit, the hourly tick
@@ -283,8 +291,9 @@ distance from the camera.
   not alter maps; update the expected hashes only for an intentional generation change.
 - **Static health check** (`tools/check.ps1`, no npm): verifies required files exist,
   every relative `.js` import resolves, no bare static imports exist, every `*.test.js`
-  suite is registered in `tests/runner.js`, `index.html` has no duplicate ids, and each
-  `.opencode/skills/<id>/SKILL.md` has valid frontmatter and existing references.
+  suite is registered in `tests/runner.js`, `index.html` has no duplicate ids, each
+  `.opencode/skills/<id>/SKILL.md` has valid frontmatter and existing references, the
+  `sim/` layering ratchet, and that modules using `canvas.*` import the canvas singleton.
   `tests/runner.js` is the manifest — a new suite that is not imported there silently
   does not run.
 
@@ -299,8 +308,9 @@ distance from the camera.
 
 ## Known limitations / next phases
 
-- Phase 2: finish migrating runtime hooks to the event bus (bus is implemented; discrete
-  facts only, never per-frame/per-NPC); deduplicate prop geometry, minimap layout,
+- Phase 2: finish migrating runtime hooks to the event bus (bus implemented; combat
+  migrated; remaining presentation imports in `match/simulation/territory/units` are
+  allowlisted in `tools/check.ps1`); deduplicate prop geometry, minimap layout,
   faction slot selection and `GAME_VERSION`; data-driven balance tables; explicit RNG
   (remove `withSeed`'s `Math.random` patch); extract AI decisions to `sim/ai.js`.
 - Phase 3: player boss folded into the unit model (`control: local/ai/remote`), one

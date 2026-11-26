@@ -270,7 +270,10 @@ document.getElementById('btn-cap-underboss-inc').addEventListener('click', () =>
   pushRecruitPrefsToHost();
 });
 
-document.getElementById('btn-buy-armor').addEventListener('click', () => buyBossArmor());
+document.getElementById('btn-buy-armor').addEventListener('click', () => {
+  getAudioCtx();
+  buyBossArmor();
+});
 document.getElementById('btn-slash').addEventListener('click', () => performKnifeSlash());
 document.getElementById('btn-pistol').addEventListener('click', () => {
   getAudioCtx();

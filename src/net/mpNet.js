@@ -15,6 +15,7 @@ import {
   executeBuyArmorForFaction,
 } from '../sim/combat.js';
 import { spawnDeadBody, bulletTracers } from '../render/effects.js';
+import { canvas } from '../render/canvas.js';
 import { sfx } from '../audio/sfx.js';
 import { showToast } from '../ui/menus.js';
 

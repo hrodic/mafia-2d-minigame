@@ -35,30 +35,36 @@ Naming: `domain:pastTense` (`unit:damaged`, `chunk:captured`, `match:victory`).
 
 | Event | Payload | Emitted by |
 |---|---|---|
-| `unit:damaged` | `{ unit, amount, absorbed, remainingHp, hitAngle, source }` | combat |
-| `unit:died` | `{ unit, faction, rank, x, y, facing, byPlayer }` | combat |
+| `unit:damaged` | `{ unit, amount, absorbed, remaining, isKill, isPlayer, hitAngle, textColor, suffix }` | combat |
+| `unit:died` | `{ unit, faction, rank, x, y, facing, fallAngle, isBoss, isPlayer }` | combat |
 | `boss:died` | `{ faction, boss, x, y }` | combat/territory |
 | `faction:eliminated` | `{ faction }` | territory |
 | `chunk:captured` | `{ chunk, faction }` | territory |
-| `slash:performed` | `{ attacker, x, y, facing, color, hitCount }` | combat |
-| `shot:fired` | `{ shooterFaction, x1, y1, x2, y2, color, missed, impact }` | combat |
-| `armor:equipped` | `{ unit, amount, faction }` | combat |
-| `armor:broken` | `{ unit }` | combat |
+| `slash:performed` | `{ x, y, facing, color, hitCount, isPlayer }` | combat |
+| `shot:started` | `{ shooter, shooterX, shooterY, muzzleX, muzzleY, angle, shooterFaction, isPlayerShooter }` | combat |
+| `shot:fired` | `{ shooterFaction, isPlayerShooter, x1, y1, x2, y2, color, missed, targetX, targetY, impact: { blocked, x, y } }` | combat |
+| `armor:equipped` | `{ unit, amount, faction, isPlayer, textOffset }` | combat |
+| `armor:broken` | `{ unit, isPlayer }` | combat |
 | `unit:recruited` | `{ unit, faction, rank, cost, silent }` | units/economy |
 | `hour:tick` | `{ hour, income, upkeep, treasuries }` | economy |
 | `match:victory` | `{ summary }` | territory |
 | `match:defeat` | `{ faction }` | territory |
 | `ui:toast` | `{ message }` | any sim system |
+| `hud:refresh` | none | any sim system (discrete, not per frame) |
+
+`shot:started` and `shot:fired` are split deliberately: cosmetic casing randomness runs
+synchronously in `shot:started` at the same point it did before the migration, preserving
+the simulation RNG sequence.
 
 ## Subscriber map (wired once in `main.js`)
 
 | Subscriber | Listens to | Action |
 |---|---|---|
-| `render/effects.js` | `unit:damaged`, `unit:died`, `slash:performed`, `shot:fired`, `armor:*`, `chunk:captured`, `unit:recruited` | blood/sparks, corpses, arcs, tracers/casings/muzzle flash, floating text |
-| `audio/sfx.js` | `slash:performed`, `shot:fired`, `unit:died`, `boss:died`, `armor:equipped`, `faction:eliminated`, `match:victory` | play synthesized SFX |
-| `ui/hud.js` | `chunk:captured`, `hour:tick`, `unit:recruited`, `armor:*`, `match:*` | refresh HUD; show/hide banners |
+| `render/combatFx.js` | `unit:damaged`, `unit:died`, `armor:*`, `slash:performed`, `shot:started`, `shot:fired` | blood/sparks, corpses, floating text, arcs, tracers/casings/muzzle flash |
+| `audio/combatSfx.js` | `unit:died`, `armor:equipped`, `slash:performed`, `shot:started`, `shot:fired` | synthesized combat SFX |
+| `ui/hud.js` | `hud:refresh`, `chunk:captured`, `hour:tick`, `unit:recruited`, `match:*` | refresh HUD; show/hide banners |
 | `ui/menus.js` | `ui:toast`, `match:victory`, `match:defeat` | toast + banner content |
-| `net/mpNet.js` (host) | `shot:fired` | broadcast the ephemeral SHOT event to guests |
+| `net/mpNet.js` (host, wired in `main.js`) | `shot:fired` | broadcast the ephemeral SHOT event to guests |
 
 Snapshot state still comes from the host; events are only for ephemeral presentation.
 
@@ -66,13 +72,11 @@ Snapshot state still comes from the host; events are only for ephemeral presenta
 
 1. **DONE** — `src/core/events.js` + `tests/events.test.js` (subscribe/emit/unsubscribe,
    throw isolation, snapshot dispatch, clear).
-2. Add `emit(...)` calls at the existing `runtime.*` call sites, one system at a time:
-   combat → units/economy → territory → match.
-3. Wire subscribers in `main.js` (effects/audio/HUD/toasts/banners/net). Remove the
-   corresponding `runtime` hook.
-4. Keep the HUD fallback (`updateHUD`) for periodic refreshes triggered by the simulation
-   loop; discrete events can request immediate refreshes via a coalesced flag.
-5. When `runtime.js` has no remaining hooks, delete it and update `ARCHITECTURE.md`.
+2. **Combat DONE** — `sim/combat.js` emits only; visuals in `render/combatFx.js`, audio in
+   `audio/combatSfx.js`, toasts/HUD/net wired in `main.js`.
+3. Next systems: units → economy → territory → match. One system per step; add `emit`
+   calls, wire subscribers, and delete the old `runtime` calls/callback in the same change.
+4. When `runtime.js` has no remaining hooks, delete it and update `ARCHITECTURE.md`.
 
 ## Testing
 
@@ -83,9 +87,10 @@ Snapshot state still comes from the host; events are only for ephemeral presenta
 
 ## Benefits
 
-- **Headless simulation.** `sim/` still imports `audio/sfx.js`, `render/effects.js` and
-  `render/canvas.js` directly, so it cannot run without a browser. Events remove those
-  imports: gameplay emits, presentation subscribes.
+- **Headless simulation.** `sim/combat.js` now imports only sim/core modules: it emits
+  facts, while `render/combatFx.js` and `audio/combatSfx.js` subscribe. The remaining
+  direct presentation imports in `match/simulation/territory/units` are Phase 2 debt,
+  allowlisted in `tools/check.ps1` until each migrates.
 - **One-to-many facts.** One `unit:damaged` can drive floating text, blood, SFX, HUD
   invalidation and an optional network effect without editing the damage function.
 - **One wiring point.** Subscribers are registered once in `main.js`, not scattered across

@@ -10,8 +10,17 @@ import {
 } from '../src/config/balance.js';
 import { state } from '../src/core/state.js';
 import { runtime } from '../src/core/runtime.js';
-import { isSoundEnabled, setSoundEnabled } from '../src/audio/engine.js';
+import { on } from '../src/core/events.js';
 import { bloodParticles, bulletTracers, shellCasings, resetEffects } from '../src/render/effects.js';
+import {
+  onUnitDamaged,
+  onUnitDied,
+  onArmorBroken,
+  onArmorEquipped,
+  onSlashPerformed,
+  onShotStarted,
+  onShotFired,
+} from '../src/render/combatFx.js';
 import {
   applyDamageToNpc,
   executeBossSlashForFaction,
@@ -136,6 +145,22 @@ const STATE_KEYS = [
   'keys',
 ];
 
+const CAPTURED_EVENTS = [
+  'unit:damaged',
+  'unit:died',
+  'armor:broken',
+  'armor:equipped',
+  'slash:performed',
+  'shot:started',
+  'shot:fired',
+  'ui:toast',
+  'hud:refresh',
+];
+
+function eventsOf(events, type) {
+  return events.filter((entry) => entry.type === type);
+}
+
 function withCombatState(opts, fn) {
   const saved = {};
   for (const key of STATE_KEYS) saved[key] = state[key];
@@ -157,17 +182,11 @@ function withCombatState(opts, fn) {
   state.keys = new Set();
   resetEffects();
 
-  const calls = { toast: [], hud: 0, defeat: 0, eliminated: [], victory: [] };
+  const calls = { defeat: 0, eliminated: [], victory: [] };
   const original = {
-    showToast: runtime.showToast,
-    updateHUD: runtime.updateHUD,
     onDefeat: runtime.onDefeat,
     onFactionEliminated: runtime.onFactionEliminated,
     onVictory: runtime.onVictory,
-  };
-  runtime.showToast = (msg) => calls.toast.push(msg);
-  runtime.updateHUD = () => {
-    calls.hud++;
   };
   runtime.onDefeat = () => {
     calls.defeat++;
@@ -175,15 +194,23 @@ function withCombatState(opts, fn) {
   runtime.onFactionEliminated = (faction) => calls.eliminated.push(faction);
   runtime.onVictory = (summary) => calls.victory.push(summary);
 
-  const sound = isSoundEnabled();
-  setSoundEnabled(false);
+  const events = [];
+  const unsubscribers = [
+    ...CAPTURED_EVENTS.map((type) => on(type, (payload) => events.push({ type, payload }))),
+    // Mirror production wiring so visual/RNG behavior stays identical under test.
+    on('unit:damaged', onUnitDamaged),
+    on('unit:died', onUnitDied),
+    on('armor:broken', onArmorBroken),
+    on('armor:equipped', onArmorEquipped),
+    on('slash:performed', onSlashPerformed),
+    on('shot:started', onShotStarted),
+    on('shot:fired', onShotFired),
+  ];
 
   try {
-    return fn({ calls });
+    return fn({ calls, events });
   } finally {
-    setSoundEnabled(sound);
-    runtime.showToast = original.showToast;
-    runtime.updateHUD = original.updateHUD;
+    for (const unsubscribe of unsubscribers) unsubscribe();
     runtime.onDefeat = original.onDefeat;
     runtime.onFactionEliminated = original.onFactionEliminated;
     runtime.onVictory = original.onVictory;
@@ -227,7 +254,7 @@ test('combat: raycast reports clear paths and building impacts', () => {
 });
 
 test('combat: armor absorbs damage before HP', () => {
-  withCombatState({}, () => {
+  withCombatState({}, ({ events }) => {
     const target = makeNpc({ hp: 100, maxHp: 100, armor: 50, maxArmor: 50 });
     state.npcs = [target];
     assertEqual(applyDamageToNpc(target, 30), false);
@@ -237,21 +264,44 @@ test('combat: armor absorbs damage before HP', () => {
     assertEqual(target.armor, 0);
     assertEqual(target.hp, 90);
     assert(state.floatingTexts.length > 0);
+
+    const hits = eventsOf(events, 'unit:damaged');
+    assertEqual(hits.length, 2);
+    assertEqual(hits[0].payload.absorbed, 30);
+    assertEqual(hits[0].payload.remaining, 0);
+    assertEqual(hits[0].payload.isPlayer, false);
+    assertEqual(hits[1].payload.absorbed, 20);
+    assertEqual(hits[1].payload.remaining, 10);
+    assertEqual(hits[1].payload.isKill, false);
+
+    const broken = eventsOf(events, 'armor:broken');
+    assertEqual(broken.length, 1);
+    assertEqual(broken[0].payload.isPlayer, false);
   });
 });
 
 test('combat: lethal damage removes the unit and spawns gore', () => {
-  withCombatState({}, () => {
+  withCombatState({}, ({ events }) => {
     const target = makeNpc({ hp: 10, x: 0, y: 0 });
     state.npcs = [target];
     assertEqual(applyDamageToNpc(target, 50), true);
     assertEqual(state.npcs.length, 0);
     assert(bloodParticles.length > 0);
+
+    const hits = eventsOf(events, 'unit:damaged');
+    assertEqual(hits.length, 1);
+    assertEqual(hits[0].payload.isKill, true);
+    const deaths = eventsOf(events, 'unit:died');
+    assertEqual(deaths.length, 1);
+    assertEqual(deaths[0].payload.faction, Faction.RIVAL_1);
+    assertEqual(deaths[0].payload.rank, UnitRank.SOLDIER);
+    assertEqual(deaths[0].payload.isBoss, false);
+    assertEqual(deaths[0].payload.isPlayer, false);
   });
 });
 
 test('combat: killing a boss eliminates the syndicate', () => {
-  withCombatState({}, ({ calls }) => {
+  withCombatState({}, ({ calls, events }) => {
     const boss = makeNpc({ rank: UnitRank.BOSS, hp: 10, x: 0, y: 0 });
     state.npcs = [boss];
     assertEqual(applyDamageToNpc(boss, 20), true);
@@ -259,28 +309,52 @@ test('combat: killing a boss eliminates the syndicate', () => {
     assertEqual(calls.eliminated.length, 1);
     assertEqual(calls.eliminated[0], Faction.RIVAL_1);
     assertEqual(calls.victory.length, 0);
+
+    const deaths = eventsOf(events, 'unit:died');
+    assertEqual(deaths.length, 1);
+    assertEqual(deaths[0].payload.isBoss, true);
+    assertEqual(deaths[0].payload.faction, Faction.RIVAL_1);
   });
 });
 
 test('combat: boss damage is absorbed by armor and death is a defeat', () => {
-  withCombatState({ player: makePlayer({ armor: 100 }) }, ({ calls }) => {
+  withCombatState({ player: makePlayer({ armor: 100 }) }, ({ calls, events }) => {
     damagePlayerBoss(40);
     assertEqual(state.player.armor, 60);
     assertEqual(state.player.hp, BOSS_MAX_HP);
+
+    const hits = eventsOf(events, 'unit:damaged');
+    assertEqual(hits.length, 1);
+    assertEqual(hits[0].payload.isPlayer, true);
+    assertEqual(hits[0].payload.absorbed, 40);
+    assertEqual(hits[0].payload.remaining, 0);
+
     damagePlayerBoss(500);
     assertEqual(state.player.alive, false);
     assertEqual(state.gameOver, true);
     assertEqual(calls.defeat, 1);
+
+    const deaths = eventsOf(events, 'unit:died');
+    assertEqual(deaths.length, 1);
+    assertEqual(deaths[0].payload.isPlayer, true);
+    assertEqual(deaths[0].payload.isBoss, true);
+    assertEqual(deaths[0].payload.faction, Faction.PLAYER);
   });
 });
 
 test('combat: buying armor charges once and starts a cooldown', () => {
-  withCombatState({ treasuries: { [Faction.PLAYER]: COST_BOSS_ARMOR } }, () => {
+  withCombatState({ treasuries: { [Faction.PLAYER]: COST_BOSS_ARMOR } }, ({ events }) => {
     assertEqual(executeBuyArmorForFaction(Faction.PLAYER), true);
     assertEqual(state.treasuries[Faction.PLAYER], 0);
     assertEqual(state.player.armor, MAX_BOSS_ARMOR);
     assertEqual(state.player.armorCooldown, state.tickDuration);
     assertEqual(executeBuyArmorForFaction(Faction.PLAYER), false);
+
+    const equipped = eventsOf(events, 'armor:equipped');
+    assertEqual(equipped.length, 1);
+    assertEqual(equipped[0].payload.isPlayer, true);
+    assertEqual(equipped[0].payload.faction, Faction.PLAYER);
+    assertEqual(equipped[0].payload.amount, MAX_BOSS_ARMOR);
   });
 });
 
@@ -290,12 +364,18 @@ test('combat: rival bosses can buy armor from their treasury', () => {
       npcs: [makeNpc({ rank: UnitRank.BOSS, faction: Faction.RIVAL_1, x: 0, y: 0 })],
       treasuries: { [Faction.RIVAL_1]: COST_BOSS_ARMOR },
     },
-    () => {
+    ({ events }) => {
       const boss = state.npcs[0];
       assertEqual(executeBuyArmorForFaction(Faction.RIVAL_1), true);
       assertEqual(boss.armor, MAX_BOSS_ARMOR);
       assertEqual(boss.armorCooldown, state.tickDuration);
       assertEqual(state.treasuries[Faction.RIVAL_1], 0);
+
+      const equipped = eventsOf(events, 'armor:equipped');
+      assertEqual(equipped.length, 1);
+      assertEqual(equipped[0].payload.isPlayer, false);
+      assertEqual(equipped[0].payload.faction, Faction.RIVAL_1);
+      assertEqual(equipped[0].payload.textOffset, 34);
     }
   );
 });
@@ -310,27 +390,35 @@ test('combat: guest armor purchase is forwarded to the host', () => {
 });
 
 test('combat: armor purchase failures explain themselves', () => {
-  withCombatState({ treasuries: { [Faction.PLAYER]: 100 } }, ({ calls }) => {
+  withCombatState({ treasuries: { [Faction.PLAYER]: 100 } }, ({ events }) => {
     buyBossArmor();
-    assert(calls.toast.some((msg) => msg.includes('Need $3,500')), calls.toast.join(' | '));
+    const toasts = eventsOf(events, 'ui:toast').map((entry) => entry.payload.message);
+    assert(toasts.some((msg) => msg.includes('Need $3,500')), toasts.join(' | '));
   });
-  withCombatState({ treasuries: { [Faction.PLAYER]: COST_BOSS_ARMOR }, player: makePlayer({ armor: 300, maxArmor: 300 }) }, ({ calls }) => {
+  withCombatState({ treasuries: { [Faction.PLAYER]: COST_BOSS_ARMOR }, player: makePlayer({ armor: 300, maxArmor: 300 }) }, ({ events }) => {
     buyBossArmor();
-    assert(calls.toast.some((msg) => msg.includes('already at full capacity')), calls.toast.join(' | '));
+    const toasts = eventsOf(events, 'ui:toast').map((entry) => entry.payload.message);
+    assert(toasts.some((msg) => msg.includes('already at full capacity')), toasts.join(' | '));
   });
-  withCombatState({ treasuries: { [Faction.PLAYER]: COST_BOSS_ARMOR } }, ({ calls }) => {
+  withCombatState({ treasuries: { [Faction.PLAYER]: COST_BOSS_ARMOR } }, ({ events }) => {
     buyBossArmor();
-    assert(calls.toast.some((msg) => msg.includes('Equipped Kevlar Armor')), calls.toast.join(' | '));
-    assertEqual(calls.hud, 1);
+    const toasts = eventsOf(events, 'ui:toast').map((entry) => entry.payload.message);
+    assert(toasts.some((msg) => msg.includes('Equipped Kevlar Armor')), toasts.join(' | '));
+    assertEqual(eventsOf(events, 'hud:refresh').length, 1);
+    assertEqual(eventsOf(events, 'armor:equipped').length, 1);
   });
 });
 
 test('combat: NPC boss armor logic reacts to wounds, threats and cooldowns', () => {
-  withCombatState({ treasuries: { [Faction.RIVAL_1]: COST_BOSS_ARMOR } }, () => {
+  withCombatState({ treasuries: { [Faction.RIVAL_1]: COST_BOSS_ARMOR } }, ({ events }) => {
     const boss = makeNpc({ rank: UnitRank.BOSS, armor: 0, hp: 480, maxHp: 480 });
     state.npcs = [boss];
     assertEqual(tryBuyNpcBossArmor(boss, 0, 0), true);
     assertEqual(boss.armor, MAX_BOSS_ARMOR);
+    const equipped = eventsOf(events, 'armor:equipped');
+    assertEqual(equipped.length, 1);
+    assertEqual(equipped[0].payload.textOffset, 36);
+    assertEqual(equipped[0].payload.isPlayer, false);
   });
   withCombatState({ treasuries: { [Faction.RIVAL_1]: COST_BOSS_ARMOR } }, () => {
     const boss = makeNpc({ rank: UnitRank.BOSS, armor: 50, hp: 480, maxHp: 480 });
@@ -361,7 +449,7 @@ test('combat: guest slash is sent as a command', () => {
 test('combat: player slash damages targets in front and respects cooldown', () => {
   withCombatState(
     { player: makePlayer({ facing: 0 }), npcs: [makeNpc({ x: 30, y: 0, hp: 100, maxHp: 100 })] },
-    () => {
+    ({ events }) => {
       const npc = state.npcs[0];
       performKnifeSlash();
       assert(npc.hp < 100, `npc should be hit, hp=${npc.hp}`);
@@ -369,6 +457,12 @@ test('combat: player slash damages targets in front and respects cooldown', () =
       const hp = npc.hp;
       performKnifeSlash();
       assertEqual(npc.hp, hp, 'second slash during cooldown must not hit');
+
+      const slashes = eventsOf(events, 'slash:performed');
+      assertEqual(slashes.length, 1);
+      assertEqual(slashes[0].payload.hitCount, 1);
+      assertEqual(slashes[0].payload.isPlayer, true);
+      assertEqual(eventsOf(events, 'unit:damaged').length, 1);
     }
   );
 });
@@ -376,9 +470,13 @@ test('combat: player slash damages targets in front and respects cooldown', () =
 test('combat: player slash ignores targets out of reach', () => {
   withCombatState(
     { player: makePlayer({ facing: 0 }), npcs: [makeNpc({ x: 200, y: 0, hp: 100, maxHp: 100 })] },
-    () => {
+    ({ events }) => {
       performKnifeSlash();
       assertEqual(state.npcs[0].hp, 100);
+      const slashes = eventsOf(events, 'slash:performed');
+      assertEqual(slashes.length, 1);
+      assertEqual(slashes[0].payload.hitCount, 0);
+      assertEqual(eventsOf(events, 'unit:damaged').length, 0);
     }
   );
 });
@@ -404,13 +502,20 @@ test('combat: rival pistol hits the player at mid range', () => {
       player: makePlayer({ x: 200, y: 0 }),
       npcs: [makeNpc({ rank: UnitRank.BOSS, x: 0, y: 0, attackCooldown: 0 })],
     },
-    () => {
+    ({ events }) => {
       const shooter = state.npcs[0];
       assertEqual(performBossPistolShot(shooter, false, 200, 0), true);
       assert(state.player.hp < BOSS_MAX_HP);
       assertEqual(shooter.attackCooldown, UNIT_ATTACK_COOLDOWN);
       assertEqual(bulletTracers.length, 1);
       assertEqual(shellCasings.length, 1);
+
+      assertEqual(eventsOf(events, 'shot:started').length, 1);
+      const shots = eventsOf(events, 'shot:fired');
+      assertEqual(shots.length, 1);
+      assertEqual(shots[0].payload.missed, false);
+      assertEqual(shots[0].payload.impact.blocked, false);
+      assertEqual(shots[0].payload.isPlayerShooter, false);
     }
   );
 });
@@ -422,9 +527,12 @@ test('combat: walls stop bullets', () => {
       player: makePlayer({ x: 200, y: 0 }),
       npcs: [makeNpc({ rank: UnitRank.BOSS, x: 0, y: 0 })],
     },
-    () => {
+    ({ events }) => {
       performBossPistolShot(state.npcs[0], false, 200, 0);
       assertEqual(state.player.hp, BOSS_MAX_HP);
+      const shots = eventsOf(events, 'shot:fired');
+      assertEqual(shots.length, 1);
+      assertEqual(shots[0].payload.impact.blocked, true);
     }
   );
 });
@@ -435,11 +543,15 @@ test('combat: player pistol fires faster and damages rival units', () => {
       player: makePlayer({ x: 0, y: 0 }),
       npcs: [makeNpc({ x: 200, y: 0, hp: 100, maxHp: 100 })],
     },
-    () => {
+    ({ events }) => {
       const target = state.npcs[0];
       assertEqual(performBossPistolShot(state.player, true, 200, 0), true);
       assert(target.hp < 100);
       assertEqual(state.player.attackCooldown, 0.65);
+
+      assertEqual(eventsOf(events, 'shot:started').length, 1);
+      assertEqual(eventsOf(events, 'shot:fired')[0].payload.isPlayerShooter, true);
+      assertEqual(eventsOf(events, 'unit:damaged').length, 1);
     }
   );
 });
@@ -450,14 +562,21 @@ test('combat: faction slash delegates to boss melee and triggers the player path
       player: makePlayer({ x: 30, y: 0 }),
       npcs: [makeNpc({ rank: UnitRank.BOSS, faction: Faction.RIVAL_1, x: 0, y: 0, facing: 0 })],
     },
-    () => {
+    ({ events }) => {
       executeBossSlashForFaction(Faction.RIVAL_1);
       assert(state.player.hp < BOSS_MAX_HP);
       assertEqual(state.npcs[0].attackCooldown, 0.34);
+      const rivalSlashes = eventsOf(events, 'slash:performed');
+      assertEqual(rivalSlashes.length, 1);
+      assertEqual(rivalSlashes[0].payload.isPlayer, false);
+      assertEqual(rivalSlashes[0].payload.hitCount, 1);
     }
   );
-  withCombatState({ player: makePlayer({ facing: 0 }), npcs: [makeNpc({ x: 30, y: 0, hp: 100, maxHp: 100 })] }, () => {
+  withCombatState({ player: makePlayer({ facing: 0 }), npcs: [makeNpc({ x: 30, y: 0, hp: 100, maxHp: 100 })] }, ({ events }) => {
     executeBossSlashForFaction(Faction.PLAYER);
     assert(state.npcs[0].hp < 100);
+    const playerSlashes = eventsOf(events, 'slash:performed');
+    assertEqual(playerSlashes.length, 1);
+    assertEqual(playerSlashes[0].payload.isPlayer, true);
   });
 });

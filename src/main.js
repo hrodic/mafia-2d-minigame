@@ -5,8 +5,10 @@ import { DEFAULT_GRID_SIZE } from './config/constants.js';
 import { FACTION_META } from './config/organizations.js';
 import { state } from './core/state.js';
 import { runtime } from './core/runtime.js';
+import { on } from './core/events.js';
 import { CityMap } from './world/city.js';
 import { render, resizeCanvas } from './render/renderer.js';
+import * as combatFx from './render/combatFx.js';
 import { updateHUD, syncRecruitButtonLabels } from './ui/hud.js';
 import {
   initMenus,
@@ -20,6 +22,7 @@ import {
 import { initInput } from './ui/input.js';
 import { mpNet } from './net/mpNet.js';
 import { sfx } from './audio/sfx.js';
+import * as combatSfx from './audio/combatSfx.js';
 import { update } from './sim/simulation.js';
 
 // One shared CityMap instance; match setup (sim/match.js) fills it per game.
@@ -32,7 +35,6 @@ state.net = mpNet;
 // Presentation hooks used by simulation modules. Phase 2 replaces these with the
 // event bus; keeping them here makes sim/ headless-importable.
 runtime.updateHUD = updateHUD;
-runtime.showToast = showToast;
 runtime.syncRecruitButtonLabels = syncRecruitButtonLabels;
 runtime.resetMatchUI = resetMatchUI;
 runtime.onDefeat = showDefeatBanner;
@@ -45,6 +47,33 @@ runtime.onVictory = (summary) => {
   sfx.playVictory();
   showVictoryBanner(summary);
 };
+
+// Combat facts -> presentation subscribers. sim/combat.js only emits events.
+on('unit:damaged', combatFx.onUnitDamaged);
+on('unit:died', combatFx.onUnitDied);
+on('unit:died', combatSfx.onUnitDied);
+on('armor:broken', combatFx.onArmorBroken);
+on('armor:equipped', combatFx.onArmorEquipped);
+on('armor:equipped', combatSfx.onArmorEquipped);
+on('slash:performed', combatFx.onSlashPerformed);
+on('slash:performed', combatSfx.onSlashPerformed);
+on('shot:started', combatFx.onShotStarted);
+on('shot:started', combatSfx.onShotStarted);
+on('shot:fired', combatFx.onShotFired);
+on('shot:fired', combatSfx.onShotFired);
+on('shot:fired', (event) => {
+  if (!state.net || !state.net.isHost()) return;
+  state.net.broadcastEvent({
+    kind: 'SHOT',
+    x1: Math.round(event.x1),
+    y1: Math.round(event.y1),
+    x2: Math.round(event.x2),
+    y2: Math.round(event.y2),
+    color: event.color,
+  });
+});
+on('ui:toast', ({ message }) => showToast(message));
+on('hud:refresh', updateHUD);
 
 // Main loop. Variable timestep for now (fixed timestep is Phase 3).
 let lastFrameTime = performance.now();
