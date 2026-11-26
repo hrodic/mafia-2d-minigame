@@ -150,6 +150,7 @@ function makeBossWorld(chunkFaction = Faction.NEUTRAL) {
   };
   return {
     canMoveTo: () => true,
+    isTileNavigable: () => true,
     worldToTile: () => ({ cx: 0, cy: 0, lx: 0, ly: 0 }),
     getChunk: () => chunk,
     chunks: new Map([['0,0', chunk]]),
@@ -220,7 +221,7 @@ test('movement: a remote boss follows a waypoint when input is idle', () => {
     () => {
       updateHumanControlledRivalBoss(boss, 0.1);
       assert(boss.x > 100, `boss should follow the waypoint, x=${boss.x}`);
-      assertEqual(boss.facing, 0);
+      assert(Math.abs(boss.facing) < 0.6, `boss should roughly face the waypoint, facing=${boss.facing}`);
     }
   );
 });
@@ -237,6 +238,65 @@ test('movement: a remote boss captures the chunk it stands on', () => {
       updateHumanControlledRivalBoss(boss, 1);
       updateHumanControlledRivalBoss(boss, 1);
       assertEqual(world.chunks.get('0,0').faction, Faction.RIVAL_1);
+    }
+  );
+});
+
+test('movement: remote waypoints path around walls instead of getting stuck', () => {
+  const blocked = new Set();
+  for (let y = 0; y < 10; y++) blocked.add(`${6},${y}`); // gap at (6,10)
+  const chunk = {
+    cx: 0,
+    cy: 0,
+    faction: Faction.RIVAL_1,
+    captureProgress: 0,
+    capturingFaction: null,
+    income: 1000,
+  };
+  const world = {
+    canMoveTo: (wx, wy) => !blocked.has(`${Math.floor(wx / 44)},${Math.floor(wy / 44)}`),
+    isTileNavigable: (gx, gy) => !blocked.has(`${gx},${gy}`),
+    findNearestWalkablePoint: (wx, wy) => ({ x: wx, y: wy }),
+    worldToTile: (wx, wy) => {
+      const gx = Math.floor(wx / 44);
+      const gy = Math.floor(wy / 44);
+      return { cx: Math.floor(gx / 15), cy: Math.floor(gy / 15), lx: gx % 15, ly: gy % 15 };
+    },
+    getChunk: () => chunk,
+    chunks: new Map([['0,0', chunk]]),
+  };
+  const boss = makeRemoteBoss({ x: 2.5 * 44, y: 5.5 * 44, targetX: 10.5 * 44, targetY: 5.5 * 44 });
+  withState(
+    basePatch({ world, player: { x: -1000, y: -1000, alive: false }, spatialBuckets: new Map() }),
+    () => {
+      let detoured = false;
+      for (let i = 0; i < 400; i++) {
+        updateHumanControlledRivalBoss(boss, 0.05);
+        if (boss.y > 400) detoured = true;
+      }
+      assert(detoured, 'boss should detour through the wall gap (y around 462)');
+      const dist = Math.hypot(10.5 * 44 - boss.x, 5.5 * 44 - boss.y);
+      assert(dist < 60, `boss should reach the waypoint, distance=${dist.toFixed(1)}`);
+    }
+  );
+});
+
+test('movement: keyboard input cancels an active waypoint path', () => {
+  const boss = makeRemoteBoss({ targetX: 500, targetY: 500, path: [{ x: 200, y: 200 }], pathTimer: 0.5 });
+  const net = { getPeerInput: () => ({ mx: 1, my: 0, sprint: false, facing: 0 }) };
+  withState(
+    basePatch({
+      world: makeBossWorld(Faction.RIVAL_1),
+      net,
+      player: { x: -1000, y: -1000, alive: false },
+      spatialBuckets: new Map(),
+    }),
+    () => {
+      updateHumanControlledRivalBoss(boss, 0.1);
+      assertEqual(boss.targetX, null);
+      assertEqual(boss.targetY, null);
+      assertEqual(boss.path, null);
+      assert(boss.x > 100);
     }
   );
 });

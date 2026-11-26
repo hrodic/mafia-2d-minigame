@@ -6,6 +6,7 @@ import { CHUNK_PX, SPRINT_MAX_DURATION, SPRINT_COOLDOWN_DURATION, SPRINT_SPEED_M
 import { state } from '../core/state.js';
 import { packChunkKey } from '../world/city.js';
 import { progressCapture, getCaptureRate, onChunkCaptured } from './territory.js';
+import { computeTilePath } from '../world/pathfinding.js';
 
 
 export function getEntityCollisionRadius(rank) {
@@ -99,6 +100,22 @@ export function updateNpcBossSprint(bossNpc, wantsSprint, dt) {
   return bossNpc.isSprinting ? SPRINT_SPEED_MULTIPLIER : 1.0;
 }
 
+export function computeSteeringPath(entity, targetX, targetY, dt, maxNodes = 400) {
+  entity.pathTimer = Math.max(0, (entity.pathTimer || 0) - dt);
+  if (!entity.path || entity.path.length === 0) {
+    if (entity.pathTimer > 0) return { x: targetX, y: targetY };
+    entity.path = computeTilePath(state.world, entity.x, entity.y, targetX, targetY, maxNodes);
+    entity.pathTimer = 0.8;
+  }
+  if (!entity.path || entity.path.length === 0) return { x: targetX, y: targetY };
+  let next = entity.path[0];
+  if (Math.hypot(next.x - entity.x, next.y - entity.y) < 18) {
+    entity.path.shift();
+    next = entity.path[0] || { x: targetX, y: targetY };
+  }
+  return next;
+}
+
 export function updateHumanControlledRivalBoss(bossNpc, dt) {
   const peerInput = state.net ? state.net.getPeerInput(bossNpc.humanPeerId) : null;
   let moveX = peerInput ? peerInput.mx : 0;
@@ -108,17 +125,21 @@ export function updateHumanControlledRivalBoss(bossNpc, dt) {
   if (moveX !== 0 || moveY !== 0) {
     bossNpc.targetX = null;
     bossNpc.targetY = null;
+    bossNpc.path = null;
+    bossNpc.pathTimer = 0;
     const len = Math.hypot(moveX, moveY);
     moveX /= len;
     moveY /= len;
   } else if (bossNpc.targetX !== null && bossNpc.targetY !== null) {
-    const dx = bossNpc.targetX - bossNpc.x;
-    const dy = bossNpc.targetY - bossNpc.y;
+    const steer = computeSteeringPath(bossNpc, bossNpc.targetX, bossNpc.targetY, dt);
+    const dx = steer.x - bossNpc.x;
+    const dy = steer.y - bossNpc.y;
     const dist = Math.hypot(dx, dy);
-    if (dist < 6) {
+    if (dist < 6 && (!bossNpc.path || bossNpc.path.length === 0)) {
       bossNpc.targetX = null;
       bossNpc.targetY = null;
-    } else {
+      bossNpc.path = null;
+    } else if (dist > 0.01) {
       moveX = dx / dist;
       moveY = dy / dist;
       bossNpc.facing = Math.atan2(moveY, moveX);

@@ -286,6 +286,13 @@ test('simulation: NPC AI runs and spatial buckets are rebuilt', () => {
   });
 });
 
+test('simulation: click-to-move walks the player toward the waypoint', () => {
+  withSimState({ player: makePlayer({ x: 100, y: 100, targetX: 300, targetY: 100 }) }, () => {
+    for (let i = 0; i < 5; i++) update(0.1);
+    assert(state.player.x > 100, `player should follow the waypoint, x=${state.player.x}`);
+  });
+});
+
 test('simulation: update is a no-op before the match starts', () => {
   withSimState({ gameStarted: false }, ({ hudCalls }) => {
     update(1);

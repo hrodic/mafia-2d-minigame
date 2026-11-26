@@ -112,6 +112,12 @@
     </p>
     <div id="test-summary" class="summary">Running…</div>
     <div id="test-results"></div>
+    <!-- Hidden game-sized canvas so render modules can be tested in this page. -->
+    <div style="display: none" aria-hidden="true">
+      <canvas id="gameCanvas"></canvas>
+      <canvas id="minimapCanvas" width="140" height="140"></canvas>
+      <span id="minimap-coords"></span>
+    </div>
   </main>
   <script type="module" src="./runner.js"></script>
   <script>

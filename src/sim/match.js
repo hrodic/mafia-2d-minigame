@@ -87,6 +87,8 @@ export function initWorld(
   state.player.y = 1.5 * TILE_SIZE;
   state.player.targetX = null;
   state.player.targetY = null;
+  state.player.path = null;
+  state.player.pathTimer = 0;
   state.player.hp = BOSS_MAX_HP;
   state.player.maxHp = BOSS_MAX_HP;
   state.player.armor = 0;

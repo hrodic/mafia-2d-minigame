@@ -25,6 +25,7 @@ import {
   isPushingFriendly,
   getEntityCollisionRadius,
   updateHumanControlledRivalBoss,
+  computeSteeringPath,
 } from './movement.js';
 import { progressCapture, getCaptureRate, onChunkCaptured } from './territory.js';
 import { processHourlyTick } from './economy.js';
@@ -100,17 +101,21 @@ export function update(dt) {
     if (moveX !== 0 || moveY !== 0) {
       state.player.targetX = null;
       state.player.targetY = null;
+      state.player.path = null;
+      state.player.pathTimer = 0;
       const len = Math.hypot(moveX, moveY);
       moveX /= len;
       moveY /= len;
     } else if (state.player.targetX !== null && state.player.targetY !== null) {
-      const dx = state.player.targetX - state.player.x;
-      const dy = state.player.targetY - state.player.y;
+      const steer = computeSteeringPath(state.player, state.player.targetX, state.player.targetY, dt);
+      const dx = steer.x - state.player.x;
+      const dy = steer.y - state.player.y;
       const dist = Math.hypot(dx, dy);
-      if (dist < 6) {
+      if (dist < 6 && (!state.player.path || state.player.path.length === 0)) {
         state.player.targetX = null;
         state.player.targetY = null;
-      } else {
+        state.player.path = null;
+      } else if (dist > 0.01) {
         moveX = dx / dist;
         moveY = dy / dist;
         state.player.facing = Math.atan2(moveY, moveX);

@@ -39,6 +39,7 @@ import { computeTilePath, MAX_ASTAR_PER_FRAME } from './world/pathfinding.js';
 import { rebuildSpatialBuckets } from './core/spatial.js';
 import { stepGuestPresentation } from './render/interpolation.js';
 import { canvas, ctx, minimapCanvas, minimapCtx } from './render/canvas.js';
+import { render, resizeCanvas } from './render/renderer.js';
 import { ensureAudioContext, getAudioCtx, isSoundEnabled, setSoundEnabled, cycleMusicTrack } from './audio/engine.js';
 import { sfx } from './audio/sfx.js';
 import {
@@ -109,10 +110,6 @@ import { update } from './sim/simulation.js';
     state.world = new CityMap();
 
 
-    const minimapCacheCanvas = document.createElement('canvas');
-    minimapCacheCanvas.width = minimapCanvas.width;
-    minimapCacheCanvas.height = minimapCanvas.height;
-    const minimapCacheCtx = minimapCacheCanvas.getContext('2d');
 
     const hudEls = {
       statsBadge: document.getElementById('stats-badge'),
@@ -202,6 +199,20 @@ import { update } from './sim/simulation.js';
           mpNet.flushGuestInput();
         }
       }
+    });
+
+    // Losing focus can swallow keyup events; clear held keys and send a stop so the
+    // guest boss never keeps walking into a wall after alt-tab/HUD clicks.
+    function releaseAllKeys() {
+      if (state.keys.size === 0) return;
+      state.keys.clear();
+      if (typeof mpNet !== 'undefined' && mpNet.isGuest()) {
+        mpNet.flushGuestInput();
+      }
+    }
+    window.addEventListener('blur', releaseAllKeys);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) releaseAllKeys();
     });
 
     canvas.addEventListener('mousemove', (e) => {
@@ -356,760 +367,6 @@ import { update } from './sim/simulation.js';
     });
 
 
-    // =========================================================================
-    // 10. RENDERING ENGINE (BUILDINGS, PROPS, DIRECTIONAL CHARACTERS, CORPSES)
-    // =========================================================================
-    function drawBuilding(item) {
-      const { wx, wy, elev, style, hasSouthBuilding, hasEastBuilding, hasWestBuilding } = item;
-      const wallHeight = elev * 10;
-      const roofY = wy - wallHeight;
-
-      if (!hasSouthBuilding) {
-        ctx.fillStyle = style === 0 ? '#1e293b' : style === 1 ? '#292524' : '#1f2937';
-        ctx.fillRect(wx, wy + TILE_SIZE - wallHeight, TILE_SIZE, wallHeight);
-
-        ctx.fillStyle = 'rgba(253, 224, 71, 0.28)';
-        for (let wyOff = 6; wyOff < wallHeight - 4; wyOff += 10) {
-          ctx.fillRect(wx + 8, wy + TILE_SIZE - wallHeight + wyOff, 8, 5);
-          ctx.fillRect(wx + 26, wy + TILE_SIZE - wallHeight + wyOff, 8, 5);
-        }
-      }
-
-      ctx.fillStyle = style === 0 ? '#334155' : style === 1 ? '#44403c' : '#374151';
-      ctx.fillRect(wx, roofY, TILE_SIZE, TILE_SIZE);
-
-      ctx.strokeStyle = 'rgba(15, 23, 42, 0.55)';
-      ctx.lineWidth = 1.5;
-      if (!hasEastBuilding) {
-        ctx.beginPath();
-        ctx.moveTo(wx + TILE_SIZE, roofY);
-        ctx.lineTo(wx + TILE_SIZE, roofY + TILE_SIZE);
-        ctx.stroke();
-      }
-      if (!hasWestBuilding) {
-        ctx.beginPath();
-        ctx.moveTo(wx, roofY);
-        ctx.lineTo(wx, roofY + TILE_SIZE);
-        ctx.stroke();
-      }
-    }
-
-    function drawProp(item) {
-      const { wx, wy, prop, color, vertical, curbSide } = item;
-      if (prop === PropType.CAR) {
-        const rx = vertical ? (curbSide === 'W' ? wx + 21 : wx + 5) : wx + 5;
-        const ry = vertical ? wy + 5 : (curbSide === 'N' ? wy + 21 : wy + 5);
-        const rw = vertical ? 18 : 34;
-        const rh = vertical ? 34 : 18;
-
-        ctx.fillStyle = 'rgba(0,0,0,0.42)';
-        ctx.fillRect(rx + 2, ry + 3, rw, rh);
-
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.roundRect(rx, ry, rw, rh, 4);
-        ctx.fill();
-
-        ctx.fillStyle = 'rgba(148, 163, 184, 0.45)';
-        if (vertical) {
-          ctx.fillRect(rx + 3, ry + 6, rw - 6, 6);
-          ctx.fillRect(rx + 3, ry + rh - 11, rw - 6, 5);
-        } else {
-          ctx.fillRect(rx + 6, ry + 3, 6, rh - 6);
-          ctx.fillRect(rx + rw - 11, ry + 3, 5, rh - 6);
-        }
-      } else if (prop === PropType.DUMPSTER) {
-        ctx.fillStyle = 'rgba(0,0,0,0.38)';
-        ctx.fillRect(wx + 11, wy + 13, 26, 22);
-        ctx.fillStyle = '#14532d';
-        ctx.fillRect(wx + 9, wy + 10, 26, 22);
-        ctx.fillStyle = '#09090b';
-        ctx.fillRect(wx + 10, wy + 11, 24, 6);
-      } else if (prop === PropType.STREETLIGHT) {
-        ctx.fillStyle = '#52525b';
-        ctx.fillRect(wx + 20, wy + 4, 4, 24);
-        ctx.fillStyle = '#fef08a';
-        ctx.beginPath();
-        ctx.arc(wx + 22, wy + 4, 3.5, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (prop === PropType.TREE) {
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.beginPath();
-        ctx.ellipse(wx + 22, wy + 28, 11, 6, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#713f12';
-        ctx.fillRect(wx + 20, wy + 16, 4, 12);
-        ctx.fillStyle = '#15803d';
-        ctx.beginPath();
-        ctx.arc(wx + 22, wy + 13, 11, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#166534';
-        ctx.beginPath();
-        ctx.arc(wx + 19, wy + 11, 7, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    function drawDeadBody(body) {
-      const alpha = Math.min(1, body.life / 2.5);
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.translate(body.x, body.y);
-
-      // Expanding dark crimson blood pool beneath fallen body
-      ctx.fillStyle = 'rgba(127, 29, 29, 0.82)';
-      ctx.beginPath();
-      ctx.ellipse(body.collapseDir * 3, 2, body.poolRadius, body.poolRadius * 0.56, body.tiltAngle, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = 'rgba(69, 10, 10, 0.9)';
-      ctx.beginPath();
-      ctx.ellipse(body.collapseDir * 2, 2, body.poolRadius * 0.62, body.poolRadius * 0.34, body.tiltAngle, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Sideways collapsed character silhouette
-      ctx.save();
-      ctx.rotate(body.collapseDir * (Math.PI * 0.46) + body.tiltAngle);
-
-      // Legs
-      ctx.fillStyle = '#09090b';
-      ctx.fillRect(-5, 3, 4, 12);
-      ctx.fillRect(1, 3, 4, 12);
-
-      // Suit torso
-      ctx.fillStyle = body.coatColor;
-      ctx.beginPath();
-      ctx.roundRect(-8, -11, 16, 16, 4);
-      ctx.fill();
-
-      // Shirt & tie
-      ctx.fillStyle = '#e4e4e7';
-      ctx.fillRect(-2, -10, 4, 9);
-      ctx.fillStyle = body.accentColor;
-      ctx.fillRect(-1, -9, 2, 7);
-
-      // Head with closed eyes
-      ctx.fillStyle = '#eab38f';
-      ctx.beginPath();
-      ctx.arc(0, -17, 6.2, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.strokeStyle = '#18181b';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.moveTo(-3.2, -17);
-      ctx.lineTo(-1.0, -17);
-      ctx.moveTo(1.0, -17);
-      ctx.lineTo(3.2, -17);
-      ctx.stroke();
-
-      ctx.restore();
-
-      // Knocked-off fedora hat resting nearby on the asphalt
-      const hatX = -body.collapseDir * 17;
-      const hatY = 5;
-      ctx.fillStyle = body.isBoss ? '#18181b' : '#27272a';
-      ctx.beginPath();
-      ctx.ellipse(hatX, hatY, 8, 3.2, -0.25 * body.collapseDir, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillRect(hatX - 4.5, hatY - 4.5, 9, 4.5);
-      ctx.fillStyle = body.accentColor;
-      ctx.fillRect(hatX - 4.5, hatY - 1.5, 9, 1.5);
-
-      ctx.restore();
-    }
-
-    function drawCharacter(x, y, config) {
-      const {
-        coatColor,
-        accentColor,
-        label,
-        hp,
-        maxHp,
-        armor = 0,
-        maxArmor = 0,
-        facing = 0,
-        isBoss = false,
-        isUnderboss = false,
-        isCaptain = false,
-        isAttacking = false,
-        slashProgress = 0,
-        isShooting = false,
-        hitFlash = false,
-      } = config;
-
-      const cosF = Math.cos(facing);
-      const sinF = Math.sin(facing);
-      const facingUp = sinF < -0.45;
-      const horizShift = Math.max(-1, Math.min(1, cosF));
-
-      ctx.save();
-      ctx.translate(x, y);
-
-      // Ground contact shadow
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
-      ctx.beginPath();
-      ctx.ellipse(0, 2, isBoss ? 13 : 11, 5.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Legs
-      ctx.fillStyle = '#09090b';
-      ctx.fillRect(-5.5, -10, 4.5, 11);
-      ctx.fillRect(1, -10, 4.5, 11);
-
-      // Suit coat torso
-      ctx.fillStyle = hitFlash ? '#ffffff' : coatColor;
-      ctx.beginPath();
-      ctx.roundRect(-9.5, -26, 19, 18, 5);
-      ctx.fill();
-
-      // Kevlar vest overlay if armored
-      if (armor > 0) {
-        ctx.fillStyle = 'rgba(14, 165, 233, 0.35)';
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.roundRect(-8.5, -25, 17, 14, 3);
-        ctx.fill();
-        ctx.stroke();
-      }
-
-      if (!facingUp) {
-        // Shirt & tie shifted horizontally with facing direction
-        const lapelX = horizShift * 2.4;
-        ctx.fillStyle = '#f4f4f5';
-        ctx.beginPath();
-        ctx.moveTo(lapelX - 3, -25);
-        ctx.lineTo(lapelX + 3, -25);
-        ctx.lineTo(lapelX, -14);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.fillStyle = accentColor;
-        ctx.fillRect(lapelX - 1, -24, 2, 9);
-      } else {
-        // Back coat center seam when moving away (up)
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.moveTo(0, -24);
-        ctx.lineTo(0, -9);
-        ctx.stroke();
-      }
-
-      // Head
-      ctx.fillStyle = hitFlash ? '#ffffff' : '#f1c29b';
-      ctx.beginPath();
-      ctx.arc(0, -31.5, 6.8, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Coherent Directional Eyes (Right -> right, Left -> left, Down -> center, Up -> hidden)
-      if (!facingUp) {
-        const eyeOffsetX = horizShift * 2.5;
-        const eyeY = -31.2 + Math.max(0, sinF) * 0.8;
-
-        // Eye whites
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.ellipse(eyeOffsetX - 2.2, eyeY, 1.45, 1.15, 0, 0, Math.PI * 2);
-        ctx.ellipse(eyeOffsetX + 2.2, eyeY, 1.45, 1.15, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Dark pupils tracking look direction
-        const pupilShiftX = horizShift * 0.55;
-        ctx.fillStyle = '#09090b';
-        ctx.beginPath();
-        ctx.arc(eyeOffsetX - 2.2 + pupilShiftX, eyeY, 0.85, 0, Math.PI * 2);
-        ctx.arc(eyeOffsetX + 2.2 + pupilShiftX, eyeY, 0.85, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        // Back of hair when facing up
-        ctx.fillStyle = '#18181b';
-        ctx.beginPath();
-        ctx.arc(0, -31.2, 6.6, Math.PI * 0.1, Math.PI * 0.9);
-        ctx.fill();
-      }
-
-      // Fedora Hat (Bosses & Lieutenants)
-      if (isBoss || isUnderboss || isCaptain) {
-        ctx.fillStyle = isBoss ? '#09090b' : '#18181b';
-        ctx.beginPath();
-        ctx.ellipse(0, -36.5, isBoss ? 11.5 : 10, 3.6, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.roundRect(isBoss ? -6.5 : -5.5, -42.5, isBoss ? 13 : 11, 6.5, 2.5);
-        ctx.fill();
-
-        ctx.fillStyle = accentColor;
-        ctx.fillRect(isBoss ? -6.5 : -5.5, -38.2, isBoss ? 13 : 11, 1.8);
-      }
-
-      // Weapon Rendering:
-      // Bosses & 2ICs have 9mm Pistol as main weapon, stow it to swing a Machete during slash,
-      // and re-equip the pistol immediately after the slash completes.
-      const hasPistolMain = isBoss || isUnderboss;
-      if (isAttacking) {
-        // Sweep machete coherently along the exact slash arc (facing - 0.95 -> facing + 0.95)
-        const swingAngle = facing - 0.95 + slashProgress * 1.9;
-        ctx.save();
-        ctx.translate(0, -17);
-        ctx.rotate(swingAngle);
-
-        // Subtle thin curved blade trail
-        ctx.strokeStyle = 'rgba(244, 63, 94, 0.52)';
-        ctx.lineWidth = 1.6;
-        ctx.beginPath();
-        ctx.arc(0, 0, 21, -0.55, 0.08);
-        ctx.stroke();
-
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
-        ctx.lineWidth = 1.0;
-        ctx.beginPath();
-        ctx.arc(0, 0, 22.5, -0.45, 0.05);
-        ctx.stroke();
-
-        // Machete grip & broad steel blade
-        ctx.fillStyle = '#451a03';
-        ctx.fillRect(6, -1.5, 5, 3);
-        ctx.fillStyle = '#e4e4e7';
-        ctx.beginPath();
-        ctx.moveTo(11, -1.6);
-        ctx.lineTo(24, -2.4);
-        ctx.lineTo(26, 0.5);
-        ctx.lineTo(11, 1.6);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-      } else if (hasPistolMain) {
-        // 9mm Pistol equipped in hand
-        ctx.save();
-        ctx.translate(0, -17);
-        ctx.rotate(facing);
-        ctx.fillStyle = '#27272a';
-        ctx.fillRect(7, -1.8, 10, 3.4);
-        ctx.fillStyle = '#71717a';
-        ctx.fillRect(8, -1.3, 8, 1.2);
-        if (isShooting) {
-          ctx.fillStyle = '#fef08a';
-          ctx.beginPath();
-          ctx.arc(19, 0, 4.2, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.restore();
-      } else {
-        // Switchblade / bat ready for Captains & Enforcers
-        ctx.save();
-        ctx.translate(0, -17);
-        ctx.rotate(facing);
-        ctx.fillStyle = '#d4d4d8';
-        ctx.fillRect(7, -1.1, 8, 2.2);
-        ctx.restore();
-      }
-
-      ctx.restore();
-
-      // Overhead Rank/Boss Label, Armor Bar & HP Bar (anchored cleanly at state.world x, y)
-      const hasArmor = armor > 0 && maxArmor > 0;
-      const barW = isBoss ? 36 : 28;
-      const barH = 3.5;
-      const barTopY = y + (hasArmor ? -53 : -48);
-
-      if (hasArmor) {
-        ctx.fillStyle = 'rgba(9, 9, 11, 0.85)';
-        ctx.fillRect(x - barW / 2 - 1, barTopY - 1, barW + 2, barH + 2);
-        ctx.fillStyle = '#38bdf8';
-        ctx.fillRect(x - barW / 2, barTopY, barW * Math.max(0, Math.min(1, armor / maxArmor)), barH);
-      }
-
-      const hpY = hasArmor ? barTopY + 5 : barTopY;
-      ctx.fillStyle = 'rgba(9, 9, 11, 0.85)';
-      ctx.fillRect(x - barW / 2 - 1, hpY - 1, barW + 2, barH + 2);
-
-      const hpRatio = Math.max(0, Math.min(1, hp / Math.max(1, maxHp)));
-      ctx.fillStyle = hpRatio > 0.5 ? '#10b981' : hpRatio > 0.25 ? '#f59e0b' : '#ef4444';
-      ctx.fillRect(x - barW / 2, hpY, barW * hpRatio, barH);
-
-      if (label) {
-        ctx.font = isBoss ? 'bold 10px Inter, sans-serif' : '700 9px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = 'rgba(9, 9, 11, 0.85)';
-        ctx.fillText(label, x + 1, barTopY - 3);
-        ctx.fillStyle = isBoss ? '#fef08a' : accentColor;
-        ctx.fillText(label, x, barTopY - 4);
-      }
-    }
-
-    function resizeCanvas() {
-      const parent = canvas.parentElement;
-      const rect = parent ? parent.getBoundingClientRect() : canvas.getBoundingClientRect();
-      const w = Math.max(320, Math.floor(rect.width || window.innerWidth));
-      const h = Math.max(240, Math.floor(rect.height || window.innerHeight - 52));
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
-      }
-    }
-    window.addEventListener('resize', resizeCanvas);
-
-    const renderables = [];
-
-    function render() {
-      resizeCanvas();
-      const viewW = canvas.width;
-      const viewH = canvas.height;
-      const camLeft = state.camera.x - viewW / 2;
-      const camTop = state.camera.y - viewH / 2;
-      const camRight = camLeft + viewW;
-      const camBottom = camTop + viewH;
-
-      ctx.fillStyle = '#09090b';
-      ctx.fillRect(0, 0, viewW, viewH);
-
-      ctx.save();
-      ctx.translate(-camLeft, -camTop);
-
-      const minCx = Math.floor(camLeft / CHUNK_PX) - 1;
-      const maxCx = Math.floor(camRight / CHUNK_PX) + 1;
-      const minCy = Math.floor(camTop / CHUNK_PX) - 1;
-      const maxCy = Math.floor(camBottom / CHUNK_PX) + 1;
-
-      renderables.length = 0;
-
-      // 1. Ground tiles + Faction territory overlays & borders
-      for (let cy = minCy; cy <= maxCy; cy++) {
-        for (let cx = minCx; cx <= maxCx; cx++) {
-          const chunk = state.world.getChunk(cx, cy);
-          if (!chunk) continue;
-          const ox = cx * CHUNK_PX;
-          const oy = cy * CHUNK_PX;
-
-          chunk.drawGroundDirect(ctx, ox, oy, camLeft, camRight, camTop, camBottom);
-
-          const meta = FACTION_META[chunk.faction] || FACTION_META[Faction.NEUTRAL];
-          if (chunk.faction !== Faction.NEUTRAL) {
-            ctx.fillStyle = meta.tint;
-            ctx.fillRect(ox, oy, CHUNK_PX, CHUNK_PX);
-          }
-
-          if (state.showBorders) {
-            ctx.strokeStyle = meta.border;
-            ctx.lineWidth = chunk.faction === Faction.NEUTRAL ? 1 : 2.2;
-            ctx.strokeRect(ox + 1, oy + 1, CHUNK_PX - 2, CHUNK_PX - 2);
-          }
-
-          // Capture progress bar in chunk center
-          if (chunk.captureProgress > 0 && chunk.capturingFaction) {
-            const capMeta = FACTION_META[chunk.capturingFaction];
-            const bx = ox + CHUNK_PX / 2 - 44;
-            const by = oy + 14;
-            ctx.fillStyle = 'rgba(9, 9, 11, 0.85)';
-            ctx.fillRect(bx, by, 88, 7);
-            ctx.fillStyle = capMeta.badge;
-            ctx.fillRect(bx + 1, by + 1, 86 * Math.min(1, chunk.captureProgress), 5);
-          }
-
-          for (let i = 0; i < chunk.buildingRenderList.length; i++) {
-            const b = chunk.buildingRenderList[i];
-            if (b.wx + TILE_SIZE >= camLeft && b.wx <= camRight && b.wy + TILE_SIZE >= camTop && b.wy - 44 <= camBottom) {
-              renderables.push(b);
-            }
-          }
-          for (let i = 0; i < chunk.propRenderList.length; i++) {
-            const p = chunk.propRenderList[i];
-            if (p.wx + TILE_SIZE >= camLeft && p.wx <= camRight && p.wy + TILE_SIZE >= camTop && p.wy - 30 <= camBottom) {
-              renderables.push(p);
-            }
-          }
-        }
-      }
-
-      // 2. Ground blood decals & persistent dead bodies
-      for (let i = 0; i < bloodDecals.length; i++) {
-        const d = bloodDecals[i];
-        if (d.x < camLeft - 40 || d.x > camRight + 40 || d.y < camTop - 40 || d.y > camBottom + 40) continue;
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, d.life / 3.0);
-        ctx.fillStyle = d.color;
-        ctx.beginPath();
-        ctx.ellipse(d.x, d.y, d.rx, d.ry, d.rot, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-
-      for (let i = 0; i < deadBodies.length; i++) {
-        const b = deadBodies[i];
-        if (b.x < camLeft - 50 || b.x > camRight + 50 || b.y < camTop - 50 || b.y > camBottom + 50) continue;
-        drawDeadBody(b);
-      }
-
-      // 3. Waypoint marker & 1000px Pistol Range Ring for Local Boss
-      const localBoss = getLocalBoss();
-      if (localBoss && isLocalBossAlive()) {
-        if (localBoss.targetX !== null && localBoss.targetY !== null) {
-          ctx.strokeStyle = 'rgba(251, 191, 36, 0.75)';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(localBoss.targetX, localBoss.targetY, 10, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-
-        if (state.mouse.inside) {
-          const rect = canvas.getBoundingClientRect();
-          const aimWx = state.camera.x - rect.width / 2 + state.mouse.screenX;
-          const aimWy = state.camera.y - rect.height / 2 + state.mouse.screenY;
-          const aimDist = Math.hypot(aimWx - localBoss.x, aimWy - localBoss.y);
-          const accInfo = getPistolAccuracyInfo(aimDist);
-
-          ctx.save();
-          ctx.strokeStyle = 'rgba(251, 191, 36, 0.14)';
-          ctx.setLineDash([6, 6]);
-          ctx.lineWidth = 1.2;
-          ctx.beginPath();
-          ctx.arc(localBoss.x, localBoss.y, MAX_PISTOL_RANGE, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.restore();
-
-          ctx.font = 'bold 10px monospace';
-          ctx.textAlign = 'left';
-          ctx.fillStyle = accInfo.color;
-          ctx.fillText(accInfo.label, aimWx + 12, aimWy - 8);
-        }
-      }
-
-      // 4. Collect active characters into depth-sorted render list
-      if (state.player.alive) {
-        renderables.push({ type: 'player', sortY: state.player.y });
-      }
-      for (let i = 0; i < state.npcs.length; i++) {
-        const u = state.npcs[i];
-        if (u.x < camLeft - 60 || u.x > camRight + 60 || u.y < camTop - 60 || u.y > camBottom + 60) continue;
-        renderables.push({ type: 'npc', sortY: u.y, unit: u });
-      }
-
-      renderables.sort((a, b) => a.sortY - b.sortY);
-
-      for (let i = 0; i < renderables.length; i++) {
-        const item = renderables[i];
-        if (item.type === 'building') {
-          drawBuilding(item);
-        } else if (item.type === 'prop') {
-          drawProp(item);
-        } else if (item.type === 'player') {
-          const pMeta = FACTION_META[Faction.PLAYER];
-          const hostName = typeof mpNet !== 'undefined' && mpNet.isActive() ? mpNet.getAliasForFaction(Faction.PLAYER) : null;
-          drawCharacter(state.player.x, state.player.y, {
-            coatColor: pMeta.coat,
-            accentColor: pMeta.accent,
-            label: hostName ? `${hostName} (${pMeta.ranks.BOSS})` : `${pMeta.ranks.BOSS} (YOU)`,
-            hp: state.player.hp,
-            maxHp: state.player.maxHp,
-            armor: state.player.armor,
-            maxArmor: state.player.maxArmor,
-            facing: state.player.facing,
-            isBoss: true,
-            isAttacking: state.player.slashAnimTimer > 0,
-            slashProgress: state.player.slashAnimTimer > 0 ? 1 - state.player.slashAnimTimer / 0.18 : 0,
-            isShooting: state.player.muzzleFlashTimer > 0,
-            hitFlash: state.player.hitFlashTimer > 0,
-          });
-        } else if (item.type === 'npc') {
-          const u = item.unit;
-          const meta = FACTION_META[u.faction] || FACTION_META[Faction.NEUTRAL];
-          const isBoss = u.rank === UnitRank.BOSS;
-          const isMyRemoteBoss = isBoss && u.faction === getLocalFaction();
-          const alias = isBoss && typeof mpNet !== 'undefined' && mpNet.isActive() ? mpNet.getAliasForFaction(u.faction) : null;
-          const rankName = meta.ranks[u.rank] || u.rank;
-          const label = isMyRemoteBoss
-            ? `${rankName} (YOU)`
-            : alias
-            ? `${alias} (${rankName})`
-            : isBoss
-            ? `${meta.short} ${rankName}`
-            : rankName;
-
-          drawCharacter(u.x, u.y, {
-            coatColor: meta.coat,
-            accentColor: meta.accent,
-            label,
-            hp: u.hp,
-            maxHp: u.maxHp,
-            armor: u.armor,
-            maxArmor: u.maxArmor,
-            facing: u.facing,
-            isBoss,
-            isUnderboss: u.rank === UnitRank.UNDERBOSS,
-            isCaptain: u.rank === UnitRank.CAPTAIN,
-            isAttacking: u.slashAnimTimer > 0,
-            slashProgress: u.slashAnimTimer > 0 ? 1 - u.slashAnimTimer / 0.18 : 0,
-            isShooting: u.muzzleFlashTimer > 0,
-            hitFlash: u.hitFlashTimer > 0,
-          });
-        }
-      }
-
-      // 5. Subtle residual slash arcs, muzzle blasts, tracers, blood droplets & floating texts
-      for (let i = 0; i < slashArcs.length; i++) {
-        const s = slashArcs[i];
-        const t = Math.max(0, s.life / s.maxLife);
-        ctx.save();
-        ctx.translate(s.x, s.y);
-        ctx.rotate(s.facing);
-        ctx.globalAlpha = t * 0.45;
-        ctx.strokeStyle = s.color;
-        ctx.lineWidth = 1.4;
-        ctx.beginPath();
-        ctx.arc(0, 0, 20, -0.75, 0.75);
-        ctx.stroke();
-
-        ctx.globalAlpha = t * 0.55;
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 0.9;
-        ctx.beginPath();
-        ctx.arc(0, 0, 22, -0.6, 0.6);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      for (let i = 0; i < muzzleFlashes.length; i++) {
-        const m = muzzleFlashes[i];
-        const t = Math.max(0, m.life / m.maxLife);
-        ctx.save();
-        ctx.translate(m.x, m.y);
-        ctx.rotate(m.facing);
-        ctx.globalAlpha = t * 0.85;
-        ctx.fillStyle = '#fef08a';
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(14 * t, -4 * t);
-        ctx.lineTo(18 * t, 0);
-        ctx.lineTo(14 * t, 4 * t);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-      }
-
-      for (let i = 0; i < bulletTracers.length; i++) {
-        const tr = bulletTracers[i];
-        const alpha = Math.max(0, tr.life / tr.maxLife);
-        ctx.save();
-        ctx.globalAlpha = alpha * 0.85;
-        ctx.strokeStyle = tr.color;
-        ctx.lineWidth = 2.2;
-        ctx.beginPath();
-        ctx.moveTo(tr.x1, tr.y1);
-        ctx.lineTo(tr.x2, tr.y2);
-        ctx.stroke();
-
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 0.9;
-        ctx.beginPath();
-        ctx.moveTo(tr.x1, tr.y1);
-        ctx.lineTo(tr.x2, tr.y2);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      for (let i = 0; i < bloodParticles.length; i++) {
-        const p = bloodParticles[i];
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y - p.z * 0.45, p.radius, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      for (let i = 0; i < sparks.length; i++) {
-        const s = sparks[i];
-        ctx.fillStyle = '#fde047';
-        ctx.fillRect(s.x - 1.5, s.y - 1.5, 3, 3);
-      }
-
-      for (let i = 0; i < state.floatingTexts.length; i++) {
-        const ft = state.floatingTexts[i];
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, ft.life * 1.4);
-        ctx.font = 'bold 11px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = 'rgba(9, 9, 11, 0.88)';
-        ctx.fillText(ft.text, ft.x + 1, ft.y + 1);
-        ctx.fillStyle = ft.color;
-        ctx.fillText(ft.text, ft.x, ft.y);
-        ctx.restore();
-      }
-
-      ctx.restore();
-      renderMinimap();
-    }
-
-    function renderMinimap() {
-      if (state.world.chunks.size === 0) return;
-
-      let minCx = Infinity, maxCx = -Infinity, minCy = Infinity, maxCy = -Infinity;
-      for (const chunk of state.world.chunks.values()) {
-        if (chunk.cx < minCx) minCx = chunk.cx;
-        if (chunk.cx > maxCx) maxCx = chunk.cx;
-        if (chunk.cy < minCy) minCy = chunk.cy;
-        if (chunk.cy > maxCy) maxCy = chunk.cy;
-      }
-
-      const cols = Math.max(1, maxCx - minCx + 1);
-      const rows = Math.max(1, maxCy - minCy + 1);
-      const pad = 6;
-      const innerW = minimapCanvas.width - pad * 2;
-      const innerH = minimapCanvas.height - pad * 2;
-      const cellSize = Math.min(innerW / cols, innerH / rows);
-      const offsetX = pad + (innerW - cellSize * cols) / 2;
-      const offsetY = pad + (innerH - cellSize * rows) / 2;
-
-      state.minimapCacheTimer += 0.016;
-      if (state.minimapCacheTimer >= 0.4) {
-        state.minimapCacheTimer = 0;
-        minimapCacheCtx.fillStyle = '#09090b';
-        minimapCacheCtx.fillRect(0, 0, minimapCacheCanvas.width, minimapCacheCanvas.height);
-
-        for (const chunk of state.world.chunks.values()) {
-          const rx = offsetX + (chunk.cx - minCx) * cellSize;
-          const ry = offsetY + (chunk.cy - minCy) * cellSize;
-          const meta = FACTION_META[chunk.faction] || FACTION_META[Faction.NEUTRAL];
-          minimapCacheCtx.fillStyle = chunk.faction === Faction.NEUTRAL ? '#27272a' : meta.badge;
-          minimapCacheCtx.fillRect(rx + 0.5, ry + 0.5, Math.max(1, cellSize - 1), Math.max(1, cellSize - 1));
-        }
-      }
-
-      minimapCtx.drawImage(minimapCacheCanvas, 0, 0);
-
-      // Draw unit & boss dots
-      for (let i = 0; i < state.npcs.length; i++) {
-        const u = state.npcs[i];
-        const mx = offsetX + (u.x / CHUNK_PX - minCx) * cellSize;
-        const my = offsetY + (u.y / CHUNK_PX - minCy) * cellSize;
-        minimapCtx.fillStyle = u.rank === UnitRank.BOSS ? '#ffffff' : (FACTION_META[u.faction]?.accent || '#a1a1aa');
-        const r = u.rank === UnitRank.BOSS ? 2.5 : 1.2;
-        minimapCtx.fillRect(mx - r, my - r, r * 2, r * 2);
-      }
-
-      if (state.player.alive) {
-        const px = offsetX + (state.player.x / CHUNK_PX - minCx) * cellSize;
-        const py = offsetY + (state.player.y / CHUNK_PX - minCy) * cellSize;
-        minimapCtx.fillStyle = '#fef08a';
-        minimapCtx.beginPath();
-        minimapCtx.arc(px, py, 2.8, 0, Math.PI * 2);
-        minimapCtx.fill();
-      }
-
-      // Camera viewport rectangle
-      const camLeftCx = (state.camera.x - canvas.width / 2) / CHUNK_PX - minCx;
-      const camTopCy = (state.camera.y - canvas.height / 2) / CHUNK_PX - minCy;
-      const camW = (canvas.width / CHUNK_PX) * cellSize;
-      const camH = (canvas.height / CHUNK_PX) * cellSize;
-      minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
-      minimapCtx.lineWidth = 1;
-      minimapCtx.strokeRect(offsetX + camLeftCx * cellSize, offsetY + camTopCy * cellSize, camW, camH);
-
-      const localBoss = getLocalBoss();
-      const bTile = state.world.worldToTile(localBoss.x, localBoss.y);
-      hudEls.minimapCoords.textContent = `(${bTile.cx}, ${bTile.cy})`;
-    }
 
     function updateHUD() {
       const myFac = getLocalFaction();
@@ -1978,6 +1235,7 @@ import { update } from './sim/simulation.js';
                 slotIdx: -1,
                 isHost: false,
                 lastInput: { mx: 0, my: 0, sprint: false, facing: 0 },
+                lastInputAt: 0,
               });
               reassignHostSeats();
               updateHostLobbyUI();
@@ -2052,6 +1310,7 @@ import { update } from './sim/simulation.js';
               sprint: Boolean(env.payload.sprint),
               facing: Number(env.payload.facing) || 0,
             };
+            peer.lastInputAt = performance.now();
           }
         });
 
@@ -2098,6 +1357,7 @@ import { update } from './sim/simulation.js';
             slotIdx: 0,
             isHost: true,
             lastInput: { mx: 0, my: 0, sprint: false, facing: 0 },
+            lastInputAt: 0,
           });
 
           setupChannels(activeRoom);
@@ -2393,7 +1653,21 @@ import { update } from './sim/simulation.js';
           }
           return null;
         },
-        getPeerInput: (peerId) => peers.get(peerId)?.lastInput || null,
+        getPeerInput: (peerId) => {
+          const peer = peers.get(peerId);
+          if (!peer) return null;
+          // A guest that stops streaming (hidden tab, lost focus, crash) must not
+          // keep driving its boss with a stale direction forever.
+          if (!peer.lastInputAt || performance.now() - peer.lastInputAt > 500) {
+            return {
+              mx: 0,
+              my: 0,
+              sprint: false,
+              facing: peer.lastInput ? peer.lastInput.facing : 0,
+            };
+          }
+          return peer.lastInput;
+        },
         setMode,
         createHostRoom,
         joinGuestRoom,
