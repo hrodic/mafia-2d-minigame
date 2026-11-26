@@ -246,20 +246,26 @@ export function getPistolAccuracyInfo(dist) {
   return PISTOL.outOfRange;
 }
 
+export function getPistolAim(shooterX, shooterY, targetX, targetY) {
+  const centerAngle = Math.atan2(targetY - shooterY, targetX - shooterX);
+  const muzzleX = shooterX + Math.cos(centerAngle) * 18;
+  const muzzleY = shooterY - 14 + Math.sin(centerAngle) * 6;
+  const dx = targetX - muzzleX;
+  const dy = targetY - muzzleY;
+  const angle = dx * dx + dy * dy > 0.0001 ? Math.atan2(dy, dx) : centerAngle;
+  return { angle, centerAngle, muzzleX, muzzleY };
+}
+
 export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY) {
   if (shooter.attackCooldown > 0) return false;
 
-  const dx = targetX - shooter.x;
-  const dy = targetY - shooter.y;
-  const angle = Math.atan2(dy, dx);
+  const { angle, muzzleX, muzzleY } = getPistolAim(shooter.x, shooter.y, targetX, targetY);
   shooter.facing = angle;
   const isHumanShooter = isPlayerShooter || Boolean(shooter.humanPeerId);
   shooter.attackCooldown = isHumanShooter ? PISTOL.cooldownHuman : PISTOL.cooldownAi;
   shooter.muzzleFlashTimer = 0.09;
 
   const shooterFaction = isPlayerShooter ? Faction.PLAYER : shooter.faction;
-  const muzzleX = shooter.x + Math.cos(angle) * 18;
-  const muzzleY = shooter.y - 14 + Math.sin(angle) * 6;
   emit('shot:started', {
     shooter,
     shooterX: shooter.x,
@@ -271,7 +277,7 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
     isPlayerShooter,
   });
 
-  const envHit = traceBulletRay(shooter.x, shooter.y, angle, MAX_PISTOL_RANGE);
+  const envHit = traceBulletRay(muzzleX, muzzleY, angle, MAX_PISTOL_RANGE);
   const maxRayDist = envHit.dist;
 
   let bestTarget = null;
@@ -284,10 +290,10 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
   for (let i = 0; i < state.npcs.length; i++) {
     const npc = state.npcs[i];
     if (npc.faction === shooterFaction) continue;
-    const rx = npc.x - shooter.x;
-    const ry = npc.y - shooter.y;
+    const rx = npc.x - muzzleX;
+    const ry = npc.y - muzzleY;
     const proj = rx * cos + ry * sin;
-    if (proj < 16 || proj > bestProjDist) continue;
+    if (proj < 0 || proj > bestProjDist) continue;
     const perp = Math.abs(-rx * sin + ry * cos);
     const hitRadius = getEntityCollisionRadius(npc.rank) + 4;
     if (perp <= hitRadius) {
@@ -298,10 +304,10 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
   }
 
   if (!isPlayerShooter && state.player.alive && shooterFaction !== Faction.PLAYER) {
-    const rx = state.player.x - shooter.x;
-    const ry = state.player.y - shooter.y;
+    const rx = state.player.x - muzzleX;
+    const ry = state.player.y - muzzleY;
     const proj = rx * cos + ry * sin;
-    if (proj >= 16 && proj <= bestProjDist) {
+    if (proj >= 0 && proj <= bestProjDist) {
       const perp = Math.abs(-rx * sin + ry * cos);
       const hitRadius = getEntityCollisionRadius(UnitRank.BOSS) + 4;
       if (perp <= hitRadius) {
@@ -320,8 +326,8 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
     }
   }
 
-  let endX = shooter.x + cos * bestProjDist;
-  let endY = (shooter.y - 10) + sin * bestProjDist;
+  let endX = muzzleX + cos * bestProjDist;
+  let endY = muzzleY + sin * bestProjDist;
   let missTargetX = null;
   let missTargetY = null;
   let impact = { blocked: false, x: null, y: null };
@@ -329,9 +335,9 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
   if (bestTarget && shotMissed) {
     const missDir = Math.random() < 0.5 ? 1 : -1;
     const deflectAngle = angle + missDir * (0.045 + Math.random() * 0.035);
-    const missRay = traceBulletRay(shooter.x, shooter.y, deflectAngle, MAX_PISTOL_RANGE);
+    const missRay = traceBulletRay(muzzleX, muzzleY, deflectAngle, MAX_PISTOL_RANGE);
     endX = missRay.x;
-    endY = missRay.y - 10;
+    endY = missRay.y;
     missTargetX = bestTarget.x;
     missTargetY = bestTarget.y;
     if (missRay.blocked) {

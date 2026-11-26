@@ -4,7 +4,7 @@ import { CHUNK_PX, TILE_SIZE, MAX_PISTOL_RANGE } from '../config/constants.js';
 import { Faction, UnitRank } from '../config/enums.js';
 import { FACTION_META } from '../config/organizations.js';
 import { state, getLocalFaction, getLocalBoss, isLocalBossAlive } from '../core/state.js';
-import { getPistolAccuracyInfo } from '../sim/combat.js';
+import { getPistolAccuracyInfo, getPistolAim } from '../sim/combat.js';
 import {
   bloodParticles,
   bloodDecals,
@@ -137,7 +137,8 @@ export function render(dt = 1 / 60) {
       const rect = canvas.getBoundingClientRect();
       const aimWx = state.camera.x - rect.width / 2 + state.mouse.screenX;
       const aimWy = state.camera.y - rect.height / 2 + state.mouse.screenY;
-      const aimDist = Math.hypot(aimWx - localBoss.x, aimWy - localBoss.y);
+      const aim = getPistolAim(localBoss.x, localBoss.y, aimWx, aimWy);
+      const aimDist = Math.hypot(aimWx - aim.muzzleX, aimWy - aim.muzzleY);
       const accInfo = getPistolAccuracyInfo(aimDist);
 
       ctx.save();
@@ -149,10 +150,43 @@ export function render(dt = 1 / 60) {
       ctx.stroke();
       ctx.restore();
 
+      // Aim guide starts at the same muzzle and uses the same angle as the bullet.
+      const guideLength = Math.min(aimDist, MAX_PISTOL_RANGE);
+      ctx.save();
+      ctx.strokeStyle = accInfo.color;
+      ctx.globalAlpha = 0.5;
+      ctx.setLineDash([5, 5]);
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(aim.muzzleX, aim.muzzleY);
+      ctx.lineTo(
+        aim.muzzleX + Math.cos(aim.angle) * guideLength,
+        aim.muzzleY + Math.sin(aim.angle) * guideLength
+      );
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.strokeStyle = accInfo.color;
+      ctx.globalAlpha = 0.9;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(aimWx, aimWy, 4, 0, Math.PI * 2);
+      ctx.moveTo(aimWx - 9, aimWy);
+      ctx.lineTo(aimWx - 3, aimWy);
+      ctx.moveTo(aimWx + 3, aimWy);
+      ctx.lineTo(aimWx + 9, aimWy);
+      ctx.moveTo(aimWx, aimWy - 9);
+      ctx.lineTo(aimWx, aimWy - 3);
+      ctx.moveTo(aimWx, aimWy + 3);
+      ctx.lineTo(aimWx, aimWy + 9);
+      ctx.stroke();
+      ctx.restore();
+
       ctx.font = 'bold 10px monospace';
       ctx.textAlign = 'left';
       ctx.fillStyle = accInfo.color;
-      ctx.fillText(accInfo.label, aimWx + 12, aimWy - 8);
+      ctx.fillText(accInfo.label, aimWx + 12, aimWy - 10);
     }
   }
 
@@ -226,6 +260,28 @@ export function render(dt = 1 / 60) {
       });
     }
   }
+
+  // 4b. Turf income labels (visible overlay, drawn above buildings/characters).
+  ctx.save();
+  ctx.font = 'bold 10px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let cy = minCy; cy <= maxCy; cy++) {
+    for (let cx = minCx; cx <= maxCx; cx++) {
+      const chunk = state.world.getChunk(cx, cy);
+      if (!chunk) continue;
+      const meta = FACTION_META[chunk.faction] || FACTION_META[Faction.NEUTRAL];
+      const label = chunk.incomeLabel;
+      const centerX = cx * CHUNK_PX + CHUNK_PX / 2;
+      const labelY = cy * CHUNK_PX + 29;
+      const halfWidth = ctx.measureText(label).width / 2;
+      ctx.fillStyle = 'rgba(9, 9, 11, 0.72)';
+      ctx.fillRect(centerX - halfWidth - 4, labelY - 7, halfWidth * 2 + 8, 14);
+      ctx.fillStyle = chunk.faction === Faction.NEUTRAL ? '#a1a1aa' : meta.accent;
+      ctx.fillText(label, centerX, labelY);
+    }
+  }
+  ctx.restore();
 
   // 5. Subtle residual slash arcs, muzzle blasts, tracers, blood droplets & floating texts
   for (let i = 0; i < slashArcs.length; i++) {

@@ -2,6 +2,7 @@
 // Runs once per rendered frame, never inside the fixed simulation loop.
 
 import { state, getLocalBoss, isLocalBossAlive } from '../core/state.js';
+import { getPistolAim } from '../sim/combat.js';
 import { canvas } from './canvas.js';
 import { stepGuestPresentation } from './interpolation.js';
 import { updateVisualParticles } from './effects.js';
@@ -27,7 +28,7 @@ export function updateLocalAim() {
   const rect = canvas.getBoundingClientRect();
   const aimWx = state.camera.x - rect.width / 2 + state.mouse.screenX;
   const aimWy = state.camera.y - rect.height / 2 + state.mouse.screenY;
-  state.player.facing = Math.atan2(aimWy - state.player.y, aimWx - state.player.x);
+  state.player.facing = getPistolAim(state.player.x, state.player.y, aimWx, aimWy).angle;
 }
 
 /** Guest-only frame step: stream input, smooth snapshots and advance presentation. */

@@ -1,5 +1,5 @@
 // Combat tests: damage/armor, slash/pistol, accuracy, raycast and armor purchases.
-import { test, assert, assertEqual } from './harness.js';
+import { test, assert, assertEqual, assertClose } from './harness.js';
 import { Faction, UnitRank, PropType } from '../src/config/enums.js';
 import { CHUNK_SIZE, TILE_SIZE, MAX_PISTOL_RANGE, HIT_FLASH_DURATION } from '../src/config/constants.js';
 import {
@@ -34,6 +34,7 @@ import {
   performBossKnifeSlash,
   traceBulletRay,
   getPistolAccuracyInfo,
+  getPistolAim,
   performBossPistolShot,
   damagePlayerBoss,
   executeBuyArmorForFaction,
@@ -600,6 +601,21 @@ test('combat: shell casings land close to the shooter', () => {
   const dist = Math.hypot(casing.x, casing.y);
   assert(dist < 30, `casing landed too far from the shooter: ${dist.toFixed(1)}px`);
   resetEffects();
+});
+
+test('combat: pistol tracer starts at the muzzle and points at the aim target', () => {
+  withCombatState(
+    { npcs: [makeNpc({ faction: Faction.RIVAL_2, x: 200, y: 0, hp: 1000, maxHp: 1000 })] },
+    ({ events }) => {
+      const aim = getPistolAim(state.player.x, state.player.y, 200, 0);
+      performBossPistolShot(state.player, true, 200, 0);
+      const shot = eventsOf(events, 'shot:fired')[0].payload;
+      assertClose(shot.x1, aim.muzzleX);
+      assertClose(shot.y1, aim.muzzleY);
+      assertClose(shot.x2, 200, 1e-6);
+      assertClose(shot.y2, 0, 1e-6);
+    }
+  );
 });
 
 test('combat: walls stop bullets', () => {

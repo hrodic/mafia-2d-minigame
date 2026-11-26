@@ -29,6 +29,7 @@ import {
   setWorldSeedDisplay,
 } from './ui/menus.js';
 import { initInput } from './ui/input.js';
+import { initSupport } from './ui/support.js';
 import { applyVersionLabels } from './ui/version.js';
 import { updateHudCadence } from './ui/hudCadence.js';
 import { updateActionBar } from './ui/actionBar.js';
@@ -140,6 +141,7 @@ function gameLoop(now) {
 applyVersionLabels();
 initMenus();
 initInput();
+initSupport();
 renderFactionSlotsUI();
 updateMapSizePreview(DEFAULT_GRID_SIZE);
 

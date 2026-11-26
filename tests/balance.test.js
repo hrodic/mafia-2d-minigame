@@ -158,6 +158,7 @@ test('balance: pistol stats and accuracy bands are ordered and covered', () => {
   assertEqual(PISTOL.cooldownHuman, 0.65);
   assertEqual(PISTOL.outOfRange.failChance, 1);
   assertEqual(PISTOL.outOfRange.dmgMult, 0);
+  assertEqual(PISTOL.outOfRange.label, '0% chance');
 
   const expected = [
     [50, 0, 0.25],
@@ -179,6 +180,7 @@ test('balance: pistol stats and accuracy bands are ordered and covered', () => {
     assert(band.maxDist > previous, 'bands must be sorted');
     previous = band.maxDist;
     assert(band.label && band.color, `band ${i} display metadata`);
+    assertEqual(band.label, `${Math.round((1 - band.failChance) * 100)}% chance`, `band ${i} label`);
   }
   assertEqual(PISTOL.accuracyBands[0].inclusive, true);
   for (let i = 1; i < PISTOL.accuracyBands.length; i++) {

@@ -125,4 +125,5 @@ Multiplayer requires both peers to run the same version.
 
 ## Support
 
-The in-game **Support me** button (bottom-left) links to [ko-fi.com/hrodic](https://ko-fi.com/hrodic).
+The in-game **☕ Tip me** button in the top bar opens the Ko-fi popup. If the widget is
+unavailable it falls back to [ko-fi.com/hrodic](https://ko-fi.com/hrodic).

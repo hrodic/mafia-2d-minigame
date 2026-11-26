@@ -35,7 +35,7 @@ Serve the repo over http first (`python -m http.server 8000` or any static serve
 
 ### Setup & shell
 - [ ] No console errors; Tailwind styles applied; HUD header renders.
-- [ ] Ko-fi **Support me** button renders bottom-left; clicking it opens the Ko-fi panel.
+- [ ] Ko-fi **☕ Tip me** button renders in the top bar between version and seed; clicking it opens the Ko-fi popup; no floating launcher is visible.
 - [ ] Setup modal shows the version where "Criminal Empire Edition" used to be (no duplicate).
 - [ ] Setup modal: mode buttons (Single/Host/Join), faction count 2/3/4, org dropdowns
       (unique orgs enforced), map size slider 5–25 + presets + cap preview,

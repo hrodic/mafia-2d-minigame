@@ -31,6 +31,7 @@ const hudEls = {
   sprintBar: document.getElementById('sprint-bar-fill'),
   sprintText: document.getElementById('sprint-text'),
   factionBoard: document.getElementById('faction-board'),
+  totalUpkeep: document.getElementById('mgmt-total-upkeep'),
 };
 
 export function syncRecruitButtonLabels() {
@@ -103,6 +104,9 @@ export function updateHUD() {
 
   const incomeTotals = recalculateHourlyIncome();
   const upkeepTotals = calculateFactionUpkeep();
+  if (hudEls.totalUpkeep) {
+    hudEls.totalUpkeep.textContent = `$${(upkeepTotals[myFac] || 0).toLocaleString()}/hr`;
+  }
   const blockCounts = {
     [Faction.PLAYER]: 0,
     [Faction.RIVAL_1]: 0,

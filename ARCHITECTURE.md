@@ -306,9 +306,10 @@ host.
 
 `render/renderer.js` culls chunks/tiles to the viewport, collects ground/buildings/props
 and characters into a depth-sorted list, and draws layers: a subtle world-space city
-backdrop (outside the playable chunks), ground + faction tint, capture bars, blood
-decals/corpses, waypoint/aim UI, characters (with HP/armor bars and rank labels), then
-effects (slash arcs, muzzle flashes, tracers, blood, sparks, casings, floating text).
+backdrop (outside the playable chunks), ground + faction tint, capture bars, turf income
+labels, blood decals/corpses, waypoint and muzzle-accurate aim/reticle UI, characters (with
+HP/armor bars and rank labels), then effects (slash arcs, muzzle flashes, tracers, blood,
+sparks, casings, floating text).
 `render/minimap.js` caches the faction territory layer and overlays units, the boss, the
 camera rect and chunk coordinates; `render/minimapLayout.js` owns the shared bounds/cell/
 offset and world<->map mapping (also used by radar clicks). The radar canvas is 168px and
@@ -323,8 +324,8 @@ distance from the camera.
 
 ## UI
 
-- `ui/hud.js`: primary boss/economy status, crew management panel, faction leaderboard
-  (turf, crew, kills), recruit labels/costs.
+- `ui/hud.js`: primary boss/economy status, crew management panel (caps, recruit costs,
+  total upkeep), faction leaderboard (turf, crew, kills).
 - `ui/actionBar.js`: bottom-center combat bar. Slash/pistol/armor/sprint show ready/cooling
   states, cooldown overlays, costs and shortcuts; sprint is hold-to-run and guest input
   includes the held state.
