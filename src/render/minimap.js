@@ -20,7 +20,7 @@ if (minimapCacheCanvas && minimapCanvas) {
 const coordsEl = typeof document !== 'undefined' ? document.getElementById('minimap-coords') : null;
 
 
-export function renderMinimap() {
+export function renderMinimap(dt = 1 / 60) {
   if (state.world.chunks.size === 0) return;
 
   const layout = getMinimapLayout(
@@ -31,7 +31,7 @@ export function renderMinimap() {
   if (!layout) return;
   const { cellSize } = layout;
 
-  state.minimapCacheTimer += 0.016;
+  state.minimapCacheTimer += dt;
   if (state.minimapCacheTimer >= 0.4) {
     state.minimapCacheTimer = 0;
     minimapCacheCtx.fillStyle = '#09090b';

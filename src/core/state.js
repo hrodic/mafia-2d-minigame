@@ -1,126 +1,201 @@
 // Shared mutable game state for the current match.
 //
-// Phase 1 convention: every cross-module mutable value lives here as a property of
-// this single `state` object. This is a mechanical consolidation of the globals that
-// used to sit in main.js; it becomes a `createGameState()` factory in Phase 3.
+// Every cross-module mutable value lives here as a property of this single `state`
+// object. `createGameState()` is the single source for a fresh match; `initWorld`
+// copies it onto the exported singleton so importers keep the same object identity.
 //
-// `state.world` is null until main.js assigns the CityMap instance (CityMap is still
-// defined in main.js until Step 1.4 extracts it).
+// `state.world` is null until main.js assigns the CityMap instance, and `state.net`
+// is null until main.js assigns the multiplayer bridge.
 
 import { Faction, UnitRank } from '../config/enums.js';
-import { BOSS_MAX_HP, MAX_BOSS_ARMOR } from '../config/balance.js';
+import { BOSS_MAX_HP, INCOME_TIERS, MAX_BOSS_ARMOR, RANK_STATS } from '../config/balance.js';
 import { DEFAULT_GRID_SIZE, DEFAULT_TICK_DURATION, TILE_SIZE } from '../config/constants.js';
-import { ALL_FACTION_SLOTS } from '../config/organizations.js';
+import {
+  ALL_FACTION_SLOTS,
+  clampFactionCount,
+  ensureUniqueOrgs,
+  getActiveFactionSlots,
+} from '../config/organizations.js';
 
-export const state = {
-  // --- world / entities -----------------------------------------------------
-  world: null,
-  npcs: [],
-  floatingTexts: [],
-  spatialBuckets: new Map(),
-  bucketPool: [],
-  nextNpcId: 1,
-  astarBudgetThisFrame: 0,
+const DEFAULT_ORG_ROSTER = ['COSA_NOSTRA', 'BRATVA', 'TRIADS', 'CARTEL'];
 
-  // --- factions / economy ---------------------------------------------------
-  treasuries: {
-    [Faction.PLAYER]: 3000,
-    [Faction.RIVAL_1]: 3000,
-    [Faction.RIVAL_2]: 3000,
-    [Faction.RIVAL_3]: 3000,
-  },
-  factionAlive: {
-    [Faction.PLAYER]: true,
-    [Faction.RIVAL_1]: true,
-    [Faction.RIVAL_2]: true,
-    [Faction.RIVAL_3]: true,
-  },
-  factionKills: {
-    [Faction.PLAYER]: 0,
-    [Faction.RIVAL_1]: 0,
-    [Faction.RIVAL_2]: 0,
-    [Faction.RIVAL_3]: 0,
-  },
+/**
+ * Build a complete fresh state object for a new match.
+ *
+ * `config` mirrors the `initWorld` arguments: `gridSize`, `tickDuration`,
+ * `incomeTier`, `factionCount`, `orgRoster`, `seed`, `autoStart`, plus the
+ * long-lived `world` and `net` references that a reset must preserve.
+ */
+export function createGameState(config = {}) {
+  const currentGridSize = Math.max(5, Math.min(25, config.gridSize ?? DEFAULT_GRID_SIZE));
+  const tickDuration = Math.max(10, Math.min(30, config.tickDuration ?? DEFAULT_TICK_DURATION));
+  const currentIncomeTier = INCOME_TIERS[config.incomeTier] ? config.incomeTier : 'HIGH';
+  const activeFactionCount = clampFactionCount(config.factionCount);
+  const selectedFactionOrgs = ensureUniqueOrgs(config.orgRoster ?? DEFAULT_ORG_ROSTER);
+  const activeFactions = getActiveFactionSlots(activeFactionCount);
 
-  // --- local player boss ----------------------------------------------------
-  player: {
-    x: 1.5 * TILE_SIZE,
-    y: 1.5 * TILE_SIZE,
-    targetX: null,
-    targetY: null,
-    speed: 225,
-    facing: 0,
-    hp: BOSS_MAX_HP,
-    maxHp: BOSS_MAX_HP,
-    armor: 0,
-    maxArmor: MAX_BOSS_ARMOR,
-    armorCooldown: 0,
-    sprintTimer: 0,
-    sprintCooldown: 0,
-    isSprinting: false,
-    minDmg: 20,
-    maxDmg: 40,
-    alive: true,
-    attackCooldown: 0,
-    slashAnimTimer: 0,
-    muzzleFlashTimer: 0,
-    hitFlashTimer: 0,
-  },
-  camera: {
-    x: 1.5 * TILE_SIZE,
-    y: 1.5 * TILE_SIZE,
-  },
-  mouse: {
-    screenX: null,
-    screenY: null,
-    inside: false,
-  },
-  keys: new Set(),
-  sprintButtonHeld: false,
+  const treasuries = {};
+  const factionAlive = {};
+  const factionKills = {};
+  for (const faction of ALL_FACTION_SLOTS) {
+    const isActive = activeFactions.includes(faction);
+    treasuries[faction] = isActive ? 3000 : 0;
+    factionAlive[faction] = isActive;
+    factionKills[faction] = 0;
+  }
 
-  // --- match configuration --------------------------------------------------
-  activeFactions: [...ALL_FACTION_SLOTS],
-  selectedFactionOrgs: ['COSA_NOSTRA', 'BRATVA', 'TRIADS', 'CARTEL'],
-  activeFactionCount: 4,
-  currentGridSize: DEFAULT_GRID_SIZE,
-  tickDuration: DEFAULT_TICK_DURATION,
-  currentIncomeTier: 'HIGH',
-  currentWorldSeed: null,
+  const playerSpawnX = 1.5 * TILE_SIZE;
+  const playerSpawnY = 1.5 * TILE_SIZE;
+  const bossStats = RANK_STATS[UnitRank.BOSS];
 
-  // --- recruitment ----------------------------------------------------------
-  playerSpawnCaps: {
-    [UnitRank.SOLDIER]: 96,
-    [UnitRank.CAPTAIN]: 11,
-    [UnitRank.UNDERBOSS]: 6,
-  },
-  // Per-faction recruitment preferences (used by remote human players in multiplayer)
-  factionRecruitmentPrefs: {
-    [Faction.PLAYER]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { [UnitRank.SOLDIER]: 96, [UnitRank.CAPTAIN]: 11, [UnitRank.UNDERBOSS]: 6 } },
-    [Faction.RIVAL_1]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { [UnitRank.SOLDIER]: 192, [UnitRank.CAPTAIN]: 22, [UnitRank.UNDERBOSS]: 11 } },
-    [Faction.RIVAL_2]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { [UnitRank.SOLDIER]: 192, [UnitRank.CAPTAIN]: 22, [UnitRank.UNDERBOSS]: 11 } },
-    [Faction.RIVAL_3]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { [UnitRank.SOLDIER]: 192, [UnitRank.CAPTAIN]: 22, [UnitRank.UNDERBOSS]: 11 } },
-  },
-  autoRecruitSoldier: true,
-  autoRecruitCaptain: true,
-  autoRecruitUnderboss: true,
+  return {
+    // --- world / entities ---------------------------------------------------
+    world: config.world ?? null,
+    npcs: [],
+    floatingTexts: [],
+    spatialBuckets: new Map(),
+    bucketPool: [],
+    nextNpcId: 1,
+    astarBudgetThisFrame: 0,
 
-  // --- match / UI flags & timers -------------------------------------------
-  gameStarted: false,
-  isSpectating: false,
-  gameOver: false,
-  victoryShown: false,
-  tickTimer: 0,
-  gameHour: 12,
-  hudUpdateTimer: 0,
-  minimapCacheTimer: 1.0,
+    // --- factions / economy -------------------------------------------------
+    treasuries,
+    factionAlive,
+    factionKills,
 
-  // --- multiplayer bridge (assigned by main.js after mpNet init) ------------
-  net: null,
-};
+    // --- local player boss --------------------------------------------------
+    player: {
+      id: 0,
+      faction: Faction.PLAYER,
+      rank: UnitRank.BOSS,
+      control: 'local',
+      x: playerSpawnX,
+      y: playerSpawnY,
+      targetX: null,
+      targetY: null,
+      path: null,
+      pathTimer: 0,
+      bodyRadius: bossStats.radius,
+      speed: bossStats.speedHuman,
+      facing: 0,
+      hp: bossStats.hp,
+      maxHp: bossStats.hp,
+      armor: bossStats.startArmor,
+      maxArmor: bossStats.maxArmor,
+      armorCooldown: 0,
+      sprintTimer: 0,
+      sprintCooldown: 0,
+      isSprinting: false,
+      minDmg: bossStats.minDmg,
+      maxDmg: bossStats.maxDmg,
+      alive: true,
+      attackCooldown: 0,
+      slashAnimTimer: 0,
+      muzzleFlashTimer: 0,
+      hitFlashTimer: 0,
+    },
+    camera: {
+      x: playerSpawnX,
+      y: playerSpawnY,
+    },
+    mouse: {
+      screenX: null,
+      screenY: null,
+      inside: false,
+    },
+    keys: new Set(),
+    sprintButtonHeld: false,
+
+    // --- match configuration ------------------------------------------------
+    activeFactions,
+    selectedFactionOrgs,
+    activeFactionCount,
+    currentGridSize,
+    tickDuration,
+    currentIncomeTier,
+    currentWorldSeed: config.seed ?? null,
+
+    // --- recruitment --------------------------------------------------------
+    playerSpawnCaps: {
+      [UnitRank.SOLDIER]: 96,
+      [UnitRank.CAPTAIN]: 11,
+      [UnitRank.UNDERBOSS]: 6,
+    },
+    // Per-faction recruitment preferences (used by remote human players in multiplayer)
+    factionRecruitmentPrefs: {
+      [Faction.PLAYER]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { [UnitRank.SOLDIER]: 96, [UnitRank.CAPTAIN]: 11, [UnitRank.UNDERBOSS]: 6 } },
+      [Faction.RIVAL_1]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { [UnitRank.SOLDIER]: 192, [UnitRank.CAPTAIN]: 22, [UnitRank.UNDERBOSS]: 11 } },
+      [Faction.RIVAL_2]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { [UnitRank.SOLDIER]: 192, [UnitRank.CAPTAIN]: 22, [UnitRank.UNDERBOSS]: 11 } },
+      [Faction.RIVAL_3]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { [UnitRank.SOLDIER]: 192, [UnitRank.CAPTAIN]: 22, [UnitRank.UNDERBOSS]: 11 } },
+    },
+    autoRecruitSoldier: true,
+    autoRecruitCaptain: true,
+    autoRecruitUnderboss: true,
+
+    // --- match / UI flags & timers -----------------------------------------
+    gameStarted: Boolean(config.autoStart),
+    isSpectating: false,
+    gameOver: false,
+    victoryShown: false,
+    tickTimer: 0,
+    gameHour: 12,
+    hudUpdateTimer: 0,
+    minimapCacheTimer: 1.0,
+
+    // --- multiplayer bridge (assigned by main.js after mpNet init) ----------
+    net: config.net ?? null,
+  };
+}
+
+// The exported singleton keeps its identity for every importer across match resets.
+export const state = createGameState();
+
+// ---------------------------------------------------------------------------
+// Unit views. `state.player` stays a separate singleton and `state.npcs` stays
+// non-player-only; these helpers are for systems that genuinely need every
+// combatant, without making either collection the other's source of truth.
+// ---------------------------------------------------------------------------
+
+/** Visit the living local player first, then every non-player unit. */
+export function forEachUnit(fn) {
+  if (state.player.alive) fn(state.player);
+  for (let i = 0; i < state.npcs.length; i++) {
+    const unit = state.npcs[i];
+    if (unit) fn(unit);
+  }
+}
+
+/** Resolve any unit by id, including the local player (id 0). */
+export function getUnitById(id) {
+  if (state.player.id === id) return state.player;
+  for (let i = 0; i < state.npcs.length; i++) {
+    if (state.npcs[i].id === id) return state.npcs[i];
+  }
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Local faction / boss selectors (moved from main.js)
 // ---------------------------------------------------------------------------
+
+// Reused when the local rival boss is dead/removed; avoids allocating per call.
+const deadLocalBoss = {
+  x: 0,
+  y: 0,
+  facing: 0,
+  hp: 0,
+  maxHp: BOSS_MAX_HP,
+  armor: 0,
+  maxArmor: MAX_BOSS_ARMOR,
+  alive: false,
+  attackCooldown: 0,
+  armorCooldown: 0,
+  sprintTimer: 0,
+  sprintCooldown: 0,
+  isSprinting: false,
+  targetX: null,
+  targetY: null,
+};
 
 export function getLocalFaction() {
   return state.net && state.net.isActive() ? state.net.localFaction : Faction.PLAYER;
@@ -130,22 +205,10 @@ export function getLocalBoss() {
   const faction = getLocalFaction();
   if (faction === Faction.PLAYER) return state.player;
   const bossNpc = state.npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS);
-  return (
-    bossNpc || {
-      x: state.camera.x,
-      y: state.camera.y,
-      facing: 0,
-      hp: 0,
-      maxHp: BOSS_MAX_HP,
-      armor: 0,
-      maxArmor: MAX_BOSS_ARMOR,
-      alive: false,
-      armorCooldown: 0,
-      sprintTimer: 0,
-      sprintCooldown: 0,
-      isSprinting: false,
-    }
-  );
+  if (bossNpc) return bossNpc;
+  deadLocalBoss.x = state.camera.x;
+  deadLocalBoss.y = state.camera.y;
+  return deadLocalBoss;
 }
 
 export function isLocalBossAlive() {

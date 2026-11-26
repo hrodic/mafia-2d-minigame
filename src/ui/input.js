@@ -11,11 +11,30 @@ import {
 } from '../audio/engine.js';
 import { canvas, minimapCanvas } from '../render/canvas.js';
 import { getMinimapLayout, minimapToWorld } from '../render/minimapLayout.js';
-import { performKnifeSlash, buyBossArmor, performBossPistolShot } from '../sim/combat.js';
+import { sendOrDispatchCommand } from './commandBridge.js';
 import { syncRecruitButtonLabels } from './hud.js';
 import { showToast } from './menus.js';
 
 export function initInput() {
+function requestSlash() {
+  if (!state.gameStarted || !isLocalBossAlive()) return;
+  sendOrDispatchCommand({ cmd: 'SLASH' });
+}
+
+function requestBuyArmor() {
+  if (!state.gameStarted) return;
+  if (state.net && state.net.isGuest() && !isLocalBossAlive()) {
+    showToast('Your Boss must be alive to equip armor!');
+    return;
+  }
+  sendOrDispatchCommand({ cmd: 'BUY_ARMOR' });
+}
+
+function requestShoot(tx, ty) {
+  if (!state.gameStarted || state.gameOver || !isLocalBossAlive()) return;
+  sendOrDispatchCommand({ cmd: 'SHOOT', tx, ty });
+}
+
 window.addEventListener('keydown', (e) => {
   getAudioCtx();
   const k = e.key.toLowerCase();
@@ -29,8 +48,8 @@ window.addEventListener('keydown', (e) => {
       state.net.flushGuestInput();
     }
   }
-  if (k === ' ' || k === 'f') performKnifeSlash();
-  if (k === 'q') buyBossArmor();
+  if (k === ' ' || k === 'f') requestSlash();
+  if (k === 'q') requestBuyArmor();
 });
 window.addEventListener('keyup', (e) => {
   const k = e.key.toLowerCase();
@@ -88,15 +107,7 @@ canvas.addEventListener('mousedown', (e) => {
   const { wx, wy } = screenToWorld(e.clientX, e.clientY);
 
   if (e.button === 2) {
-    if (state.net && state.net.isGuest()) {
-      if (isLocalBossAlive()) {
-        state.net.sendCommand({ cmd: 'SHOOT', tx: wx, ty: wy });
-      }
-      return;
-    }
-    if (state.player.alive && !state.gameOver) {
-      performBossPistolShot(state.player, true, wx, wy);
-    }
+    requestShoot(wx, wy);
     return;
   }
 
@@ -115,14 +126,7 @@ canvas.addEventListener('mousedown', (e) => {
       state.camera.y = wy;
       return;
     }
-    const snapped = state.world.findNearestWalkablePoint(wx, wy, 12);
-    if (snapped) {
-      state.net.sendCommand({ cmd: 'MOVE_TO', x: snapped.x, y: snapped.y });
-    }
-    return;
-  }
-
-  if (state.gameOver || !state.player.alive) {
+  } else if (state.gameOver || !state.player.alive) {
     state.camera.x = wx;
     state.camera.y = wy;
     return;
@@ -130,9 +134,8 @@ canvas.addEventListener('mousedown', (e) => {
 
   const snapped = state.world.findNearestWalkablePoint(wx, wy, 12);
   if (snapped) {
-    state.player.targetX = snapped.x;
-    state.player.targetY = snapped.y;
-  } else {
+    sendOrDispatchCommand({ cmd: 'MOVE_TO', x: snapped.x, y: snapped.y });
+  } else if (!state.net || !state.net.isGuest()) {
     showToast('Blocked by building');
   }
 });
@@ -154,15 +157,7 @@ minimapCanvas.addEventListener('click', (e) => {
       state.camera.y = worldY;
       return;
     }
-    const snapped = state.world.findNearestWalkablePoint(worldX, worldY, 12);
-    if (snapped) {
-      state.net.sendCommand({ cmd: 'MOVE_TO', x: snapped.x, y: snapped.y });
-      showToast('Boss waypoint set via Radar');
-    }
-    return;
-  }
-
-  if (state.gameOver || !state.player.alive) {
+  } else if (state.gameOver || !state.player.alive) {
     state.camera.x = worldX;
     state.camera.y = worldY;
     return;
@@ -170,89 +165,82 @@ minimapCanvas.addEventListener('click', (e) => {
 
   const snapped = state.world.findNearestWalkablePoint(worldX, worldY, 12);
   if (snapped) {
-    state.player.targetX = snapped.x;
-    state.player.targetY = snapped.y;
+    sendOrDispatchCommand({ cmd: 'MOVE_TO', x: snapped.x, y: snapped.y });
     showToast('Boss waypoint set via Radar');
   }
 });
 
 // Top HUD Action Buttons
-function pushRecruitPrefsToHost() {
-  if (state.net && state.net.isGuest()) {
-    state.net.sendCommand({
-      cmd: 'RECRUIT_PREF',
-      autoSoldier: state.autoRecruitSoldier,
-      autoCaptain: state.autoRecruitCaptain,
-      autoUnderboss: state.autoRecruitUnderboss,
-      caps: { ...state.playerSpawnCaps },
-    });
-  }
+function pushRecruitPrefs() {
+  sendOrDispatchCommand({
+    cmd: 'RECRUIT_PREF',
+    autoSoldier: state.autoRecruitSoldier,
+    autoCaptain: state.autoRecruitCaptain,
+    autoUnderboss: state.autoRecruitUnderboss,
+    caps: { ...state.playerSpawnCaps },
+  });
 }
 
 document.getElementById('btn-toggle-soldier').addEventListener('click', () => {
   state.autoRecruitSoldier = !state.autoRecruitSoldier;
   syncRecruitButtonLabels();
-  pushRecruitPrefsToHost();
+  pushRecruitPrefs();
 });
 document.getElementById('btn-cap-soldier-dec').addEventListener('click', () => {
   state.playerSpawnCaps[UnitRank.SOLDIER]--;
   syncRecruitButtonLabels();
-  pushRecruitPrefsToHost();
+  pushRecruitPrefs();
 });
 document.getElementById('btn-cap-soldier-inc').addEventListener('click', () => {
   state.playerSpawnCaps[UnitRank.SOLDIER]++;
   syncRecruitButtonLabels();
-  pushRecruitPrefsToHost();
+  pushRecruitPrefs();
 });
 
 document.getElementById('btn-toggle-captain').addEventListener('click', () => {
   state.autoRecruitCaptain = !state.autoRecruitCaptain;
   syncRecruitButtonLabels();
-  pushRecruitPrefsToHost();
+  pushRecruitPrefs();
 });
 document.getElementById('btn-cap-captain-dec').addEventListener('click', () => {
   state.playerSpawnCaps[UnitRank.CAPTAIN]--;
   syncRecruitButtonLabels();
-  pushRecruitPrefsToHost();
+  pushRecruitPrefs();
 });
 document.getElementById('btn-cap-captain-inc').addEventListener('click', () => {
   state.playerSpawnCaps[UnitRank.CAPTAIN]++;
   syncRecruitButtonLabels();
-  pushRecruitPrefsToHost();
+  pushRecruitPrefs();
 });
 
 document.getElementById('btn-toggle-underboss').addEventListener('click', () => {
   state.autoRecruitUnderboss = !state.autoRecruitUnderboss;
   syncRecruitButtonLabels();
-  pushRecruitPrefsToHost();
+  pushRecruitPrefs();
 });
 document.getElementById('btn-cap-underboss-dec').addEventListener('click', () => {
   state.playerSpawnCaps[UnitRank.UNDERBOSS]--;
   syncRecruitButtonLabels();
-  pushRecruitPrefsToHost();
+  pushRecruitPrefs();
 });
 document.getElementById('btn-cap-underboss-inc').addEventListener('click', () => {
   state.playerSpawnCaps[UnitRank.UNDERBOSS]++;
   syncRecruitButtonLabels();
-  pushRecruitPrefsToHost();
+  pushRecruitPrefs();
 });
 
 document.getElementById('btn-buy-armor').addEventListener('click', () => {
   getAudioCtx();
-  buyBossArmor();
+  requestBuyArmor();
 });
-document.getElementById('btn-slash').addEventListener('click', () => performKnifeSlash());
+document.getElementById('btn-slash').addEventListener('click', () => requestSlash());
 document.getElementById('btn-pistol').addEventListener('click', () => {
   getAudioCtx();
   const myBoss = getLocalBoss();
   if (!myBoss || !isLocalBossAlive()) return;
   const tx = myBoss.x + Math.cos(myBoss.facing) * 260;
   const ty = myBoss.y + Math.sin(myBoss.facing) * 260;
-  if (state.net && state.net.isGuest()) {
-    state.net.sendCommand({ cmd: 'SHOOT', tx, ty });
-  } else {
-    performBossPistolShot(state.player, true, tx, ty);
-  }
+  requestShoot(tx, ty);
 });
 
 const sprintButton = document.getElementById('btn-sprint');

@@ -27,8 +27,8 @@ const EXPECTED_RANKS = {
     maxArmor: 300,
     minDmg: 20,
     maxDmg: 40,
-    speedAi: 152,
-    speedHuman: 225,
+    speedAi: 140,
+    speedHuman: 140,
     speedJitter: 0,
     radius: 13.5,
     captureRate: 0.375,
@@ -41,8 +41,8 @@ const EXPECTED_RANKS = {
     maxArmor: 120,
     minDmg: 26,
     maxDmg: 38,
-    speedAi: 148,
-    speedHuman: 148,
+    speedAi: 150,
+    speedHuman: 150,
     speedJitter: 0,
     radius: 12.8,
     captureRate: 0.24,
@@ -55,8 +55,8 @@ const EXPECTED_RANKS = {
     maxArmor: 0,
     minDmg: 18,
     maxDmg: 28,
-    speedAi: 140,
-    speedHuman: 140,
+    speedAi: 150,
+    speedHuman: 150,
     speedJitter: 0,
     radius: 12,
     captureRate: 0.18,
@@ -69,9 +69,9 @@ const EXPECTED_RANKS = {
     maxArmor: 0,
     minDmg: 10,
     maxDmg: 18,
-    speedAi: 128,
-    speedHuman: 128,
-    speedJitter: 16,
+    speedAi: 150,
+    speedHuman: 150,
+    speedJitter: 0,
     radius: 11,
     captureRate: 0.12,
     cost: 1200,
@@ -109,21 +109,21 @@ test('balance: unit caps and attack pacing are unchanged', () => {
   assertEqual(UNIT_ATTACK_COOLDOWN, 1.0);
 });
 
-test('balance: slash profiles preserve player/boss differences', () => {
-  assertDeepEqual(SLASH.player, {
+test('balance: non-boss AI ranks use 150, bosses use 140 for sprint headroom', () => {
+  for (const rank of Object.values(UnitRank)) {
+    const expected = rank === UnitRank.BOSS ? 140 : 150;
+    assertEqual(RANK_STATS[rank].speedAi, expected, `${rank}.speedAi`);
+    assertEqual(RANK_STATS[rank].speedHuman, expected, `${rank}.speedHuman`);
+    assertEqual(RANK_STATS[rank].speedJitter, 0, `${rank}.speedJitter`);
+  }
+});
+
+test('balance: one human slash rule, distinct AI slash rules', () => {
+  assertDeepEqual(SLASH.humanBoss, {
     reach: 52,
     maxTargets: 3,
     arc: 0.42,
     closeRange: 30,
-    knockback: 14,
-    cooldown: 0.34,
-    anim: 0.18,
-  });
-  assertDeepEqual(SLASH.rivalBoss, {
-    reach: 52,
-    maxTargets: 3,
-    arc: 0.45,
-    closeRange: 32,
     knockback: 14,
     cooldown: 0.34,
     anim: 0.18,
@@ -146,6 +146,8 @@ test('balance: slash profiles preserve player/boss differences', () => {
     cooldown: 1.0,
     anim: 0.18,
   });
+  assertEqual(SLASH.player, undefined);
+  assertEqual(SLASH.rivalBoss, undefined);
 });
 
 test('balance: pistol stats and accuracy bands are ordered and covered', () => {
@@ -156,6 +158,7 @@ test('balance: pistol stats and accuracy bands are ordered and covered', () => {
   assertEqual(PISTOL.cooldownHuman, 0.65);
   assertEqual(PISTOL.outOfRange.failChance, 1);
   assertEqual(PISTOL.outOfRange.dmgMult, 0);
+  assertEqual(PISTOL.outOfRange.label, '0% chance');
 
   const expected = [
     [50, 0, 0.25],
@@ -177,6 +180,7 @@ test('balance: pistol stats and accuracy bands are ordered and covered', () => {
     assert(band.maxDist > previous, 'bands must be sorted');
     previous = band.maxDist;
     assert(band.label && band.color, `band ${i} display metadata`);
+    assertEqual(band.label, `${Math.round((1 - band.failChance) * 100)}% chance`, `band ${i} label`);
   }
   assertEqual(PISTOL.accuracyBands[0].inclusive, true);
   for (let i = 1; i < PISTOL.accuracyBands.length; i++) {

@@ -160,6 +160,68 @@ test('render: a full frame renders a city and updates the radar coordinates', ()
   );
 });
 
+test('render: the aim label shows only the chance percentage', () => {
+  withRenderState(
+    {
+      prepareMap: (map) => map.generateChunk(0, 0),
+    },
+    () => {
+      state.mouse = {
+        screenX: canvas.width / 2 + 120,
+        screenY: canvas.height / 2,
+        inside: true,
+      };
+      const ctx = canvas.getContext('2d');
+      const originalFillText = ctx.fillText.bind(ctx);
+      const texts = [];
+      ctx.fillText = (text, x, y) => {
+        texts.push(String(text));
+        return originalFillText(text, x, y);
+      };
+      try {
+        render();
+      } finally {
+        ctx.fillText = originalFillText;
+      }
+      assert(
+        texts.some((text) => /^\d+% chance$/.test(text)),
+        `expected a simplified chance label; got ${texts.join(' | ')}`
+      );
+      assert(
+        !texts.some((text) => /ACC|MISS|DMG|OUT OF RANGE/.test(text)),
+        `old accuracy label text should be gone; got ${texts.join(' | ')}`
+      );
+    }
+  );
+});
+
+test('render: visible chunks draw their income labels', () => {
+  withRenderState(
+    {
+      prepareMap: (map) => map.generateChunk(0, 0),
+    },
+    () => {
+      const ctx = canvas.getContext('2d');
+      const originalFillText = ctx.fillText.bind(ctx);
+      const texts = [];
+      ctx.fillText = (text, x, y) => {
+        texts.push(text);
+        return originalFillText(text, x, y);
+      };
+      try {
+        render();
+      } finally {
+        ctx.fillText = originalFillText;
+      }
+      const chunk = state.world.getChunk(0, 0);
+      assert(
+        texts.includes(chunk.incomeLabel),
+        `expected ${chunk.incomeLabel} to be drawn; got ${texts.join(' | ')}`
+      );
+    }
+  );
+});
+
 test('render: the radar follows the boss into another chunk', () => {
   withRenderState(
     {
@@ -174,6 +236,19 @@ test('render: the radar follows the boss into another chunk', () => {
       assertEqual(document.getElementById('minimap-coords').textContent, '(1, 0)');
       const pixel = minimapCanvas.getContext('2d').getImageData(10, 10, 1, 1).data;
       assert(pixel[3] > 0, 'minimap should be painted');
+    }
+  );
+});
+
+test('render: radar cache timer advances by the supplied frame dt', () => {
+  withRenderState(
+    {
+      prepareMap: (map) => map.generateChunk(0, 0),
+    },
+    () => {
+      state.minimapCacheTimer = 0.2;
+      renderMinimap(0.1);
+      assertEqual(state.minimapCacheTimer.toFixed(1), '0.3');
     }
   );
 });

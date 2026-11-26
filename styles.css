@@ -26,6 +26,12 @@
     #management-panel {
       backdrop-filter: blur(8px);
     }
+    /* Keep Ko-fi's popup, but hide its floating launcher; the top-bar Tip me button opens it. */
+    .floatingchat-container-wrap,
+    .floatingchat-container-wrap-mobi {
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
     .action-btn {
       position: relative;
       display: flex;
@@ -68,7 +74,7 @@
       box-shadow: 0 0 18px rgba(253, 224, 71, 0.35);
     }
     .action-icon {
-      font-size: 21px;
+      font-size: 15px;
       line-height: 1;
     }
     .action-label {
@@ -90,7 +96,7 @@
       top: 3px;
       right: 4px;
       z-index: 1;
-      font-size: 7px;
+      font-size: 9px;
       font-weight: 800;
       color: #a1a1aa;
       background: rgba(9, 9, 11, 0.8);

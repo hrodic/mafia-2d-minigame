@@ -9,15 +9,13 @@ import { state } from '../core/state.js';
 import { emit } from '../core/events.js';
 import { packChunkKey } from '../world/city.js';
 import { computeTilePath, MAX_ASTAR_PER_FRAME } from '../world/pathfinding.js';
-import { canOccupyPosition, isPushingFriendly } from './movement.js';
+import { moveUnit } from './movement.js';
 import { progressCapture, getCaptureRate } from './territory.js';
 import {
-  applyDamageToNpc,
-  damagePlayerBoss,
   performBossKnifeSlash,
   performBossPistolShot,
+  performSlash,
   tryBuyNpcBossArmor,
-  rollDamage,
 } from './combat.js';
 
 /** Scan the 3x3 chunk neighbourhood for the nearest enemy and nearby counts. */
@@ -113,29 +111,11 @@ export function updateNpcAi(u, dt) {
       if (u.rank === UnitRank.BOSS) {
         performBossKnifeSlash(u);
       } else if (u.attackCooldown <= 0) {
-        u.attackCooldown = melee.cooldown;
-        u.slashAnimTimer = melee.anim;
-        emit('slash:performed', {
-          x: u.x,
-          y: u.y,
-          facing: u.facing,
-          color: FACTION_META[u.faction].accent,
-          hitCount: 1,
-          isPlayer: false,
+        performSlash(u, {
+          profile: melee,
+          targets: [nearestEnemy.entity],
+          playerDamageColor: FACTION_META[u.faction].accent,
         });
-        const dmg = rollDamage(u.minDmg, u.maxDmg);
-        if (nearestEnemy.isPlayer) {
-          damagePlayerBoss(dmg, FACTION_META[u.faction].accent, '', u.facing, u.faction);
-        } else {
-          applyDamageToNpc(
-            nearestEnemy.entity,
-            dmg,
-            FACTION_META[u.faction].accent,
-            '',
-            u.facing,
-            u.faction
-          );
-        }
       }
     } else if (
       isRangedShooter &&
@@ -165,6 +145,8 @@ export function updateNpcAi(u, dt) {
 
   // Steering / A* movement
   const distToGoal = Math.hypot(u.goalX - u.x, u.goalY - u.y);
+  let moveX = 0;
+  let moveY = 0;
   if (distToGoal > 28) {
     if (
       (!u.path || u.path.length === 0 || u.pathTimer <= 0) &&
@@ -191,32 +173,23 @@ export function updateNpcAi(u, dt) {
 
     const angle = Math.atan2(steerY - u.y, steerX - u.x);
     u.facing = angle;
-    const vx = Math.cos(angle);
-    const vy = Math.sin(angle);
-    const pushingCrew = isPushingFriendly(u.x, u.y, u.bodyRadius, u.faction, u.id, false);
-    const spd = pushingCrew ? u.speed * 0.45 : u.speed;
-
-    let moved = false;
-    const nx = u.x + vx * spd * dt;
-    if (canOccupyPosition(nx, u.y, u.bodyRadius, u.id, false, u.faction)) {
-      u.x = nx;
-      moved = true;
-    }
-    const ny = u.y + vy * spd * dt;
-    if (canOccupyPosition(u.x, ny, u.bodyRadius, u.id, false, u.faction)) {
-      u.y = ny;
-      moved = true;
-    }
-    if (!moved) {
-      const perpAngle = angle + (Math.PI / 2) * u.dodgeDir;
-      const px = u.x + Math.cos(perpAngle) * spd * dt;
-      const py = u.y + Math.sin(perpAngle) * spd * dt;
-      if (canOccupyPosition(px, py, u.bodyRadius, u.id, false, u.faction)) {
-        u.x = px;
-        u.y = py;
-      }
-    }
+    moveX = Math.cos(angle);
+    moveY = Math.sin(angle);
   }
+
+  moveUnit(
+    u,
+    {
+      mx: moveX,
+      my: moveY,
+      sprint: false,
+      ignorePlayer: false,
+      ignoreNpcId: u.id,
+      dodge: true,
+      dodgeDir: u.dodgeDir,
+    },
+    dt
+  );
 
   // Territory capture by NPCs
   const uTile = state.world.worldToTile(u.x, u.y);

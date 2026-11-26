@@ -4,8 +4,8 @@ Rules for AI/human contributors. One source of truth per topic:
 
 - `README.md` — what the game is, controls, run/deploy.
 - `ARCHITECTURE.md` — layers, modules, data flow, invariants.
-- `PLAN.md` — phase status and the next step.
-- `EVENTS.md` — Phase 2 event-bus contract.
+- `PLAN.md` — phase status and the next step. **Current phase: Phase 4 (next).**
+- `EVENTS.md` — event-bus contract (implemented).
 - `.opencode/skills/` — task skills (zero-build refactor, multiplayer debug).
 
 Precedence: explicit user instruction > this file > other docs. Never invent a path,
@@ -78,6 +78,7 @@ command, number or test result; read the file or run the check.
 | Combat action bar / cooldowns | `src/ui/actionBar.js` |
 | Setup modal / banners / toasts | `src/ui/menus.js` |
 | Keyboard / mouse / HUD buttons | `src/ui/input.js` |
+| Local/remote commands | `src/sim/commands.js`, `src/ui/commandBridge.js` |
 | Snapshots / lobby / transport | `src/net/mpNet.js` |
 | World seed (generate / parse / UI) | `src/core/rng.js`, `src/ui/menus.js`, `src/sim/match.js`, `src/net/mpNet.js` |
 | Rendering / minimap / effects | `src/render/*` |
@@ -91,8 +92,8 @@ command, number or test result; read the file or run the check.
 
 - `sim/` is headless: never import `ui/`, `render/`, `audio/` or `net/`; never touch the
   DOM. Emit facts and let subscribers in `main.js` handle presentation; there are no runtime
-  hooks. `tools/check.ps1` enforces a layering ratchet; the remaining allowlist may only
-  shrink.
+  hooks. `tools/check.ps1` enforces this ratchet and currently reports `sim headless`; do not
+  add new presentation imports to `sim/`.
 - Events are discrete cross-layer facts: never emit per frame or per NPC per frame, and
   never route authoritative state or replication through events. Continuous visuals read
   `state`; snapshots stay authoritative. See `EVENTS.md`.

@@ -1,10 +1,9 @@
-# Events — Phase 2 contract
+# Events — event-bus contract
 
 Status: the bus is implemented in `src/core/events.js` with tests in
-`tests/events.test.js`. Phase 2 migration is complete: combat, units, economy, territory,
-match and AI use events, and the transitional `core/runtime.js` bridge has been removed.
-`sim/simulation.js` still has per-frame presentation coupling (canvas/interpolation/
-particles) until Phase 3, but no runtime hooks.
+`tests/events.test.js`. Phase 2/3 migration is complete: combat, units, economy, territory,
+match and AI emit facts, `core/runtime.js` is gone, and `sim/` is fully headless.
+Presentation, guest smoothing and particles live in `render/`; commands use `sim/commands.js`.
 
 ## Bus API
 
@@ -39,7 +38,6 @@ Naming: `domain:pastTense` (`unit:damaged`, `chunk:captured`, `match:victory`).
 | `match:initialized` | `{ tickDuration, worldSeed }` | match setup (new match built, even when autoStart is false) |
 | `unit:damaged` | `{ unit, amount, absorbed, remaining, isKill, isPlayer, hitAngle, textColor, suffix }` | combat |
 | `unit:died` | `{ unit, faction, rank, x, y, facing, fallAngle, isBoss, isPlayer }` | combat |
-| `boss:died` | `{ faction, boss, x, y }` | combat/territory |
 | `faction:eliminated` | `{ faction }` | territory |
 | `chunk:captured` | `{ chunk, faction }` | territory |
 | `slash:performed` | `{ x, y, facing, color, hitCount, isPlayer }` | combat |
@@ -65,30 +63,20 @@ the simulation RNG sequence.
 | `audio/combatSfx.js` | `unit:died`, `armor:equipped`, `slash:performed`, `shot:started`, `shot:fired` | synthesized combat SFX |
 | `render/recruitFx.js` | `unit:recruited` | `+RANK ($cost)` floating text |
 | `render/territoryFx.js` | `chunk:captured` | `SHORT TURF` floating text + minimap refresh |
-| `ui/hud.js` | `chunk:captured`, `faction:eliminated`, `armor:equipped`, `hour:tick`, `unit:recruited`, `match:defeat` | refresh HUD |
-| `ui/menus.js` | `ui:toast`, `match:victory`, `match:defeat` | toast + banner content |
-| `main.js` (presentation) | `faction:eliminated`, `match:victory` | elimination SFX/toast; victory SFX + banner |
+| `main.js` → `updateHUD` | `chunk:captured`, `faction:eliminated`, `armor:equipped` (player), `hour:tick`, `match:defeat` | refresh HUD |
+| `main.js` → `showToast` | `ui:toast` | toast text |
+| `main.js` (presentation) | `faction:eliminated`, `match:victory`, `match:defeat` | elimination SFX/toast; victory/defeat banners |
 | `main.js` (match setup) | `match:initialized` | reset effects, setup UI, recruit labels, HUD |
 | `net/mpNet.js` (host, wired in `main.js`) | `shot:fired` | broadcast the ephemeral SHOT event to guests |
 
 Snapshot state still comes from the host; events are only for ephemeral presentation.
 
-## Migration plan
+## Migration status
 
-1. **DONE** — `src/core/events.js` + `tests/events.test.js` (subscribe/emit/unsubscribe,
-   throw isolation, snapshot dispatch, clear).
-2. **Combat DONE** — `sim/combat.js` emits only; visuals in `render/combatFx.js`, audio in
-   `audio/combatSfx.js`, toasts/HUD/net wired in `main.js`.
-3. **Units DONE** — `sim/units.js` emits `unit:recruited`; text in `render/recruitFx.js`.
-4. **Economy DONE** — `sim/economy.js` emits `hour:tick`; HUD subscribes.
-5. **Territory DONE** — `sim/territory.js` emits `chunk:captured`, `faction:eliminated`,
-   `match:victory`, `match:defeat`; text in `render/territoryFx.js`, banners/HUD/SFX wired in
-   `main.js`.
-6. **Match DONE** — `sim/match.js` emits `match:initialized`; effects/UI/labels/HUD reset in
-   `main.js`. Only `sim/simulation.js` remains allowlisted (canvas aim, per-frame particles,
-   guest presentation; Phase 3).
-7. **HUD cadence DONE** — `ui/hudCadence.js` refreshes the HUD at 4 Hz from the main loop;
-   `core/runtime.js` is deleted.
+Migration is complete: combat, units, economy, territory, match and AI emit facts;
+`sim/` is fully headless; HUD cadence lives in `ui/hudCadence.js` and is called from the main
+loop. Tests: `tests/events.test.js` covers subscribe/emit/unsubscribe, throw isolation,
+snapshot dispatch and `clear()`.
 
 ## Testing
 
@@ -99,11 +87,9 @@ Snapshot state still comes from the host; events are only for ephemeral presenta
 
 ## Benefits
 
-- **Headless simulation.** `sim/combat.js`, `sim/units.js`, `sim/economy.js`,
-  `sim/territory.js` and `sim/match.js` now import only sim/core modules: they emit facts,
-  while `render/combatFx.js`, `render/recruitFx.js`, `render/territoryFx.js` and
-  `audio/combatSfx.js` subscribe. Only `sim/simulation.js` remains allowlisted (canvas aim,
-  per-frame particles, guest presentation; Phase 3).
+- **Headless simulation.** All of `sim/` imports only sim/core/config modules and emits
+  facts; `render/combatFx.js`, `render/recruitFx.js`, `render/territoryFx.js` and
+  `audio/combatSfx.js` subscribe. `tools/check.ps1` reports `sim headless`.
 - **One-to-many facts.** One `unit:damaged` can drive floating text, blood, SFX, HUD
   invalidation and an optional network effect without editing the damage function.
 - **One wiring point.** Subscribers are registered once in `main.js`, not scattered across
@@ -141,7 +127,7 @@ Use them for **discrete, cross-layer facts**:
   Render these from `state` every frame instead.
 - **Authoritative state or replication.** Snapshots are the source of truth; never rely on
   event delivery for correctness or late joiners.
-- **Input/commands.** Use the command path (Phase 3 dispatcher); events are not requests.
+- **Input/commands.** Use `sim/commands.js`; events are not requests.
 - **Command-style events** such as “refresh the HUD now”. Subscribe to the fact that caused
   it (`armor:equipped`, `chunk:captured`) instead; one fact can drive several subscribers.
 - **Intra-simulation control flow/AI communication.** Direct calls and data are simpler.
@@ -176,7 +162,7 @@ Rules:
 
 - **No movement/position/timer events.** Continuous visuals are state-driven.
 - **No HUD writes per event.** Set a dirty flag; refresh at the existing cadence (~4 Hz in
-  `simulation.js`), not on every damage tick.
+  `ui/hudCadence.js`), not on every damage tick.
 - **Cap and cull effects.** Limit floating damage numbers, tracers, casings and corpses;
   skip off-screen effects. At high NPC counts, merge multi-hit numbers.
 - **Throttle audio.** Do not create many overlapping synth nodes in one frame; the SFX layer

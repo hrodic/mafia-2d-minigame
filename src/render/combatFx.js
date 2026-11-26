@@ -65,19 +65,19 @@ export function onSlashPerformed({ x, y, facing, color, hitCount, isPlayer }) {
   }
 }
 
-export function onShotStarted({ shooterX, shooterY, muzzleX, muzzleY, angle }) {
+export function onShotStarted({ muzzleX, muzzleY, angle }) {
   spawnMuzzleFlash(muzzleX, muzzleY, angle);
 
   // Cosmetic randomness stays in the subscriber so the simulation's RNG sequence
   // is unchanged (this runs synchronously at the same point as before).
   const ejectAngle = angle + Math.PI * 0.55 + (Math.random() - 0.5) * 0.3;
   shellCasings.push({
-    x: shooterX + Math.cos(angle) * 8,
-    y: shooterY - 10,
-    z: 14,
-    vx: Math.cos(ejectAngle) * (45 + Math.random() * 35),
-    vy: Math.sin(ejectAngle) * (45 + Math.random() * 35),
-    vz: 75 + Math.random() * 35,
+    x: muzzleX,
+    y: muzzleY,
+    z: 12,
+    vx: Math.cos(ejectAngle) * (16 + Math.random() * 14),
+    vy: Math.sin(ejectAngle) * (16 + Math.random() * 14),
+    vz: 55 + Math.random() * 25,
     rot: Math.random() * Math.PI,
     vrot: (Math.random() - 0.5) * 24,
     life: 0.75,

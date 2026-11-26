@@ -25,6 +25,7 @@
           2D
         </span>
         <span id="hud-version-label" class="text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-500/15 border border-amber-500/40 text-amber-300 px-1.5 py-0.5 rounded"></span>
+        <a id="btn-support" href="https://ko-fi.com/hrodic" target="_blank" rel="noopener noreferrer" aria-label="Tip me on Ko-fi" title="Tip me on Ko-fi" class="text-[9px] font-mono font-bold uppercase tracking-wider bg-rose-500/10 border border-rose-500/40 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200 px-1.5 py-0.5 rounded transition">☕ Tip me</a>
         <span id="mp-hud-badge" class="hidden text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 px-1.5 py-0.5 rounded">
           MP HOST
         </span>
@@ -123,6 +124,11 @@
         </div>
         <div id="mgmt-cost-underboss" class="text-[9px] font-mono text-zinc-500 mt-0.5">$3,800 · $150/hr upkeep</div>
       </div>
+
+      <div class="flex items-center justify-between border-t border-zinc-800 pt-1.5">
+        <span class="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Total Upkeep</span>
+        <span id="mgmt-total-upkeep" class="font-mono text-[10px] text-amber-300">$0/hr</span>
+      </div>
     </section>
 
     <!-- Combat Action Bar (bottom-center) -->
@@ -131,16 +137,14 @@
         <span class="action-icon">🔪</span>
         <span class="action-label">Slash</span>
         <kbd class="action-key">F</kbd>
-        <span class="action-sub">Free</span>
         <span id="action-status-slash" class="action-status">READY</span>
         <span id="cooldown-slash" class="action-cooldown" aria-hidden="true"></span>
       </button>
 
       <button id="btn-pistol" type="button" class="action-btn action-amber" data-tip="9mm pistol — click to fire forward, or right-click to aim (RMB)" aria-label="Pistol (right click)">
-        <span class="action-icon">🔫</span>
+        <span class="action-icon">⌖</span>
         <span class="action-label">Pistol</span>
         <kbd class="action-key">RMB</kbd>
-        <span class="action-sub">Free</span>
         <span id="action-status-pistol" class="action-status">READY</span>
         <span id="cooldown-pistol" class="action-cooldown" aria-hidden="true"></span>
       </button>
@@ -589,14 +593,14 @@
 
   <script type="module" src="./src/main.js"></script>
 
-  <!-- Ko-fi support button (floating chat, bottom-left per Ko-fi's widget CSS). -->
+  <!-- Ko-fi popup widget: the floating launcher is hidden in CSS; the top-bar Tip me button opens it. -->
   <script src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js" defer></script>
   <script>
     window.addEventListener('DOMContentLoaded', () => {
       if (window.kofiWidgetOverlay) {
         kofiWidgetOverlay.draw('hrodic', {
           'type': 'floating-chat',
-          'floating-chat.donateButton.text': 'Support me',
+          'floating-chat.donateButton.text': 'Tip me',
           'floating-chat.donateButton.background-color': '#5cb85c',
           'floating-chat.donateButton.text-color': '#fff'
         });

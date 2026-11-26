@@ -1,11 +1,11 @@
 // Combat: shared damage/armor pipeline, melee slashes, pistol raycast and armor purchases.
 
 import { Faction, UnitRank } from '../config/enums.js';
-import { CHUNK_SIZE, TILE_SIZE, MAX_PISTOL_RANGE } from '../config/constants.js';
+import { CHUNK_SIZE, TILE_SIZE, MAX_PISTOL_RANGE, HIT_FLASH_DURATION } from '../config/constants.js';
 import { COST_BOSS_ARMOR, MAX_BOSS_ARMOR, PISTOL, SLASH } from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
 import { getPropFootprint, rectContains } from '../world/geometry.js';
-import { state, isLocalBossAlive } from '../core/state.js';
+import { state, forEachUnit } from '../core/state.js';
 import { emit } from '../core/events.js';
 import { canOccupyPosition, getEntityCollisionRadius } from './movement.js';
 import { eliminateFaction } from './territory.js';
@@ -29,7 +29,10 @@ export function applyDamageToNpc(
   killerFaction = null
 ) {
   if (!target) return false;
-  target.hitFlashTimer = 0.16;
+  const isPlayer = target === state.player;
+  if (isPlayer && !target.alive) return false;
+
+  target.hitFlashTimer = HIT_FLASH_DURATION;
 
   let remainingDmg = dmg;
   let absorbed = 0;
@@ -50,7 +53,7 @@ export function applyDamageToNpc(
     absorbed,
     remaining: remainingDmg,
     isKill,
-    isPlayer: false,
+    isPlayer,
     hitAngle,
     textColor,
     suffix,
@@ -58,232 +61,152 @@ export function applyDamageToNpc(
 
   if (absorbed > 0 && target.armor <= 0) {
     target.armor = 0;
-    emit('armor:broken', { unit: target, isPlayer: false });
+    emit('armor:broken', { unit: target, isPlayer });
   }
 
   if (isKill) {
-    const deadIdx = state.npcs.indexOf(target);
-    if (deadIdx !== -1) {
-      const deadFaction = target.faction;
-      const wasBoss = target.rank === UnitRank.BOSS;
-      const fallAngle = hitAngle ?? target.facing;
-      creditKill(killerFaction, deadFaction);
-      state.npcs.splice(deadIdx, 1);
-      emit('unit:died', {
-        unit: target,
-        faction: deadFaction,
-        rank: target.rank,
-        x: target.x,
-        y: target.y,
-        facing: target.facing,
-        fallAngle,
-        isBoss: wasBoss,
-        isPlayer: false,
-      });
-      if (wasBoss) {
-        eliminateFaction(deadFaction);
-      }
+    const deadFaction = target.faction;
+    const wasBoss = target.rank === UnitRank.BOSS;
+    const fallAngle = hitAngle ?? target.facing;
+    let deadIdx = -1;
+    if (!isPlayer) {
+      deadIdx = state.npcs.indexOf(target);
+      // Non-player targets that are not in the roster do not emit death.
+      if (deadIdx === -1) return isKill;
+    }
+
+    creditKill(killerFaction, deadFaction);
+    if (deadIdx !== -1) state.npcs.splice(deadIdx, 1);
+    emit('unit:died', {
+      unit: target,
+      faction: deadFaction,
+      rank: target.rank,
+      x: target.x,
+      y: target.y,
+      facing: target.facing,
+      fallAngle,
+      isBoss: wasBoss,
+      isPlayer,
+    });
+    if (wasBoss) {
+      eliminateFaction(deadFaction);
     }
   }
   return isKill;
 }
 
-export function executeBossSlashForFaction(faction) {
-  if (faction === Faction.PLAYER) {
-    performKnifeSlash();
-    return;
-  }
-  const bossNpc = state.npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS);
-  if (!bossNpc || bossNpc.attackCooldown > 0) return;
-
-  const profile = SLASH.rivalBoss;
-  bossNpc.attackCooldown = profile.cooldown;
-  bossNpc.slashAnimTimer = profile.anim;
-
-  const reach = profile.reach;
-  const maxTargets = profile.maxTargets;
+function collectSlashTargets(attacker, profile, explicitTargets = null) {
   const candidates = [];
 
-  if (state.player.alive && faction !== Faction.PLAYER) {
-    const dx = state.player.x - bossNpc.x;
-    const dy = state.player.y - bossNpc.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist <= reach) {
-      let angleDiff = Math.abs(Math.atan2(dy, dx) - bossNpc.facing);
-      if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
-      if (angleDiff <= Math.PI * profile.arc || dist < profile.closeRange) {
-        candidates.push({ isPlayer: true, entity: state.player, dist, dx, dy });
-      }
-    }
-  }
+  const consider = (entity) => {
+    if (!entity || entity === attacker) return;
+    if (entity.faction === attacker.faction) return;
+    if (entity === state.player && !state.player.alive) return;
 
-  for (let i = 0; i < state.npcs.length; i++) {
-    const other = state.npcs[i];
-    if (other.faction === faction) continue;
-    const dx = other.x - bossNpc.x;
-    const dy = other.y - bossNpc.y;
+    const dx = entity.x - attacker.x;
+    const dy = entity.y - attacker.y;
     const dist = Math.hypot(dx, dy);
-    if (dist <= reach) {
-      let angleDiff = Math.abs(Math.atan2(dy, dx) - bossNpc.facing);
+    if (dist > profile.reach) return;
+
+    if (profile.arc != null && profile.closeRange != null) {
+      const angleToTarget = Math.atan2(dy, dx);
+      let angleDiff = Math.abs(angleToTarget - attacker.facing);
       if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
-      if (angleDiff <= Math.PI * profile.arc || dist < profile.closeRange) {
-        candidates.push({ isPlayer: false, entity: other, dist, dx, dy });
-      }
+      if (angleDiff > Math.PI * profile.arc && dist >= profile.closeRange) return;
     }
+
+    candidates.push({ entity, isPlayer: entity === state.player, dist, dx, dy });
+  };
+
+  if (explicitTargets) {
+    for (const entity of explicitTargets) consider(entity);
+  } else {
+    forEachUnit(consider);
   }
 
   candidates.sort((a, b) => a.dist - b.dist);
-  const targets = candidates.slice(0, maxTargets);
-  emit('slash:performed', {
-    x: bossNpc.x,
-    y: bossNpc.y,
-    facing: bossNpc.facing,
-    color: FACTION_META[faction].accent,
-    hitCount: targets.length,
-    isPlayer: false,
-  });
+  return candidates.slice(0, profile.maxTargets);
+}
+
+/**
+ * One melee slash pipeline for the player, remote-human bosses and AI.
+ * The profile carries reach/arc/knockback/cooldown; params carry the remaining
+ * presentation and target-selection differences.
+ */
+export function performSlash(attacker, params = {}) {
+  if (!attacker || attacker.attackCooldown > 0) return false;
+  const profile = params.profile || SLASH.aiMelee;
+  const isPlayer = attacker === state.player;
+
+  attacker.attackCooldown = profile.cooldown;
+  attacker.slashAnimTimer = profile.anim;
+
+  const targets = collectSlashTargets(attacker, profile, params.targets || null);
+
+  if (params.faceNearest && targets.length > 0) {
+    attacker.facing = Math.atan2(targets[0].dy, targets[0].dx);
+  }
+
+  const hitCount = targets.length;
+  if (hitCount > 0 || params.emitWhenEmpty !== false) {
+    emit('slash:performed', {
+      x: attacker.x,
+      y: attacker.y,
+      facing: attacker.facing,
+      color: params.eventColor ?? (isPlayer ? '#f43f5e' : FACTION_META[attacker.faction].accent),
+      hitCount,
+      isPlayer,
+    });
+  }
+
+  const playerDamageColor = params.playerDamageColor ?? '#f43f5e';
+  const npcDamageColor =
+    params.npcDamageColor ?? (isPlayer ? '#fbbf24' : FACTION_META[attacker.faction].accent);
+  const suffix = params.suffix ?? '';
 
   for (const item of targets) {
-    const dmg = rollDamage(bossNpc.minDmg, bossNpc.maxDmg);
-    const strikeAngle = item.dist > 0.01 ? Math.atan2(item.dy, item.dx) : bossNpc.facing;
+    const dmg = rollDamage(attacker.minDmg, attacker.maxDmg);
+    const strikeAngle = item.dist > 0.01 ? Math.atan2(item.dy, item.dx) : attacker.facing;
+
     if (item.isPlayer) {
-      damagePlayerBoss(dmg, '#f43f5e', '', strikeAngle, faction);
-    } else {
-      const knockX = item.entity.x + Math.cos(strikeAngle) * profile.knockback;
-      const knockY = item.entity.y + Math.sin(strikeAngle) * profile.knockback;
-      const nRad = getEntityCollisionRadius(item.entity.rank);
-      if (canOccupyPosition(knockX, knockY, nRad, item.entity.id, false)) {
-        item.entity.x = knockX;
-        item.entity.y = knockY;
-      }
-      applyDamageToNpc(item.entity, dmg, FACTION_META[faction].accent, '', strikeAngle, faction);
+      damagePlayerBoss(dmg, playerDamageColor, suffix, strikeAngle, attacker.faction);
+      continue;
     }
+
+    const knockX = item.entity.x + Math.cos(strikeAngle) * profile.knockback;
+    const knockY = item.entity.y + Math.sin(strikeAngle) * profile.knockback;
+    const nRad = getEntityCollisionRadius(item.entity.rank);
+    if (canOccupyPosition(knockX, knockY, nRad, item.entity.id, false)) {
+      item.entity.x = knockX;
+      item.entity.y = knockY;
+    }
+    applyDamageToNpc(item.entity, dmg, npcDamageColor, suffix, strikeAngle, attacker.faction);
   }
+
+  return hitCount > 0;
+}
+
+export function executeBossSlashForFaction(faction) {
+  if (faction === Faction.PLAYER) return performKnifeSlash();
+  const bossNpc = state.npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS);
+  if (!bossNpc) return false;
+  return performSlash(bossNpc, { profile: SLASH.humanBoss });
 }
 
 export function performKnifeSlash() {
-  if (!state.gameStarted) return;
-  if (state.net && state.net.isGuest()) {
-    if (!isLocalBossAlive()) return;
-    state.net.sendCommand({ cmd: 'SLASH' });
-    return;
-  }
-  if (!state.player.alive || state.player.attackCooldown > 0) return;
-
-  const profile = SLASH.player;
-  state.player.attackCooldown = profile.cooldown;
-  state.player.slashAnimTimer = profile.anim;
-
-  const reach = profile.reach;
-  const maxTargets = profile.maxTargets;
-  const candidates = [];
-
-  for (let i = 0; i < state.npcs.length; i++) {
-    const npc = state.npcs[i];
-    if (npc.faction === Faction.PLAYER) continue;
-    const dx = npc.x - state.player.x;
-    const dy = npc.y - state.player.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist <= reach) {
-      const angleToNpc = Math.atan2(dy, dx);
-      let angleDiff = Math.abs(angleToNpc - state.player.facing);
-      if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
-      if (angleDiff <= Math.PI * profile.arc || dist < profile.closeRange) {
-        candidates.push({ npc, dist, dx, dy });
-      }
-    }
-  }
-
-  candidates.sort((a, b) => a.dist - b.dist);
-  const targets = candidates.slice(0, maxTargets);
-  const hitCount = targets.length;
-  emit('slash:performed', {
-    x: state.player.x,
-    y: state.player.y,
-    facing: state.player.facing,
-    color: '#f43f5e',
-    hitCount,
-    isPlayer: true,
-  });
-
-  for (const item of targets) {
-    const { npc, dist, dx, dy } = item;
-    const dmg = rollDamage(state.player.minDmg, state.player.maxDmg);
-
-    const pushAngle = dist > 0.01 ? Math.atan2(dy, dx) : state.player.facing;
-    const knockX = npc.x + Math.cos(pushAngle) * profile.knockback;
-    const knockY = npc.y + Math.sin(pushAngle) * profile.knockback;
-    const nRad = getEntityCollisionRadius(npc.rank);
-    if (canOccupyPosition(knockX, knockY, nRad, npc.id, false)) {
-      npc.x = knockX;
-      npc.y = knockY;
-    }
-
-    applyDamageToNpc(npc, dmg, '#fbbf24', '', pushAngle, Faction.PLAYER);
-  }
+  if (!state.gameStarted) return false;
+  if (!state.player.alive) return false;
+  return performSlash(state.player, { profile: SLASH.humanBoss });
 }
 
 export function performBossKnifeSlash(bossNpc) {
-  if (bossNpc.attackCooldown > 0) return false;
-  const profile = SLASH.aiBoss;
-  bossNpc.attackCooldown = profile.cooldown;
-  bossNpc.slashAnimTimer = profile.anim;
-
-  const reach = profile.reach;
-  const maxTargets = profile.maxTargets;
-  const candidates = [];
-
-  if (state.player.alive && bossNpc.faction !== Faction.PLAYER) {
-    const dx = state.player.x - bossNpc.x;
-    const dy = state.player.y - bossNpc.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist <= reach) {
-      candidates.push({ isPlayer: true, entity: state.player, dist, dx, dy });
-    }
-  }
-
-  for (let i = 0; i < state.npcs.length; i++) {
-    const other = state.npcs[i];
-    if (other.faction === bossNpc.faction) continue;
-    const dx = other.x - bossNpc.x;
-    const dy = other.y - bossNpc.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist <= reach) {
-      candidates.push({ isPlayer: false, entity: other, dist, dx, dy });
-    }
-  }
-
-  candidates.sort((a, b) => a.dist - b.dist);
-  const targets = candidates.slice(0, maxTargets);
-  if (targets.length === 0) return false;
-
-  bossNpc.facing = Math.atan2(targets[0].dy, targets[0].dx);
-  emit('slash:performed', {
-    x: bossNpc.x,
-    y: bossNpc.y,
-    facing: bossNpc.facing,
-    color: FACTION_META[bossNpc.faction].accent,
-    hitCount: targets.length,
-    isPlayer: false,
+  if (!bossNpc) return false;
+  return performSlash(bossNpc, {
+    profile: SLASH.aiBoss,
+    suffix: '🔪',
+    emitWhenEmpty: false,
+    faceNearest: true,
   });
-
-  for (const item of targets) {
-    const dmg = rollDamage(bossNpc.minDmg, bossNpc.maxDmg);
-    const pushAngle = item.dist > 0.01 ? Math.atan2(item.dy, item.dx) : bossNpc.facing;
-    if (item.isPlayer) {
-      damagePlayerBoss(dmg, '#f43f5e', '🔪', pushAngle, bossNpc.faction);
-    } else {
-      const knockX = item.entity.x + Math.cos(pushAngle) * profile.knockback;
-      const knockY = item.entity.y + Math.sin(pushAngle) * profile.knockback;
-      const nRad = getEntityCollisionRadius(item.entity.rank);
-      if (canOccupyPosition(knockX, knockY, nRad, item.entity.id, false)) {
-        item.entity.x = knockX;
-        item.entity.y = knockY;
-      }
-      applyDamageToNpc(item.entity, dmg, FACTION_META[bossNpc.faction].accent, '🔪', pushAngle, bossNpc.faction);
-    }
-  }
-  return true;
 }
 
 export function traceBulletRay(x0, y0, angle, maxDist) {
@@ -323,20 +246,26 @@ export function getPistolAccuracyInfo(dist) {
   return PISTOL.outOfRange;
 }
 
+export function getPistolAim(shooterX, shooterY, targetX, targetY) {
+  const centerAngle = Math.atan2(targetY - shooterY, targetX - shooterX);
+  const muzzleX = shooterX + Math.cos(centerAngle) * 18;
+  const muzzleY = shooterY - 14 + Math.sin(centerAngle) * 6;
+  const dx = targetX - muzzleX;
+  const dy = targetY - muzzleY;
+  const angle = dx * dx + dy * dy > 0.0001 ? Math.atan2(dy, dx) : centerAngle;
+  return { angle, centerAngle, muzzleX, muzzleY };
+}
+
 export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY) {
   if (shooter.attackCooldown > 0) return false;
 
-  const dx = targetX - shooter.x;
-  const dy = targetY - shooter.y;
-  const angle = Math.atan2(dy, dx);
+  const { angle, muzzleX, muzzleY } = getPistolAim(shooter.x, shooter.y, targetX, targetY);
   shooter.facing = angle;
   const isHumanShooter = isPlayerShooter || Boolean(shooter.humanPeerId);
   shooter.attackCooldown = isHumanShooter ? PISTOL.cooldownHuman : PISTOL.cooldownAi;
   shooter.muzzleFlashTimer = 0.09;
 
   const shooterFaction = isPlayerShooter ? Faction.PLAYER : shooter.faction;
-  const muzzleX = shooter.x + Math.cos(angle) * 18;
-  const muzzleY = shooter.y - 14 + Math.sin(angle) * 6;
   emit('shot:started', {
     shooter,
     shooterX: shooter.x,
@@ -348,7 +277,7 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
     isPlayerShooter,
   });
 
-  const envHit = traceBulletRay(shooter.x, shooter.y, angle, MAX_PISTOL_RANGE);
+  const envHit = traceBulletRay(muzzleX, muzzleY, angle, MAX_PISTOL_RANGE);
   const maxRayDist = envHit.dist;
 
   let bestTarget = null;
@@ -361,10 +290,10 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
   for (let i = 0; i < state.npcs.length; i++) {
     const npc = state.npcs[i];
     if (npc.faction === shooterFaction) continue;
-    const rx = npc.x - shooter.x;
-    const ry = npc.y - shooter.y;
+    const rx = npc.x - muzzleX;
+    const ry = npc.y - muzzleY;
     const proj = rx * cos + ry * sin;
-    if (proj < 16 || proj > bestProjDist) continue;
+    if (proj < 0 || proj > bestProjDist) continue;
     const perp = Math.abs(-rx * sin + ry * cos);
     const hitRadius = getEntityCollisionRadius(npc.rank) + 4;
     if (perp <= hitRadius) {
@@ -375,10 +304,10 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
   }
 
   if (!isPlayerShooter && state.player.alive && shooterFaction !== Faction.PLAYER) {
-    const rx = state.player.x - shooter.x;
-    const ry = state.player.y - shooter.y;
+    const rx = state.player.x - muzzleX;
+    const ry = state.player.y - muzzleY;
     const proj = rx * cos + ry * sin;
-    if (proj >= 16 && proj <= bestProjDist) {
+    if (proj >= 0 && proj <= bestProjDist) {
       const perp = Math.abs(-rx * sin + ry * cos);
       const hitRadius = getEntityCollisionRadius(UnitRank.BOSS) + 4;
       if (perp <= hitRadius) {
@@ -397,8 +326,8 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
     }
   }
 
-  let endX = shooter.x + cos * bestProjDist;
-  let endY = (shooter.y - 10) + sin * bestProjDist;
+  let endX = muzzleX + cos * bestProjDist;
+  let endY = muzzleY + sin * bestProjDist;
   let missTargetX = null;
   let missTargetY = null;
   let impact = { blocked: false, x: null, y: null };
@@ -406,9 +335,9 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
   if (bestTarget && shotMissed) {
     const missDir = Math.random() < 0.5 ? 1 : -1;
     const deflectAngle = angle + missDir * (0.045 + Math.random() * 0.035);
-    const missRay = traceBulletRay(shooter.x, shooter.y, deflectAngle, MAX_PISTOL_RANGE);
+    const missRay = traceBulletRay(muzzleX, muzzleY, deflectAngle, MAX_PISTOL_RANGE);
     endX = missRay.x;
-    endY = missRay.y - 10;
+    endY = missRay.y;
     missTargetX = bestTarget.x;
     missTargetY = bestTarget.y;
     if (missRay.blocked) {
@@ -464,54 +393,7 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
 }
 
 export function damagePlayerBoss(dmg, textColor = '#f43f5e', suffix = '', hitAngle = null, killerFaction = null) {
-  if (!state.player.alive) return;
-  state.player.hitFlashTimer = 0.15;
-
-  let remainingDmg = dmg;
-  let absorbed = 0;
-  if (state.player.armor > 0) {
-    absorbed = Math.min(state.player.armor, remainingDmg);
-    state.player.armor -= absorbed;
-    remainingDmg -= absorbed;
-  }
-
-  if (remainingDmg > 0) {
-    state.player.hp -= remainingDmg;
-  }
-
-  const isKill = state.player.hp <= 0 && state.player.alive;
-  emit('unit:damaged', {
-    unit: state.player,
-    amount: dmg,
-    absorbed,
-    remaining: remainingDmg,
-    isKill,
-    isPlayer: true,
-    hitAngle,
-    textColor,
-    suffix,
-  });
-
-  if (absorbed > 0 && state.player.armor <= 0) {
-    state.player.armor = 0;
-    emit('armor:broken', { unit: state.player, isPlayer: true });
-  }
-
-  if (isKill) {
-    creditKill(killerFaction, Faction.PLAYER);
-    emit('unit:died', {
-      unit: state.player,
-      faction: Faction.PLAYER,
-      rank: UnitRank.BOSS,
-      x: state.player.x,
-      y: state.player.y,
-      facing: state.player.facing,
-      fallAngle: hitAngle ?? state.player.facing,
-      isBoss: true,
-      isPlayer: true,
-    });
-    eliminateFaction(Faction.PLAYER);
-  }
+  return applyDamageToNpc(state.player, dmg, textColor, suffix, hitAngle, killerFaction);
 }
 
 export function executeBuyArmorForFaction(faction) {
@@ -550,14 +432,6 @@ export function executeBuyArmorForFaction(faction) {
 
 export function buyBossArmor() {
   if (!state.gameStarted) return;
-  if (state.net && state.net.isGuest()) {
-    if (!isLocalBossAlive()) {
-      emit('ui:toast', { message: 'Your Boss must be alive to equip armor!' });
-      return;
-    }
-    state.net.sendCommand({ cmd: 'BUY_ARMOR' });
-    return;
-  }
   if (!state.player.alive || !state.factionAlive[Faction.PLAYER]) {
     emit('ui:toast', { message: 'Your Boss must be alive to equip armor!' });
     return;

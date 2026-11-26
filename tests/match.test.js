@@ -38,6 +38,10 @@ const STATE_KEYS = [
   'camera',
   'net',
   'floatingTexts',
+  'bucketPool',
+  'keys',
+  'mouse',
+  'sprintButtonHeld',
 ];
 
 function withMatchState(fn) {
@@ -173,5 +177,124 @@ test('match: initWorld clears stale entities and effects', () => {
     initWorld(5, false, 10, 'HIGH', 2, ['COSA_NOSTRA', 'BRATVA'], 5);
     assertEqual(state.npcs.length, 1); // the freshly spawned rival boss only
     assertEqual(state.floatingTexts.length, 0);
+  });
+});
+
+test('match: initWorld preserves the imported state, world and net identities', () => {
+  withMatchState(() => {
+    const importedState = state;
+    const world = state.world;
+    const net = {
+      isActive: () => true,
+      isHost: () => true,
+      isHumanFaction: () => false,
+      getPeerForFaction: () => null,
+    };
+    state.net = net;
+
+    initWorld(5, false, 10, 'HIGH', 2, ['COSA_NOSTRA', 'BRATVA'], 77);
+
+    assert(state === importedState, 'exported state identity must be preserved');
+    assert(state.world === world, 'CityMap instance must be preserved');
+    assert(state.net === net, 'net bridge must be preserved');
+    assert(!state.npcs.includes(state.player), 'player stays outside the NPC collection');
+  });
+});
+
+test('match: initWorld resets stale flags, timers, economy, caps and player state', () => {
+  withMatchState(() => {
+    state.gameStarted = true;
+    state.isSpectating = true;
+    state.gameOver = true;
+    state.victoryShown = true;
+    state.tickTimer = 9;
+    state.gameHour = 3;
+    state.hudUpdateTimer = 4;
+    state.minimapCacheTimer = 0.2;
+    state.nextNpcId = 500;
+    state.astarBudgetThisFrame = 12;
+    state.treasuries[Faction.PLAYER] = 1;
+    state.treasuries[Faction.RIVAL_3] = 2;
+    state.factionAlive[Faction.PLAYER] = false;
+    state.factionKills[Faction.PLAYER] = 7;
+    state.playerSpawnCaps[UnitRank.SOLDIER] = 1;
+    Object.assign(state.player, {
+      x: -100,
+      y: -100,
+      targetX: 5,
+      targetY: 6,
+      path: [{ x: 1, y: 1 }],
+      pathTimer: 3,
+      hp: 1,
+      maxHp: 1,
+      armor: 2,
+      armorCooldown: 4,
+      sprintTimer: 5,
+      sprintCooldown: 6,
+      isSprinting: true,
+      alive: false,
+      attackCooldown: 7,
+      slashAnimTimer: 8,
+      muzzleFlashTimer: 9,
+      hitFlashTimer: 10,
+    });
+    state.camera.x = -50;
+    state.camera.y = -60;
+    state.bucketPool = [...state.bucketPool, []];
+    state.floatingTexts.push({ text: 'stale' });
+    state.spatialBuckets.set('stale', []);
+    state.keys = new Set(['w']);
+    state.mouse = { screenX: 1, screenY: 2, inside: true };
+
+    initWorld(5, false, 10, 'HIGH', 2, ['COSA_NOSTRA', 'BRATVA'], 123);
+
+    assertEqual(state.gameStarted, false);
+    assertEqual(state.isSpectating, false);
+    assertEqual(state.gameOver, false);
+    assertEqual(state.victoryShown, false);
+    assertEqual(state.tickTimer, 0);
+    assertEqual(state.gameHour, 12);
+    assertEqual(state.hudUpdateTimer, 0);
+    assertEqual(state.minimapCacheTimer, 1.0);
+    assertEqual(state.nextNpcId, 1 + 1, 'one active rival boss should have spawned');
+    assertEqual(state.astarBudgetThisFrame, 0);
+
+    assertEqual(state.treasuries[Faction.PLAYER], 3000);
+    assertEqual(state.treasuries[Faction.RIVAL_3], 3000);
+    assertEqual(state.treasuries[Faction.RIVAL_1], 0);
+    assertEqual(state.factionAlive[Faction.PLAYER], true);
+    assertEqual(state.factionAlive[Faction.RIVAL_3], true);
+    assertEqual(state.factionAlive[Faction.RIVAL_1], false);
+    assertEqual(state.factionKills[Faction.PLAYER], 0);
+
+    // 5x5 = 25 blocks: 22 soldiers, 2 captains, 1 underboss; human caps are 50%.
+    assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 11);
+    assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 1);
+    assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 1);
+
+    assertEqual(state.player.x, 1.5 * 44);
+    assertEqual(state.player.y, 1.5 * 44);
+    assertEqual(state.player.targetX, null);
+    assertEqual(state.player.targetY, null);
+    assertEqual(state.player.path, null);
+    assertEqual(state.player.pathTimer, 0);
+    assertEqual(state.player.hp, 400);
+    assertEqual(state.player.maxHp, 400);
+    assertEqual(state.player.armor, 0);
+    assertEqual(state.player.armorCooldown, 0);
+    assertEqual(state.player.sprintTimer, 0);
+    assertEqual(state.player.sprintCooldown, 0);
+    assertEqual(state.player.isSprinting, false);
+    assertEqual(state.player.alive, true);
+    assertEqual(state.player.attackCooldown, 0);
+    assertEqual(state.player.slashAnimTimer, 0);
+    assertEqual(state.player.muzzleFlashTimer, 0);
+    assertEqual(state.player.hitFlashTimer, 0);
+
+    assertEqual(state.floatingTexts.length, 0);
+    assertEqual(state.bucketPool.length, 0);
+    assertEqual(state.spatialBuckets.size, 0);
+    assertEqual(state.keys.size, 0);
+    assertEqual(state.mouse.inside, false);
   });
 });

@@ -13,6 +13,8 @@ export const INCOME_TIERS = {
 
 export const UNIT_ATTACK_COOLDOWN = 1.0;
 
+// All AI-controlled ranks share one 150 px/s base for now. Role/tier speed can
+// diverge later; human-controlled bosses still use speedHuman.
 export const RANK_STATS = {
   [UnitRank.BOSS]: {
     hp: 400,
@@ -20,8 +22,8 @@ export const RANK_STATS = {
     maxArmor: 300,
     minDmg: 20,
     maxDmg: 40,
-    speedAi: 152,
-    speedHuman: 225,
+    speedAi: 140,
+    speedHuman: 140,
     speedJitter: 0,
     radius: 13.5,
     captureRate: 0.375,
@@ -34,8 +36,8 @@ export const RANK_STATS = {
     maxArmor: 120,
     minDmg: 26,
     maxDmg: 38,
-    speedAi: 148,
-    speedHuman: 148,
+    speedAi: 150,
+    speedHuman: 150,
     speedJitter: 0,
     radius: 12.8,
     captureRate: 0.24,
@@ -48,8 +50,8 @@ export const RANK_STATS = {
     maxArmor: 0,
     minDmg: 18,
     maxDmg: 28,
-    speedAi: 140,
-    speedHuman: 140,
+    speedAi: 150,
+    speedHuman: 150,
     speedJitter: 0,
     radius: 12,
     captureRate: 0.18,
@@ -62,9 +64,9 @@ export const RANK_STATS = {
     maxArmor: 0,
     minDmg: 10,
     maxDmg: 18,
-    speedAi: 128,
-    speedHuman: 128,
-    speedJitter: 16,
+    speedAi: 150,
+    speedHuman: 150,
+    speedJitter: 0,
     radius: 11,
     captureRate: 0.12,
     cost: 1200,
@@ -80,20 +82,12 @@ export const UNIT_CAPS = {
 };
 
 export const SLASH = {
-  player: {
+  // One rule set for every human-controlled boss (local player or remote guest).
+  humanBoss: {
     reach: 52,
     maxTargets: 3,
     arc: 0.42,
     closeRange: 30,
-    knockback: 14,
-    cooldown: 0.34,
-    anim: 0.18,
-  },
-  rivalBoss: {
-    reach: 52,
-    maxTargets: 3,
-    arc: 0.45,
-    closeRange: 32,
     knockback: 14,
     cooldown: 0.34,
     anim: 0.18,
@@ -127,7 +121,7 @@ export const PISTOL = {
   outOfRange: {
     failChance: 1,
     dmgMult: 0,
-    label: 'OUT OF RANGE',
+    label: '0% chance',
     color: '#71717a',
   },
   accuracyBands: [
@@ -136,43 +130,43 @@ export const PISTOL = {
       inclusive: true,
       failChance: 0,
       dmgMult: 0.25,
-      label: 'POINT-BLANK · -75% DMG',
+      label: '100% chance',
       color: '#f97316',
     },
-    { maxDist: 100, failChance: 0, dmgMult: 0.5, label: 'CLOSE · -50% DMG', color: '#fb923c' },
+    { maxDist: 100, failChance: 0, dmgMult: 0.5, label: '100% chance', color: '#fb923c' },
     {
       maxDist: MAX_PISTOL_RANGE * 0.25,
       failChance: 0,
       dmgMult: 1,
-      label: '100% ACC · FULL DMG',
+      label: '100% chance',
       color: '#34d399',
     },
     {
       maxDist: MAX_PISTOL_RANGE * 0.5,
       failChance: 0.05,
       dmgMult: 1,
-      label: '95% ACC (5% MISS)',
+      label: '95% chance',
       color: '#a3e635',
     },
     {
       maxDist: MAX_PISTOL_RANGE * 0.75,
       failChance: 0.1,
       dmgMult: 1,
-      label: '90% ACC (10% MISS)',
+      label: '90% chance',
       color: '#fbbf24',
     },
     {
       maxDist: MAX_PISTOL_RANGE * 0.9,
       failChance: 0.25,
       dmgMult: 1,
-      label: '75% ACC (25% MISS)',
+      label: '75% chance',
       color: '#fb923c',
     },
     {
       maxDist: Infinity,
       failChance: 0.5,
       dmgMult: 1,
-      label: '50% ACC (50% MISS)',
+      label: '50% chance',
       color: '#f43f5e',
     },
   ],

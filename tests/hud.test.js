@@ -32,6 +32,11 @@ function makeWorld() {
 
 function makePlayer(overrides = {}) {
   return {
+    id: 0,
+    faction: Faction.PLAYER,
+    rank: UnitRank.BOSS,
+    control: 'local',
+    bodyRadius: 13.5,
     x: 0,
     y: 0,
     hp: 200,
@@ -95,6 +100,7 @@ test('hud: updateHUD writes HP, armor, cash, clock and territory stats', () => {
       const stats = document.getElementById('stats-badge').textContent;
       assert(stats.includes('Turf: 1/2'), stats);
       assert(stats.includes('Crew: 2'), stats);
+      assertEqual(document.getElementById('mgmt-total-upkeep').textContent, '$50/hr');
       const board = document.getElementById('faction-board').textContent;
       assert(board.includes('Cosa Nostra'), board);
       assert(board.includes('(You)'), board);

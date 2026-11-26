@@ -1,16 +1,23 @@
 // Combat tests: damage/armor, slash/pistol, accuracy, raycast and armor purchases.
-import { test, assert, assertEqual } from './harness.js';
+import { test, assert, assertEqual, assertClose } from './harness.js';
 import { Faction, UnitRank, PropType } from '../src/config/enums.js';
-import { CHUNK_SIZE, TILE_SIZE, MAX_PISTOL_RANGE } from '../src/config/constants.js';
+import { CHUNK_SIZE, TILE_SIZE, MAX_PISTOL_RANGE, HIT_FLASH_DURATION } from '../src/config/constants.js';
 import {
   BOSS_MAX_HP,
   MAX_BOSS_ARMOR,
   COST_BOSS_ARMOR,
   UNIT_ATTACK_COOLDOWN,
 } from '../src/config/balance.js';
+import { FACTION_META } from '../src/config/organizations.js';
 import { state } from '../src/core/state.js';
 import { on } from '../src/core/events.js';
-import { bloodParticles, bulletTracers, shellCasings, resetEffects } from '../src/render/effects.js';
+import {
+  bloodParticles,
+  bulletTracers,
+  shellCasings,
+  resetEffects,
+  updateVisualParticles,
+} from '../src/render/effects.js';
 import {
   onUnitDamaged,
   onUnitDied,
@@ -27,6 +34,7 @@ import {
   performBossKnifeSlash,
   traceBulletRay,
   getPistolAccuracyInfo,
+  getPistolAim,
   performBossPistolShot,
   damagePlayerBoss,
   executeBuyArmorForFaction,
@@ -73,6 +81,11 @@ function makeWorld(options = {}) {
 
 function makePlayer(overrides = {}) {
   return {
+    id: 0,
+    faction: Faction.PLAYER,
+    rank: UnitRank.BOSS,
+    control: 'local',
+    bodyRadius: 13.5,
     x: 0,
     y: 0,
     hp: BOSS_MAX_HP,
@@ -261,6 +274,7 @@ test('combat: armor absorbs damage before HP', () => {
     assertEqual(applyDamageToNpc(target, 30), false);
     assertEqual(target.armor, 20);
     assertEqual(target.hp, 100);
+    assertEqual(target.hitFlashTimer, HIT_FLASH_DURATION);
     assertEqual(applyDamageToNpc(target, 30), false);
     assertEqual(target.armor, 0);
     assertEqual(target.hp, 90);
@@ -358,6 +372,63 @@ test('combat: boss damage is absorbed by armor and death is a defeat', () => {
   });
 });
 
+test('combat: the player goes through the shared damage pipeline', () => {
+  withCombatState({}, ({ events }) => {
+    state.player.hp = 30;
+    state.player.armor = 50;
+    state.npcs = [];
+
+    const absorbedHit = applyDamageToNpc(state.player, 40, '#f43f5e', '', 0, Faction.RIVAL_1);
+    assertEqual(absorbedHit, false);
+    assertEqual(state.player.armor, 10);
+    assertEqual(state.player.hp, 30);
+    assertEqual(state.player.hitFlashTimer, HIT_FLASH_DURATION);
+    assertEqual(state.npcs.length, 0);
+
+    const hits = eventsOf(events, 'unit:damaged');
+    assertEqual(hits.length, 1);
+    assertEqual(hits[0].payload.isPlayer, true);
+    assertEqual(hits[0].payload.absorbed, 40);
+    assertEqual(hits[0].payload.remaining, 0);
+
+    const lethalHit = applyDamageToNpc(state.player, 100, '#f43f5e', '', 0, Faction.RIVAL_1);
+    assertEqual(lethalHit, true);
+    assertEqual(state.player.alive, false);
+    assertEqual(state.gameOver, true);
+    assertEqual(state.npcs.length, 0);
+    assertEqual(state.factionKills[Faction.RIVAL_1], 1);
+
+    const deaths = eventsOf(events, 'unit:died');
+    assertEqual(deaths.length, 1);
+    assertEqual(deaths[0].payload.isPlayer, true);
+    assertEqual(deaths[0].payload.isBoss, true);
+    assertEqual(deaths[0].payload.faction, Faction.PLAYER);
+    assertEqual(eventsOf(events, 'match:defeat').length, 1);
+
+    // A dead player ignores further damage and never re-emits death/defeat.
+    assertEqual(applyDamageToNpc(state.player, 100, '#f43f5e', '', 0, Faction.RIVAL_1), false);
+    assertEqual(eventsOf(events, 'unit:damaged').length, 2);
+    assertEqual(eventsOf(events, 'unit:died').length, 1);
+    assertEqual(eventsOf(events, 'match:defeat').length, 1);
+  });
+});
+
+test('combat: damagePlayerBoss credits the killer exactly once', () => {
+  withCombatState({}, ({ events }) => {
+    state.player.hp = 5;
+    damagePlayerBoss(50, '#f43f5e', '', 0, Faction.RIVAL_2);
+    assertEqual(state.player.alive, false);
+    assertEqual(state.factionKills[Faction.RIVAL_2], 1);
+    assertEqual(eventsOf(events, 'unit:died').length, 1);
+    assertEqual(eventsOf(events, 'match:defeat').length, 1);
+
+    damagePlayerBoss(50, '#f43f5e', '', 0, Faction.RIVAL_2);
+    assertEqual(state.factionKills[Faction.RIVAL_2], 1);
+    assertEqual(eventsOf(events, 'unit:died').length, 1);
+    assertEqual(eventsOf(events, 'match:defeat').length, 1);
+  });
+});
+
 test('combat: buying armor charges once and starts a cooldown', () => {
   withCombatState({ treasuries: { [Faction.PLAYER]: COST_BOSS_ARMOR } }, ({ events }) => {
     assertEqual(executeBuyArmorForFaction(Faction.PLAYER), true);
@@ -394,15 +465,6 @@ test('combat: rival bosses can buy armor from their treasury', () => {
       assertEqual(equipped[0].payload.textOffset, 34);
     }
   );
-});
-
-test('combat: guest armor purchase is forwarded to the host', () => {
-  const sent = [];
-  withCombatState({ net: { isActive: () => true, localFaction: Faction.PLAYER, isGuest: () => true, sendCommand: (cmd) => sent.push(cmd) } }, () => {
-    buyBossArmor();
-    assertEqual(sent.length, 1);
-    assertEqual(sent[0].cmd, 'BUY_ARMOR');
-  });
 });
 
 test('combat: armor purchase failures explain themselves', () => {
@@ -446,19 +508,6 @@ test('combat: NPC boss armor logic reacts to wounds, threats and cooldowns', () 
     state.npcs = [boss];
     assertEqual(tryBuyNpcBossArmor(boss, 1, 0), false);
   });
-});
-
-test('combat: guest slash is sent as a command', () => {
-  const sent = [];
-  withCombatState(
-    { net: { isActive: () => true, localFaction: Faction.PLAYER, isGuest: () => true, sendCommand: (cmd) => sent.push(cmd) } },
-    () => {
-      performKnifeSlash();
-      assertEqual(sent.length, 1);
-      assertEqual(sent[0].cmd, 'SLASH');
-      assertEqual(state.player.attackCooldown, 0);
-    }
-  );
 });
 
 test('combat: player slash damages targets in front and respects cooldown', () => {
@@ -535,6 +584,40 @@ test('combat: rival pistol hits the player at mid range', () => {
   );
 });
 
+test('combat: shell casings land close to the shooter', () => {
+  resetEffects();
+  onShotStarted({ shooterX: 0, shooterY: 0, muzzleX: 0, muzzleY: 0, angle: 0 });
+  assertEqual(shellCasings.length, 1);
+  const casing = shellCasings[0];
+  let landed = false;
+  for (let i = 0; i < 120; i++) {
+    updateVisualParticles(0.01);
+    if (casing.z === 0) {
+      landed = true;
+      break;
+    }
+  }
+  assert(landed, 'casing should land');
+  const dist = Math.hypot(casing.x, casing.y);
+  assert(dist < 30, `casing landed too far from the shooter: ${dist.toFixed(1)}px`);
+  resetEffects();
+});
+
+test('combat: pistol tracer starts at the muzzle and points at the aim target', () => {
+  withCombatState(
+    { npcs: [makeNpc({ faction: Faction.RIVAL_2, x: 200, y: 0, hp: 1000, maxHp: 1000 })] },
+    ({ events }) => {
+      const aim = getPistolAim(state.player.x, state.player.y, 200, 0);
+      performBossPistolShot(state.player, true, 200, 0);
+      const shot = eventsOf(events, 'shot:fired')[0].payload;
+      assertClose(shot.x1, aim.muzzleX);
+      assertClose(shot.y1, aim.muzzleY);
+      assertClose(shot.x2, 200, 1e-6);
+      assertClose(shot.y2, 0, 1e-6);
+    }
+  );
+});
+
 test('combat: walls stop bullets', () => {
   withCombatState(
     {
@@ -594,4 +677,141 @@ test('combat: faction slash delegates to boss melee and triggers the player path
     assertEqual(playerSlashes.length, 1);
     assertEqual(playerSlashes[0].payload.isPlayer, true);
   });
+});
+
+test('combat: player slash keeps its arc, knockback, cooldown and presentation', () => {
+  withCombatState(
+    {
+      player: makePlayer({ facing: 0 }),
+      npcs: [
+        makeNpc({ id: 1, x: 30, y: 0, hp: 100, maxHp: 100 }),
+        makeNpc({ id: 2, x: -30, y: 0, hp: 100, maxHp: 100 }),
+      ],
+    },
+    ({ events }) => {
+      performKnifeSlash();
+      const front = state.npcs.find((n) => n.id === 1);
+      const behind = state.npcs.find((n) => n.id === 2);
+      assert(front.hp < 100, `front target should be hit, hp=${front.hp}`);
+      assertEqual(behind.hp, 100);
+      assertEqual(front.x, 44, 'knockback must stay at 14');
+      assertEqual(state.player.attackCooldown, 0.34);
+      assertEqual(state.player.slashAnimTimer, 0.18);
+
+      const hit = eventsOf(events, 'unit:damaged')[0];
+      assertEqual(hit.payload.textColor, '#fbbf24');
+      assertEqual(hit.payload.suffix, '');
+      const slash = eventsOf(events, 'slash:performed')[0];
+      assertEqual(slash.payload.color, '#f43f5e');
+      assertEqual(slash.payload.hitCount, 1);
+      assertEqual(slash.payload.isPlayer, true);
+    }
+  );
+});
+
+test('combat: remote faction slash uses the shared human arc and close range', () => {
+  withCombatState(
+    {
+      player: makePlayer({ x: 1000, y: 0 }),
+      npcs: [
+        makeNpc({ id: 10, rank: UnitRank.BOSS, faction: Faction.RIVAL_1, x: 0, y: 0, facing: 0 }),
+        makeNpc({ id: 11, faction: Faction.RIVAL_2, x: 0, y: 35, hp: 100, maxHp: 100 }),
+        makeNpc({ id: 12, faction: Faction.RIVAL_2, x: 0, y: 31, hp: 100, maxHp: 100 }),
+        makeNpc({ id: 13, faction: Faction.RIVAL_2, x: 0, y: 29, hp: 100, maxHp: 100 }),
+      ],
+    },
+    ({ events }) => {
+      executeBossSlashForFaction(Faction.RIVAL_1);
+      const boss = state.npcs.find((n) => n.id === 10);
+      assertEqual(state.npcs.find((n) => n.id === 11).hp, 100, '90deg at range 35 is outside the human arc');
+      assertEqual(state.npcs.find((n) => n.id === 12).hp, 100, 'range 31 is outside the shared 30 close range');
+      assert(state.npcs.find((n) => n.id === 13).hp < 100, 'range 29 is inside the shared 30 close range');
+      assertEqual(boss.attackCooldown, 0.34);
+
+      const hit = eventsOf(events, 'unit:damaged')[0];
+      assertEqual(hit.payload.textColor, FACTION_META[Faction.RIVAL_1].accent);
+      assertEqual(hit.payload.suffix, '');
+      const slash = eventsOf(events, 'slash:performed')[0];
+      assertEqual(slash.payload.color, FACTION_META[Faction.RIVAL_1].accent);
+      assertEqual(slash.payload.hitCount, 1);
+      assertEqual(slash.payload.isPlayer, false);
+    }
+  );
+});
+
+test('combat: local and remote humans use identical slash rules', () => {
+  const angle = (78 * Math.PI) / 180;
+  const targetX = Math.cos(angle) * 40;
+  const targetY = Math.sin(angle) * 40;
+
+  withCombatState(
+    {
+      player: makePlayer({ facing: 0 }),
+      npcs: [makeNpc({ x: targetX, y: targetY, hp: 100, maxHp: 100 })],
+    },
+    ({ events }) => {
+      performKnifeSlash();
+      assertEqual(state.npcs[0].hp, 100, 'local human must miss at 78deg and range 40');
+      assertEqual(state.player.attackCooldown, 0.34);
+      assertEqual(eventsOf(events, 'slash:performed')[0].payload.hitCount, 0);
+    }
+  );
+
+  withCombatState(
+    {
+      player: makePlayer({ x: 1000, y: 0 }),
+      npcs: [
+        makeNpc({ id: 1, rank: UnitRank.BOSS, faction: Faction.RIVAL_1, x: 0, y: 0, facing: 0 }),
+        makeNpc({ id: 2, faction: Faction.RIVAL_2, x: targetX, y: targetY, hp: 100, maxHp: 100 }),
+      ],
+    },
+    ({ events }) => {
+      executeBossSlashForFaction(Faction.RIVAL_1);
+      assertEqual(state.npcs.find((n) => n.id === 2).hp, 100, 'remote human must miss at the same angle');
+      assertEqual(state.npcs.find((n) => n.id === 1).attackCooldown, 0.34);
+      assertEqual(eventsOf(events, 'slash:performed')[0].payload.hitCount, 0);
+    }
+  );
+});
+
+test('combat: AI boss slash ignores the arc, faces its target and uses the knife suffix', () => {
+  withCombatState(
+    {
+      player: makePlayer({ x: 1000, y: 0 }),
+      npcs: [
+        makeNpc({ id: 20, rank: UnitRank.BOSS, faction: Faction.RIVAL_1, x: 0, y: 0, facing: 0 }),
+        makeNpc({ id: 21, faction: Faction.RIVAL_2, x: 0, y: 30, hp: 100, maxHp: 100 }),
+      ],
+    },
+    ({ events }) => {
+      const boss = state.npcs.find((n) => n.id === 20);
+      assertEqual(performBossKnifeSlash(boss), true);
+      const target = state.npcs.find((n) => n.id === 21);
+      assert(target.hp < 100, `AI boss should hit without an arc, hp=${target.hp}`);
+      assertEqual(boss.facing, Math.PI / 2);
+      assertEqual(boss.attackCooldown, 1.0);
+
+      const hit = eventsOf(events, 'unit:damaged')[0];
+      assertEqual(hit.payload.textColor, FACTION_META[Faction.RIVAL_1].accent);
+      assertEqual(hit.payload.suffix, '🔪');
+      const slash = eventsOf(events, 'slash:performed')[0];
+      assertEqual(slash.payload.hitCount, 1);
+      assertEqual(slash.payload.isPlayer, false);
+    }
+  );
+});
+
+test('combat: AI boss slash with no target still starts cooldown and stays silent', () => {
+  withCombatState(
+    {
+      player: makePlayer({ alive: false }),
+      npcs: [makeNpc({ id: 30, rank: UnitRank.BOSS, faction: Faction.RIVAL_1, x: 0, y: 0 })],
+    },
+    ({ events }) => {
+      const boss = state.npcs[0];
+      assertEqual(performBossKnifeSlash(boss), false);
+      assertEqual(boss.attackCooldown, 1.0);
+      assertEqual(eventsOf(events, 'slash:performed').length, 0);
+    }
+  );
 });

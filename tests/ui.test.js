@@ -9,42 +9,55 @@ async function fetchIndexHtml() {
   return response.text();
 }
 
-test('ui: Ko-fi overlay widget is wired with the expected options', async () => {
+test('ui: compact top-bar Tip me opens the Ko-fi popup, launcher hidden', async () => {
   const html = await fetchIndexHtml();
+  const versionIndex = html.indexOf('id="hud-version-label"');
+  const supportIndex = html.indexOf('id="btn-support"');
+  const seedIndex = html.indexOf('id="world-seed-hud"');
   assert(
-    html.includes('https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'),
-    'missing Ko-fi overlay-widget script tag'
+    versionIndex >= 0 && supportIndex > versionIndex && seedIndex > supportIndex,
+    'support link should sit between the version label and the world seed'
   );
-  assert(html.includes("kofiWidgetOverlay.draw('hrodic'"), 'missing kofiWidgetOverlay.draw call');
+
+  const supportTagEnd = html.indexOf('>', supportIndex);
+  const supportTag = html.slice(supportIndex, supportTagEnd + 1);
+  assert(supportTag.includes('href="https://ko-fi.com/hrodic"'), 'Ko-fi link missing');
+  assert(supportTag.includes('text-[9px]'), 'support link should be compact (9px)');
+  assert(supportTag.includes('Tip me'), 'support link should say Tip me');
+
   assert(
-    html.includes("'floating-chat.donateButton.text': 'Support me'"),
-    'missing Ko-fi button text'
+    html.includes('storage.ko-fi.com/cdn/scripts/overlay-widget.js'),
+    'Ko-fi popup widget script should be loaded'
+  );
+  assert(html.includes("kofiWidgetOverlay.draw('hrodic'"), 'Ko-fi popup init missing');
+  assert(
+    html.includes("'floating-chat.donateButton.text': 'Tip me'"),
+    'Ko-fi launcher text should be Tip me'
+  );
+
+  const cssResponse = await fetch('../styles.css', { cache: 'no-store' });
+  assert(cssResponse.ok, `styles.css fetch failed: ${cssResponse.status}`);
+  const css = await cssResponse.text();
+  assert(
+    /\.floatingchat-container-wrap[\s\S]*opacity:\s*0\s*!important/.test(css),
+    'Ko-fi floating launcher should be hidden'
   );
   assert(
-    html.includes("'floating-chat.donateButton.background-color': '#5cb85c'"),
-    'missing Ko-fi button color'
-  );
-  assert(
-    html.includes("'floating-chat.donateButton.text-color': '#fff'"),
-    'missing Ko-fi text color'
-  );
-  assert(
-    html.includes('window.kofiWidgetOverlay'),
-    'Ko-fi init must be guarded so a blocked CDN never breaks the game'
+    /\.floatingchat-container-wrap[\s\S]*pointer-events:\s*none\s*!important/.test(css),
+    'Ko-fi floating launcher should not be clickable'
   );
 });
 
-test('ui: Ko-fi init runs after the page is ready (does not block the game)', async () => {
+test('ui: action bar uses the position indicator, compact icons, larger keys and no Free text', async () => {
   const html = await fetchIndexHtml();
-  const scriptTag = html.match(
-    /<script[^>]+src="https:\/\/storage\.ko-fi\.com\/cdn\/scripts\/overlay-widget\.js"[^>]*>/
-  );
-  assert(scriptTag, 'Ko-fi script tag not found');
-  assert(/\bdefer\b/.test(scriptTag[0]), 'Ko-fi script should be deferred');
-  assert(
-    html.includes("window.addEventListener('DOMContentLoaded'"),
-    'Ko-fi init should run on DOMContentLoaded'
-  );
+  assert(html.includes('<span class="action-icon">⌖</span>'), 'pistol should use U+2316 position indicator');
+  assert(!html.includes('>Free</span>'), 'Free action-bar labels should be removed');
+
+  const cssResponse = await fetch('../styles.css', { cache: 'no-store' });
+  assert(cssResponse.ok, `styles.css fetch failed: ${cssResponse.status}`);
+  const css = await cssResponse.text();
+  assert(/\.action-icon\s*\{[^}]*font-size:\s*15px/s.test(css), 'action icons should be 15px');
+  assert(/\.action-key\s*\{[^}]*font-size:\s*9px/s.test(css), 'action key badges should be 9px');
 });
 
 test('ui: removed build/border controls are not present', async () => {

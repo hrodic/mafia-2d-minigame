@@ -18,7 +18,7 @@ code is organized, how the main systems interact, and where to add features safe
 index.html                 markup shell (HUD, canvases, modals, banners)
 styles.css                 custom CSS (Tailwind remains on its CDN)
 src/
-  main.js                  composition root (81 lines): net bridge, hooks, loop, bootstrap
+  main.js                  thin composition root: net bridge, event wiring, loop, bootstrap
   config/
     constants.js           tile/chunk sizes, tick/sprint/pistol tuning
     version.js             GAME_VERSION single source (title/labels/net handshake)
@@ -27,7 +27,8 @@ src/
     organizations.js       6 organizations, FACTION_META, slot helpers, ensureUniqueOrgs
   core/
     rng.js                 mulberry32, chunk seed hashing, explicit per-chunk RNG
-    state.js               the single shared `state` object + faction/boss selectors
+    state.js               `createGameState()` reset factory, shared `state`, selectors
+    fixedStep.js           accumulator: fixed sim steps + catch-up guard
     events.js              synchronous, isolated event bus (sim -> presentation facts)
     spatial.js             per-chunk spatial buckets for neighbour queries
   world/
@@ -37,13 +38,14 @@ src/
     pathfinding.js         A* over tiles with a per-frame budget
   sim/                     headless gameplay logic (no DOM, no audio)
     match.js               initWorld: city/factions/economy/bosses for a new match
-    simulation.js          update(dt): host/single-player step + guest presentation loop
+    simulation.js          update(dt): headless host/single-player fixed sim step
     ai.js                  NPC perception, attacks, patrol goals, A* steering, capture
-    movement.js            collision helpers, sprint, remote-human boss, waypoint steering
+    movement.js            moveUnit/sprint, collision, remote-human boss, waypoint steering
     units.js               caps, spawning, recruitment
     combat.js              damage/armor, slashes, pistol raycast, armor purchases
     territory.js           capture progress, elimination, victory
     economy.js             upkeep, income, hourly tick and auto-recruitment
+    commands.js            dispatchCommand: local + remote action entry point
   net/
     mpNet.js               host-authoritative multiplayer (transport, lobby, snapshots)
   render/
@@ -59,6 +61,7 @@ src/
     minimap.js             cached radar layer + live dots/viewport
     minimapLayout.js       bounds/cell math shared by radar drawing + click mapping
     interpolation.js       guest-side position smoothing + animation timer decay
+    presentation.js        guest frame step, local aim, camera/spectate, particles
   audio/
     engine.js              AudioContext, gains, procedural noir music scheduler
     sfx.js                 synthesized SFX with distance attenuation
@@ -70,6 +73,8 @@ src/
     version.js             applies GAME_VERSION to title + HUD/modal labels
     menus.js               setup modal, lobby buttons, banners, toast, map-size controls
     input.js               keyboard/mouse/minimap + HUD action bindings
+    commandBridge.js       input boundary: guests stream, host/single dispatch
+    support.js             top-bar Tip me -> Ko-fi popup (fallback link)
 tests/
   tests.html               zero-dependency test runner page
   harness.js               test/assert helpers + results UI
@@ -81,7 +86,7 @@ tools/
   check.ps1                static health check (imports, test registry, duplicate ids)
 .editorconfig              editor whitespace/line-ending rules
 .nojekyll                  GitHub Pages: serve files untouched
-EVENTS.md                  Phase 2 event-bus contract (catalog + subscribers)
+EVENTS.md                  event-bus contract (implemented)
 ARCHITECTURE.md            this document
 AGENTS.md                  contributor workflow contract
 .opencode/skills/          task skills: SKILL.md + references/ (OpenCode discovery)
@@ -112,8 +117,10 @@ inside functions called after module evaluation (never at top level).
 1. Creates the single `CityMap` instance (`state.world`).
 2. Sets `state.net = mpNet` (the net bridge; see below).
 3. Wires event subscribers and the HUD cadence (`ui/hudCadence.js`).
-4. Starts the rAF loop (`update` then `render` when `state.gameStarted`) with a variable
-   timestep capped at 50 ms.
+4. Starts the rAF loop when `state.gameStarted`: fixed `1/120` simulation steps through an
+   accumulator (frame delta clamped to `0.25s`, max `8` catch-up steps), then one
+   presentation pass (camera/particles) and one render with render dt. Guests skip fixed
+   steps and run `updateGuest(renderDt)` once per frame.
 5. Boots UI/input (`applyVersionLabels`, `initMenus`, `initInput`) and setup renderers.
 6. Detects `?room=&secret=` invite URLs and pre-fills the join panel.
 
@@ -129,8 +136,8 @@ without importing the net module (which would create a cycle).
 `update(dt)` and before `render()`. The simulation no longer owns presentation cadence.
 
 Combat, units, economy, territory, match and AI use events for discrete presentation;
-`core/runtime.js` has been removed. `simulation.js` still has per-frame canvas/interpolation/
-particle coupling (Phase 3).
+`core/runtime.js` has been removed. `sim/simulation.js` is headless; guest smoothing, aim,
+camera and particles live in `render/presentation.js`.
 
 ### Event bus (Phase 2)
 
@@ -142,8 +149,7 @@ migrated: visuals live in `render/combatFx.js`, `render/recruitFx.js`,
 `EVENTS.md`.
 
 `tools/check.ps1` enforces this as a ratchet: `sim/` may not import `render/`, `audio/`,
-`ui/` or `net/`. Only `simulation.js` remains allowlisted (canvas aim, per-frame particles,
-guest presentation; Phase 3).
+`ui/` or `net/`. Phase 3 cleared the last allowlist; the check now reports `sim headless`.
 
 The non-negotiable rule: **discrete facts only** — never per-frame or per-NPC-per-frame.
 Continuous visuals (positions, HP bars, timers, interpolation) are read from `state` during
@@ -152,11 +158,19 @@ of truth.
 
 ## State model
 
-One exported `state` object in `core/state.js` holds the match:
+`core/state.js` owns one exported `state` object plus a `createGameState(config)`
+factory that is the single source for a fresh match. `config` carries the setup values
+(grid, tick, income tier, faction count, org roster, seed, auto-start) and the long-lived
+`world`/`net` references. `initWorld` builds that config, copies the fresh values onto the
+exported singleton with `Object.assign` — importers keep the same identity, and the
+`CityMap`/net bridge survive — then regenerates chunks and spawns bosses.
+
+The match state holds:
 
 - world/entities: `world`, `npcs`, `floatingTexts`, `spatialBuckets`, `nextNpcId`
 - factions/economy: `treasuries`, `factionAlive`, `factionKills`
-- local boss: `player`, `camera`, `mouse`, `keys`
+- local boss: `player` (unit identity fields `id`/`faction`/`rank`/`control`/`bodyRadius`),
+  `camera`, `mouse`, `keys`
 - match config: `activeFactions`, `selectedFactionOrgs`, `activeFactionCount`,
   `currentGridSize`, `tickDuration`, `currentIncomeTier`, `currentWorldSeed`
 - recruitment: caps + per-faction preferences
@@ -164,10 +178,16 @@ One exported `state` object in `core/state.js` holds the match:
   `hudUpdateTimer`, `minimapCacheTimer`, `isSpectating`, ...
 - `net`: the multiplayer module (set by `main.js`)
 
-`sim/match.js:initWorld` resets match state, sets the world generation context, builds
-chunks, spawns rival bosses and positions the camera. At the end it emits
-`match:initialized` (`{ tickDuration, worldSeed }`); `main.js` subscribers reset effects,
-setup UI, recruit labels, seed display and HUD.
+The local player is a singleton (`state.player`) rather than an entry in `state.npcs`;
+both share the same unit shape (`id`/`faction`/`rank`/`control`/`bodyRadius`). Systems that
+need every combatant use the explicit `forEachUnit` view or `getUnitById`; NPC-only systems
+keep using `state.npcs`, so crew/upkeep/recruitment counts cannot accidentally include the
+player. `playerBoss` remains the single player channel on the wire.
+
+`sim/match.js:initWorld` sets the world generation context, builds chunks, spawns rival
+bosses and positions the camera. At the end it emits `match:initialized`
+(`{ tickDuration, worldSeed }`); `main.js` subscribers reset effects, setup UI, recruit
+labels, seed display and HUD.
 
 ## World
 
@@ -190,16 +210,18 @@ setup UI, recruit labels, seed display and HUD.
 
 ## Simulation
 
-`sim/simulation.js:update(dt)`:
+`sim/simulation.js` separates simulation from presentation:
 
-- **Guest:** streams input (`net.updateGuest`), runs guest presentation
-  (`stepGuestPresentation`: interpolate `netX/netY`, decay animation timers), particles,
-  camera follow/spectate and HUD cadence, then returns. Guests never simulate gameplay.
-- **Host/single:** resets the A* budget, rebuilds spatial buckets, updates particles,
-  ticks player timers, handles player input/movement/sprint/aim, capture progress and camera;
-  then for each NPC either updates a remote-human boss (`updateHumanControlledRivalBoss`) or
-  runs `updateNpcAi` (perception, armor, attacks, patrol, A* steering, capture); then runs
-  the hourly economy tick and HUD cadence, and finally `net.updateHost` (snapshot broadcast).
+- **Host/single `update(SIM_DT)`:** resets the A* budget, rebuilds spatial buckets, ticks
+  player timers, handles player input/aim and capture; movement/sprint go through the
+  shared `moveUnit`/`updateUnitSprint`. Then for each NPC either updates a remote-human boss
+  (`updateHumanControlledRivalBoss`) or runs `updateNpcAi` (perception, armor, attacks,
+  patrol, A* steering, capture); then runs the hourly economy tick and `net.updateHost`.
+- **Guest `updateGuest(renderDt)`:** streams input (`net.updateGuest`), runs guest
+  presentation (`stepGuestPresentation`: interpolate `netX/netY`, decay animation timers),
+  advances the HUD timer bar, then calls `updatePresentation`.
+- **`updatePresentation(renderDt)`:** camera follow/spectate and visual particles. It runs
+  once per rendered frame on host and guest, never inside the fixed sim loop.
 
 `initWorld` builds a fresh match; `update` is the only per-frame simulator entry point.
 Per-frame presentation stays state-driven: combat/capture/economy emit discrete events on
@@ -209,8 +231,8 @@ transitions only, never positions, timers or per-NPC updates.
 `sim/ai.js`: `scanNearby` (nearest enemy + ally/enemy counts in the 3×3 spatial buckets),
 boss armor purchase, melee/pistol attacks, `choosePatrolChunk` (nearest non-owned chunk with
 a global fallback), A* path following/steering, obstacle dodge and capture. `updateNpcAi(u,
-dt)` is headless; remote-human bosses bypass it. `simulation.js` remains the orchestration
-loop.
+dt)` is headless; remote-human bosses bypass it. `simulation.js` remains the fixed-step
+orchestration loop; presentation is separate.
 
 ## Systems
 
@@ -219,11 +241,15 @@ loop.
 25 blocks), unit stat tables (inline ternaries today), spawning near the boss/owned turf,
 and recruitment (cost, caps, treasury, cached counts). It emits `unit:recruited`;
 `render/recruitFx.js` draws the `+RANK ($cost)` text. Rival bosses controlled by a human
-peer have `humanPeerId` and human speed (225 vs 152 for AI).
+peer have `humanPeerId`; all bosses use speed `140` (AI and human), while non-boss AI ranks
+use `150`. Same-faction units may push through each other (boss included); other factions
+always collide.
 
 ### Combat
-`sim/combat.js`: unified armor→HP damage, death/elimination, three slash entry points
-(player, rival boss, remote faction), a pistol raycast with distance accuracy bands and
+`sim/combat.js`: one armor→HP damage pipeline for units and the player
+(`damagePlayerBoss` delegates to `applyDamageToNpc`), death/elimination, one
+`performSlash` pipeline with player/rival/AI wrappers that preserve their
+arc/knockback/cooldown differences, a pistol raycast with distance accuracy bands and
 point-blank damage falloff, and armor purchases (player, rival AI). It emits facts only;
 `render/combatFx.js` draws blood/corpses/text/arcs/tracers and `audio/combatSfx.js` plays
 the combat SFX. The host's `shot:fired` subscriber broadcasts ephemeral tracers to guests.
@@ -241,10 +267,16 @@ It emits `hour:tick` with `{ hour, income, upkeep, treasuries }`; the HUD subscr
 subscribe in `main.js`.
 
 ### Balance data
-`config/balance.js` is the tuning surface: `RANK_STATS` (HP, armor, damage, AI/human speed,
-radius, capture rate, cost/upkeep), `UNIT_CAPS`, `SLASH` profiles, and `PISTOL` stats +
-accuracy bands. Systems read the tables at spawn/attack time and copy derived stats onto units
-(state is snapshotted). Presentation feel and AI decision thresholds are deliberately not here.
+`config/balance.js` is the gameplay tuning surface: `RANK_STATS` (HP, armor, damage,
+AI/human speed, radius, capture rate, cost/upkeep), `UNIT_CAPS`, `SLASH` profiles, and
+`PISTOL` stats + accuracy bands. `config/constants.js` owns world/map defaults, sprint,
+pistol range, hit flash, the fixed sim step and catch-up limits. Non-boss AI ranks share a
+`150` base speed; bosses use `140` for both AI and human control, so sprint is the boss
+mobility advantage. Local and remote humans share one `SLASH.humanBoss` profile, while AI
+keeps its own no-arc/longer-cooldown profiles. The local player's HP, damage, speed and
+radius derive from `RANK_STATS.BOSS`. Systems read the tables at spawn/attack time and copy
+derived stats onto units (state is snapshotted). Presentation feel and AI decision
+thresholds are deliberately not here.
 
 ## Networking
 
@@ -258,7 +290,7 @@ accuracy bands. Systems read the tables at spawn/attack time and copy derived st
   mismatched clients.
 - **Channels:** `lobby`, `init` (initial match state), `snap` (snapshots), `input`
   (guest movement/aim ~16 Hz), `cmd` (guest actions: move, slash, shoot, armor, recruit
-  prefs, expand, build), `event` (e.g. SHOT tracer broadcast).
+  prefs), `event` (e.g. SHOT tracer broadcast).
 - **Authority:** the host runs the simulation and broadcasts full-state snapshots ~12 Hz;
   guests interpolate positions (`render/interpolation.js`) and send input/commands.
   Peer input older than 500 ms is treated as neutral (no ghost movement). Disconnects
@@ -276,9 +308,10 @@ host.
 
 `render/renderer.js` culls chunks/tiles to the viewport, collects ground/buildings/props
 and characters into a depth-sorted list, and draws layers: a subtle world-space city
-backdrop (outside the playable chunks), ground + faction tint, capture bars, blood
-decals/corpses, waypoint/aim UI, characters (with HP/armor bars and rank labels), then
-effects (slash arcs, muzzle flashes, tracers, blood, sparks, casings, floating text).
+backdrop (outside the playable chunks), ground + faction tint, capture bars, turf income
+labels, blood decals/corpses, waypoint and muzzle-accurate aim/reticle UI, characters (with
+HP/armor bars and rank labels), then effects (slash arcs, muzzle flashes, tracers, blood,
+sparks, casings, floating text).
 `render/minimap.js` caches the faction territory layer and overlays units, the boss, the
 camera rect and chunk coordinates; `render/minimapLayout.js` owns the shared bounds/cell/
 offset and world<->map mapping (also used by radar clicks). The radar canvas is 168px and
@@ -293,16 +326,22 @@ distance from the camera.
 
 ## UI
 
-- `ui/hud.js`: primary boss/economy status, crew management panel, faction leaderboard
-  (turf, crew, kills), recruit labels/costs.
+- `ui/hud.js`: primary boss/economy status, crew management panel (caps, recruit costs,
+  total upkeep), faction leaderboard (turf, crew, kills).
 - `ui/actionBar.js`: bottom-center combat bar. Slash/pistol/armor/sprint show ready/cooling
   states, cooldown overlays, costs and shortcuts; sprint is hold-to-run and guest input
   includes the held state.
 - `ui/hudCadence.js`: 4 Hz HUD refresh from the main loop.
 - `ui/menus.js`: setup modal, lobby buttons, start-game flow, `openSetupMenu`, banners and
   toasts; exports `initMenus`.
-- `ui/input.js`: keyboard/mouse/minimap handlers, HUD action buttons, guest commands;
-  releases held keys on blur/visibility loss; exports `initInput`.
+- `ui/input.js`: keyboard/mouse/minimap handlers, HUD action buttons; releases held keys
+  on blur/visibility loss; exports `initInput`.
+- `ui/commandBridge.js`: the only guest/local branch for actions. Guests stream the command
+  payload through `state.net.sendCommand`; host/single call `sim/commands.js` directly.
+- `ui/support.js`: the top-bar **Tip me** link opens the official Ko-fi popup; the floating
+  launcher is hidden in CSS and the link falls back to ko-fi.com/hrodic.
+- `sim/commands.js`: `dispatchCommand(faction, payload)` for move, slash, shoot, armor and
+  recruit prefs. Local input and the host's remote-command receiver share it.
 
 ## Testing
 
@@ -315,8 +354,9 @@ distance from the camera.
   two tabs for deterministic host/guest testing without external relays.
 - Coverage includes config/RNG, event bus, state selectors, chunk determinism, collision,
   pathfinding (including wall detours and no corner cutting), units/recruitment, economy,
-  territory, combat math/accuracy/armor, effects, interpolation, match setup, simulation
-  orchestration, HUD, menus and rendering.
+  territory, combat math/accuracy/armor/aim geometry, effects and casings, interpolation,
+  match setup, fixed-step accumulation, command dispatch/equivalence, 600-step headless
+  simulation, HUD, menus, support link and rendering.
 - **Golden tests** (`tests/world-golden.test.js`) pin an FNV-1a hash of each seeded chunk's
   tiles, props, income and faction. They prove that RNG/generation refactors (Phase 2) do
   not alter maps; update the expected hashes only for an intentional generation change.
@@ -324,7 +364,7 @@ distance from the camera.
   every relative `.js` import resolves, no bare static imports exist, every `*.test.js`
   suite is registered in `tests/runner.js`, `index.html` has no duplicate ids, each
   `.opencode/skills/<id>/SKILL.md` has valid frontmatter and existing references, the
-  `sim/` layering ratchet, and that modules using `canvas.*` import the canvas singleton.
+  `sim/` headless ratchet, and that modules using `canvas.*` import the canvas singleton.
   `tests/runner.js` is the manifest — a new suite that is not imported there silently
   does not run.
 
@@ -338,18 +378,20 @@ distance from the camera.
 - Gameplay numbers live in `config/balance.js` (rank stats, caps, slash/pistol tables,
   accuracy bands, costs/upkeep). Do not inline gameplay numbers in systems; presentation
   feel and AI decision logic stay in their own modules.
-- Never import UI/render/audio from `sim/`; use `runtime` hooks (soon events).
+- Never import UI/render/audio/net from `sim/`; emit events and keep presentation in
+  subscribers (`main.js`). There are no runtime hooks.
 - Keep the game playable and tests green after every change.
 
 ## Known limitations / next phases
 
-- Phase 2 is **complete**: event bus migration, dedup, balance tables, explicit RNG, AI
-  extraction and HUD cadence move are done; `core/runtime.js` is gone. Only `simulation.js`
-  remains allowlisted for per-frame canvas/interpolation/particle coupling (Phase 3).
-- Phase 3: player boss folded into the unit model (`control: local/ai/remote`), one
+- **Phase 2:** event bus migration, dedup, balance tables, explicit RNG, AI extraction and
+  HUD cadence move are done; `core/runtime.js` is gone.
+- Phase 3 complete: player boss shares the unit contract but stays a local singleton
+  outside `npcs`; `forEachUnit`/`getUnitById` cover all-combatant systems. One
   damage/slash/movement pipeline, `createGameState()` reset factory, unified command
-  dispatcher for local+remote, fixed timestep.
-- Phase 4: split `net/mpNet.js` into transport/protocol/lobby/host/guest; delta/O(1)
+  dispatcher for local+remote, fixed `1/120` simulation with render-time presentation,
+  and seeded headless/command-equivalence tests.
+- Phase 4 next: split `net/mpNet.js` into transport/protocol/lobby/host/guest; delta/O(1)
   snapshots; sanitize peer names; background-host resilience; bump protocol version.
 - Phase 5: broader tests, JSDoc/`jsconfig` typing, docs refresh.
 
