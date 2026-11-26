@@ -38,7 +38,7 @@ src/
     pathfinding.js         A* over tiles with a per-frame budget
   sim/                     headless gameplay logic (no DOM, no audio)
     match.js               initWorld: city/factions/economy/bosses for a new match
-    simulation.js          update(dt): host/single-player step + guest presentation loop
+    simulation.js          update(dt): headless host/single-player fixed sim step
     ai.js                  NPC perception, attacks, patrol goals, A* steering, capture
     movement.js            moveUnit/sprint, collision, remote-human boss, waypoint steering
     units.js               caps, spawning, recruitment
@@ -61,6 +61,7 @@ src/
     minimap.js             cached radar layer + live dots/viewport
     minimapLayout.js       bounds/cell math shared by radar drawing + click mapping
     interpolation.js       guest-side position smoothing + animation timer decay
+    presentation.js        guest frame step, local aim, camera/spectate, particles
   audio/
     engine.js              AudioContext, gains, procedural noir music scheduler
     sfx.js                 synthesized SFX with distance attenuation
@@ -134,8 +135,8 @@ without importing the net module (which would create a cycle).
 `update(dt)` and before `render()`. The simulation no longer owns presentation cadence.
 
 Combat, units, economy, territory, match and AI use events for discrete presentation;
-`core/runtime.js` has been removed. `simulation.js` still has per-frame canvas/interpolation/
-particle coupling (Phase 3).
+`core/runtime.js` has been removed. `sim/simulation.js` is headless; guest smoothing, aim,
+camera and particles live in `render/presentation.js`.
 
 ### Event bus (Phase 2)
 
@@ -147,8 +148,7 @@ migrated: visuals live in `render/combatFx.js`, `render/recruitFx.js`,
 `EVENTS.md`.
 
 `tools/check.ps1` enforces this as a ratchet: `sim/` may not import `render/`, `audio/`,
-`ui/` or `net/`. Only `simulation.js` remains allowlisted (canvas aim, per-frame particles,
-guest presentation; Phase 3).
+`ui/` or `net/`. Phase 3 cleared the last allowlist; the check now reports `sim headless`.
 
 The non-negotiable rule: **discrete facts only** — never per-frame or per-NPC-per-frame.
 Continuous visuals (positions, HP bars, timers, interpolation) are read from `state` during
@@ -230,8 +230,8 @@ transitions only, never positions, timers or per-NPC updates.
 `sim/ai.js`: `scanNearby` (nearest enemy + ally/enemy counts in the 3×3 spatial buckets),
 boss armor purchase, melee/pistol attacks, `choosePatrolChunk` (nearest non-owned chunk with
 a global fallback), A* path following/steering, obstacle dodge and capture. `updateNpcAi(u,
-dt)` is headless; remote-human bosses bypass it. `simulation.js` remains the orchestration
-loop.
+dt)` is headless; remote-human bosses bypass it. `simulation.js` remains the fixed-step
+orchestration loop; presentation is separate.
 
 ## Systems
 
@@ -240,7 +240,9 @@ loop.
 25 blocks), unit stat tables (inline ternaries today), spawning near the boss/owned turf,
 and recruitment (cost, caps, treasury, cached counts). It emits `unit:recruited`;
 `render/recruitFx.js` draws the `+RANK ($cost)` text. Rival bosses controlled by a human
-peer have `humanPeerId` and human speed (225 vs 152 for AI).
+peer have `humanPeerId`; all bosses use speed `140` (AI and human), while non-boss AI ranks
+use `150`. Same-faction units may push through each other (boss included); other factions
+always collide.
 
 ### Combat
 `sim/combat.js`: one armor→HP damage pipeline for units and the player
@@ -266,8 +268,9 @@ subscribe in `main.js`.
 ### Balance data
 `config/balance.js` is the tuning surface: `RANK_STATS` (HP, armor, damage, AI/human speed,
 radius, capture rate, cost/upkeep), `UNIT_CAPS`, `SLASH` profiles, and `PISTOL` stats +
-accuracy bands. All AI ranks currently share a `150` base speed; human-controlled bosses
-use `speedHuman` (`225`). Local and remote humans share one `SLASH.humanBoss` profile, while
+accuracy bands. Non-boss AI ranks share a `150` base speed; bosses use `140` for both AI
+and human control, so sprint is the boss mobility advantage. Local and remote humans share
+one `SLASH.humanBoss` profile, while
 AI keeps its own no-arc/longer-cooldown profiles. The local player's HP, damage, speed and
 radius derive from `RANK_STATS.BOSS`. Systems read the tables at spawn/attack time and copy
 derived stats onto units (state is snapshotted). Presentation feel and AI decision
@@ -376,13 +379,13 @@ distance from the camera.
 ## Known limitations / next phases
 
 - **Phase 2:** event bus migration, dedup, balance tables, explicit RNG, AI extraction and
-  HUD cadence move are done; `core/runtime.js` is gone. Only `simulation.js` remains
-  allowlisted for per-frame canvas/interpolation/particle coupling (Phase 3).
-- Phase 3: player boss shares the unit contract but stays a local singleton outside
-  `npcs`; `forEachUnit`/`getUnitById` cover all-combatant systems. One
+  HUD cadence move are done; `core/runtime.js` is gone.
+- Phase 3 complete: player boss shares the unit contract but stays a local singleton
+  outside `npcs`; `forEachUnit`/`getUnitById` cover all-combatant systems. One
   damage/slash/movement pipeline, `createGameState()` reset factory, unified command
-  dispatcher for local+remote, fixed `1/120` simulation with render-time presentation.
-- Phase 4: split `net/mpNet.js` into transport/protocol/lobby/host/guest; delta/O(1)
+  dispatcher for local+remote, fixed `1/120` simulation with render-time presentation,
+  and seeded headless/command-equivalence tests.
+- Phase 4 next: split `net/mpNet.js` into transport/protocol/lobby/host/guest; delta/O(1)
   snapshots; sanitize peer names; background-host resilience; bump protocol version.
 - Phase 5: broader tests, JSDoc/`jsconfig` typing, docs refresh.
 

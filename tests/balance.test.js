@@ -27,8 +27,8 @@ const EXPECTED_RANKS = {
     maxArmor: 300,
     minDmg: 20,
     maxDmg: 40,
-    speedAi: 150,
-    speedHuman: 225,
+    speedAi: 140,
+    speedHuman: 140,
     speedJitter: 0,
     radius: 13.5,
     captureRate: 0.375,
@@ -109,9 +109,11 @@ test('balance: unit caps and attack pacing are unchanged', () => {
   assertEqual(UNIT_ATTACK_COOLDOWN, 1.0);
 });
 
-test('balance: all AI ranks share the 150 base speed for now', () => {
+test('balance: non-boss AI ranks use 150, bosses use 140 for sprint headroom', () => {
   for (const rank of Object.values(UnitRank)) {
-    assertEqual(RANK_STATS[rank].speedAi, 150, `${rank}.speedAi`);
+    const expected = rank === UnitRank.BOSS ? 140 : 150;
+    assertEqual(RANK_STATS[rank].speedAi, expected, `${rank}.speedAi`);
+    assertEqual(RANK_STATS[rank].speedHuman, expected, `${rank}.speedHuman`);
     assertEqual(RANK_STATS[rank].speedJitter, 0, `${rank}.speedJitter`);
   }
 });

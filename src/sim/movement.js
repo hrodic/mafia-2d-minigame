@@ -18,12 +18,14 @@ export function canOccupyPosition(wx, wy, radius, ignoreNpcId = -1, ignorePlayer
   if (!state.world.canMoveTo(wx, wy, radius)) return false;
 
   if (!ignorePlayer && state.player.alive) {
-    const pRad = getEntityCollisionRadius(UnitRank.BOSS);
     const sameFaction = moverFaction !== null && moverFaction === Faction.PLAYER;
-    const minDist = sameFaction ? (radius + pRad) * 0.45 : radius + pRad - 1.0;
-    const dx = wx - state.player.x;
-    const dy = wy - state.player.y;
-    if (dx * dx + dy * dy < minDist * minDist) return false;
+    if (!sameFaction) {
+      const pRad = getEntityCollisionRadius(UnitRank.BOSS);
+      const minDist = radius + pRad - 1.0;
+      const dx = wx - state.player.x;
+      const dy = wy - state.player.y;
+      if (dx * dx + dy * dy < minDist * minDist) return false;
+    }
   }
 
   const cx = Math.floor(wx / CHUNK_PX);
@@ -37,9 +39,12 @@ export function canOccupyPosition(wx, wy, radius, ignoreNpcId = -1, ignorePlayer
         for (let i = 0; i < bucket.length; i++) {
           const other = bucket[i];
           if (other.id === ignoreNpcId) continue;
-          const oRad = getEntityCollisionRadius(other.rank);
           const sameFaction = moverFaction !== null && moverFaction === other.faction;
-          const minDist = sameFaction ? (radius + oRad) * 0.45 : radius + oRad - 1.0;
+          // Same-faction units may push through each other (boss included);
+          // other factions always block.
+          if (sameFaction) continue;
+          const oRad = getEntityCollisionRadius(other.rank);
+          const minDist = radius + oRad - 1.0;
           const ox = wx - other.x;
           const oy = wy - other.y;
           if (ox * ox + oy * oy < minDist * minDist) return false;

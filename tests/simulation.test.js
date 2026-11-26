@@ -7,7 +7,8 @@ import { state } from '../src/core/state.js';
 import { on } from '../src/core/events.js';
 import { isSoundEnabled, setSoundEnabled } from '../src/audio/engine.js';
 import { resetEffects } from '../src/render/effects.js';
-import { update, updateGuest, updatePresentation } from '../src/sim/simulation.js';
+import { update } from '../src/sim/simulation.js';
+import { updateGuest, updatePresentation } from '../src/render/presentation.js';
 
 const STATE_KEYS = [
   'world',

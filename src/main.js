@@ -35,7 +35,8 @@ import { updateActionBar } from './ui/actionBar.js';
 import { mpNet } from './net/mpNet.js';
 import { sfx } from './audio/sfx.js';
 import * as combatSfx from './audio/combatSfx.js';
-import { update, updateGuest, updatePresentation } from './sim/simulation.js';
+import { update } from './sim/simulation.js';
+import { updateGuest, updatePresentation, updateLocalAim } from './render/presentation.js';
 
 // One shared CityMap instance; match setup (sim/match.js) fills it per game.
 state.world = new CityMap();
@@ -125,6 +126,7 @@ function gameLoop(now) {
       update
     );
     simAccumulator = advanced.accumulator;
+    updateLocalAim();
     updatePresentation(frameDt);
   }
 

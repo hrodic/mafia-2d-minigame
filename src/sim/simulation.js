@@ -1,11 +1,8 @@
 // Simulation step: host/single-player world update and guest presentation loop.
 
 import { Faction, UnitRank } from '../config/enums.js';
-import { state, getLocalBoss, isLocalBossAlive } from '../core/state.js';
+import { state } from '../core/state.js';
 import { rebuildSpatialBuckets } from '../core/spatial.js';
-import { canvas } from '../render/canvas.js';
-import { stepGuestPresentation } from '../render/interpolation.js';
-import { updateVisualParticles } from '../render/effects.js';
 import {
   moveUnit,
   updateHumanControlledRivalBoss,
@@ -14,47 +11,6 @@ import {
 import { progressCapture, getCaptureRate } from './territory.js';
 import { processHourlyTick } from './economy.js';
 import { updateNpcAi } from './ai.js';
-
-
-function updateSpectatorCamera(dt) {
-  let mx = 0;
-  let my = 0;
-  if (state.keys.has('w') || state.keys.has('arrowup')) my -= 1;
-  if (state.keys.has('s') || state.keys.has('arrowdown')) my += 1;
-  if (state.keys.has('a') || state.keys.has('arrowleft')) mx -= 1;
-  if (state.keys.has('d') || state.keys.has('arrowright')) mx += 1;
-  if (mx !== 0 || my !== 0) {
-    const len = Math.hypot(mx, my);
-    const panSpeed = state.keys.has('shift') ? 820 : 480;
-    state.camera.x += (mx / len) * panSpeed * dt;
-    state.camera.y += (my / len) * panSpeed * dt;
-  }
-}
-
-export function updateGuest(dt) {
-  if (!state.gameStarted) return;
-  state.net.updateGuest(dt);
-  stepGuestPresentation(dt);
-
-  state.tickTimer += dt;
-  if (state.tickTimer >= state.tickDuration) state.tickTimer %= state.tickDuration;
-
-  updatePresentation(dt);
-}
-
-/** Presentation-only step: camera, particles and spectator pan use render dt. */
-export function updatePresentation(dt) {
-  if (!state.gameStarted) return;
-  updateVisualParticles(dt);
-
-  const localBoss = getLocalBoss();
-  if (localBoss && isLocalBossAlive() && !state.isSpectating) {
-    state.camera.x += (localBoss.x - state.camera.x) * Math.min(1, dt * 12);
-    state.camera.y += (localBoss.y - state.camera.y) * Math.min(1, dt * 12);
-  } else {
-    updateSpectatorCamera(dt);
-  }
-}
 
 /** One fixed host/single-player simulation step. No presentation work here. */
 export function update(dt) {
@@ -98,12 +54,7 @@ export function update(dt) {
       }
     }
 
-    if (state.mouse.inside && canvas && canvas.width > 0) {
-      const rect = canvas.getBoundingClientRect();
-      const aimWx = state.camera.x - rect.width / 2 + state.mouse.screenX;
-      const aimWy = state.camera.y - rect.height / 2 + state.mouse.screenY;
-      state.player.facing = Math.atan2(aimWy - state.player.y, aimWx - state.player.x);
-    } else if (moveX !== 0 || moveY !== 0) {
+    if (moveX !== 0 || moveY !== 0) {
       state.player.facing = Math.atan2(moveY, moveX);
     }
 

@@ -41,7 +41,7 @@ test('state: player boss starts at full health with correct base stats', () => {
   assertEqual(state.player.maxHp, BOSS_MAX_HP);
   assertEqual(state.player.armor, 0);
   assertEqual(state.player.maxArmor, MAX_BOSS_ARMOR);
-  assertEqual(state.player.speed, 225);
+  assertEqual(state.player.speed, 140);
   assertEqual(state.player.minDmg, 20);
   assertEqual(state.player.maxDmg, 40);
   assertEqual(state.player.alive, true);
@@ -126,6 +126,30 @@ test('state: getLocalBoss falls back to a dead boss placeholder at the camera', 
       assertEqual(fallback.alive, false);
     });
   });
+});
+
+test('state: getLocalBoss reuses the dead-boss placeholder at the camera', () => {
+  withState(
+    {
+      net: { isActive: () => true, localFaction: Faction.RIVAL_3 },
+      npcs: [],
+      camera: { x: 12, y: 34 },
+    },
+    () => {
+      const first = getLocalBoss();
+      const second = getLocalBoss();
+      assert(first === second, 'dead-boss placeholder must not allocate per call');
+      assertEqual(first.x, 12);
+      assertEqual(first.y, 34);
+
+      state.camera.x = 99;
+      state.camera.y = 88;
+      const third = getLocalBoss();
+      assert(third === first);
+      assertEqual(third.x, 99);
+      assertEqual(third.y, 88);
+    }
+  );
 });
 
 test('state: isLocalBossAlive tracks the player flag for PLAYER', () => {

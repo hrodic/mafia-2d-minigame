@@ -178,6 +178,25 @@ export function getUnitById(id) {
 // Local faction / boss selectors (moved from main.js)
 // ---------------------------------------------------------------------------
 
+// Reused when the local rival boss is dead/removed; avoids allocating per call.
+const deadLocalBoss = {
+  x: 0,
+  y: 0,
+  facing: 0,
+  hp: 0,
+  maxHp: BOSS_MAX_HP,
+  armor: 0,
+  maxArmor: MAX_BOSS_ARMOR,
+  alive: false,
+  attackCooldown: 0,
+  armorCooldown: 0,
+  sprintTimer: 0,
+  sprintCooldown: 0,
+  isSprinting: false,
+  targetX: null,
+  targetY: null,
+};
+
 export function getLocalFaction() {
   return state.net && state.net.isActive() ? state.net.localFaction : Faction.PLAYER;
 }
@@ -186,22 +205,10 @@ export function getLocalBoss() {
   const faction = getLocalFaction();
   if (faction === Faction.PLAYER) return state.player;
   const bossNpc = state.npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS);
-  return (
-    bossNpc || {
-      x: state.camera.x,
-      y: state.camera.y,
-      facing: 0,
-      hp: 0,
-      maxHp: BOSS_MAX_HP,
-      armor: 0,
-      maxArmor: MAX_BOSS_ARMOR,
-      alive: false,
-      armorCooldown: 0,
-      sprintTimer: 0,
-      sprintCooldown: 0,
-      isSprinting: false,
-    }
-  );
+  if (bossNpc) return bossNpc;
+  deadLocalBoss.x = state.camera.x;
+  deadLocalBoss.y = state.camera.y;
+  return deadLocalBoss;
 }
 
 export function isLocalBossAlive() {

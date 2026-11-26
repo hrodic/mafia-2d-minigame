@@ -15,9 +15,11 @@ architecture description here.
   - AI extracted to `sim/ai.js`
   - HUD cadence moved to `ui/hudCadence.js`
   - UI/UX overhaul: primary status, crew management, action bar, leaderboard + kills
-- **Phase 3 — IN PROGRESS (`0.4.10`; 3.1–3.8 done):** shared unit contract, commands,
-  fixed timestep. Balance pass: one human slash rule; all AI ranks base speed 150.
-- **Phases 4–5 — pending:** netcode hardening, quality gates.
+- **Phase 3 — DONE (`0.4.11`):** shared unit contract, commands, fixed timestep, 600-step
+  headless smoke + command-equivalence tests. Balance pass: one human slash rule; non-boss
+  AI ranks base speed 150; bosses 140 (sprint is their mobility edge).
+- **Phase 4 — NEXT:** netcode hardening.
+- **Phase 5 — pending:** quality gates.
 
 Work on `refactor/phase-3-unified-entity` (verify with `git branch --show-current`). Use
 the `AGENTS.md` verification loop; bump `GAME_VERSION` for every commit-sized step.
@@ -73,9 +75,12 @@ presentation/render pass with render dt. Host/single `update` is sim-only; guest
 real dt. 120 Hz keeps every rendered frame advancing on 75/120 Hz displays while staying
 frame-rate independent; tests cover 20/30/60/144 Hz and stall clamping. Verified solo + MP.
 
-**3.9 Tests.** Headless simulation smoke: seeded state, 600 steps, no NaN, units walkable,
-tick math, capture completes, boss death eliminates faction. Command dispatch tests
-(local == remote outcomes). Full checklist.
+**3.9 Tests — DONE (`0.4.11`).** Added `tests/phase3.test.js`: seeded 600-step headless
+simulation (finite state, walkable units, tick wrap/accumulation), capture completion and
+boss-death elimination. Added local == remote command-equivalence coverage for move, slash,
+shoot, armor and recruit prefs. Replaced the per-call `getLocalBoss` dead fallback with one
+reused object; moved guest/aim/camera/particles to `render/presentation.js`, so `sim/` is
+fully headless. Full checklist green.
 
 ## Phase 4 — Netcode hardening
 
@@ -111,7 +116,6 @@ never commit a half-split net module.
 - Peer names in `innerHTML` — XSS risk; Phase 4.
 - Guest snapshot apply can re-run elimination DOM/SFX; make guest effects idempotent in
   Phase 4.
-- `getLocalBoss()` allocates a fallback object when the boss is dead — clean up in Phase 3.
 - Minimap cache timer uses hardcoded `0.016` — fix with real dt in 3.8.
 - Background host tabs throttle rAF and stall MP — Phase 4.
 - ESM: relative imports need `.js`; no top-level reads in cycles; modules are deferred;

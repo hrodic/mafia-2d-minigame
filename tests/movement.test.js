@@ -62,26 +62,38 @@ test('movement: the player blocks enemies but not friendly crew', () => {
     assertEqual(canOccupyPosition(10, 0, 11, -1, false, Faction.RIVAL_1), false);
     assertEqual(canOccupyPosition(15, 0, 11, -1, false, Faction.RIVAL_1), false);
     assertEqual(canOccupyPosition(10, 0, 11, -1, true, Faction.RIVAL_1), true);
-    // Same faction keeps a much smaller personal-space radius (~11px).
+    // Same faction may overlap/push through completely.
     assertEqual(canOccupyPosition(15, 0, 11, -1, false, Faction.PLAYER), true);
-    assertEqual(canOccupyPosition(5, 0, 11, -1, false, Faction.PLAYER), false);
+    assertEqual(canOccupyPosition(5, 0, 11, -1, false, Faction.PLAYER), true);
   });
   withState(basePatch({ player: { x: 0, y: 0, alive: false } }), () => {
     assertEqual(canOccupyPosition(10, 0, 11, -1, false, Faction.RIVAL_1), true);
   });
 });
 
-test('movement: NPCs block enemies, allow friendly overlap and honour ignoreNpcId', () => {
+test('movement: NPCs block enemies, allow friendly pass-through and honour ignoreNpcId', () => {
   const ally = { id: 7, x: 0, y: 0, rank: UnitRank.SOLDIER, faction: Faction.RIVAL_1 };
   const enemy = { id: 8, x: 0, y: 0, rank: UnitRank.SOLDIER, faction: Faction.PLAYER };
   withState(basePatch({ spatialBuckets: npcBucket([ally]) }), () => {
     assertEqual(canOccupyPosition(10, 0, 11, -1, true, Faction.RIVAL_1), true);
-    assertEqual(canOccupyPosition(5, 0, 11, -1, true, Faction.RIVAL_1), false);
+    assertEqual(canOccupyPosition(5, 0, 11, -1, true, Faction.RIVAL_1), true);
     assertEqual(canOccupyPosition(5, 0, 11, 7, true, Faction.RIVAL_1), true);
   });
   withState(basePatch({ spatialBuckets: npcBucket([enemy]) }), () => {
     assertEqual(canOccupyPosition(10, 0, 11, -1, true, Faction.RIVAL_1), false);
     assertEqual(canOccupyPosition(10, 0, 11, 8, true, Faction.RIVAL_1), true);
+  });
+});
+
+test('movement: non-boss units and bosses pass through their own faction only', () => {
+  const boss = { id: 20, x: 100, y: 100, rank: UnitRank.BOSS, faction: Faction.RIVAL_1 };
+  const unit = { id: 21, x: 100, y: 100, rank: UnitRank.SOLDIER, faction: Faction.RIVAL_1 };
+  withState(basePatch({ spatialBuckets: npcBucket([boss, unit]) }), () => {
+    // Soldier through boss, and boss through soldier.
+    assertEqual(canOccupyPosition(100, 100, 11, unit.id, true, Faction.RIVAL_1), true);
+    assertEqual(canOccupyPosition(100, 100, 13.5, boss.id, true, Faction.RIVAL_1), true);
+    // Enemy factions still hard-block.
+    assertEqual(canOccupyPosition(100, 100, 11, unit.id, true, Faction.RIVAL_2), false);
   });
 });
 

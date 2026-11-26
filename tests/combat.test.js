@@ -11,7 +11,13 @@ import {
 import { FACTION_META } from '../src/config/organizations.js';
 import { state } from '../src/core/state.js';
 import { on } from '../src/core/events.js';
-import { bloodParticles, bulletTracers, shellCasings, resetEffects } from '../src/render/effects.js';
+import {
+  bloodParticles,
+  bulletTracers,
+  shellCasings,
+  resetEffects,
+  updateVisualParticles,
+} from '../src/render/effects.js';
 import {
   onUnitDamaged,
   onUnitDied,
@@ -575,6 +581,25 @@ test('combat: rival pistol hits the player at mid range', () => {
       assertEqual(shots[0].payload.isPlayerShooter, false);
     }
   );
+});
+
+test('combat: shell casings land close to the shooter', () => {
+  resetEffects();
+  onShotStarted({ shooterX: 0, shooterY: 0, muzzleX: 0, muzzleY: 0, angle: 0 });
+  assertEqual(shellCasings.length, 1);
+  const casing = shellCasings[0];
+  let landed = false;
+  for (let i = 0; i < 120; i++) {
+    updateVisualParticles(0.01);
+    if (casing.z === 0) {
+      landed = true;
+      break;
+    }
+  }
+  assert(landed, 'casing should land');
+  const dist = Math.hypot(casing.x, casing.y);
+  assert(dist < 30, `casing landed too far from the shooter: ${dist.toFixed(1)}px`);
+  resetEffects();
 });
 
 test('combat: walls stop bullets', () => {

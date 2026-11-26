@@ -266,6 +266,106 @@ test('commands: unknown or malformed payloads are ignored', () => {
   });
 });
 
+test('commands: local and remote human commands produce equivalent outcomes', () => {
+  let local;
+  let remote;
+
+  withCommandState({ npcs: [makeBoss()] }, () => {
+    dispatchCommand(Faction.PLAYER, { cmd: 'MOVE_TO', x: 40, y: 50 });
+    local = { x: state.player.targetX, y: state.player.targetY };
+  });
+  withCommandState({ npcs: [makeBoss()] }, () => {
+    dispatchCommand(Faction.RIVAL_1, { cmd: 'MOVE_TO', x: 40, y: 50 });
+    remote = { x: state.npcs[0].targetX, y: state.npcs[0].targetY };
+  });
+  assertEqual(local.x, remote.x);
+  assertEqual(local.y, remote.y);
+
+  withCommandState(
+    {
+      player: makePlayer({ facing: 0, minDmg: 20, maxDmg: 20 }),
+      npcs: [makeBoss({ faction: Faction.RIVAL_2, x: 30, y: 0, hp: 1000, maxHp: 1000 })],
+    },
+    () => {
+      const target = state.npcs[0];
+      dispatchCommand(Faction.PLAYER, { cmd: 'SLASH' });
+      local = { damage: 1000 - target.hp, cooldown: state.player.attackCooldown };
+    }
+  );
+  withCommandState(
+    {
+      player: makePlayer({ x: 30, y: 0, hp: 1000, maxHp: 1000 }),
+      npcs: [makeBoss({ x: 0, y: 0, facing: 0, minDmg: 20, maxDmg: 20 })],
+    },
+    () => {
+      dispatchCommand(Faction.RIVAL_1, { cmd: 'SLASH' });
+      remote = { damage: 1000 - state.player.hp, cooldown: state.npcs[0].attackCooldown };
+    }
+  );
+  assertEqual(local.damage, 20);
+  assertEqual(remote.damage, 20);
+  assertEqual(local.cooldown, remote.cooldown);
+
+  withCommandState(
+    { npcs: [makeBoss({ faction: Faction.RIVAL_2, x: 200, y: 0, hp: 1000, maxHp: 1000 })] },
+    () => {
+      const target = state.npcs[0];
+      dispatchCommand(Faction.PLAYER, { cmd: 'SHOOT', tx: 200, ty: 0 });
+      local = { hit: target.hp < 1000, cooldown: state.player.attackCooldown };
+    }
+  );
+  withCommandState(
+    {
+      player: makePlayer({ x: 200, y: 0, hp: 1000, maxHp: 1000 }),
+      npcs: [makeBoss({ x: 0, y: 0, humanPeerId: 'peer' })],
+    },
+    () => {
+      dispatchCommand(Faction.RIVAL_1, { cmd: 'SHOOT', tx: 200, ty: 0 });
+      remote = { hit: state.player.hp < 1000, cooldown: state.npcs[0].attackCooldown };
+    }
+  );
+  assertEqual(local.hit, true);
+  assertEqual(remote.hit, true);
+  assertEqual(local.cooldown, 0.65);
+  assertEqual(remote.cooldown, 0.65);
+
+  withCommandState({ treasuries: { [Faction.PLAYER]: 3500 } }, () => {
+    dispatchCommand(Faction.PLAYER, { cmd: 'BUY_ARMOR' });
+    local = { armor: state.player.armor, treasury: state.treasuries[Faction.PLAYER] };
+  });
+  withCommandState(
+    { treasuries: { [Faction.RIVAL_1]: 3500 }, npcs: [makeBoss()] },
+    () => {
+      dispatchCommand(Faction.RIVAL_1, { cmd: 'BUY_ARMOR' });
+      remote = { armor: state.npcs[0].armor, treasury: state.treasuries[Faction.RIVAL_1] };
+    }
+  );
+  assertEqual(local.armor, 300);
+  assertEqual(remote.armor, 300);
+  assertEqual(local.treasury, remote.treasury);
+
+  const payload = {
+    cmd: 'RECRUIT_PREF',
+    autoSoldier: false,
+    autoCaptain: true,
+    autoUnderboss: false,
+    caps: { [UnitRank.SOLDIER]: 999, [UnitRank.CAPTAIN]: 999, [UnitRank.UNDERBOSS]: 999 },
+  };
+  withCommandState({}, () => {
+    dispatchCommand(Faction.PLAYER, payload);
+    local = { auto: state.autoRecruitSoldier, caps: { ...state.playerSpawnCaps } };
+  });
+  withCommandState({}, () => {
+    dispatchCommand(Faction.RIVAL_1, payload);
+    const prefs = state.factionRecruitmentPrefs[Faction.RIVAL_1];
+    remote = { auto: prefs.autoSoldier, caps: { ...prefs.caps } };
+  });
+  assertEqual(local.auto, remote.auto);
+  assertEqual(local.caps[UnitRank.SOLDIER], remote.caps[UnitRank.SOLDIER]);
+  assertEqual(local.caps[UnitRank.CAPTAIN], remote.caps[UnitRank.CAPTAIN]);
+  assertEqual(local.caps[UnitRank.UNDERBOSS], remote.caps[UnitRank.UNDERBOSS]);
+});
+
 test('commands: guests stream commands while local play dispatches them', () => {
   const sent = [];
   withCommandState(
