@@ -6608,12 +6608,25 @@
       }
 
       function setupChannels(activeRoom) {
-        const [txLobby, rxLobby] = activeRoom.makeAction('lobby');
-        const [txCmd, rxCmd] = activeRoom.makeAction('cmd');
-        const [txInput, rxInput] = activeRoom.makeAction('input');
-        const [txInit, rxInit] = activeRoom.makeAction('init');
-        const [txSnap, rxSnap] = activeRoom.makeAction('snap');
-        const [txEvent, rxEvent] = activeRoom.makeAction('event');
+        const bindAction = (ns) => {
+          const act = activeRoom.makeAction(ns);
+          if (Array.isArray(act)) return act;
+          if (act && typeof act === 'object') {
+            const tx = act.send || act[0];
+            const rx = act.receive || act.onMessage || act.get || act[1];
+            if (typeof tx === 'function' && typeof rx === 'function') {
+              return [tx, rx];
+            }
+          }
+          throw new Error(`Unsupported makeAction signature for "${ns}"`);
+        };
+
+        const [txLobby, rxLobby] = bindAction('lobby');
+        const [txCmd, rxCmd] = bindAction('cmd');
+        const [txInput, rxInput] = bindAction('input');
+        const [txInit, rxInit] = bindAction('init');
+        const [txSnap, rxSnap] = bindAction('snap');
+        const [txEvent, rxEvent] = bindAction('event');
 
         sendLobby = txLobby;
         sendCmd = txCmd;
@@ -6624,9 +6637,13 @@
 
         rxLobby((env, peerId) => {
           if (!validateEnvelope(env)) {
-            if (mode === 'JOIN') {
-              showJoinError(`Protocol mismatch (expected v${PROTOCOL_VERSION} / ${GAME_VERSION}).`);
-              cleanup('Protocol mismatch');
+            if (mode === 'HOST') {
+              sendLobby(
+                envelope('REJECT', 0, {
+                  reason: `Version mismatch. Host requires ${GAME_VERSION} (protocol v${PROTOCOL_VERSION}).`,
+                }),
+                peerId
+              );
             }
             return;
           }
