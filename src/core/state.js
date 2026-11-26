@@ -35,6 +35,12 @@ export const state = {
     [Faction.RIVAL_2]: true,
     [Faction.RIVAL_3]: true,
   },
+  factionKills: {
+    [Faction.PLAYER]: 0,
+    [Faction.RIVAL_1]: 0,
+    [Faction.RIVAL_2]: 0,
+    [Faction.RIVAL_3]: 0,
+  },
 
   // --- local player boss ----------------------------------------------------
   player: {
@@ -70,6 +76,7 @@ export const state = {
     inside: false,
   },
   keys: new Set(),
+  sprintButtonHeld: false,
 
   // --- match configuration --------------------------------------------------
   activeFactions: [...ALL_FACTION_SLOTS],

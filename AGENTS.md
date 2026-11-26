@@ -75,6 +75,7 @@ command, number or test result; read the file or run the check.
 | Recruitment feedback (floating text) | `src/render/recruitFx.js` |
 | Remote-human boss / waypoints | `src/sim/movement.js` |
 | HUD | `src/ui/hud.js` |
+| Combat action bar / cooldowns | `src/ui/actionBar.js` |
 | Setup modal / banners / toasts | `src/ui/menus.js` |
 | Keyboard / mouse / HUD buttons | `src/ui/input.js` |
 | Snapshots / lobby / transport | `src/net/mpNet.js` |

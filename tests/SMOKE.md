@@ -58,6 +58,9 @@ Serve the repo over http first (`python -m http.server 8000` or any static serve
 - [ ] Build/border controls are gone (no Expand Ring, Click-Build or Borders buttons).
 - [ ] Outside the generated map, a subtle dark city backdrop is visible (not flat black).
 - [ ] City Radar is larger/readable and still shows player/boss/unit markers.
+- [ ] Bottom action bar: slash/pistol/armor/sprint cooldowns, costs, shortcuts and tooltips;
+  armor shows a cooldown overlay; sprint works while holding the button.
+- [ ] Leaderboard shows Turf / Crew / Kills with a readable rank order.
 - [ ] Kill a rival boss → toast + turf neutral; kill all → victory banner + summary.
 - [ ] Die → defeat banner → Spectate pans camera → spectator banner "Leave/New Game".
 - [ ] Music: Noir I → Noir II → OFF; SFX toggle mutes/unmutes.
@@ -73,7 +76,7 @@ Serve the repo over http first (`python -m http.server 8000` or any static serve
 - [ ] Guest input: movement, sprint, facing/aim, slash, shoot, armor, recruit prefs,
       capture, recruit, slash/shoot and armor all take effect on host simulation.
 - [ ] Snapshots smooth (interpolation) and combat animations show on guest.
-- [ ] Host/guest HP, armor, cash, hour and standings match.
+- [ ] Host/guest HP, armor, cash, hour and standings match; guest leaderboard reflects host kills.
 - [ ] Peer leaves mid-match → AI takeover toast; remaining players continue.
 - [ ] Host leaves mid-match → guests see disconnect modal → Return to Menu.
 

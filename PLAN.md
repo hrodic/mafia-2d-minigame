@@ -48,6 +48,9 @@ This is the living plan. Read `AGENTS.md` for the working contract and
   - Post-Phase-2 UX (`0.3.0`): removed Borders, Click-Build and Expand Ring controls/logic.
   - Post-Phase-2 visuals (`0.3.1`): subtle city backdrop outside chunks; radar enlarged to
     168px with larger unit markers.
+  - UX overhaul (`0.4.0`): primary boss/economy strip, separate crew management, bottom
+    combat action bar (cooldown/ready/cost/shortcut states, hold-to-sprint), faction
+    leaderboard with kills (host-synced).
   - Next: Phase 3 (unified entity/command pipeline, fixed timestep)
   - Guardrails: benefits/tradeoffs/use-skip rules and the many-NPC + multiplayer
     performance budget are documented in `EVENTS.md`

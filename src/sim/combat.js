@@ -15,7 +15,19 @@ export function rollDamage(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-export function applyDamageToNpc(target, dmg, textColor = '#fbbf24', suffix = '', hitAngle = null) {
+function creditKill(killerFaction, victimFaction) {
+  if (!killerFaction || killerFaction === victimFaction) return;
+  if (state.factionKills[killerFaction] !== undefined) state.factionKills[killerFaction]++;
+}
+
+export function applyDamageToNpc(
+  target,
+  dmg,
+  textColor = '#fbbf24',
+  suffix = '',
+  hitAngle = null,
+  killerFaction = null
+) {
   if (!target) return false;
   target.hitFlashTimer = 0.16;
 
@@ -55,6 +67,7 @@ export function applyDamageToNpc(target, dmg, textColor = '#fbbf24', suffix = ''
       const deadFaction = target.faction;
       const wasBoss = target.rank === UnitRank.BOSS;
       const fallAngle = hitAngle ?? target.facing;
+      creditKill(killerFaction, deadFaction);
       state.npcs.splice(deadIdx, 1);
       emit('unit:died', {
         unit: target,
@@ -134,7 +147,7 @@ export function executeBossSlashForFaction(faction) {
     const dmg = rollDamage(bossNpc.minDmg, bossNpc.maxDmg);
     const strikeAngle = item.dist > 0.01 ? Math.atan2(item.dy, item.dx) : bossNpc.facing;
     if (item.isPlayer) {
-      damagePlayerBoss(dmg, '#f43f5e', '', strikeAngle);
+      damagePlayerBoss(dmg, '#f43f5e', '', strikeAngle, faction);
     } else {
       const knockX = item.entity.x + Math.cos(strikeAngle) * profile.knockback;
       const knockY = item.entity.y + Math.sin(strikeAngle) * profile.knockback;
@@ -143,7 +156,7 @@ export function executeBossSlashForFaction(faction) {
         item.entity.x = knockX;
         item.entity.y = knockY;
       }
-      applyDamageToNpc(item.entity, dmg, FACTION_META[faction].accent, '', strikeAngle);
+      applyDamageToNpc(item.entity, dmg, FACTION_META[faction].accent, '', strikeAngle, faction);
     }
   }
 }
@@ -206,7 +219,7 @@ export function performKnifeSlash() {
       npc.y = knockY;
     }
 
-    applyDamageToNpc(npc, dmg, '#fbbf24', '', pushAngle);
+    applyDamageToNpc(npc, dmg, '#fbbf24', '', pushAngle, Faction.PLAYER);
   }
 }
 
@@ -258,7 +271,7 @@ export function performBossKnifeSlash(bossNpc) {
     const dmg = rollDamage(bossNpc.minDmg, bossNpc.maxDmg);
     const pushAngle = item.dist > 0.01 ? Math.atan2(item.dy, item.dx) : bossNpc.facing;
     if (item.isPlayer) {
-      damagePlayerBoss(dmg, '#f43f5e', '🔪', pushAngle);
+      damagePlayerBoss(dmg, '#f43f5e', '🔪', pushAngle, bossNpc.faction);
     } else {
       const knockX = item.entity.x + Math.cos(pushAngle) * profile.knockback;
       const knockY = item.entity.y + Math.sin(pushAngle) * profile.knockback;
@@ -267,7 +280,7 @@ export function performBossKnifeSlash(bossNpc) {
         item.entity.x = knockX;
         item.entity.y = knockY;
       }
-      applyDamageToNpc(item.entity, dmg, FACTION_META[bossNpc.faction].accent, '🔪', pushAngle);
+      applyDamageToNpc(item.entity, dmg, FACTION_META[bossNpc.faction].accent, '🔪', pushAngle, bossNpc.faction);
     }
   }
   return true;
@@ -427,7 +440,7 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
       dmg = Math.max(1, Math.round(dmg * dmgMult));
     }
     if (bestTargetIsPlayer) {
-      damagePlayerBoss(dmg, `${FACTION_META[shooterFaction].accent}`, '🔫', angle);
+      damagePlayerBoss(dmg, `${FACTION_META[shooterFaction].accent}`, '🔫', angle, shooterFaction);
     } else {
       const knockX = bestTarget.x + cos * PISTOL.knockback;
       const knockY = bestTarget.y + sin * PISTOL.knockback;
@@ -441,7 +454,8 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
         dmg,
         isPlayerShooter ? '#fde047' : FACTION_META[shooterFaction].accent,
         '',
-        angle
+        angle,
+        shooterFaction
       );
     }
   }
@@ -449,7 +463,7 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
   return true;
 }
 
-export function damagePlayerBoss(dmg, textColor = '#f43f5e', suffix = '', hitAngle = null) {
+export function damagePlayerBoss(dmg, textColor = '#f43f5e', suffix = '', hitAngle = null, killerFaction = null) {
   if (!state.player.alive) return;
   state.player.hitFlashTimer = 0.15;
 
@@ -484,6 +498,7 @@ export function damagePlayerBoss(dmg, textColor = '#f43f5e', suffix = '', hitAng
   }
 
   if (isKill) {
+    creditKill(killerFaction, Faction.PLAYER);
     emit('unit:died', {
       unit: state.player,
       faction: Faction.PLAYER,

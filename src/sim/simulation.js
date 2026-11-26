@@ -111,7 +111,7 @@ export function update(dt) {
     }
 
     const isMoving = moveX !== 0 || moveY !== 0;
-    const wantsSprint = state.keys.has('shift') && isMoving;
+    const wantsSprint = (state.keys.has('shift') || state.sprintButtonHeld) && isMoving;
     if (state.player.sprintCooldown > 0) {
       state.player.sprintCooldown = Math.max(0, state.player.sprintCooldown - dt);
       state.player.isSprinting = false;

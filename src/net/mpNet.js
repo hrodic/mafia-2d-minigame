@@ -498,6 +498,7 @@ export const mpNet = (() => {
       tickTimer: Math.round(state.tickTimer * 100) / 100,
       treasuries: { ...state.treasuries },
       factionAlive: { ...state.factionAlive },
+      kills: { ...state.factionKills },
       playerBoss: {
         x: Math.round(state.player.x * 10) / 10,
         y: Math.round(state.player.y * 10) / 10,
@@ -521,6 +522,7 @@ export const mpNet = (() => {
     state.tickTimer = snap.tickTimer ?? state.tickTimer;
 
     if (snap.treasuries) Object.assign(state.treasuries, snap.treasuries);
+    if (snap.kills) Object.assign(state.factionKills, snap.kills);
     if (snap.factionAlive) {
       for (const f of state.activeFactions) {
         const wasAlive = state.factionAlive[f];
@@ -1042,7 +1044,7 @@ export const mpNet = (() => {
     if (state.keys.has('s') || state.keys.has('arrowdown')) my += 1;
     if (state.keys.has('a') || state.keys.has('arrowleft')) mx -= 1;
     if (state.keys.has('d') || state.keys.has('arrowright')) mx += 1;
-    const sprint = state.keys.has('shift');
+    const sprint = state.keys.has('shift') || state.sprintButtonHeld;
 
     const localBoss = getLocalBoss();
     let facing = localBoss ? localBoss.facing : 0;

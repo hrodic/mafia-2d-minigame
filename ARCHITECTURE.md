@@ -64,7 +64,8 @@ src/
     sfx.js                 synthesized SFX with distance attenuation
     combatSfx.js           event subscribers: combat facts -> SFX
   ui/
-    hud.js                 top-bar values, sprint/timer bars, standings, recruit labels
+    hud.js                 primary status, crew management, leaderboard
+    actionBar.js           bottom combat bar: readiness, cooldowns, costs
     hudCadence.js          presentation cadence (4 Hz HUD refresh) driven by main.js
     version.js             applies GAME_VERSION to title + HUD/modal labels
     menus.js               setup modal, lobby buttons, banners, toast, map-size controls
@@ -154,7 +155,7 @@ of truth.
 One exported `state` object in `core/state.js` holds the match:
 
 - world/entities: `world`, `npcs`, `floatingTexts`, `spatialBuckets`, `nextNpcId`
-- factions/economy: `treasuries`, `factionAlive`
+- factions/economy: `treasuries`, `factionAlive`, `factionKills`
 - local boss: `player`, `camera`, `mouse`, `keys`
 - match config: `activeFactions`, `selectedFactionOrgs`, `activeFactionCount`,
   `currentGridSize`, `tickDuration`, `currentIncomeTier`, `currentWorldSeed`
@@ -292,9 +293,14 @@ distance from the camera.
 
 ## UI
 
-- `ui/hud.js`: HUD values, sprint/tick bars, standings board, recruit button labels.
-- `ui/menus.js`: setup modal renderers/bindings, lobby buttons, start-game flow,
-  `openSetupMenu`, banners and toasts; exports `initMenus`.
+- `ui/hud.js`: primary boss/economy status, crew management panel, faction leaderboard
+  (turf, crew, kills), recruit labels/costs.
+- `ui/actionBar.js`: bottom-center combat bar. Slash/pistol/armor/sprint show ready/cooling
+  states, cooldown overlays, costs and shortcuts; sprint is hold-to-run and guest input
+  includes the held state.
+- `ui/hudCadence.js`: 4 Hz HUD refresh from the main loop.
+- `ui/menus.js`: setup modal, lobby buttons, start-game flow, `openSetupMenu`, banners and
+  toasts; exports `initMenus`.
 - `ui/input.js`: keyboard/mouse/minimap handlers, HUD action buttons, guest commands;
   releases held keys on blur/visibility loss; exports `initInput`.
 

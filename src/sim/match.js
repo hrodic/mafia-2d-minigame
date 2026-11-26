@@ -62,6 +62,7 @@ export function initWorld(
     const isActive = state.activeFactions.includes(f);
     state.treasuries[f] = isActive ? 3000 : 0;
     state.factionAlive[f] = isActive;
+    state.factionKills[f] = 0;
   }
 
   for (let cy = 0; cy < state.currentGridSize; cy++) {

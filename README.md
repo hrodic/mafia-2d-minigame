@@ -29,11 +29,12 @@ bundler, no server. Deploys to GitHub Pages as-is.
 |---|---|
 | WASD / Arrows | Move boss |
 | Left-click street / minimap | Move to waypoint (A* pathfinding) |
-| Shift | Sprint |
-| Space / F | Knife slash |
-| Right-click | Pistol shot at cursor |
-| Q | Buy kevlar armor |
-| HUD buttons | Recruit toggles/caps, armor, slash, pistol, music, SFX, new game |
+| Shift or hold Sprint button | Sprint |
+| Space / F or Slash button | Knife slash |
+| Right-click or Pistol button | Pistol shot at cursor |
+| Q or Armor button | Buy kevlar armor |
+| Crew Management panel | Recruit toggles/caps |
+| Utility buttons | Music, SFX, New Game |
 
 ## Run locally
 

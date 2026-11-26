@@ -132,6 +132,7 @@ const STATE_KEYS = [
   'npcs',
   'treasuries',
   'factionAlive',
+  'factionKills',
   'gameOver',
   'victoryShown',
   'activeFactions',
@@ -171,6 +172,7 @@ function withCombatState(opts, fn) {
   state.npcs = opts.npcs || [];
   state.treasuries = { ...saved.treasuries, ...(opts.treasuries || {}) };
   state.factionAlive = { ...saved.factionAlive, ...(opts.factionAlive || {}) };
+  state.factionKills = { ...saved.factionKills, ...(opts.factionKills || {}) };
   state.gameOver = false;
   state.victoryShown = false;
   state.activeFactions = [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3];
@@ -296,6 +298,16 @@ test('combat: lethal damage removes the unit and spawns gore', () => {
     assertEqual(deaths[0].payload.rank, UnitRank.SOLDIER);
     assertEqual(deaths[0].payload.isBoss, false);
     assertEqual(deaths[0].payload.isPlayer, false);
+  });
+});
+
+test('combat: kills credit the attacking faction', () => {
+  withCombatState({}, () => {
+    const enemy = makeNpc({ hp: 10, faction: Faction.RIVAL_1 });
+    state.npcs = [enemy];
+    applyDamageToNpc(enemy, 50, '#fbbf24', '', null, Faction.PLAYER);
+    assertEqual(state.factionKills[Faction.PLAYER], 1);
+    assertEqual(state.factionKills[Faction.RIVAL_1], 0);
   });
 });
 

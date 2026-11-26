@@ -25,6 +25,7 @@ import {
 import { initInput } from './ui/input.js';
 import { applyVersionLabels } from './ui/version.js';
 import { updateHudCadence } from './ui/hudCadence.js';
+import { updateActionBar } from './ui/actionBar.js';
 import { mpNet } from './net/mpNet.js';
 import { sfx } from './audio/sfx.js';
 import * as combatSfx from './audio/combatSfx.js';
@@ -101,6 +102,7 @@ function gameLoop(now) {
   if (state.gameStarted) {
     update(dt);
     updateHudCadence(dt, updateHUD);
+    updateActionBar();
     render();
   }
 

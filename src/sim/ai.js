@@ -125,9 +125,16 @@ export function updateNpcAi(u, dt) {
         });
         const dmg = rollDamage(u.minDmg, u.maxDmg);
         if (nearestEnemy.isPlayer) {
-          damagePlayerBoss(dmg, FACTION_META[u.faction].accent, '', u.facing);
+          damagePlayerBoss(dmg, FACTION_META[u.faction].accent, '', u.facing, u.faction);
         } else {
-          applyDamageToNpc(nearestEnemy.entity, dmg, FACTION_META[u.faction].accent, '', u.facing);
+          applyDamageToNpc(
+            nearestEnemy.entity,
+            dmg,
+            FACTION_META[u.faction].accent,
+            '',
+            u.facing,
+            u.faction
+          );
         }
       }
     } else if (

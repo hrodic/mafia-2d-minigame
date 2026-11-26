@@ -7,6 +7,9 @@ import {
   COST_SOLDIER,
   COST_CAPTAIN,
   COST_UNDERBOSS,
+  UPKEEP_SOLDIER,
+  UPKEEP_CAPTAIN,
+  UPKEEP_UNDERBOSS,
 } from '../config/balance.js';
 import { SPRINT_MAX_DURATION, SPRINT_COOLDOWN_DURATION } from '../config/constants.js';
 import { FACTION_META } from '../config/organizations.js';
@@ -38,9 +41,16 @@ export function syncRecruitButtonLabels() {
   const btnS = document.getElementById('btn-toggle-soldier');
   const btnC = document.getElementById('btn-toggle-captain');
   const btnU = document.getElementById('btn-toggle-underboss');
-  btnS.textContent = `Auto ${pRanks.SOLDIER}: ${state.autoRecruitSoldier ? 'ON' : 'OFF'} ($${COST_SOLDIER.toLocaleString()})`;
-  btnC.textContent = `Auto ${pRanks.CAPTAIN}: ${state.autoRecruitCaptain ? 'ON' : 'OFF'} ($${COST_CAPTAIN.toLocaleString()})`;
-  btnU.textContent = `Auto ${pRanks.UNDERBOSS}: ${state.autoRecruitUnderboss ? 'ON' : 'OFF'} ($${COST_UNDERBOSS.toLocaleString()})`;
+  btnS.textContent = `Auto ${pRanks.SOLDIER}: ${state.autoRecruitSoldier ? 'ON' : 'OFF'}`;
+  btnC.textContent = `Auto ${pRanks.CAPTAIN}: ${state.autoRecruitCaptain ? 'ON' : 'OFF'}`;
+  btnU.textContent = `Auto ${pRanks.UNDERBOSS}: ${state.autoRecruitUnderboss ? 'ON' : 'OFF'}`;
+
+  const costS = document.getElementById('mgmt-cost-soldier');
+  const costC = document.getElementById('mgmt-cost-captain');
+  const costU = document.getElementById('mgmt-cost-underboss');
+  if (costS) costS.textContent = `$${COST_SOLDIER.toLocaleString()} · $${UPKEEP_SOLDIER}/hr upkeep`;
+  if (costC) costC.textContent = `$${COST_CAPTAIN.toLocaleString()} · $${UPKEEP_CAPTAIN}/hr upkeep`;
+  if (costU) costU.textContent = `$${COST_UNDERBOSS.toLocaleString()} · $${UPKEEP_UNDERBOSS}/hr upkeep`;
 
   document.getElementById('cap-soldier-label').textContent =
     `${state.playerSpawnCaps[UnitRank.SOLDIER]}/${maxSoldiers}`;
@@ -105,6 +115,7 @@ export function updateHUD() {
     [Faction.RIVAL_2]: 0,
     [Faction.RIVAL_3]: 0,
   };
+  const killCounts = state.factionKills || {};
 
   for (const chunk of state.world.chunks.values()) {
     if (blockCounts[chunk.faction] !== undefined) blockCounts[chunk.faction]++;
@@ -119,22 +130,43 @@ export function updateHUD() {
   const myNetIncome = (incomeTotals[myFac] || 0) - (upkeepTotals[myFac] || 0);
   hudEls.statsBadge.textContent = `Turf: ${blockCounts[myFac] || 0}/${totalBlocks} | Crew: ${crewCounts[myFac] || 0} | Net: ${myNetIncome >= 0 ? '+' : ''}$${myNetIncome.toLocaleString()}/hr`;
 
-  let boardHtml = `<div class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-800 pb-1 flex justify-between"><span>Syndicate Standings</span><span>Turf · Crew</span></div>`;
-  for (const f of state.activeFactions) {
+  let boardHtml = `
+    <div class="border-b border-zinc-800 pb-1.5">
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-zinc-300">Faction Leaderboard</span>
+        <span class="text-[9px] font-mono text-zinc-600">${state.activeFactions.length} syndicates</span>
+      </div>
+      <div class="grid grid-cols-[1fr_2.6rem_2.4rem_2.4rem] gap-1 mt-1 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
+        <span>Syndicate</span>
+        <span class="text-right" title="Neighborhoods controlled">Turf</span>
+        <span class="text-right" title="Living crew members">Crew</span>
+        <span class="text-right" title="Enemy units killed">Kills</span>
+      </div>
+    </div>`;
+  const ranked = [...state.activeFactions].sort(
+    (a, b) =>
+      (blockCounts[b] || 0) - (blockCounts[a] || 0) ||
+      (killCounts[b] || 0) - (killCounts[a] || 0) ||
+      (crewCounts[b] || 0) - (crewCounts[a] || 0)
+  );
+  ranked.forEach((f, index) => {
     const meta = FACTION_META[f];
     const alive = state.factionAlive[f];
     const isMe = f === myFac;
     const alias = state.net && state.net.isActive() ? state.net.getAliasForFaction(f) : null;
     const displayName = alias ? `${meta.short} · ${alias}` : meta.short;
     boardHtml += `
-      <div class="flex items-center justify-between gap-2 ${!alive ? 'opacity-45 line-through' : ''}">
-        <div class="flex items-center gap-1.5 truncate">
+      <div class="grid grid-cols-[1fr_2.6rem_2.4rem_2.4rem] items-center gap-1 ${!alive ? 'opacity-45 line-through' : ''} ${isMe ? 'bg-amber-500/5 -mx-1 px-1 rounded' : ''}">
+        <div class="flex items-center gap-1.5 min-w-0">
+          <span class="text-[9px] font-mono text-zinc-600 w-3">${index + 1}</span>
           <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${meta.badge}"></span>
           <span class="font-bold truncate ${isMe ? 'text-amber-300' : 'text-zinc-200'}">${displayName}${isMe ? ' (You)' : ''}</span>
         </div>
-        <span class="font-mono text-[11px] text-zinc-300 flex-shrink-0">${blockCounts[f]} · ${crewCounts[f]}</span>
+        <span class="text-right font-mono text-[11px] text-zinc-300">${blockCounts[f] || 0}</span>
+        <span class="text-right font-mono text-[11px] text-zinc-300">${crewCounts[f] || 0}</span>
+        <span class="text-right font-mono text-[11px] ${killCounts[f] ? 'text-rose-300' : 'text-zinc-500'}">${killCounts[f] || 0}</span>
       </div>
     `;
-  }
+  });
   hudEls.factionBoard.innerHTML = boardHtml;
 }

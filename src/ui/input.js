@@ -45,9 +45,10 @@ window.addEventListener('keyup', (e) => {
 // Losing focus can swallow keyup events; clear held keys and send a stop so the
 // guest boss never keeps walking into a wall after alt-tab/HUD clicks.
 function releaseAllKeys() {
-  if (state.keys.size === 0) return;
+  const hadInput = state.keys.size > 0 || state.sprintButtonHeld;
   state.keys.clear();
-  if (state.net && state.net.isGuest()) {
+  state.sprintButtonHeld = false;
+  if (hadInput && state.net && state.net.isGuest()) {
     state.net.flushGuestInput();
   }
 }
@@ -253,6 +254,25 @@ document.getElementById('btn-pistol').addEventListener('click', () => {
     performBossPistolShot(state.player, true, tx, ty);
   }
 });
+
+const sprintButton = document.getElementById('btn-sprint');
+if (sprintButton) {
+  const startSprint = (event) => {
+    event.preventDefault();
+    getAudioCtx();
+    state.sprintButtonHeld = true;
+    if (state.net && state.net.isGuest()) state.net.flushGuestInput();
+  };
+  const stopSprint = () => {
+    if (!state.sprintButtonHeld) return;
+    state.sprintButtonHeld = false;
+    if (state.net && state.net.isGuest()) state.net.flushGuestInput();
+  };
+  sprintButton.addEventListener('pointerdown', startSprint);
+  for (const type of ['pointerup', 'pointercancel', 'pointerleave', 'blur']) {
+    sprintButton.addEventListener(type, stopSprint);
+  }
+}
 
 document.getElementById('btn-toggle-music').addEventListener('click', (e) => {
   ensureAudioContext();
