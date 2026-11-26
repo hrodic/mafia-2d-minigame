@@ -86,7 +86,8 @@ no external relays): `tests/mp-harness.html`.
 - [EVENTS.md](EVENTS.md) — event-bus contract for Phase 2 (catalog + subscribers).
 - [PLAN.md](PLAN.md) — phased refactor plan and current status.
 - [AGENTS.md](AGENTS.md) — workflow contract for AI/human contributors.
-- [SKILLS.md](SKILLS.md) — reusable techniques and gotchas for this codebase.
+- `.opencode/skills/` — task skills auto-discovered by OpenCode (zero-build refactor,
+  multiplayer debug).
 
 ## Support
 

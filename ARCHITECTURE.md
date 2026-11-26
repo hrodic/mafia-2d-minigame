@@ -72,7 +72,7 @@ tools/
 EVENTS.md                  Phase 2 event-bus contract (catalog + subscribers)
 ARCHITECTURE.md            this document
 AGENTS.md                  contributor workflow contract
-SKILLS.md                  reusable techniques and pitfalls
+.opencode/skills/          task skills: SKILL.md + references/ (OpenCode discovery)
 PLAN.md                    phased refactor plan and status
 ```
 
@@ -264,7 +264,8 @@ distance from the camera.
   not alter maps; update the expected hashes only for an intentional generation change.
 - **Static health check** (`tools/check.ps1`, no npm): verifies required files exist,
   every relative `.js` import resolves, no bare static imports exist, every `*.test.js`
-  suite is registered in `tests/runner.js`, and `index.html` has no duplicate ids.
+  suite is registered in `tests/runner.js`, `index.html` has no duplicate ids, and each
+  `.opencode/skills/<id>/SKILL.md` has valid frontmatter and existing references.
   `tests/runner.js` is the manifest — a new suite that is not imported there silently
   does not run.
 

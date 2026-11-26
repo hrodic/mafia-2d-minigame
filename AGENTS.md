@@ -1,119 +1,92 @@
-# AGENTS.md — working contract
+# AGENTS.md
 
-Onboarding and rules for any AI or human contributor continuing this project. Read
-`README.md`, then `ARCHITECTURE.md`, then `PLAN.md` before changing code.
+Rules for AI/human contributors. One source of truth per topic:
 
-## Project status
+- `README.md` — what the game is, controls, run/deploy.
+- `ARCHITECTURE.md` — layers, modules, data flow, invariants.
+- `PLAN.md` — phase status and the next step.
+- `EVENTS.md` — Phase 2 event-bus contract.
+- `.opencode/skills/` — task skills (zero-build refactor, multiplayer debug).
 
-- **Phase 1 (modularization) is complete**: `src/main.js` is an 81-line composition root;
-  all systems live under `src/` as native ES modules.
-- **179 browser tests pass** (`tests/tests.html`).
-- **Phase 2 (decoupling & dedup) is next** — see `PLAN.md`.
+Precedence: explicit user instruction > this file > other docs. Never invent a path,
+command, number or test result; read the file or run the check.
 
-## Hard rules from the owner
+## Hard rules
 
-1. **Always work on a branch** (e.g. `refactor/...`), never directly on `master`.
-2. **Do not commit or push unless the owner explicitly asks.** Leave changes in the
-   working tree and report what changed.
-3. **Pause after each phase** (and after each agreed checkpoint) so the owner can
-   manually validate before continuing.
-4. **Golden rule: every commit must leave the game playable, deployable to GitHub Pages,
-   and the test suite green.** If a step cannot meet this, split it.
-5. **Zero-build is non-negotiable**: no npm, no bundler, no TypeScript transpilation, no
-   asset pipeline. Native ES modules + relative `.js` imports; Tailwind and Trystero stay
-   on their CDNs.
+1. Work on a branch (`refactor/...`). NEVER edit `master` directly.
+2. NEVER commit or push unless the owner explicitly asks. Leave changes in the working tree.
+3. Pause after each phase/checkpoint so the owner can validate before the next step.
+4. Every change MUST leave the game playable, GitHub Pages-deployable, and tests green.
+   If a step cannot, split it.
+5. Zero-build is non-negotiable: no npm, bundler, transpiler, or asset pipeline. Native ES
+   modules with relative `.js` imports; Tailwind and Trystero stay on their CDNs.
 
-## Verification loop (run after every change)
+## Commands (Windows/PowerShell; `python`/`node` not assumed)
 
-0. Static health check (fast, catches missing imports / unregistered suites before the
-   browser):
-   ```sh
-   powershell -ExecutionPolicy Bypass -File tools/check.ps1
-   ```
-   Must print `OK: …`.
-1. Start a static server from the repo root:
-   ```sh
-   powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123
-   ```
-   (or any static server; ES modules require http, not `file://`).
-2. Open `http://localhost:8123/tests/tests.html` → page title must be **PASS**.
-   If you add a suite, register it in `tests/runner.js` (the check script enforces this).
-3. Quick smoke: `http://localhost:8123/` → launch single player → move (WASD + click) →
-   slash/pistol → capture a block → wait one tick → no console errors.
-4. For any change touching `sim/`, `net/` or shared state, run the multiplayer check:
-   open `tests/mp-harness.html` in **two tabs** (or the deployed URL in two browsers),
-   host a room, join, launch, verify guest movement/commands and snapshots.
-5. Full manual checklist: `tests/SMOKE.md`.
+| Task | Command / URL |
+|---|---|
+| Static check | `powershell -ExecutionPolicy Bypass -File tools/check.ps1` → `OK: ...` |
+| Dev server | `powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123` |
+| Tests | `http://localhost:8123/tests/tests.html` → title `PASS` |
+| Single-player smoke | `http://localhost:8123/` |
+| Multiplayer smoke | `tests/mp-harness.html` in two tabs |
+| Manual checklist | `tests/SMOKE.md` |
 
-**Golden worldgen tests**: `tests/world-golden.test.js` pins seeded chunk hashes. If a
-refactor (e.g. Phase 2 explicit RNG) changes them unexpectedly, generation broke — fix
-the code, do not update the hashes. Update hashes only for an intentional gen change.
+## Verification (after every change)
 
-### Environment notes
-
-- Windows + PowerShell. `python`/`node` are not assumed; `tools/serve.ps1` is a
-  dependency-free threaded server. The in-app browser tools and the `browse` MCP can be
-  used for live verification.
-- **Background tabs are throttled by browsers.** A host tab in the background simulates
-  at ~1 fps, making guests look frozen/slow. Keep the host tab visible, or test with two
-  windows/computers. This is a documented limitation, not a game bug.
-- Browser console/screenshot checks are the fastest way to catch wiring mistakes; several
-  past bugs were missing imports only visible at runtime.
+1. `tools/check.ps1` prints `OK: ...` (imports, runner manifest, DOM ids).
+2. Tests page title is `PASS`; check the browser console, not just the summary.
+3. Game loads over http, starts, moves, slashes/shoots; no console errors.
+4. If `sim/`, `net/` or shared state changed: two-tab MP check (lobby, launch, guest
+   movement/commands, snapshots).
+5. Added a test file? Register it in `tests/runner.js`; the check script enforces this.
+6. Golden test failed after a refactor? Generation broke. Fix the code; update
+   `tests/world-golden.test.js` hashes only for an intentional generation change.
 
 ## Where to change what
 
 | Task | Files |
 |---|---|
-| New unit stat / cost / cap | `src/config/balance.js`, `src/sim/units.js` |
-| New organization / faction colors | `src/config/organizations.js` |
-| World generation / props / collision | `src/world/chunk.js`, `src/world/city.js` |
-| AI behavior | `src/sim/simulation.js` (AI block; Phase 2 moves it to `sim/ai.js`) |
-| Combat/weapons/armor | `src/sim/combat.js` |
+| Unit stats / costs / caps | `src/config/balance.js`, `src/sim/units.js` |
+| Organizations / faction colors | `src/config/organizations.js` |
+| Worldgen / props / collision | `src/world/chunk.js`, `src/world/city.js` |
+| AI behavior | `src/sim/simulation.js` (Phase 2 moves it to `src/sim/ai.js`) |
+| Combat / weapons / armor | `src/sim/combat.js` |
 | Capture / victory / defeat | `src/sim/territory.js` |
 | Economy / recruitment tick | `src/sim/economy.js`, `src/sim/units.js` |
 | Remote-human boss / waypoints | `src/sim/movement.js` |
 | HUD | `src/ui/hud.js` |
 | Setup modal / banners / toasts | `src/ui/menus.js` |
-| Keyboard/mouse/HUD buttons | `src/ui/input.js` |
-| Snapshot/lobby/transport | `src/net/mpNet.js` |
+| Keyboard / mouse / HUD buttons | `src/ui/input.js` |
+| Snapshots / lobby / transport | `src/net/mpNet.js` |
 | Rendering / minimap / effects | `src/render/*` |
 | Audio | `src/audio/*` |
-| Wiring/hooks/loop | `src/main.js`, `src/core/runtime.js` |
+| Wiring / hooks / loop | `src/main.js`, `src/core/runtime.js` |
 
-## Invariants to preserve
+## Invariants
 
-- `sim/` must not import `ui/`, `render/`, `audio/` or `net/`, and must not touch the DOM.
-  Use `core/runtime.js` hooks until Phase 2 introduces the event bus.
-- The host is authoritative. Guests never simulate gameplay; they stream input/commands
-  and interpolate snapshots.
-- World generation is deterministic from the seed; host and guests must build the same map.
-- `state.net` is the bridge used by `core/state.js` selectors. It is set in `main.js` before
-  UI/input initialization.
-- Gameplay numbers are intentionally unchanged by refactors. Do not rebalance unless asked.
-- Keep `GAME_VERSION` (`src/net/mpNet.js`) in sync with the title/modal version until Phase 2
-  centralizes it.
+- `sim/` is headless: never import `ui/`, `render/`, `audio/` or `net/`; never touch the
+  DOM. Use `core/runtime.js` hooks until the event bus replaces them.
+- Host is authoritative. Guests never simulate; they stream input/commands and interpolate
+  snapshots.
+- Worldgen is deterministic from the seed; host and guests must build the same city.
+- `state.net` is the bridge for `core/state.js` selectors; `main.js` sets it before UI init.
+- Do not rebalance or change gameplay numbers during refactors unless asked.
+- Keep `GAME_VERSION` (`src/net/mpNet.js`) aligned with the title/modal version.
+- ESM cycles: never read an imported binding at module top level; pass parameters or use a
+  bridge.
+- Prefer extending existing helpers/config over inventing new abstractions.
 
-## Known pitfalls
+## Pitfalls that cause real bugs
 
-- **ESM cycles**: never read imported bindings at module top level in a cycle; prefer
-  parameter passing or a bridge.
-- **Bulk renames**: a global token rename can corrupt quoted DOM ids (e.g.
-  `mp-host-player-count`), object keys/shorthands and spreads. Audit quoted literals and
-  keys afterwards.
-- **PowerShell extraction**: `ReadAllLines`/`WriteAllLines` preserve UTF-8 but scripts must
-  avoid emoji/backticks pitfalls; assertions and bottom-up line removals prevent silent
-  corruption. Backticks are PowerShell escapes; use single-quoted here-strings for JS.
-- **Stale input**: lost `keyup` events (focus loss) used to pin guests against walls. Keys
-  are now cleared on blur/visibility change and the host ignores input older than 500 ms.
-- **Waypoints**: remote/local waypoint movement uses A*; a direct line is only a fallback.
-  Keyboard input cancels the path.
-- **Audio buffers**: noise buffers are cached per AudioContext (a shared buffer from another
-  context breaks playback in Chrome).
+- Background tabs throttle rAF (~1 fps): keep the host tab visible, or use two windows.
+- Bulk renames corrupt quoted DOM ids, object keys/shorthands and spreads; audit literals.
+- Missing imports often surface only at runtime; always load the game, not just tests.
+- Guest stuck/pinned: keys clear on blur/visibilitychange and the host ignores peer input
+  older than 500 ms. Keep both behaviors.
+- Audio: cache noise buffers per `AudioContext` (a cross-context buffer breaks Chrome).
 
-## Definition of done (per change)
+## Done
 
-- Game loads over http with no console errors.
-- `tests/tests.html` green.
-- Quick smoke passes; multiplayer check if relevant.
-- No gameplay regressions; README/ARCHITECTURE updated when structure changes.
-- Report changed files and verification results; do not commit unless asked.
+Static check OK, tests `PASS`, smoke clean, docs updated if structure changed. Report changed
+files and verification results. Do not commit.
