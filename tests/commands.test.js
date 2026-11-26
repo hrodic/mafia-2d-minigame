@@ -143,13 +143,21 @@ function withCommandState(opts, fn) {
 
 test('commands: MOVE_TO routes the player and a remote faction boss', () => {
   withCommandState({ npcs: [makeBoss()] }, () => {
+    state.player.path = [{ x: 999, y: 999 }];
+    state.player.pathTimer = 0.8;
     assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'MOVE_TO', x: 40, y: 50 }), true);
     assertEqual(state.player.targetX, 40);
     assertEqual(state.player.targetY, 50);
+    assertEqual(state.player.path, null);
+    assertEqual(state.player.pathTimer, 0);
 
+    state.npcs[0].path = [{ x: 999, y: 999 }];
+    state.npcs[0].pathTimer = 0.8;
     assertEqual(dispatchCommand(Faction.RIVAL_1, { cmd: 'MOVE_TO', x: 60, y: 70 }), true);
     assertEqual(state.npcs[0].targetX, 60);
     assertEqual(state.npcs[0].targetY, 70);
+    assertEqual(state.npcs[0].path, null);
+    assertEqual(state.npcs[0].pathTimer, 0);
   });
 });
 

@@ -1,0 +1,1 @@
+import{CHUNK_PX as o}from"../config/constants.js";import{FACTION_META as m}from"../config/organizations.js";import{state as i}from"../core/state.js";import{addFloatingText as e}from"./effects.js";function T({chunk:r,faction:t}){e(r.cx*o+o/2,r.cy*o+28,`${m[t].short} TURF`,m[t].accent),i.minimapCacheTimer=1}export{T as onChunkCaptured};

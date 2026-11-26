@@ -1,0 +1,1 @@
+import{FACTION_META as r}from"../config/organizations.js";import{addFloatingText as c}from"./effects.js";function m({unit:o,faction:t,rank:e,cost:n}){const a=(r[t].ranks[e]||e).toUpperCase();c(o.x,o.y-26,`+${a} ($${n.toLocaleString()})`,r[t].accent)}export{m as onUnitRecruited};

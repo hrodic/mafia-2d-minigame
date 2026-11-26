@@ -1,0 +1,1 @@
+import{GAME_VERSION as n}from"../config/version.js";function a(t=n){document.title=`Hrodic's Mafia 2D \u2014 ${t}`;const e=document.getElementById("hud-version-label");e&&(e.textContent=t);const o=document.getElementById("modal-version-label");o&&(o.textContent=t)}export{a as applyVersionLabels};

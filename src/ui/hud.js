@@ -18,6 +18,16 @@ import { clampPlayerSpawnCaps, getUnitCaps } from '../sim/units.js';
 import { calculateFactionUpkeep, recalculateHourlyIncome } from '../sim/economy.js';
 
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[ch]));
+}
+
 const hudEls = {
   statsBadge: document.getElementById('stats-badge'),
   hpBarFill: document.getElementById('hp-bar-fill'),
@@ -156,7 +166,7 @@ export function updateHUD() {
     const alive = state.factionAlive[f];
     const isMe = f === myFac;
     const alias = state.net && state.net.isActive() ? state.net.getAliasForFaction(f) : null;
-    const displayName = alias ? `${meta.short} · ${alias}` : meta.short;
+    const displayName = alias ? `${meta.short} · ${escapeHtml(alias)}` : meta.short;
     boardHtml += `
       <div class="grid grid-cols-[1fr_2.6rem_2.4rem_2.4rem] items-center gap-1 ${!alive ? 'opacity-45 line-through' : ''} ${isMe ? 'bg-amber-500/5 -mx-1 px-1 rounded' : ''}">
         <div class="flex items-center gap-1.5 min-w-0">

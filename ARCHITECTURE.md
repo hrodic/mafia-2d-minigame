@@ -5,11 +5,13 @@ code is organized, how the main systems interact, and where to add features safe
 
 ## Hard constraints
 
-- **No build step and no npm.** The game is served as plain static files and deployed to
-  GitHub Pages. Everything uses **native ES modules** with relative imports that include
-  the `.js` extension.
+- **Zero-build source, no npm install.** Development serves the repository root directly;
+  GitHub Pages publishes the generated `docs/` artifact. Everything uses **native ES
+  modules** with relative imports that include the `.js` extension. `tools/build-pages.ps1`
+  minifies each module with a local esbuild binary (no bundling) and copies `index.html`,
+  `styles.css` and `.nojekyll` into `docs/`.
 - Third-party code is loaded at runtime from CDNs: Tailwind (`cdn.tailwindcss.com`) and
-  Trystero (esm.sh/jsDelivr). No local dependencies.
+  Trystero (esm.sh/jsDelivr). No local runtime dependencies.
 - The game must stay playable and the test suite green at every commit.
 
 ## Directory layout
@@ -29,6 +31,7 @@ src/
     rng.js                 mulberry32, chunk seed hashing, explicit per-chunk RNG
     state.js               `createGameState()` reset factory, shared `state`, selectors
     fixedStep.js           accumulator: fixed sim steps + catch-up guard
+    hiddenSim.js           hidden-tab host simulation fallback (no rendering)
     events.js              synchronous, isolated event bus (sim -> presentation facts)
     spatial.js             per-chunk spatial buckets for neighbour queries
   world/
@@ -47,7 +50,12 @@ src/
     economy.js             upkeep, income, hourly tick and auto-recruitment
     commands.js            dispatchCommand: local + remote action entry point
   net/
-    mpNet.js               host-authoritative multiplayer (transport, lobby, snapshots)
+    transport.js           Trystero 0.27 loader + curated Nostr relays + local bus
+    protocol.js            message types, versioned envelope, snapshot encode/decode
+    lobby.js               UI-agnostic seats, capacity and roster snapshots
+    guest.js               guest join/lobby/snapshot/input controller
+    host.js                host lobby/snapshot/input controller
+    mpNet.js               composition root for host + guest multiplayer
   render/
     canvas.js              shared canvas/context references (guarded for tests)
     renderer.js            frame orchestration: culling, depth sort, layers
@@ -68,6 +76,7 @@ src/
     combatSfx.js           event subscribers: combat facts -> SFX
   ui/
     hud.js                 primary status, crew management, leaderboard
+    lobbyUI.js             host/guest lobby renderers (safe DOM, no peer-name innerHTML)
     actionBar.js           bottom combat bar: readiness, cooldowns, costs
     hudCadence.js          presentation cadence (4 Hz HUD refresh) driven by main.js
     version.js             applies GAME_VERSION to title + HUD/modal labels
@@ -81,9 +90,11 @@ tests/
   *.test.js                suites (config, state, world, sim, render, UI, net-adjacent)
   mp-harness.html          iframe harness that forces the same-origin local bus
   SMOKE.md                 manual smoke checklist (per commit / per phase)
+docs/                      generated GitHub Pages artifact (never hand-edit)
 tools/
   serve.ps1                dependency-free PowerShell static server for local dev
   check.ps1                static health check (imports, test registry, duplicate ids)
+  build-pages.ps1          minify src -> docs with esbuild (no bundling); binary is ignored
 .editorconfig              editor whitespace/line-ending rules
 .nojekyll                  GitHub Pages: serve files untouched
 EVENTS.md                  event-bus contract (implemented)
@@ -121,8 +132,11 @@ inside functions called after module evaluation (never at top level).
    accumulator (frame delta clamped to `0.25s`, max `8` catch-up steps), then one
    presentation pass (camera/particles) and one render with render dt. Guests skip fixed
    steps and run `updateGuest(renderDt)` once per frame.
-5. Boots UI/input (`applyVersionLabels`, `initMenus`, `initInput`) and setup renderers.
-6. Detects `?room=&secret=` invite URLs and pre-fills the join panel.
+5. When the tab is hidden, `core/hiddenSim.js` runs host/single-player fixed steps from a
+   timer without rendering; rAF resumes and the accumulator resets when visible. Guests
+   never simulate. Browsers may still throttle background timers.
+6. Boots UI/input (`applyVersionLabels`, `initMenus`, `initInput`) and setup renderers.
+7. Detects `?room=&secret=` invite URLs and pre-fills the join panel.
 
 ### Net bridge
 
@@ -280,11 +294,36 @@ thresholds are deliberately not here.
 
 ## Networking
 
-`net/mpNet.js` (single module in Phase 1; Phase 4 splits it):
+`net/mpNet.js` (a composition facade; transport, protocol, lobby rules and host/guest
+controllers live in their own modules):
 
-- **Transport:** Trystero (`@trystero-p2p/nostr` or `mqtt`, loaded from CDN at runtime)
-  for cross-machine WebRTC; a same-origin **BroadcastChannel + localStorage bus** fallback
-  for multi-tab play and embedded iframes.
+- **Transport (`net/transport.js`):** Trystero 0.27 (`@trystero-p2p/nostr`, or `mqtt` as a
+  CDN fallback) for cross-machine WebRTC, plus a same-origin **BroadcastChannel +
+  localStorage bus** for multi-tab play and embedded iframes. Trystero uses only public
+  Nostr relays for signaling; gameplay traffic stays peer-to-peer.
+- **Protocol (`net/protocol.js`):** message type constants, the versioned envelope/version
+  gate, and snapshot encode/decode. The wire shape is unchanged; the module has no state
+  mutation or presentation imports.
+- **Lobby rules (`net/lobby.js`):** UI-agnostic host seat assignment, human capacity,
+  roster snapshots and guest seat lookup.
+- **Lobby UI (`ui/lobbyUI.js`):** host/guest roster rendering, AI/open-slot controls and
+  start-button state. Rows are built with DOM nodes and `textContent`; peer names are never
+  parsed as HTML.
+- **Guest controller (`net/guest.js`):** join HELLO retry, lobby/init/snapshot/event
+  handling, authoritative snapshot application, input/command streaming and host-disconnect
+  detection. It receives channel getters and UI callbacks from `mpNet.js` instead of
+  importing it.
+- **Host controller (`net/host.js`):** lobby admission/rejection, seats and AI slots, match
+  launch and INIT_MATCH, snapshot/event broadcast, remote input/command handling and
+  peer-leave AI takeover. It receives channel getters, config and UI callbacks from
+  `mpNet.js`.
+- **Relays:** an explicit curated `RELAY_URLS` pool (10–12 public relays) replaces
+  Trystero's large default pool. All listed relays are used and Trystero fails over when one
+  is down. Gameplay does not depend on any single relay.
+- **API normalization:** Trystero 0.27 exposes `{ peerId }` callback contexts and
+  `{ target }` send options. `transport.js` wraps rooms/actions into the stable shape used by
+  `mpNet.js` (`send(data, targetPeerId)`, `receive(cb(data, peerId))`, `selfId`), so the local
+  bus and Trystero share one interface. A total relay failure surfaces through `onError`.
 - **Lobby:** host creates a room code + secret; guests join by code or invite link.
   Seats map peers to factions; unused seats can be closed as AI. Version gate rejects
   mismatched clients.
@@ -300,9 +339,10 @@ thresholds are deliberately not here.
   emit per NPC while applying a snapshot.
 - **Determinism:** the world seed is sent in `INIT_MATCH`; guests generate the same city.
 
-Known net limitations (Phase 4): full-state snapshots, O(n²) NPC lookup on apply, peer
-names inserted into lobby `innerHTML` unsanitized, and background-tab throttling on the
-host.
+Known net limitations: full-state snapshots. A hidden host now has a timer-driven fixed-step
+fallback, but browsers can still throttle background timers. Snapshot apply uses a
+per-snapshot unit index (O(n) lookups). Chunk deltas and NAT/TURN work are tracked in
+`PLAN.md` under FUTURE — TO BE DECIDED.
 
 ## Rendering
 
@@ -352,7 +392,11 @@ distance from the camera.
   so render/HUD/menu tests can run headlessly. State is saved/restored per test.
 - `tests/mp-harness.html` embeds the game in an iframe to force the local bus; open it in
   two tabs for deterministic host/guest testing without external relays.
-- Coverage includes config/RNG, event bus, state selectors, chunk determinism, collision,
+- Coverage includes config/RNG, transport API normalization (Trystero 0.27 vs local bus),
+  protocol envelope/version/snapshot encoding, lobby seats/capacity/rosters, lobby DOM
+  rendering/safe names, guest handshake/init routing, snapshot apply reuse/create/remove,
+  host admission/input/AI takeover, hidden-tab simulation fallback, event bus, state
+  selectors, chunk determinism, collision,
   pathfinding (including wall detours and no corner cutting), units/recruitment, economy,
   territory, combat math/accuracy/armor/aim geometry, effects and casings, interpolation,
   match setup, fixed-step accumulation, command dispatch/equivalence, 600-step headless
@@ -391,8 +435,9 @@ distance from the camera.
   damage/slash/movement pipeline, `createGameState()` reset factory, unified command
   dispatcher for local+remote, fixed `1/120` simulation with render-time presentation,
   and seeded headless/command-equivalence tests.
-- Phase 4 next: split `net/mpNet.js` into transport/protocol/lobby/host/guest; delta/O(1)
-  snapshots; sanitize peer names; background-host resilience; bump protocol version.
-- Phase 5: broader tests, JSDoc/`jsconfig` typing, docs refresh.
+- Phase 4 complete: `transport.js`, `protocol.js`, `lobby.js`, `ui/lobbyUI.js`, `guest.js`
+  and `host.js` extracted; safe lobby/HUD peer names; O(n) snapshot apply; hidden-host
+  simulation fallback.
+- Phase 5 next: broader tests, JSDoc/`jsconfig` typing, docs refresh.
 
 See `PLAN.md` for the step-by-step plan and `AGENTS.md` for the workflow contract.

@@ -1,0 +1,1 @@
+import{state as e}from"../core/state.js";const d=.25;function a(t,r){return e.hudUpdateTimer+=t,e.hudUpdateTimer<d?!1:(e.hudUpdateTimer=0,r(),!0)}export{d as HUD_REFRESH_INTERVAL,a as updateHudCadence};
