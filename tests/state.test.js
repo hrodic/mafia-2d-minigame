@@ -7,6 +7,8 @@ import { DEFAULT_GRID_SIZE, DEFAULT_TICK_DURATION, TILE_SIZE } from '../src/conf
 import {
   state,
   createGameState,
+  forEachUnit,
+  getUnitById,
   getLocalFaction,
   getLocalBoss,
   isLocalBossAlive,
@@ -190,6 +192,38 @@ test('state factory: exported singleton is built from the same field set', () =>
   const fresh = createGameState();
   assertDeepEqual(Object.keys(fresh).sort(), Object.keys(state).sort());
   assertDeepEqual(Object.keys(fresh.player).sort(), Object.keys(state.player).sort());
+});
+
+test('state: the player is not stored in the NPC collection', () => {
+  const fresh = createGameState();
+  assert(!fresh.npcs.includes(fresh.player));
+});
+
+test('state: forEachUnit visits the living player then NPCs, skipping a dead player', () => {
+  const player = { ...createGameState().player };
+  const npcA = { id: 1 };
+  const npcB = { id: 2 };
+
+  withState({ player, npcs: [npcA, npcB] }, () => {
+    const seen = [];
+    forEachUnit((unit) => seen.push(unit.id));
+    assertDeepEqual(seen, [0, 1, 2]);
+  });
+
+  withState({ player: { ...player, alive: false }, npcs: [npcA] }, () => {
+    const seen = [];
+    forEachUnit((unit) => seen.push(unit.id));
+    assertDeepEqual(seen, [1]);
+  });
+});
+
+test('state: getUnitById resolves the player id 0, NPCs and misses', () => {
+  const npc = { id: 7 };
+  withState({ player: { ...createGameState().player }, npcs: [npc] }, () => {
+    assert(getUnitById(0) === state.player);
+    assert(getUnitById(7) === npc);
+    assertEqual(getUnitById(99), null);
+  });
 });
 
 test('state factory: player carries the boss unit identity fields', () => {

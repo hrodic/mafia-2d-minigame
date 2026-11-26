@@ -32,6 +32,11 @@ function makeWorld() {
 
 function makePlayer(overrides = {}) {
   return {
+    id: 0,
+    faction: Faction.PLAYER,
+    rank: UnitRank.BOSS,
+    control: 'local',
+    bodyRadius: 13.5,
     x: 0,
     y: 0,
     hp: 200,

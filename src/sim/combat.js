@@ -5,7 +5,7 @@ import { CHUNK_SIZE, TILE_SIZE, MAX_PISTOL_RANGE, HIT_FLASH_DURATION } from '../
 import { COST_BOSS_ARMOR, MAX_BOSS_ARMOR, PISTOL, SLASH } from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
 import { getPropFootprint, rectContains } from '../world/geometry.js';
-import { state, isLocalBossAlive } from '../core/state.js';
+import { state, forEachUnit, isLocalBossAlive } from '../core/state.js';
 import { emit } from '../core/events.js';
 import { canOccupyPosition, getEntityCollisionRadius } from './movement.js';
 import { eliminateFaction } from './territory.js';
@@ -121,8 +121,7 @@ function collectSlashTargets(attacker, profile, explicitTargets = null) {
   if (explicitTargets) {
     for (const entity of explicitTargets) consider(entity);
   } else {
-    consider(state.player);
-    for (const other of state.npcs) consider(other);
+    forEachUnit(consider);
   }
 
   candidates.sort((a, b) => a.dist - b.dist);

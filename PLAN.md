@@ -15,7 +15,7 @@ architecture description here.
   - AI extracted to `sim/ai.js`
   - HUD cadence moved to `ui/hudCadence.js`
   - UI/UX overhaul: primary status, crew management, action bar, leaderboard + kills
-- **Phase 3 — IN PROGRESS (`0.4.7`; 3.1–3.5 done):** unified entity model, commands,
+- **Phase 3 — IN PROGRESS (`0.4.8`; 3.1–3.6 done):** shared unit contract, commands,
   fixed timestep. Balance pass: one human slash rule; all AI ranks base speed 150.
 - **Phases 4–5 — pending:** netcode hardening, quality gates.
 
@@ -24,7 +24,8 @@ the `AGENTS.md` verification loop; bump `GAME_VERSION` for every commit-sized st
 
 ## Phase 3 — Unified entity model, state factory, commands, fixed timestep
 
-Goal: remove the player special case, one code path per mechanic, clean match reset.
+Goal: one code path per mechanic, a shared unit contract, clean match reset. The player
+stays a local singleton outside `state.npcs`; explicit views cover all-combatant systems.
 **Riskiest phase: do these as small verified steps in order; gameplay must feel identical
 after each one.** Run MP checks after any `sim/`, `net/` or shared-state step.
 
@@ -52,17 +53,12 @@ player HP/damage/speed/radius derive from `RANK_STATS.BOSS`; movement/capture us
 unit's rank and body radius; guest snapshot units derive damage stats from rank. Verified
 solo, AI bosses and MP guest.
 
-**3.6 Fold player into `state.npcs`.** Player becomes a unit with `control: 'local'`;
-`state.player` aliases it. Audit every site that iterates npcs or special-cases the player:
-- upkeep, HUD crew/leaderboard, recruit filters, victory crew count
-- spatial buckets; `canOccupyPosition` / `isPushingFriendly` player cases (keep same-faction
-  pass-through semantics)
-- AI enemy scan, pistol target scan, slash candidates
-- snapshot build/apply and guest dead-body diffing
-- render player label `(YOU)`, minimap dot, camera, `getLocalBoss`, defeat/spectator,
-  `initWorld`
-Keep the wire format unchanged (`playerBoss` may stay separate if simplest). Full smoke +
-two-tab MP.
+**3.6 Unified unit contract + explicit views — DONE (`0.4.8`).** Keep `state.player` as a
+local singleton and `state.npcs` as non-player-only; both share the same unit shape. Added
+`forEachUnit` (living player + NPCs) and `getUnitById`; used them for slash candidates and
+HUD crew counts. Snapshot apply ignores any NPC entry with the player id, so `playerBoss`
+remains the single player channel. NPC-only systems (upkeep, recruit caps, crew filters,
+victory crew) keep using `state.npcs` and cannot accidentally include the player.
 
 **3.7 `sim/commands.js`.** `dispatchCommand(faction, payload)` generalizes
 `processRemoteCommand`. Local UI/input builds the same command objects and dispatches when

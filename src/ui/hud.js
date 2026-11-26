@@ -13,7 +13,7 @@ import {
 } from '../config/balance.js';
 import { SPRINT_MAX_DURATION, SPRINT_COOLDOWN_DURATION } from '../config/constants.js';
 import { FACTION_META } from '../config/organizations.js';
-import { state, getLocalFaction, getLocalBoss, isLocalBossAlive } from '../core/state.js';
+import { state, forEachUnit, getLocalFaction, getLocalBoss, isLocalBossAlive } from '../core/state.js';
 import { clampPlayerSpawnCaps, getUnitCaps } from '../sim/units.js';
 import { calculateFactionUpkeep, recalculateHourlyIncome } from '../sim/economy.js';
 
@@ -120,11 +120,9 @@ export function updateHUD() {
   for (const chunk of state.world.chunks.values()) {
     if (blockCounts[chunk.faction] !== undefined) blockCounts[chunk.faction]++;
   }
-  for (let i = 0; i < state.npcs.length; i++) {
-    const u = state.npcs[i];
-    if (crewCounts[u.faction] !== undefined) crewCounts[u.faction]++;
-  }
-  if (state.player.alive) crewCounts[Faction.PLAYER]++;
+  forEachUnit((unit) => {
+    if (crewCounts[unit.faction] !== undefined) crewCounts[unit.faction]++;
+  });
 
   const totalBlocks = Math.max(1, state.world.chunks.size);
   const myNetIncome = (incomeTotals[myFac] || 0) - (upkeepTotals[myFac] || 0);

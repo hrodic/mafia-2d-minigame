@@ -151,6 +151,30 @@ export function createGameState(config = {}) {
 export const state = createGameState();
 
 // ---------------------------------------------------------------------------
+// Unit views. `state.player` stays a separate singleton and `state.npcs` stays
+// non-player-only; these helpers are for systems that genuinely need every
+// combatant, without making either collection the other's source of truth.
+// ---------------------------------------------------------------------------
+
+/** Visit the living local player first, then every non-player unit. */
+export function forEachUnit(fn) {
+  if (state.player.alive) fn(state.player);
+  for (let i = 0; i < state.npcs.length; i++) {
+    const unit = state.npcs[i];
+    if (unit) fn(unit);
+  }
+}
+
+/** Resolve any unit by id, including the local player (id 0). */
+export function getUnitById(id) {
+  if (state.player.id === id) return state.player;
+  for (let i = 0; i < state.npcs.length; i++) {
+    if (state.npcs[i].id === id) return state.npcs[i];
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Local faction / boss selectors (moved from main.js)
 // ---------------------------------------------------------------------------
 

@@ -172,6 +172,12 @@ The match state holds:
   `hudUpdateTimer`, `minimapCacheTimer`, `isSpectating`, ...
 - `net`: the multiplayer module (set by `main.js`)
 
+The local player is a singleton (`state.player`) rather than an entry in `state.npcs`;
+both share the same unit shape (`id`/`faction`/`rank`/`control`/`bodyRadius`). Systems that
+need every combatant use the explicit `forEachUnit` view or `getUnitById`; NPC-only systems
+keep using `state.npcs`, so crew/upkeep/recruitment counts cannot accidentally include the
+player. `playerBoss` remains the single player channel on the wire.
+
 `sim/match.js:initWorld` sets the world generation context, builds chunks, spawns rival
 bosses and positions the camera. At the end it emits `match:initialized`
 (`{ tickDuration, worldSeed }`); `main.js` subscribers reset effects, setup UI, recruit
@@ -362,7 +368,8 @@ distance from the camera.
 - **Phase 2:** event bus migration, dedup, balance tables, explicit RNG, AI extraction and
   HUD cadence move are done; `core/runtime.js` is gone. Only `simulation.js` remains
   allowlisted for per-frame canvas/interpolation/particle coupling (Phase 3).
-- Phase 3: player boss folded into the unit model (`control: local/ai/remote`), one
+- Phase 3: player boss shares the unit contract but stays a local singleton outside
+  `npcs`; `forEachUnit`/`getUnitById` cover all-combatant systems. One
   damage/slash/movement pipeline, `createGameState()` reset factory, unified command
   dispatcher for local+remote, fixed timestep.
 - Phase 4: split `net/mpNet.js` into transport/protocol/lobby/host/guest; delta/O(1)

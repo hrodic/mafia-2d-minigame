@@ -6,7 +6,7 @@ import { Faction, UnitRank } from '../config/enums.js';
 import { GAME_VERSION } from '../config/version.js';
 import { RANK_STATS } from '../config/balance.js';
 import { ORGANIZATIONS, FACTION_META, ensureUniqueOrgs, getActiveFactionSlots } from '../config/organizations.js';
-import { state, getLocalBoss } from '../core/state.js';
+import { state, getLocalBoss, getUnitById } from '../core/state.js';
 import { randomWorldSeed } from '../core/rng.js';
 import { initWorld } from '../sim/match.js';
 import { eliminateFaction } from '../sim/territory.js';
@@ -573,10 +573,12 @@ export const mpNet = (() => {
       const seenIds = new Set();
       for (let i = 0; i < snap.npcs.length; i++) {
         const [id, fac, rank, x, y, facing, hp, maxHp, armor, maxArmor, slash, shoot, hPeer] = snap.npcs[i];
+        // The local player travels on playerBoss; never apply it twice from npcs.
+        if (id === state.player.id) continue;
         seenIds.add(id);
         const stats = RANK_STATS[rank] || RANK_STATS[UnitRank.SOLDIER];
         const isHumanBoss = rank === UnitRank.BOSS && Boolean(hPeer);
-        let unit = state.npcs.find((n) => n.id === id);
+        let unit = getUnitById(id);
         if (!unit) {
           unit = {
             id,

@@ -197,6 +197,7 @@ test('match: initWorld preserves the imported state, world and net identities', 
     assert(state === importedState, 'exported state identity must be preserved');
     assert(state.world === world, 'CityMap instance must be preserved');
     assert(state.net === net, 'net bridge must be preserved');
+    assert(!state.npcs.includes(state.player), 'player stays outside the NPC collection');
   });
 });
 
