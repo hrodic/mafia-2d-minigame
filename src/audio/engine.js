@@ -41,12 +41,13 @@ export function getAudioDest() {
   return masterGain || audioCtx.destination;
 }
 
+const noiseBufferCache = new WeakMap();
+
 const musicEngine = {
   isPlaying: false,
   timerId: null,
   step: 0,
   nextNoteTime: 0,
-  noiseBuffer: null,
 
   tracks: [
     {
@@ -96,14 +97,15 @@ const musicEngine = {
   ],
 
   getNoiseBuffer(ctx) {
-    if (!this.noiseBuffer) {
+    let buf = noiseBufferCache.get(ctx);
+    if (!buf) {
       const len = ctx.sampleRate * 0.5;
-      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      buf = ctx.createBuffer(1, len, ctx.sampleRate);
       const data = buf.getChannelData(0);
       for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
-      this.noiseBuffer = buf;
+      noiseBufferCache.set(ctx, buf);
     }
-    return this.noiseBuffer;
+    return buf;
   },
 
   scheduleKick(ctx, time) {

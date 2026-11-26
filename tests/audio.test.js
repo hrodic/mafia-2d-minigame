@@ -78,14 +78,9 @@ test('audio: music cycles Noir I -> Noir II -> OFF -> Noir I', () => {
 });
 
 test('audio: noise buffer generation follows the context sample rate', () => {
-  const ctx = {
-    sampleRate: 8000,
-    createBuffer: (channels, length, sampleRate) => ({
-      length,
-      sampleRate,
-      getChannelData: () => new Float32Array(length),
-    }),
-  };
+  // Use a real (offline) AudioContext so the cached buffer is a genuine AudioBuffer;
+  // a plain mock would later break the music engine when it reuses the cache.
+  const ctx = new OfflineAudioContext(1, 1, 8000);
   const buffer = getNoiseBuffer(ctx);
   assertEqual(buffer.length, 4000);
   const data = buffer.getChannelData(0);
