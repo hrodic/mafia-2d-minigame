@@ -214,12 +214,19 @@ test('simulation: hourly tick fires from update and pays income', () => {
       treasuries: { [Faction.PLAYER]: 0 },
       activeFactions: [Faction.PLAYER],
     },
-    ({ hudCalls }) => {
-      update(0.1);
-      assertEqual(state.gameHour, 13);
-      assert(state.tickTimer < 0.1, `tick timer should wrap, got ${state.tickTimer}`);
-      assertEqual(state.treasuries[Faction.PLAYER], 1000);
-      assert(hudCalls() >= 1, 'tick should refresh the HUD');
+    () => {
+      const ticks = [];
+      const unsubscribe = on('hour:tick', (payload) => ticks.push(payload));
+      try {
+        update(0.1);
+        assertEqual(state.gameHour, 13);
+        assert(state.tickTimer < 0.1, `tick timer should wrap, got ${state.tickTimer}`);
+        assertEqual(state.treasuries[Faction.PLAYER], 1000);
+        assertEqual(ticks.length, 1, 'tick should emit hour:tick');
+        assertEqual(ticks[0].hour, 13);
+      } finally {
+        unsubscribe();
+      }
     }
   );
 });

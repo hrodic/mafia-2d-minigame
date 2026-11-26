@@ -121,7 +121,7 @@ without importing the net module (which would create a cycle).
 
 | Hook | Used by | Effect |
 |---|---|---|
-| `updateHUD` | economy, territory, capture | refresh HUD |
+| `updateHUD` | match setup, simulation, territory | refresh HUD |
 | `syncRecruitButtonLabels` | match setup | refresh recruit buttons |
 | `resetMatchUI` | match setup | hide banners + tick tooltip |
 | `onVictory` / `onDefeat` | territory | banners + SFX |
@@ -134,10 +134,10 @@ is replacing the remaining hooks with the event bus in `core/events.js` (see `EV
 ### Event bus (Phase 2)
 
 `core/events.js` is a synchronous, isolated bus. `main.js` wires subscribers once; `sim/`
-emits and never imports presentation layers. Combat (`sim/combat.js`) is fully migrated:
-its visuals live in `render/combatFx.js`, audio in `audio/combatSfx.js`, and toasts/HUD/net
-in `main.js`. Benefits, tradeoffs, when to use/skip, and the full performance budget are in
-`EVENTS.md`.
+emits and never imports presentation layers. Combat, units and economy are migrated:
+combat visuals live in `render/combatFx.js`, recruitment text in `render/recruitFx.js`,
+audio in `audio/combatSfx.js`, and toasts/HUD/net in `main.js`. Benefits, tradeoffs, when
+to use/skip, and the full performance budget are in `EVENTS.md`.
 
 `tools/check.ps1` enforces this as a ratchet: `sim/` may not import `render/`, `audio/`,
 `ui/` or `net/`. The remaining Phase 2 debt (`match`, `simulation`, `territory`) is
@@ -218,6 +218,7 @@ the combat SFX. The host's `shot:fired` subscriber broadcasts ephemeral tracers 
 ### Economy
 `sim/economy.js`: income totals from owned chunks, upkeep per unit, the hourly tick
 (pay net, auto-recruit underbosses/captains/soldiers within caps), skipping dead factions.
+It emits `hour:tick` with `{ hour, income, upkeep, treasuries }`; the HUD subscribes.
 
 ### Territory
 `sim/territory.js`: capture starts/resets/completes at rank-based rates
@@ -310,8 +311,8 @@ distance from the camera.
 
 ## Known limitations / next phases
 
-- Phase 2: finish migrating runtime hooks to the event bus (bus implemented; combat and
-  units migrated; remaining presentation imports in `match/simulation/territory` are
+- Phase 2: finish migrating runtime hooks to the event bus (bus implemented; combat, units
+  and economy migrated; remaining presentation imports in `match/simulation/territory` are
   allowlisted in `tools/check.ps1`); deduplicate prop geometry, minimap layout,
   faction slot selection and `GAME_VERSION`; data-driven balance tables; explicit RNG
   (remove `withSeed`'s `Math.random` patch); extract AI decisions to `sim/ai.js`.

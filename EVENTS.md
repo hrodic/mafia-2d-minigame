@@ -75,9 +75,10 @@ Snapshot state still comes from the host; events are only for ephemeral presenta
 2. **Combat DONE** — `sim/combat.js` emits only; visuals in `render/combatFx.js`, audio in
    `audio/combatSfx.js`, toasts/HUD/net wired in `main.js`.
 3. **Units DONE** — `sim/units.js` emits `unit:recruited`; text in `render/recruitFx.js`.
-4. Next systems: economy → territory → match. One system per step; add `emit` calls, wire
-   subscribers, and delete the old `runtime` calls/callback in the same change.
-5. When `runtime.js` has no remaining hooks, delete it and update `ARCHITECTURE.md`.
+4. **Economy DONE** — `sim/economy.js` emits `hour:tick`; HUD subscribes.
+5. Next systems: territory → match. One system per step; add `emit` calls, wire subscribers,
+   and delete the old `runtime` calls/callback in the same change.
+6. When `runtime.js` has no remaining hooks, delete it and update `ARCHITECTURE.md`.
 
 ## Testing
 
@@ -88,9 +89,9 @@ Snapshot state still comes from the host; events are only for ephemeral presenta
 
 ## Benefits
 
-- **Headless simulation.** `sim/combat.js` and `sim/units.js` now import only sim/core
-  modules: they emit facts, while `render/combatFx.js`, `render/recruitFx.js` and
-  `audio/combatSfx.js` subscribe. The remaining direct presentation imports in
+- **Headless simulation.** `sim/combat.js`, `sim/units.js` and `sim/economy.js` now import
+  only sim/core modules: they emit facts, while `render/combatFx.js`, `render/recruitFx.js`
+  and `audio/combatSfx.js` subscribe. The remaining direct presentation imports in
   `match/simulation/territory` are Phase 2 debt, allowlisted in `tools/check.ps1` until each
   migrates.
 - **One-to-many facts.** One `unit:damaged` can drive floating text, blood, SFX, HUD

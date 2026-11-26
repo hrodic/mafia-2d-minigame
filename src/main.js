@@ -78,6 +78,7 @@ on('shot:fired', (event) => {
 });
 on('ui:toast', ({ message }) => showToast(message));
 on('unit:recruited', recruitFx.onUnitRecruited);
+on('hour:tick', updateHUD);
 
 // Main loop. Variable timestep for now (fixed timestep is Phase 3).
 let lastFrameTime = performance.now();
