@@ -17,6 +17,7 @@ import './territory.test.js';
 import './combat.test.js';
 import './interpolation.test.js';
 import './match.test.js';
+import './simulation.test.js';
 
 runAll().catch((err) => {
   const root = document.getElementById('test-results');

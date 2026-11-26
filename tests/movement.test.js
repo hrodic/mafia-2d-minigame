@@ -10,6 +10,7 @@ import {
   canOccupyPosition,
   isPushingFriendly,
   updateNpcBossSprint,
+  updateHumanControlledRivalBoss,
 } from '../src/sim/movement.js';
 
 const OPEN_WORLD = { canMoveTo: () => true };
@@ -136,4 +137,106 @@ test('movement: standing still never starts a cooldown', () => {
   assertEqual(updateNpcBossSprint(boss, false, 1), 1.0);
   assertEqual(boss.sprintCooldown, 0);
   assertEqual(boss.isSprinting, false);
+});
+
+function makeBossWorld(chunkFaction = Faction.NEUTRAL) {
+  const chunk = {
+    cx: 0,
+    cy: 0,
+    faction: chunkFaction,
+    captureProgress: 0,
+    capturingFaction: null,
+    income: 1000,
+  };
+  return {
+    canMoveTo: () => true,
+    worldToTile: () => ({ cx: 0, cy: 0, lx: 0, ly: 0 }),
+    getChunk: () => chunk,
+    chunks: new Map([['0,0', chunk]]),
+    findNearestWalkablePoint: (x, y) => ({ x, y }),
+  };
+}
+
+function makeRemoteBoss(overrides = {}) {
+  return {
+    id: 1,
+    faction: Faction.RIVAL_1,
+    rank: UnitRank.BOSS,
+    x: 100,
+    y: 100,
+    speed: 225,
+    bodyRadius: 13.5,
+    targetX: null,
+    targetY: null,
+    sprintTimer: 0,
+    sprintCooldown: 0,
+    isSprinting: false,
+    facing: 0,
+    ...overrides,
+  };
+}
+
+test('movement: a remote boss follows streamed peer input', () => {
+  const boss = makeRemoteBoss();
+  const world = makeBossWorld(Faction.RIVAL_1);
+  const net = {
+    getPeerInput: () => ({ mx: 1, my: 0, sprint: false, facing: 0.75 }),
+  };
+  withState(
+    basePatch({
+      world,
+      net,
+      player: { x: -1000, y: -1000, alive: false },
+      spatialBuckets: new Map(),
+    }),
+    () => {
+      updateHumanControlledRivalBoss(boss, 0.1);
+      assert(boss.x > 100, `boss should move right, x=${boss.x}`);
+      assertEqual(boss.y, 100);
+      assertEqual(boss.facing, 0.75);
+    }
+  );
+});
+
+test('movement: remote boss sprint raises speed', () => {
+  const boss = makeRemoteBoss();
+  const world = makeBossWorld(Faction.RIVAL_1);
+  const net = { getPeerInput: () => ({ mx: 1, my: 0, sprint: true, facing: 0 }) };
+  withState(
+    basePatch({ world, net, player: { x: -1000, y: -1000, alive: false }, spatialBuckets: new Map() }),
+    () => {
+      updateHumanControlledRivalBoss(boss, 0.1);
+      assertEqual(boss.isSprinting, true);
+      assert(boss.x > 130, `sprinting boss should cover more ground, x=${boss.x}`);
+    }
+  );
+});
+
+test('movement: a remote boss follows a waypoint when input is idle', () => {
+  const boss = makeRemoteBoss({ targetX: 200, targetY: 100 });
+  const world = makeBossWorld(Faction.RIVAL_1);
+  withState(
+    basePatch({ world, player: { x: -1000, y: -1000, alive: false }, spatialBuckets: new Map() }),
+    () => {
+      updateHumanControlledRivalBoss(boss, 0.1);
+      assert(boss.x > 100, `boss should follow the waypoint, x=${boss.x}`);
+      assertEqual(boss.facing, 0);
+    }
+  );
+});
+
+test('movement: a remote boss captures the chunk it stands on', () => {
+  const boss = makeRemoteBoss({ x: 50, y: 50 });
+  const world = makeBossWorld(Faction.NEUTRAL);
+  withState(
+    basePatch({ world, player: { x: -1000, y: -1000, alive: false }, spatialBuckets: new Map() }),
+    () => {
+      updateHumanControlledRivalBoss(boss, 1);
+      assertEqual(world.chunks.get('0,0').capturingFaction, Faction.RIVAL_1);
+      assertEqual(world.chunks.get('0,0').captureProgress, 0.375);
+      updateHumanControlledRivalBoss(boss, 1);
+      updateHumanControlledRivalBoss(boss, 1);
+      assertEqual(world.chunks.get('0,0').faction, Faction.RIVAL_1);
+    }
+  );
 });

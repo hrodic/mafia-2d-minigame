@@ -5,6 +5,7 @@ import { Faction, UnitRank } from '../config/enums.js';
 import { CHUNK_PX, SPRINT_MAX_DURATION, SPRINT_COOLDOWN_DURATION, SPRINT_SPEED_MULTIPLIER } from '../config/constants.js';
 import { state } from '../core/state.js';
 import { packChunkKey } from '../world/city.js';
+import { progressCapture, getCaptureRate, onChunkCaptured } from './territory.js';
 
 
 export function getEntityCollisionRadius(rank) {
@@ -96,4 +97,59 @@ export function updateNpcBossSprint(bossNpc, wantsSprint, dt) {
     bossNpc.sprintTimer = 0;
   }
   return bossNpc.isSprinting ? SPRINT_SPEED_MULTIPLIER : 1.0;
+}
+
+export function updateHumanControlledRivalBoss(bossNpc, dt) {
+  const peerInput = state.net ? state.net.getPeerInput(bossNpc.humanPeerId) : null;
+  let moveX = peerInput ? peerInput.mx : 0;
+  let moveY = peerInput ? peerInput.my : 0;
+  const wantsSprint = peerInput ? peerInput.sprint : false;
+
+  if (moveX !== 0 || moveY !== 0) {
+    bossNpc.targetX = null;
+    bossNpc.targetY = null;
+    const len = Math.hypot(moveX, moveY);
+    moveX /= len;
+    moveY /= len;
+  } else if (bossNpc.targetX !== null && bossNpc.targetY !== null) {
+    const dx = bossNpc.targetX - bossNpc.x;
+    const dy = bossNpc.targetY - bossNpc.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 6) {
+      bossNpc.targetX = null;
+      bossNpc.targetY = null;
+    } else {
+      moveX = dx / dist;
+      moveY = dy / dist;
+      bossNpc.facing = Math.atan2(moveY, moveX);
+    }
+  }
+
+  if (peerInput && typeof peerInput.facing === 'number') {
+    bossNpc.facing = peerInput.facing;
+  }
+
+  const bRadius = getEntityCollisionRadius(UnitRank.BOSS);
+  const pushingCrew = isPushingFriendly(bossNpc.x, bossNpc.y, bRadius, bossNpc.faction, bossNpc.id, false);
+  const sprintMult = updateNpcBossSprint(bossNpc, wantsSprint && (moveX !== 0 || moveY !== 0), dt);
+  const currentSpeed = (pushingCrew ? bossNpc.speed * 0.45 : bossNpc.speed) * sprintMult;
+
+  if (moveX !== 0) {
+    const nextX = bossNpc.x + moveX * currentSpeed * dt;
+    if (canOccupyPosition(nextX, bossNpc.y, bRadius, bossNpc.id, false, bossNpc.faction)) {
+      bossNpc.x = nextX;
+    }
+  }
+  if (moveY !== 0) {
+    const nextY = bossNpc.y + moveY * currentSpeed * dt;
+    if (canOccupyPosition(bossNpc.x, nextY, bRadius, bossNpc.id, false, bossNpc.faction)) {
+      bossNpc.y = nextY;
+    }
+  }
+
+  const bTile = state.world.worldToTile(bossNpc.x, bossNpc.y);
+  const currentChunk = state.world.getChunk(bTile.cx, bTile.cy);
+  if (progressCapture(currentChunk, bossNpc.faction, dt, getCaptureRate(UnitRank.BOSS))) {
+    onChunkCaptured(currentChunk, bossNpc.faction);
+  }
 }
