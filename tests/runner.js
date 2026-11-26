@@ -7,6 +7,7 @@ import './config.test.js';
 import './state.test.js';
 import './ui.test.js';
 import './world.test.js';
+import './world-golden.test.js';
 import './pathfinding.test.js';
 import './audio.test.js';
 import './effects.test.js';

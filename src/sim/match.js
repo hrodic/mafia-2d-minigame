@@ -14,7 +14,6 @@ import { state, getLocalBoss } from '../core/state.js';
 import { runtime } from '../core/runtime.js';
 import { resetEffects } from '../render/effects.js';
 import { resetDefaultPlayerSpawnCaps, spawnUnitInChunk } from './units.js';
-import { recalculateHourlyIncome } from './economy.js';
 
 
 export function initWorld(
@@ -122,6 +121,5 @@ export function initWorld(
   state.camera.x = localBoss.x;
   state.camera.y = localBoss.y;
 
-  recalculateHourlyIncome();
   runtime.updateHUD();
 }

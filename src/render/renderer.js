@@ -13,6 +13,7 @@ import {
   muzzleFlashes,
   deadBodies,
   sparks,
+  shellCasings,
 } from './effects.js';
 import { canvas, ctx } from './canvas.js';
 import { drawBuilding, drawProp } from './world.js';
@@ -302,6 +303,16 @@ export function render() {
     const s = sparks[i];
     ctx.fillStyle = '#fde047';
     ctx.fillRect(s.x - 1.5, s.y - 1.5, 3, 3);
+  }
+
+  for (let i = 0; i < shellCasings.length; i++) {
+    const casing = shellCasings[i];
+    ctx.save();
+    ctx.translate(casing.x, casing.y - casing.z * 0.45);
+    ctx.rotate(casing.rot);
+    ctx.fillStyle = '#d4a017';
+    ctx.fillRect(-1.6, -0.8, 3.2, 1.6);
+    ctx.restore();
   }
 
   for (let i = 0; i < state.floatingTexts.length; i++) {

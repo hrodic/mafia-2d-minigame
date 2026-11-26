@@ -22,14 +22,12 @@ const hudEls = {
   cashText: document.getElementById('cash-text'),
   hourText: document.getElementById('hour-text'),
   tickBarFill: document.getElementById('tick-bar-fill'),
-  armorBtn: document.getElementById('btn-buy-armor'),
   armorBox: document.getElementById('armor-hud-box'),
   armorBarFill: document.getElementById('armor-bar-fill'),
   armorText: document.getElementById('armor-text'),
   sprintBar: document.getElementById('sprint-bar-fill'),
   sprintText: document.getElementById('sprint-text'),
   factionBoard: document.getElementById('faction-board'),
-  minimapCoords: document.getElementById('minimap-coords'),
 };
 
 export function syncRecruitButtonLabels() {

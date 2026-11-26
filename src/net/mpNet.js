@@ -58,7 +58,6 @@ export const mpNet = (() => {
   let guestInputSeq = 0;
   let guestCmdSeq = 0;
   let inputSendTimer = 0;
-  const interpTargets = new Map();
 
   function randomToken(len = 8) {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1119,7 +1118,6 @@ export const mpNet = (() => {
       room = null;
     }
     peers.clear();
-    interpTargets.clear();
     sendLobby = null;
     sendInit = null;
     sendSnap = null;
