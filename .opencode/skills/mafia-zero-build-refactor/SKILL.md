@@ -22,6 +22,9 @@ procedure.
 - Dependency direction: `config -> core -> world -> sim/render/audio/net -> ui -> main`.
 - `sim/` never imports `ui/`, `render/`, `audio/`, `net/`; use `core/runtime.js` hooks
   until `EVENTS.md` is implemented.
+- Events are discrete cross-layer facts only. Never emit per frame or per NPC per frame,
+  never route state/replication through them, and keep subscribers cheap. Continuous
+  visuals read `state`. The full rules and performance budget are in `EVENTS.md`.
 - Shared mutable state lives on the single `state` object (`core/state.js`). Importers read
   `state.x` for reassigned primitives; exported `let` bindings cannot be reassigned.
 - Keep gameplay numbers unchanged unless the task is a balance change.

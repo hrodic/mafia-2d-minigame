@@ -129,6 +129,17 @@ Phase 2 is replacing these with the event bus in `core/events.js` (see `EVENTS.m
 bus is implemented and tested; hooks are removed one system at a time so the game stays
 playable during migration.
 
+### Event bus (Phase 2)
+
+`core/events.js` is a synchronous, isolated bus. `main.js` wires subscribers once; `sim/`
+emits and never imports presentation layers. Benefits, tradeoffs, when to use/skip, and the
+full performance budget are in `EVENTS.md`.
+
+The non-negotiable rule: **discrete facts only** — never per-frame or per-NPC-per-frame.
+Continuous visuals (positions, HP bars, timers, interpolation) are read from `state` during
+render. Events never carry authoritative state or replication; snapshots remain the source
+of truth.
+
 ## State model
 
 One exported `state` object in `core/state.js` holds the match:
@@ -177,6 +188,8 @@ chunks, spawns rival bosses and positions the camera.
   `net.updateHost` (snapshot broadcast).
 
 `initWorld` builds a fresh match; `update` is the only per-frame simulator entry point.
+Per-frame presentation stays state-driven: combat/capture/economy emit discrete events on
+transitions only, never positions, timers or per-NPC updates.
 
 ## Systems
 
@@ -218,6 +231,9 @@ a dead faction's turf, triggers defeat for the local boss and victory when no ri
   guests interpolate positions (`render/interpolation.js`) and send input/commands.
   Peer input older than 500 ms is treated as neutral (no ghost movement). Disconnects
   hand the boss back to AI.
+- **Events vs state:** snapshots are authoritative. Events are ephemeral host facts and are
+  not replayed on guests; guests derive presentation from snapshots/interpolation. Never
+  emit per NPC while applying a snapshot.
 - **Determinism:** the world seed is sent in `INIT_MATCH`; guests generate the same city.
 
 Known net limitations (Phase 4): full-state snapshots, O(n²) NPC lookup on apply, peer
@@ -283,7 +299,8 @@ distance from the camera.
 
 ## Known limitations / next phases
 
-- Phase 2: event bus instead of runtime hooks; deduplicate prop geometry, minimap layout,
+- Phase 2: finish migrating runtime hooks to the event bus (bus is implemented; discrete
+  facts only, never per-frame/per-NPC); deduplicate prop geometry, minimap layout,
   faction slot selection and `GAME_VERSION`; data-driven balance tables; explicit RNG
   (remove `withSeed`'s `Math.random` patch); extract AI decisions to `sim/ai.js`.
 - Phase 3: player boss folded into the unit model (`control: local/ai/remote`), one

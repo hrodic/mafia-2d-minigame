@@ -9,6 +9,8 @@ This is the living plan. Read `AGENTS.md` for the working contract and
 - Phase 1 - DONE (full modular split; tests green; `src/main.js` is a thin composition root)
 - Phase 2 - IN PROGRESS
   - Step 1 DONE: `core/events.js` event bus + `tests/events.test.js` (additive; hooks intact)
+  - Guardrails: benefits/tradeoffs/use-skip rules and the many-NPC + multiplayer
+    performance budget are documented in `EVENTS.md`
   - Next: migrate sim side effects to events, then dedup/balance/RNG/AI work
 - Phases 3-5 - pending (unified entity model/commands/fixed timestep, net hardening, quality)
 

@@ -69,6 +69,11 @@ command, number or test result; read the file or run the check.
 - `sim/` is headless: never import `ui/`, `render/`, `audio/` or `net/`; never touch the
   DOM. Use `core/runtime.js` hooks until each is migrated to `core/events.js`; emit facts
   and let subscribers in `main.js` handle presentation.
+- Events are discrete cross-layer facts: never emit per frame or per NPC per frame, and
+  never route authoritative state or replication through events. Continuous visuals read
+  `state`; snapshots stay authoritative. See `EVENTS.md`.
+- Event subscribers are presentation-only: no gameplay mutation, no event cascades, no heavy
+  work in the simulation frame.
 - Host is authoritative. Guests never simulate; they stream input/commands and interpolate
   snapshots.
 - Worldgen is deterministic from the seed; host and guests must build the same city.
@@ -86,6 +91,8 @@ command, number or test result; read the file or run the check.
 - Missing imports often surface only at runtime; always load the game, not just tests.
 - Guest stuck/pinned: keys clear on blur/visibilitychange and the host ignores peer input
   older than 500 ms. Keep both behaviors.
+- Event subscriptions are global: wire once in `main.js`; keep unsubscribers for
+  match-scoped handlers and call `clear()` on a full reset to avoid duplicate effects.
 - Audio: cache noise buffers per `AudioContext` (a cross-context buffer breaks Chrome).
 
 ## Done
