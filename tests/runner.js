@@ -8,6 +8,7 @@ import './state.test.js';
 import './ui.test.js';
 import './world.test.js';
 import './pathfinding.test.js';
+import './audio.test.js';
 
 runAll().catch((err) => {
   const root = document.getElementById('test-results');
