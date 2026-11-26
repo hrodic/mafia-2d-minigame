@@ -18,7 +18,7 @@ architecture description here.
 - **Phase 3 — DONE (`0.4.11`):** shared unit contract, commands, fixed timestep, 600-step
   headless smoke + command-equivalence tests. Balance pass: one human slash rule; non-boss
   AI ranks base speed 150; bosses 140 (sprint is their mobility edge).
-- **Phase 4 — IN PROGRESS (`0.4.12`):** netcode hardening; transport extracted.
+- **Phase 4 — IN PROGRESS (`0.4.13`):** netcode hardening; transport + protocol extracted.
 - **Phase 5 — pending:** quality gates.
 
 Phase 3 is complete on `refactor/phase-3-unified-entity`. Phase 4 is in progress on
@@ -42,9 +42,10 @@ never commit a half-split net module.
    - **DONE (`0.4.12`):** `transport.js` — Trystero 0.27 loader/API shim, curated public
      relay pool, and the same-origin local bus. Fixes the dead `nostr.chaima.info` default
      and the 0.27 peer-context/send-target mismatch without changing the wire protocol.
-   - **NEXT:** `protocol.js` (envelope, version, snapshot encode/decode), `lobby.js`
-     (peers/seats/roster, UI-agnostic), `host.js`, `guest.js`; extract lobby DOM to
-     `ui/lobbyUI.js`.
+   - **DONE (`0.4.13`):** `protocol.js` — message constants, versioned envelope/version
+     gate, and snapshot encode/decode; wire shape unchanged.
+   - **NEXT:** `lobby.js` (peers/seats/roster, UI-agnostic), `host.js`, `guest.js`; extract
+     lobby DOM to `ui/lobbyUI.js`.
 2. Snapshot apply O(n²) fix: build `Map<id, unit>` once; reuse unit objects; set-diff deaths.
 3. Chunk deltas: INIT_MATCH full chunks; snapshots only dirty faction/capture state;
    full resync ~5s. Guest generates unknown chunks from seed.

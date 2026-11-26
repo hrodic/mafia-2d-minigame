@@ -17,6 +17,14 @@ import { canvas } from '../render/canvas.js';
 import { sfx } from '../audio/sfx.js';
 import { showToast } from '../ui/menus.js';
 import { connectSignalingRoom, randomToken } from './transport.js';
+import {
+  MSG,
+  EVENT_KIND,
+  envelope,
+  isVersionCompatible,
+  encodeSnapshot,
+  decodeSnapshot,
+} from './protocol.js';
 
 
 export const mpNet = (() => {
@@ -50,10 +58,6 @@ export const mpNet = (() => {
   let guestInputSeq = 0;
   let guestCmdSeq = 0;
   let inputSendTimer = 0;
-
-  function envelope(type, seq, payload) {
-    return { v: GAME_VERSION, type, seq, payload };
-  }
 
   function getCurrentHostConfig() {
     return {
@@ -286,7 +290,7 @@ export const mpNet = (() => {
     reassignHostSeats();
     const cfg = getCurrentHostConfig();
     const roster = buildLobbyRosterSnapshot(cfg);
-    sendLobby(envelope('LOBBY_STATE', 0, { roster, settings: cfg }));
+    sendLobby(envelope(MSG.LOBBY_STATE, 0, { roster, settings: cfg }));
   }
 
   function sendLobbyStateToPeer(targetPeerId) {
@@ -295,7 +299,7 @@ export const mpNet = (() => {
     const cfg = getCurrentHostConfig();
     const roster = buildLobbyRosterSnapshot(cfg);
     sendLobby(
-      envelope('LOBBY_STATE', 0, {
+      envelope(MSG.LOBBY_STATE, 0, {
         yourPeerId: targetPeerId,
         roster,
         settings: cfg,
@@ -304,52 +308,8 @@ export const mpNet = (() => {
     );
   }
 
-  function buildSnapshotPayload() {
-    const chunkStates = [];
-    for (const c of state.world.chunks.values()) {
-      chunkStates.push([c.cx, c.cy, c.faction, Math.round(c.captureProgress * 100) / 100, c.capturingFaction || '']);
-    }
-
-    const npcStates = state.npcs.map((u) => [
-      u.id,
-      u.faction,
-      u.rank,
-      Math.round(u.x * 10) / 10,
-      Math.round(u.y * 10) / 10,
-      Math.round(u.facing * 100) / 100,
-      Math.round(u.hp),
-      u.maxHp,
-      Math.round(u.armor || 0),
-      u.maxArmor || 0,
-      u.slashAnimTimer > 0 ? 1 : 0,
-      u.muzzleFlashTimer > 0 ? 1 : 0,
-      u.humanPeerId || '',
-    ]);
-
-    return {
-      gameHour: state.gameHour,
-      tickTimer: Math.round(state.tickTimer * 100) / 100,
-      treasuries: { ...state.treasuries },
-      factionAlive: { ...state.factionAlive },
-      kills: { ...state.factionKills },
-      playerBoss: {
-        x: Math.round(state.player.x * 10) / 10,
-        y: Math.round(state.player.y * 10) / 10,
-        facing: Math.round(state.player.facing * 100) / 100,
-        hp: Math.round(state.player.hp),
-        maxHp: state.player.maxHp,
-        armor: Math.round(state.player.armor),
-        maxArmor: state.player.maxArmor,
-        alive: state.player.alive,
-        slash: state.player.slashAnimTimer > 0 ? 1 : 0,
-        shoot: state.player.muzzleFlashTimer > 0 ? 1 : 0,
-      },
-      chunks: chunkStates,
-      npcs: npcStates,
-    };
-  }
-
-  function applyAuthoritativeSnapshot(snap) {
+  function applyAuthoritativeSnapshot(payload) {
+    const snap = decodeSnapshot(payload);
     if (!snap) return;
     state.gameHour = snap.gameHour ?? state.gameHour;
     state.tickTimer = snap.tickTimer ?? state.tickTimer;
@@ -551,7 +511,7 @@ export const mpNet = (() => {
         if (mode === 'JOIN' && !hostPeerId && sendLobby) {
           const rawName = document.getElementById('mp-guest-name')?.value?.trim();
           const guestName = rawName ? rawName.slice(0, 16) : 'Guest Boss';
-          sendLobby(envelope('HELLO', 0, { name: guestName }), peerId);
+          sendLobby(envelope(MSG.HELLO, 0, { name: guestName }), peerId);
         }
       });
     }
@@ -587,13 +547,13 @@ export const mpNet = (() => {
     rxLobby((env, peerId) => {
       if (!env) return;
       if (mode === 'HOST') {
-        if (env.type === 'HELLO') {
-          if (env.v !== GAME_VERSION) {
-            sendLobby(envelope('REJECT', 0, { reason: `Version mismatch (Host is ${GAME_VERSION})` }), peerId);
+        if (env.type === MSG.HELLO) {
+          if (!isVersionCompatible(env)) {
+            sendLobby(envelope(MSG.REJECT, 0, { reason: `Version mismatch (Host is ${GAME_VERSION})` }), peerId);
             return;
           }
           if (matchStarted) {
-            sendLobby(envelope('REJECT', 0, { reason: 'Match already in progress' }), peerId);
+            sendLobby(envelope(MSG.REJECT, 0, { reason: 'Match already in progress' }), peerId);
             return;
           }
           if (peers.has(peerId)) {
@@ -603,7 +563,7 @@ export const mpNet = (() => {
           reassignHostSeats();
           const openCapacity = getOpenHumanCapacity();
           if (peers.size >= openCapacity) {
-            sendLobby(envelope('REJECT', 0, { reason: 'Lobby is full' }), peerId);
+            sendLobby(envelope(MSG.REJECT, 0, { reason: 'Lobby is full' }), peerId);
             return;
           }
           const guestName = String(env.payload?.name || 'Guest Boss').slice(0, 16);
@@ -624,7 +584,7 @@ export const mpNet = (() => {
         }
       } else if (mode === 'JOIN') {
         if (!hostPeerId) hostPeerId = peerId;
-        if (env.type === 'REJECT') {
+        if (env.type === MSG.REJECT) {
           isJoining = false;
           const errEl = document.getElementById('mp-join-error');
           errEl.textContent = env.payload?.reason || 'Connection rejected by host.';
@@ -640,7 +600,7 @@ export const mpNet = (() => {
           cleanup(false);
           return;
         }
-        if (env.type === 'LOBBY_STATE') {
+        if (env.type === MSG.LOBBY_STATE) {
           isJoining = false;
           if (env.payload?.yourPeerId) {
             selfPeerId = env.payload.yourPeerId;
@@ -664,7 +624,7 @@ export const mpNet = (() => {
 
     rxInit((env, peerId) => {
       if (!env || mode !== 'JOIN') return;
-      if (env.type === 'INIT_MATCH') {
+      if (env.type === MSG.INIT_MATCH) {
         hostPeerId = peerId;
         applyInitialMatchState(env.payload);
       }
@@ -673,7 +633,7 @@ export const mpNet = (() => {
     rxSnap((env, peerId) => {
       if (!env || mode !== 'JOIN' || !matchStarted) return;
       if (hostPeerId && peerId !== hostPeerId) return;
-      if (env.type === 'SNAPSHOT' && env.seq > lastSnapshotSeq) {
+      if (env.type === MSG.SNAPSHOT && env.seq > lastSnapshotSeq) {
         lastSnapshotSeq = env.seq;
         applyAuthoritativeSnapshot(env.payload);
       }
@@ -682,7 +642,7 @@ export const mpNet = (() => {
     rxInput((env, peerId) => {
       if (!env || mode !== 'HOST' || !matchStarted) return;
       const peer = peers.get(peerId);
-      if (peer && env.type === 'INPUT' && env.payload) {
+      if (peer && env.type === MSG.INPUT && env.payload) {
         peer.lastInput = {
           mx: Math.max(-1, Math.min(1, Number(env.payload.mx) || 0)),
           my: Math.max(-1, Math.min(1, Number(env.payload.my) || 0)),
@@ -696,7 +656,7 @@ export const mpNet = (() => {
     rxCmd((env, peerId) => {
       if (!env || mode !== 'HOST' || !matchStarted) return;
       const peer = peers.get(peerId);
-      if (peer && peer.faction && env.type === 'CMD') {
+      if (peer && peer.faction && env.type === MSG.CMD) {
         dispatchCommand(peer.faction, env.payload);
       }
     });
@@ -704,7 +664,7 @@ export const mpNet = (() => {
     rxEvent((env, peerId) => {
       if (!env || mode !== 'JOIN' || !matchStarted) return;
       if (hostPeerId && peerId !== hostPeerId) return;
-      if (env.type === 'EVENT' && env.payload?.kind === 'SHOT') {
+      if (env.type === MSG.EVENT && env.payload?.kind === EVENT_KIND.SHOT) {
         const { x1, y1, x2, y2, color } = env.payload;
         bulletTracers.push({ x1, y1, x2, y2, color, life: 0.16, maxLife: 0.16 });
         sfx.playGunshot(x1, y1);
@@ -811,7 +771,7 @@ export const mpNet = (() => {
       const sendHelloOnce = () => {
         if (mode !== 'JOIN' || !room || hostPeerId) return;
         helloAttempts++;
-        sendLobby(envelope('HELLO', helloAttempts, { name: guestName }));
+        sendLobby(envelope(MSG.HELLO, helloAttempts, { name: guestName }));
         if (helloAttempts < 6) {
           setTimeout(sendHelloOnce, 800);
         }
@@ -857,11 +817,11 @@ export const mpNet = (() => {
       }
     }
 
-    const initialSnapshot = buildSnapshotPayload();
+    const initialSnapshot = encodeSnapshot(state);
     for (const p of peers.values()) {
       if (!p.isHost && p.faction && sendInit) {
         sendInit(
-          envelope('INIT_MATCH', 1, {
+          envelope(MSG.INIT_MATCH, 1, {
             yourPeerId: p.peerId,
             gridSize,
             tickSeconds,
@@ -898,18 +858,18 @@ export const mpNet = (() => {
     }
 
     guestInputSeq++;
-    sendInput(envelope('INPUT', guestInputSeq, { mx, my, sprint, facing }), hostPeerId);
+    sendInput(envelope(MSG.INPUT, guestInputSeq, { mx, my, sprint, facing }), hostPeerId);
   }
 
   function sendCommand(payload) {
     if (mode !== 'JOIN' || !matchStarted || !sendCmd || !hostPeerId) return;
     guestCmdSeq++;
-    sendCmd(envelope('CMD', guestCmdSeq, payload), hostPeerId);
+    sendCmd(envelope(MSG.CMD, guestCmdSeq, payload), hostPeerId);
   }
 
   function broadcastEvent(payload) {
     if (mode !== 'HOST' || !matchStarted || !sendEvent) return;
-    sendEvent(envelope('EVENT', snapshotSeq, payload));
+    sendEvent(envelope(MSG.EVENT, snapshotSeq, payload));
   }
 
   function updateHost(dt) {
@@ -918,7 +878,7 @@ export const mpNet = (() => {
       snapshotTimer = 0;
       snapshotSeq++;
       if (sendSnap) {
-        sendSnap(envelope('SNAPSHOT', snapshotSeq, buildSnapshotPayload()));
+        sendSnap(envelope(MSG.SNAPSHOT, snapshotSeq, encodeSnapshot(state)));
       }
     }
   }

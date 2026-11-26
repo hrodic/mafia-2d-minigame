@@ -48,6 +48,7 @@ src/
     commands.js            dispatchCommand: local + remote action entry point
   net/
     transport.js           Trystero 0.27 loader + curated Nostr relays + local bus
+    protocol.js            message types, versioned envelope, snapshot encode/decode
     mpNet.js               host-authoritative multiplayer (lobby, snapshots, input)
   render/
     canvas.js              shared canvas/context references (guarded for tests)
@@ -281,13 +282,16 @@ thresholds are deliberately not here.
 
 ## Networking
 
-`net/mpNet.js` (transport extracted to `net/transport.js`; the rest of the Phase 4 split
-continues):
+`net/mpNet.js` (transport and protocol extracted to `net/transport.js` and
+`net/protocol.js`; the rest of the Phase 4 split continues):
 
 - **Transport (`net/transport.js`):** Trystero 0.27 (`@trystero-p2p/nostr`, or `mqtt` as a
   CDN fallback) for cross-machine WebRTC, plus a same-origin **BroadcastChannel +
   localStorage bus** for multi-tab play and embedded iframes. Trystero uses only public
   Nostr relays for signaling; gameplay traffic stays peer-to-peer.
+- **Protocol (`net/protocol.js`):** message type constants, the versioned envelope/version
+  gate, and snapshot encode/decode. The wire shape is unchanged; the module has no state
+  mutation or presentation imports.
 - **Relays:** an explicit curated `RELAY_URLS` pool (10–12 public relays) replaces
   Trystero's large default pool. All listed relays are used and Trystero fails over when one
   is down. Gameplay does not depend on any single relay.
@@ -310,9 +314,9 @@ continues):
   emit per NPC while applying a snapshot.
 - **Determinism:** the world seed is sent in `INIT_MATCH`; guests generate the same city.
 
-Known net limitations (Phase 4): full-state snapshots, O(n²) NPC lookup on apply, peer
-names inserted into lobby `innerHTML` unsanitized, and background-tab throttling on the
-host.
+Known net limitations (Phase 4 in progress): full-state snapshots, O(n²) NPC lookup on
+apply, peer names inserted into lobby `innerHTML` unsanitized, and background-tab throttling
+on the host.
 
 ## Rendering
 
@@ -363,7 +367,7 @@ distance from the camera.
 - `tests/mp-harness.html` embeds the game in an iframe to force the local bus; open it in
   two tabs for deterministic host/guest testing without external relays.
 - Coverage includes config/RNG, transport API normalization (Trystero 0.27 vs local bus),
-  event bus, state selectors, chunk determinism, collision,
+  protocol envelope/version/snapshot encoding, event bus, state selectors, chunk determinism, collision,
   pathfinding (including wall detours and no corner cutting), units/recruitment, economy,
   territory, combat math/accuracy/armor/aim geometry, effects and casings, interpolation,
   match setup, fixed-step accumulation, command dispatch/equivalence, 600-step headless
