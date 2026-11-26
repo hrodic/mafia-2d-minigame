@@ -178,6 +178,19 @@ test('render: the radar follows the boss into another chunk', () => {
   );
 });
 
+test('render: radar cache timer advances by the supplied frame dt', () => {
+  withRenderState(
+    {
+      prepareMap: (map) => map.generateChunk(0, 0),
+    },
+    () => {
+      state.minimapCacheTimer = 0.2;
+      renderMinimap(0.1);
+      assertEqual(state.minimapCacheTimer.toFixed(1), '0.3');
+    }
+  );
+});
+
 test('render: a local rival boss renders with its multiplayer alias', () => {
   withRenderState(
     {

@@ -36,7 +36,7 @@ window.addEventListener('resize', resizeCanvas);
 
 const renderables = [];
 
-export function render() {
+export function render(dt = 1 / 60) {
   resizeCanvas();
   const viewW = canvas.width;
   const viewH = canvas.height;
@@ -327,5 +327,5 @@ export function render() {
   }
 
   ctx.restore();
-  renderMinimap();
+  renderMinimap(dt);
 }

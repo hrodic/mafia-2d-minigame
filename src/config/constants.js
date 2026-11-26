@@ -8,6 +8,11 @@ export const CHUNK_PX = CHUNK_SIZE * TILE_SIZE;
 export const DEFAULT_GRID_SIZE = 15;
 export const DEFAULT_TICK_DURATION = 10;
 
+// Fixed simulation step and catch-up guard for the main loop.
+export const SIM_DT = 1 / 120;
+export const MAX_FRAME_DELTA = 0.25;
+export const MAX_SIM_STEPS = 8;
+
 export const MAX_PISTOL_RANGE = 1000;
 
 // Brief visual damage feedback shared by every unit and the local boss.

@@ -1,10 +1,16 @@
 // Composition root: wires systems together, owns the net bridge / presentation
 // hooks and runs the requestAnimationFrame loop. Keep this file thin.
 
-import { DEFAULT_GRID_SIZE } from './config/constants.js';
+import {
+  DEFAULT_GRID_SIZE,
+  SIM_DT,
+  MAX_FRAME_DELTA,
+  MAX_SIM_STEPS,
+} from './config/constants.js';
 import { FACTION_META } from './config/organizations.js';
 import { state } from './core/state.js';
 import { on } from './core/events.js';
+import { advanceFixedStep } from './core/fixedStep.js';
 import { CityMap } from './world/city.js';
 import { render, resizeCanvas } from './render/renderer.js';
 import { resetEffects } from './render/effects.js';
@@ -29,7 +35,7 @@ import { updateActionBar } from './ui/actionBar.js';
 import { mpNet } from './net/mpNet.js';
 import { sfx } from './audio/sfx.js';
 import * as combatSfx from './audio/combatSfx.js';
-import { update } from './sim/simulation.js';
+import { update, updateGuest, updatePresentation } from './sim/simulation.js';
 
 // One shared CityMap instance; match setup (sim/match.js) fills it per game.
 state.world = new CityMap();
@@ -93,19 +99,38 @@ on('match:initialized', ({ worldSeed }) => setWorldSeedDisplay(worldSeed));
 on('match:initialized', syncRecruitButtonLabels);
 on('match:initialized', updateHUD);
 
-// Main loop. Variable timestep for now (fixed timestep is Phase 3).
+// Main loop: fixed simulation steps, one presentation/render pass per frame.
 let lastFrameTime = performance.now();
+let simAccumulator = 0;
+
 function gameLoop(now) {
-  const dt = Math.min(0.05, Math.max(0.001, (now - lastFrameTime) / 1000));
+  const frameDt = Math.min(MAX_FRAME_DELTA, Math.max(0, (now - lastFrameTime) / 1000));
   lastFrameTime = now;
 
-  if (state.gameStarted) {
-    update(dt);
-    updateHudCadence(dt, updateHUD);
-    updateActionBar();
-    render();
+  if (!state.gameStarted) {
+    simAccumulator = 0;
+    requestAnimationFrame(gameLoop);
+    return;
   }
 
+  if (state.net && state.net.isGuest()) {
+    simAccumulator = 0;
+    updateGuest(frameDt);
+  } else {
+    const advanced = advanceFixedStep(
+      simAccumulator,
+      frameDt,
+      SIM_DT,
+      MAX_SIM_STEPS,
+      update
+    );
+    simAccumulator = advanced.accumulator;
+    updatePresentation(frameDt);
+  }
+
+  updateHudCadence(frameDt, updateHUD);
+  updateActionBar();
+  render(frameDt);
   requestAnimationFrame(gameLoop);
 }
 
@@ -127,5 +152,6 @@ if (inviteRoom && inviteSecret) {
 window.addEventListener('load', () => {
   resizeCanvas();
   lastFrameTime = performance.now();
+  simAccumulator = 0;
   requestAnimationFrame(gameLoop);
 });

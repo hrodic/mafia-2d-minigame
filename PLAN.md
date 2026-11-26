@@ -15,7 +15,7 @@ architecture description here.
   - AI extracted to `sim/ai.js`
   - HUD cadence moved to `ui/hudCadence.js`
   - UI/UX overhaul: primary status, crew management, action bar, leaderboard + kills
-- **Phase 3 — IN PROGRESS (`0.4.9`; 3.1–3.7 done):** shared unit contract, commands,
+- **Phase 3 — IN PROGRESS (`0.4.10`; 3.1–3.8 done):** shared unit contract, commands,
   fixed timestep. Balance pass: one human slash rule; all AI ranks base speed 150.
 - **Phases 4–5 — pending:** netcode hardening, quality gates.
 
@@ -66,10 +66,12 @@ move, slash, shoot, armor and recruit prefs for local input and remote guests.
 dispatch it. `processRemoteCommand` and the guest branches inside combat are gone. Verified
 solo + MP.
 
-**3.8 Fixed timestep.** Accumulator in `main.js`: `SIM_DT = 1/60`, clamp frame delta
-(~0.25s), N sim steps per rAF, render once. Guest interpolation/camera/HUD cadence use
-render dt. Replace minimap's hardcoded `+= 0.016` with real dt. Verify feel (speeds,
-cooldowns) + MP.
+**3.8 Fixed timestep — DONE (`0.4.10`).** `main.js` runs fixed `1/120` sim steps through
+`advanceFixedStep` (frame delta clamped to `0.25s`, max `8` catch-up steps) and one
+presentation/render pass with render dt. Host/single `update` is sim-only; guests use
+`updateGuest(renderDt)`; camera/particles use `updatePresentation(renderDt)`. Minimap uses
+real dt. 120 Hz keeps every rendered frame advancing on 75/120 Hz displays while staying
+frame-rate independent; tests cover 20/30/60/144 Hz and stall clamping. Verified solo + MP.
 
 **3.9 Tests.** Headless simulation smoke: seeded state, 600 steps, no NaN, units walkable,
 tick math, capture completes, boss death eliminates faction. Command dispatch tests

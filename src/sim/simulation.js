@@ -31,30 +31,37 @@ function updateSpectatorCamera(dt) {
   }
 }
 
+export function updateGuest(dt) {
+  if (!state.gameStarted) return;
+  state.net.updateGuest(dt);
+  stepGuestPresentation(dt);
+
+  state.tickTimer += dt;
+  if (state.tickTimer >= state.tickDuration) state.tickTimer %= state.tickDuration;
+
+  updatePresentation(dt);
+}
+
+/** Presentation-only step: camera, particles and spectator pan use render dt. */
+export function updatePresentation(dt) {
+  if (!state.gameStarted) return;
+  updateVisualParticles(dt);
+
+  const localBoss = getLocalBoss();
+  if (localBoss && isLocalBossAlive() && !state.isSpectating) {
+    state.camera.x += (localBoss.x - state.camera.x) * Math.min(1, dt * 12);
+    state.camera.y += (localBoss.y - state.camera.y) * Math.min(1, dt * 12);
+  } else {
+    updateSpectatorCamera(dt);
+  }
+}
+
+/** One fixed host/single-player simulation step. No presentation work here. */
 export function update(dt) {
   if (!state.gameStarted) return;
 
-  if (state.net && state.net.isGuest()) {
-    state.net.updateGuest(dt);
-    stepGuestPresentation(dt);
-    updateVisualParticles(dt);
-
-    const localBoss = getLocalBoss();
-    if (localBoss && isLocalBossAlive() && !state.isSpectating) {
-      state.camera.x += (localBoss.x - state.camera.x) * Math.min(1, dt * 12);
-      state.camera.y += (localBoss.y - state.camera.y) * Math.min(1, dt * 12);
-    } else {
-      updateSpectatorCamera(dt);
-    }
-
-    state.tickTimer += dt;
-    if (state.tickTimer >= state.tickDuration) state.tickTimer %= state.tickDuration;
-    return;
-  }
-
   state.astarBudgetThisFrame = 0;
   rebuildSpatialBuckets();
-  updateVisualParticles(dt);
 
   if (state.player.attackCooldown > 0) state.player.attackCooldown = Math.max(0, state.player.attackCooldown - dt);
   if (state.player.slashAnimTimer > 0) state.player.slashAnimTimer = Math.max(0, state.player.slashAnimTimer - dt);
@@ -116,11 +123,6 @@ export function update(dt) {
     const pTile = state.world.worldToTile(state.player.x, state.player.y);
     const pChunk = state.world.getChunk(pTile.cx, pTile.cy);
     progressCapture(pChunk, Faction.PLAYER, dt, getCaptureRate(state.player.rank));
-
-    state.camera.x += (state.player.x - state.camera.x) * Math.min(1, dt * 12);
-    state.camera.y += (state.player.y - state.camera.y) * Math.min(1, dt * 12);
-  } else {
-    updateSpectatorCamera(dt);
   }
 
   // Update NPCs & Human-Controlled Rival Bosses

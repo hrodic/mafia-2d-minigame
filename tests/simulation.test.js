@@ -2,12 +2,12 @@
 // host snapshot driving and an AI smoke test.
 import { test, assert, assertEqual } from './harness.js';
 import { Faction, UnitRank, PropType } from '../src/config/enums.js';
-import { CHUNK_SIZE, TILE_SIZE } from '../src/config/constants.js';
+import { CHUNK_SIZE, TILE_SIZE, SIM_DT, MAX_FRAME_DELTA, MAX_SIM_STEPS } from '../src/config/constants.js';
 import { state } from '../src/core/state.js';
 import { on } from '../src/core/events.js';
 import { isSoundEnabled, setSoundEnabled } from '../src/audio/engine.js';
 import { resetEffects } from '../src/render/effects.js';
-import { update } from '../src/sim/simulation.js';
+import { update, updateGuest, updatePresentation } from '../src/sim/simulation.js';
 
 const STATE_KEYS = [
   'world',
@@ -181,13 +181,20 @@ function withSimState(opts, fn) {
   }
 }
 
+test('simulation: fixed-step constants are sane', () => {
+  assertEqual(SIM_DT, 1 / 120);
+  assertEqual(MAX_FRAME_DELTA, 0.25);
+  assert(MAX_SIM_STEPS >= 1 && MAX_SIM_STEPS <= 15, `unexpected max steps: ${MAX_SIM_STEPS}`);
+});
+
 test('simulation: host movement, timers and HUD cadence', () => {
   withSimState({ keys: ['d'], player: makePlayer({ attackCooldown: 0.5 }) }, () => {
-    update(0.1);
+    update(SIM_DT);
     assert(state.player.x > 100, `player should move right, x=${state.player.x}`);
     assertEqual(state.player.y, 100);
-    assertEqual(state.player.attackCooldown.toFixed(1), '0.4');
-    assert(state.camera.x > 0, 'camera should follow the boss');
+    assert(state.player.attackCooldown < 0.5, 'timers should advance');
+    updatePresentation(1 / 60);
+    assert(state.camera.x > 0, 'camera should follow the boss during presentation');
   });
 });
 
@@ -248,7 +255,7 @@ test('simulation: guest update forwards input, follows the local boss and decays
       tickDuration: 10,
     },
     () => {
-      update(0.1);
+      updateGuest(0.1);
       assertEqual(calls.input, 1, 'guest input should be streamed');
       assertEqual(state.player.x, 100, 'guest must not simulate the host player');
       assert(state.camera.x > 0, 'guest camera should follow the local boss');

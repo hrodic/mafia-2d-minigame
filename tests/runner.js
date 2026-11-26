@@ -8,6 +8,7 @@ import './version.test.js';
 import './config.test.js';
 import './balance.test.js';
 import './state.test.js';
+import './fixedStep.test.js';
 import './ui.test.js';
 import './world.test.js';
 import './world-golden.test.js';

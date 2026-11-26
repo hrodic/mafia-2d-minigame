@@ -28,6 +28,7 @@ src/
   core/
     rng.js                 mulberry32, chunk seed hashing, explicit per-chunk RNG
     state.js               `createGameState()` reset factory, shared `state`, selectors
+    fixedStep.js           accumulator: fixed sim steps + catch-up guard
     events.js              synchronous, isolated event bus (sim -> presentation facts)
     spatial.js             per-chunk spatial buckets for neighbour queries
   world/
@@ -114,8 +115,10 @@ inside functions called after module evaluation (never at top level).
 1. Creates the single `CityMap` instance (`state.world`).
 2. Sets `state.net = mpNet` (the net bridge; see below).
 3. Wires event subscribers and the HUD cadence (`ui/hudCadence.js`).
-4. Starts the rAF loop (`update` then `render` when `state.gameStarted`) with a variable
-   timestep capped at 50 ms.
+4. Starts the rAF loop when `state.gameStarted`: fixed `1/120` simulation steps through an
+   accumulator (frame delta clamped to `0.25s`, max `8` catch-up steps), then one
+   presentation pass (camera/particles) and one render with render dt. Guests skip fixed
+   steps and run `updateGuest(renderDt)` once per frame.
 5. Boots UI/input (`applyVersionLabels`, `initMenus`, `initInput`) and setup renderers.
 6. Detects `?room=&secret=` invite URLs and pre-fills the join panel.
 
@@ -206,17 +209,18 @@ labels, seed display and HUD.
 
 ## Simulation
 
-`sim/simulation.js:update(dt)`:
+`sim/simulation.js` separates simulation from presentation:
 
-- **Guest:** streams input (`net.updateGuest`), runs guest presentation
-  (`stepGuestPresentation`: interpolate `netX/netY`, decay animation timers), particles,
-  camera follow/spectate and HUD cadence, then returns. Guests never simulate gameplay.
-- **Host/single:** resets the A* budget, rebuilds spatial buckets, updates particles,
-  ticks player timers, handles player input/aim, capture progress and camera; movement and
-  sprint go through the shared `moveUnit`/`updateUnitSprint`. Then for each NPC either
-  updates a remote-human boss (`updateHumanControlledRivalBoss`) or runs `updateNpcAi`
-  (perception, armor, attacks, patrol, A* steering, capture); then runs the hourly economy
-  tick and HUD cadence, and finally `net.updateHost` (snapshot broadcast).
+- **Host/single `update(SIM_DT)`:** resets the A* budget, rebuilds spatial buckets, ticks
+  player timers, handles player input/aim and capture; movement/sprint go through the
+  shared `moveUnit`/`updateUnitSprint`. Then for each NPC either updates a remote-human boss
+  (`updateHumanControlledRivalBoss`) or runs `updateNpcAi` (perception, armor, attacks,
+  patrol, A* steering, capture); then runs the hourly economy tick and `net.updateHost`.
+- **Guest `updateGuest(renderDt)`:** streams input (`net.updateGuest`), runs guest
+  presentation (`stepGuestPresentation`: interpolate `netX/netY`, decay animation timers),
+  advances the HUD timer bar, then calls `updatePresentation`.
+- **`updatePresentation(renderDt)`:** camera follow/spectate and visual particles. It runs
+  once per rendered frame on host and guest, never inside the fixed sim loop.
 
 `initWorld` builds a fresh match; `update` is the only per-frame simulator entry point.
 Per-frame presentation stays state-driven: combat/capture/economy emit discrete events on
@@ -377,7 +381,7 @@ distance from the camera.
 - Phase 3: player boss shares the unit contract but stays a local singleton outside
   `npcs`; `forEachUnit`/`getUnitById` cover all-combatant systems. One
   damage/slash/movement pipeline, `createGameState()` reset factory, unified command
-  dispatcher for local+remote, fixed timestep.
+  dispatcher for local+remote, fixed `1/120` simulation with render-time presentation.
 - Phase 4: split `net/mpNet.js` into transport/protocol/lobby/host/guest; delta/O(1)
   snapshots; sanitize peer names; background-host resilience; bump protocol version.
 - Phase 5: broader tests, JSDoc/`jsconfig` typing, docs refresh.
