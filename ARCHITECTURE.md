@@ -39,6 +39,7 @@ src/
   sim/                     headless gameplay logic (no DOM, no audio)
     match.js               initWorld: city/factions/economy/bosses for a new match
     simulation.js          update(dt): host/single-player step + guest presentation loop
+    ai.js                  NPC perception, attacks, patrol goals, A* steering, capture
     movement.js            collision helpers, sprint, remote-human boss, waypoint steering
     units.js               caps, spawning, recruitment
     combat.js              damage/armor, slashes, pistol raycast, armor purchases
@@ -197,15 +198,21 @@ setup UI, recruit labels, seed display and HUD.
   (`stepGuestPresentation`: interpolate `netX/netY`, decay animation timers), particles,
   camera follow/spectate and HUD cadence, then returns. Guests never simulate gameplay.
 - **Host/single:** resets the A* budget, rebuilds spatial buckets, updates particles,
-  ticks player timers, handles player input/movement/sprint/aim, capture progress, camera;
-  then updates each NPC (remote-human boss via `updateHumanControlledRivalBoss`, otherwise
-  AI: perception, target selection, armor purchase, melee/ranged attacks, waypoint/path
-  movement, capture); then runs the hourly economy tick and HUD cadence, and finally
-  `net.updateHost` (snapshot broadcast).
+  ticks player timers, handles player input/movement/sprint/aim, capture progress and camera;
+  then for each NPC either updates a remote-human boss (`updateHumanControlledRivalBoss`) or
+  runs `updateNpcAi` (perception, armor, attacks, patrol, A* steering, capture); then runs
+  the hourly economy tick and HUD cadence, and finally `net.updateHost` (snapshot broadcast).
 
 `initWorld` builds a fresh match; `update` is the only per-frame simulator entry point.
 Per-frame presentation stays state-driven: combat/capture/economy emit discrete events on
 transitions only, never positions, timers or per-NPC updates.
+
+### AI
+`sim/ai.js`: `scanNearby` (nearest enemy + ally/enemy counts in the 3×3 spatial buckets),
+boss armor purchase, melee/pistol attacks, `choosePatrolChunk` (nearest non-owned chunk with
+a global fallback), A* path following/steering, obstacle dodge and capture. `updateNpcAi(u,
+dt)` is headless; remote-human bosses bypass it. `simulation.js` remains the orchestration
+loop.
 
 ## Systems
 
@@ -332,9 +339,10 @@ distance from the camera.
 
 ## Known limitations / next phases
 
-- Phase 2: finish migrating the last runtime HUD cadence out of `simulation.js` (bus
-  implemented; combat, units, economy, territory and match migrated; only `simulation.js`
-  is allowlisted in `tools/check.ps1`); extract AI decisions to `sim/ai.js`.
+- Phase 2: finish moving the last periodic HUD cadence out of `simulation.js` and delete
+  `core/runtime.js` (all event migrations, dedup, balance tables, explicit RNG and AI
+  extraction are done; only `simulation.js` is allowlisted for per-frame canvas/particles/
+  interpolation).
 - Phase 3: player boss folded into the unit model (`control: local/ai/remote`), one
   damage/slash/movement pipeline, `createGameState()` reset factory, unified command
   dispatcher for local+remote, fixed timestep.

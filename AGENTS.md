@@ -66,7 +66,7 @@ command, number or test result; read the file or run the check.
 | Organizations / faction colors | `src/config/organizations.js` |
 | Player-count slot mapping | `src/config/organizations.js` (`getActiveFactionSlots`) |
 | Worldgen / props / collision | `src/world/chunk.js`, `src/world/city.js`, `src/world/geometry.js` |
-| AI behavior | `src/sim/simulation.js` (Phase 2 moves it to `src/sim/ai.js`) |
+| AI behavior | `src/sim/ai.js` |
 | Combat / weapons / armor | `src/sim/combat.js` |
 | Combat presentation (effects / SFX) | `src/render/combatFx.js`, `src/audio/combatSfx.js` |
 | Capture / victory / defeat | `src/sim/territory.js` |
