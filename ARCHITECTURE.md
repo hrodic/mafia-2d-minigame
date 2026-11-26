@@ -50,7 +50,8 @@ src/
     transport.js           Trystero 0.27 loader + curated Nostr relays + local bus
     protocol.js            message types, versioned envelope, snapshot encode/decode
     lobby.js               UI-agnostic seats, capacity and roster snapshots
-    mpNet.js               host-authoritative multiplayer (lobby UI, snapshots, input)
+    guest.js               guest join/lobby/snapshot/input controller
+    mpNet.js               composition root for host + guest multiplayer
   render/
     canvas.js              shared canvas/context references (guarded for tests)
     renderer.js            frame orchestration: culling, depth sort, layers
@@ -284,8 +285,8 @@ thresholds are deliberately not here.
 
 ## Networking
 
-`net/mpNet.js` (transport and protocol extracted to `net/transport.js` and
-`net/protocol.js`; the rest of the Phase 4 split continues):
+`net/mpNet.js` (transport, protocol, lobby rules and the guest controller live in their
+own modules; the host controller split is the remaining Phase 4 step-1 work):
 
 - **Transport (`net/transport.js`):** Trystero 0.27 (`@trystero-p2p/nostr`, or `mqtt` as a
   CDN fallback) for cross-machine WebRTC, plus a same-origin **BroadcastChannel +
@@ -299,6 +300,10 @@ thresholds are deliberately not here.
 - **Lobby UI (`ui/lobbyUI.js`):** host/guest roster rendering, AI/open-slot controls and
   start-button state. Rows are built with DOM nodes and `textContent`; peer names are never
   parsed as HTML.
+- **Guest controller (`net/guest.js`):** join HELLO retry, lobby/init/snapshot/event
+  handling, authoritative snapshot application, input/command streaming and host-disconnect
+  detection. It receives channel getters and UI callbacks from `mpNet.js` instead of
+  importing it.
 - **Relays:** an explicit curated `RELAY_URLS` pool (10–12 public relays) replaces
   Trystero's large default pool. All listed relays are used and Trystero fails over when one
   is down. Gameplay does not depend on any single relay.
@@ -374,7 +379,8 @@ distance from the camera.
   two tabs for deterministic host/guest testing without external relays.
 - Coverage includes config/RNG, transport API normalization (Trystero 0.27 vs local bus),
   protocol envelope/version/snapshot encoding, lobby seats/capacity/rosters, lobby DOM
-  rendering/safe names, event bus, state selectors, chunk determinism, collision,
+  rendering/safe names, guest handshake/init routing, event bus, state selectors, chunk
+  determinism, collision,
   pathfinding (including wall detours and no corner cutting), units/recruitment, economy,
   territory, combat math/accuracy/armor/aim geometry, effects and casings, interpolation,
   match setup, fixed-step accumulation, command dispatch/equivalence, 600-step headless

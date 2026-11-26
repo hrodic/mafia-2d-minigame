@@ -4,28 +4,15 @@
 
 import { Faction, UnitRank } from '../config/enums.js';
 import { GAME_VERSION } from '../config/version.js';
-import { RANK_STATS } from '../config/balance.js';
 import { FACTION_META, ensureUniqueOrgs } from '../config/organizations.js';
-import { state, getLocalBoss, getUnitById } from '../core/state.js';
+import { state, getLocalBoss } from '../core/state.js';
 import { randomWorldSeed } from '../core/rng.js';
 import { initWorld } from '../sim/match.js';
-import { eliminateFaction } from '../sim/territory.js';
-import { getEntityCollisionRadius } from '../sim/movement.js';
 import { dispatchCommand } from '../sim/commands.js';
-import { spawnDeadBody, bulletTracers } from '../render/effects.js';
-import { canvas } from '../render/canvas.js';
-import { sfx } from '../audio/sfx.js';
 import { showToast } from '../ui/menus.js';
 import { renderHostLobby, renderGuestLobby } from '../ui/lobbyUI.js';
 import { connectSignalingRoom, randomToken } from './transport.js';
-import {
-  MSG,
-  EVENT_KIND,
-  envelope,
-  isVersionCompatible,
-  encodeSnapshot,
-  decodeSnapshot,
-} from './protocol.js';
+import { MSG, envelope, isVersionCompatible, encodeSnapshot } from './protocol.js';
 import {
   getSeatedPeers,
   reassignHostSeats,
@@ -33,6 +20,7 @@ import {
   buildLobbyRosterSnapshot,
   findGuestSeat,
 } from './lobby.js';
+import { createGuestController } from './guest.js';
 
 
 export const mpNet = (() => {
@@ -41,7 +29,6 @@ export const mpNet = (() => {
   let roomCode = '';
   let roomSecret = '';
   let selfPeerId = '';
-  let hostPeerId = '';
   let localFaction = Faction.PLAYER;
   let matchStarted = false;
   let isJoining = false;
@@ -59,13 +46,8 @@ export const mpNet = (() => {
   let snapshotSeq = 0;
   let snapshotTimer = 0;
 
-  // Guest-only state
-  let guestLobbyRoster = [];
-  let guestSettings = null;
-  let lastSnapshotSeq = 0;
-  let guestInputSeq = 0;
-  let guestCmdSeq = 0;
-  let inputSendTimer = 0;
+  // Guest controller (created below once the composition helpers exist).
+  let guest = null;
 
   function getCurrentHostConfig() {
     return {
@@ -116,11 +98,13 @@ export const mpNet = (() => {
   }
 
   function renderGuestLobbyUI() {
-    const me = findGuestSeat(guestLobbyRoster, selfPeerId);
-    if (me && guestSettings) {
+    const roster = guest ? guest.getRoster() : [];
+    const settings = guest ? guest.getSettings() : null;
+    const me = findGuestSeat(roster, selfPeerId);
+    if (me && settings) {
       localFaction = me.faction || Faction.RIVAL_1;
     }
-    renderGuestLobby({ roster: guestLobbyRoster, settings: guestSettings, me });
+    renderGuestLobby({ roster, settings, me });
   }
 
   function broadcastHostLobbyState() {
@@ -144,177 +128,6 @@ export const mpNet = (() => {
       }),
       targetPeerId
     );
-  }
-
-  function applyAuthoritativeSnapshot(payload) {
-    const snap = decodeSnapshot(payload);
-    if (!snap) return;
-    state.gameHour = snap.gameHour ?? state.gameHour;
-    state.tickTimer = snap.tickTimer ?? state.tickTimer;
-
-    if (snap.treasuries) Object.assign(state.treasuries, snap.treasuries);
-    if (snap.kills) Object.assign(state.factionKills, snap.kills);
-    if (snap.factionAlive) {
-      for (const f of state.activeFactions) {
-        const wasAlive = state.factionAlive[f];
-        const nowAlive = Boolean(snap.factionAlive[f]);
-        if (wasAlive && !nowAlive) {
-          eliminateFaction(f);
-        }
-        state.factionAlive[f] = nowAlive;
-      }
-    }
-
-    if (snap.playerBoss) {
-      const pb = snap.playerBoss;
-      // Store the authoritative target; the guest update interpolates per frame.
-      state.player.netX = pb.x;
-      state.player.netY = pb.y;
-      state.player.facing = pb.facing;
-      state.player.hp = pb.hp;
-      state.player.maxHp = pb.maxHp;
-      state.player.armor = pb.armor;
-      state.player.maxArmor = pb.maxArmor;
-      state.player.alive = pb.alive;
-      if (pb.slash) state.player.slashAnimTimer = 0.18;
-      if (pb.shoot) state.player.muzzleFlashTimer = 0.11;
-    }
-
-    if (Array.isArray(snap.chunks)) {
-      let dirtyMinimap = false;
-      for (let i = 0; i < snap.chunks.length; i++) {
-        const [cx, cy, fac, prog, capFac] = snap.chunks[i];
-        let chunk = state.world.getChunk(cx, cy);
-        if (!chunk) {
-          chunk = state.world.generateChunk(cx, cy, fac);
-          dirtyMinimap = true;
-        }
-        if (chunk.faction !== fac) {
-          chunk.faction = fac;
-          dirtyMinimap = true;
-        }
-        chunk.captureProgress = prog;
-        chunk.capturingFaction = capFac || null;
-      }
-      if (dirtyMinimap) state.minimapCacheTimer = 1.0;
-    }
-
-    if (Array.isArray(snap.npcs)) {
-      const seenIds = new Set();
-      for (let i = 0; i < snap.npcs.length; i++) {
-        const [id, fac, rank, x, y, facing, hp, maxHp, armor, maxArmor, slash, shoot, hPeer] = snap.npcs[i];
-        // The local player travels on playerBoss; never apply it twice from npcs.
-        if (id === state.player.id) continue;
-        seenIds.add(id);
-        const stats = RANK_STATS[rank] || RANK_STATS[UnitRank.SOLDIER];
-        const isHumanBoss = rank === UnitRank.BOSS && Boolean(hPeer);
-        let unit = getUnitById(id);
-        if (!unit) {
-          unit = {
-            id,
-            faction: fac,
-            rank,
-            humanPeerId: hPeer || null,
-            x,
-            y,
-            netX: x,
-            netY: y,
-            targetX: null,
-            targetY: null,
-            bodyRadius: getEntityCollisionRadius(rank),
-            speed: isHumanBoss ? stats.speedHuman : stats.speedAi,
-            hp,
-            maxHp,
-            armor,
-            maxArmor,
-            armorCooldown: 0,
-            sprintTimer: 0,
-            sprintCooldown: 0,
-            isSprinting: false,
-            minDmg: stats.minDmg,
-            maxDmg: stats.maxDmg,
-            facing,
-            goalX: x,
-            goalY: y,
-            path: null,
-            pathTimer: 0,
-            aiTimer: 0,
-            attackCooldown: 0,
-            slashAnimTimer: 0,
-            muzzleFlashTimer: 0,
-            hitFlashTimer: 0,
-            dodgeDir: 1,
-            lastCheckX: x,
-            lastCheckY: y,
-            stuckTimer: 0,
-          };
-          state.npcs.push(unit);
-        } else {
-          unit.speed = isHumanBoss ? stats.speedHuman : stats.speedAi;
-          unit.netX = x;
-          unit.netY = y;
-          unit.facing = facing;
-          unit.hp = hp;
-          unit.maxHp = maxHp;
-          unit.armor = armor;
-          unit.maxArmor = maxArmor;
-          unit.humanPeerId = hPeer || null;
-          if (slash) unit.slashAnimTimer = 0.18;
-          if (shoot) unit.muzzleFlashTimer = 0.11;
-        }
-      }
-
-      for (let i = state.npcs.length - 1; i >= 0; i--) {
-        if (!seenIds.has(state.npcs[i].id)) {
-          const dead = state.npcs[i];
-          spawnDeadBody(dead.x, dead.y, dead.faction, dead.rank, dead.facing, dead.facing);
-          state.npcs.splice(i, 1);
-        }
-      }
-    }
-  }
-
-  function applyInitialMatchState(payload) {
-    if (!payload) return;
-    if (payload.yourPeerId) {
-      selfPeerId = payload.yourPeerId;
-    }
-    const assignments = payload.assignments || {};
-    const mySeat =
-      assignments[selfPeerId] ||
-      Object.values(assignments).find((a) => !a.isHost);
-    if (mySeat && mySeat.faction) {
-      localFaction = mySeat.faction;
-    }
-
-    matchStarted = true;
-    lastSnapshotSeq = 0;
-    guestInputSeq = 0;
-    guestCmdSeq = 0;
-
-    document.getElementById('setup-modal').classList.add('hidden');
-    const badge = document.getElementById('mp-hud-badge');
-    badge.textContent = `MP GUEST (${roomCode})`;
-    badge.classList.remove('hidden');
-
-    initWorld(
-      payload.gridSize,
-      true,
-      payload.tickSeconds,
-      payload.incomeTier,
-      payload.factionCount,
-      payload.orgRoster,
-      payload.worldSeed
-    );
-
-    if (payload.snapshot) {
-      applyAuthoritativeSnapshot(payload.snapshot);
-    }
-
-    const localBoss = getLocalBoss();
-    state.camera.x = localBoss.x;
-    state.camera.y = localBoss.y;
-    showToast(`Joined match as ${FACTION_META[localFaction].name} (${FACTION_META[localFaction].ranks.BOSS})!`);
   }
 
   function setupChannels(activeRoom) {
@@ -346,11 +159,7 @@ export const mpNet = (() => {
 
     if (typeof activeRoom.onPeerJoin === 'function') {
       activeRoom.onPeerJoin((peerId) => {
-        if (mode === 'JOIN' && !hostPeerId && sendLobby) {
-          const rawName = document.getElementById('mp-guest-name')?.value?.trim();
-          const guestName = rawName ? rawName.slice(0, 16) : 'Guest Boss';
-          sendLobby(envelope(MSG.HELLO, 0, { name: guestName }), peerId);
-        }
+        if (mode === 'JOIN' && guest) guest.handlePeerJoin(peerId);
       });
     }
 
@@ -376,8 +185,8 @@ export const mpNet = (() => {
               showToast(`${leftName} left the lobby.`);
             }
           }
-        } else if (mode === 'JOIN' && peerId === hostPeerId) {
-          handleHostDisconnected();
+        } else if (mode === 'JOIN' && guest) {
+          guest.handlePeerLeave(peerId);
         }
       });
     }
@@ -421,61 +230,17 @@ export const mpNet = (() => {
           broadcastHostLobbyState();
           showToast(`${guestName} joined the lobby!`);
         }
-      } else if (mode === 'JOIN') {
-        if (!hostPeerId) hostPeerId = peerId;
-        if (env.type === MSG.REJECT) {
-          isJoining = false;
-          const errEl = document.getElementById('mp-join-error');
-          errEl.textContent = env.payload?.reason || 'Connection rejected by host.';
-          errEl.classList.remove('hidden');
-          document.getElementById('mp-join-status').textContent = 'Rejected';
-          const joinBtn = document.getElementById('btn-mp-join-room');
-          const joinInput = document.getElementById('mp-join-input');
-          if (joinBtn) {
-            joinBtn.disabled = false;
-            joinBtn.textContent = 'Connect';
-          }
-          if (joinInput) joinInput.disabled = false;
-          cleanup(false);
-          return;
-        }
-        if (env.type === MSG.LOBBY_STATE) {
-          isJoining = false;
-          if (env.payload?.yourPeerId) {
-            selfPeerId = env.payload.yourPeerId;
-          }
-          guestLobbyRoster = env.payload?.roster || [];
-          guestSettings = env.payload?.settings || null;
-          document.getElementById('mp-join-status').textContent = 'Connected';
-          document.getElementById('mp-join-error').classList.add('hidden');
-          document.getElementById('mp-guest-lobby-box').classList.remove('hidden');
-          const joinBtn = document.getElementById('btn-mp-join-room');
-          const joinInput = document.getElementById('mp-join-input');
-          if (joinBtn) {
-            joinBtn.disabled = true;
-            joinBtn.textContent = 'Joined';
-          }
-          if (joinInput) joinInput.disabled = true;
-          renderGuestLobbyUI();
-        }
+      } else if (mode === 'JOIN' && guest) {
+        guest.handleLobby(env, peerId);
       }
     });
 
     rxInit((env, peerId) => {
-      if (!env || mode !== 'JOIN') return;
-      if (env.type === MSG.INIT_MATCH) {
-        hostPeerId = peerId;
-        applyInitialMatchState(env.payload);
-      }
+      if (guest) guest.handleInit(env, peerId);
     });
 
     rxSnap((env, peerId) => {
-      if (!env || mode !== 'JOIN' || !matchStarted) return;
-      if (hostPeerId && peerId !== hostPeerId) return;
-      if (env.type === MSG.SNAPSHOT && env.seq > lastSnapshotSeq) {
-        lastSnapshotSeq = env.seq;
-        applyAuthoritativeSnapshot(env.payload);
-      }
+      if (guest) guest.handleSnapshot(env, peerId);
     });
 
     rxInput((env, peerId) => {
@@ -501,13 +266,7 @@ export const mpNet = (() => {
     });
 
     rxEvent((env, peerId) => {
-      if (!env || mode !== 'JOIN' || !matchStarted) return;
-      if (hostPeerId && peerId !== hostPeerId) return;
-      if (env.type === MSG.EVENT && env.payload?.kind === EVENT_KIND.SHOT) {
-        const { x1, y1, x2, y2, color } = env.payload;
-        bulletTracers.push({ x1, y1, x2, y2, color, life: 0.16, maxLife: 0.16 });
-        sfx.playGunshot(x1, y1);
-      }
+      if (guest) guest.handleEvent(env, peerId);
     });
   }
 
@@ -594,28 +353,17 @@ export const mpNet = (() => {
       mode = 'JOIN';
       roomCode = parsedCode;
       roomSecret = parsedSecret;
-      hostPeerId = '';
+
+      const rawName = document.getElementById('mp-guest-name')?.value?.trim();
+      const guestName = rawName ? rawName.slice(0, 16) : 'Guest Boss';
 
       const activeRoom = await connectSignalingRoom(roomCode, roomSecret);
       room = activeRoom;
       selfPeerId = activeRoom.selfId;
       attachSignalingErrorHandler(activeRoom, statusEl, errEl);
+      if (guest) guest.setGuestName(guestName);
       setupChannels(activeRoom);
-
-      const rawName = document.getElementById('mp-guest-name')?.value?.trim();
-      const guestName = rawName ? rawName.slice(0, 16) : 'Guest Boss';
-
-      // Announce presence to host immediately and retry briefly if peer discovery is still settling
-      let helloAttempts = 0;
-      const sendHelloOnce = () => {
-        if (mode !== 'JOIN' || !room || hostPeerId) return;
-        helloAttempts++;
-        sendLobby(envelope(MSG.HELLO, helloAttempts, { name: guestName }));
-        if (helloAttempts < 6) {
-          setTimeout(sendHelloOnce, 800);
-        }
-      };
-      setTimeout(sendHelloOnce, 180);
+      if (guest) guest.startHello(guestName);
     } catch (err) {
       isJoining = false;
       statusEl.textContent = 'Failed';
@@ -678,32 +426,11 @@ export const mpNet = (() => {
   }
 
   function flushGuestInput() {
-    if (mode !== 'JOIN' || !matchStarted || !sendInput || !hostPeerId) return;
-    let mx = 0;
-    let my = 0;
-    if (state.keys.has('w') || state.keys.has('arrowup')) my -= 1;
-    if (state.keys.has('s') || state.keys.has('arrowdown')) my += 1;
-    if (state.keys.has('a') || state.keys.has('arrowleft')) mx -= 1;
-    if (state.keys.has('d') || state.keys.has('arrowright')) mx += 1;
-    const sprint = state.keys.has('shift') || state.sprintButtonHeld;
-
-    const localBoss = getLocalBoss();
-    let facing = localBoss ? localBoss.facing : 0;
-    if (state.mouse.inside && canvas.width > 0 && localBoss) {
-      const rect = canvas.getBoundingClientRect();
-      const aimWx = state.camera.x - rect.width / 2 + state.mouse.screenX;
-      const aimWy = state.camera.y - rect.height / 2 + state.mouse.screenY;
-      facing = Math.atan2(aimWy - localBoss.y, aimWx - localBoss.x);
-    }
-
-    guestInputSeq++;
-    sendInput(envelope(MSG.INPUT, guestInputSeq, { mx, my, sprint, facing }), hostPeerId);
+    if (guest) guest.flushInput();
   }
 
   function sendCommand(payload) {
-    if (mode !== 'JOIN' || !matchStarted || !sendCmd || !hostPeerId) return;
-    guestCmdSeq++;
-    sendCmd(envelope(MSG.CMD, guestCmdSeq, payload), hostPeerId);
+    if (guest) guest.sendCommand(payload);
   }
 
   function broadcastEvent(payload) {
@@ -723,11 +450,7 @@ export const mpNet = (() => {
   }
 
   function updateGuest(dt) {
-    inputSendTimer += dt;
-    if (inputSendTimer >= 0.06) {
-      inputSendTimer = 0;
-      flushGuestInput();
-    }
+    if (guest) guest.update(dt);
   }
 
   function handleHostDisconnected() {
@@ -750,7 +473,7 @@ export const mpNet = (() => {
     sendEvent = null;
     matchStarted = false;
     isJoining = false;
-    hostPeerId = '';
+    if (guest) guest.reset();
     localFaction = Faction.PLAYER;
     document.getElementById('mp-hud-badge').classList.add('hidden');
     document.getElementById('mp-host-room-details')?.classList.add('hidden');
@@ -800,6 +523,78 @@ export const mpNet = (() => {
     }
   }
 
+  guest = createGuestController({
+    getMode: () => mode,
+    isRoomActive: () => Boolean(room),
+    getSelfPeerId: () => selfPeerId,
+    setSelfPeerId: (id) => { selfPeerId = id; },
+    getMatchStarted: () => matchStarted,
+    setMatchStarted: (started) => { matchStarted = started; },
+    setLocalFaction: (faction) => { localFaction = faction; },
+    getSendLobby: () => sendLobby,
+    getSendInput: () => sendInput,
+    getSendCmd: () => sendCmd,
+    onRejected: (reason) => {
+      isJoining = false;
+      const errEl = document.getElementById('mp-join-error');
+      if (errEl) {
+        errEl.textContent = reason;
+        errEl.classList.remove('hidden');
+      }
+      const statusEl = document.getElementById('mp-join-status');
+      if (statusEl) statusEl.textContent = 'Rejected';
+      const joinBtn = document.getElementById('btn-mp-join-room');
+      const joinInput = document.getElementById('mp-join-input');
+      if (joinBtn) {
+        joinBtn.disabled = false;
+        joinBtn.textContent = 'Connect';
+      }
+      if (joinInput) joinInput.disabled = false;
+      cleanup(false);
+    },
+    onLobbyState: () => {
+      isJoining = false;
+      const statusEl = document.getElementById('mp-join-status');
+      const errEl = document.getElementById('mp-join-error');
+      const box = document.getElementById('mp-guest-lobby-box');
+      if (statusEl) statusEl.textContent = 'Connected';
+      if (errEl) errEl.classList.add('hidden');
+      if (box) box.classList.remove('hidden');
+      const joinBtn = document.getElementById('btn-mp-join-room');
+      const joinInput = document.getElementById('mp-join-input');
+      if (joinBtn) {
+        joinBtn.disabled = true;
+        joinBtn.textContent = 'Joined';
+      }
+      if (joinInput) joinInput.disabled = true;
+      renderGuestLobbyUI();
+    },
+    initializeWorld: (payload) => {
+      initWorld(
+        payload.gridSize,
+        true,
+        payload.tickSeconds,
+        payload.incomeTier,
+        payload.factionCount,
+        payload.orgRoster,
+        payload.worldSeed
+      );
+    },
+    onMatchInitialized: () => {
+      document.getElementById('setup-modal').classList.add('hidden');
+      const badge = document.getElementById('mp-hud-badge');
+      if (badge) {
+        badge.textContent = `MP GUEST (${roomCode})`;
+        badge.classList.remove('hidden');
+      }
+      const localBoss = getLocalBoss();
+      state.camera.x = localBoss.x;
+      state.camera.y = localBoss.y;
+      showToast(`Joined match as ${FACTION_META[localFaction].name} (${FACTION_META[localFaction].ranks.BOSS})!`);
+    },
+    onHostDisconnected: () => handleHostDisconnected(),
+  });
+
   return {
     get mode() { return mode; },
     get localFaction() { return localFaction; },
@@ -812,8 +607,8 @@ export const mpNet = (() => {
         for (const p of peers.values()) {
           if (p.faction === f) return true;
         }
-      } else if (mode === 'JOIN') {
-        return guestLobbyRoster.some((p) => p.faction === f && !p.isAI);
+      } else if (mode === 'JOIN' && guest) {
+        return guest.getRoster().some((p) => p.faction === f && !p.isAI);
       }
       return false;
     },
@@ -828,8 +623,8 @@ export const mpNet = (() => {
         for (const p of peers.values()) {
           if (p.faction === f) return p.name;
         }
-      } else if (mode === 'JOIN') {
-        const entry = guestLobbyRoster.find((p) => p.faction === f && !p.isAI);
+      } else if (mode === 'JOIN' && guest) {
+        const entry = guest.getRoster().find((p) => p.faction === f && !p.isAI);
         if (entry) return entry.name;
       }
       return null;
