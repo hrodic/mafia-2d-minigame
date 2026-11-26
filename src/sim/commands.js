@@ -73,6 +73,10 @@ export function dispatchCommand(faction, payload) {
       if (!snapped) return false;
       boss.targetX = snapped.x;
       boss.targetY = snapped.y;
+      // Every click-to-move is authoritative: discard any older A* route so the
+      // next movement step recomputes toward the new target immediately.
+      boss.path = null;
+      boss.pathTimer = 0;
       return true;
     }
     case 'SLASH':

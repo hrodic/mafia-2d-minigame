@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hrodic's Mafia 2D</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="w-screen h-screen flex flex-col">
+
+  <!-- Top HUD Header -->
+  <header class="bg-zinc-950 border-b border-zinc-800 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2 z-20 shadow-lg">
+    <div class="flex items-center gap-2.5 min-w-0">
+      <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 via-amber-600 to-rose-700 p-[1.5px] shadow-[0_0_12px_rgba(245,158,11,0.45)] flex-shrink-0">
+        <div class="w-full h-full bg-zinc-950 rounded-[6.5px] flex items-center justify-center font-display-mafia text-amber-400 text-base leading-none">
+          H
+        </div>
+      </div>
+      <div class="flex items-baseline gap-1.5 min-w-0">
+        <h1 class="font-display-mafia text-xl sm:text-2xl tracking-wider title-gold-chrome leading-none">
+          HRODIC'S MAFIA
+        </h1>
+        <span class="text-[10px] font-extrabold uppercase tracking-widest bg-rose-600/20 border border-rose-500/50 text-rose-300 px-1.5 py-0.5 rounded">
+          2D
+        </span>
+        <span id="hud-version-label" class="text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-500/15 border border-amber-500/40 text-amber-300 px-1.5 py-0.5 rounded"></span>
+        <a id="btn-support" href="https://ko-fi.com/hrodic" target="_blank" rel="noopener noreferrer" aria-label="Tip me on Ko-fi" title="Tip me on Ko-fi" class="text-[9px] font-mono font-bold uppercase tracking-wider bg-rose-500/10 border border-rose-500/40 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200 px-1.5 py-0.5 rounded transition">☕ Tip me</a>
+        <span id="mp-hud-badge" class="hidden text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 px-1.5 py-0.5 rounded">
+          MP HOST
+        </span>
+        <button id="world-seed-hud" type="button" class="hidden text-[10px] font-mono font-bold uppercase tracking-wider bg-sky-500/10 border border-sky-500/40 text-sky-300 px-1.5 py-0.5 rounded cursor-pointer" title="World seed — click to copy"></button>
+      </div>
+    </div>
+
+    <!-- Primary status: boss + economy -->
+    <div class="flex items-center gap-2 text-xs flex-wrap">
+      <div class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg">
+        <span class="text-zinc-400 font-semibold">Boss HP:</span>
+        <div class="w-16 sm:w-24 h-2.5 bg-zinc-800 rounded-full overflow-hidden">
+          <div id="hp-bar-fill" class="h-full bg-emerald-500 transition-all duration-150" style="width: 100%"></div>
+        </div>
+        <span id="hp-text" class="font-mono font-bold text-emerald-400">400/400</span>
+      </div>
+
+      <div id="armor-hud-box" class="hidden items-center gap-1.5 bg-sky-950/80 border border-sky-500/50 px-2.5 py-1 rounded-lg" title="Kevlar Armor absorbs incoming Boss damage until depleted">
+        <span class="text-sky-300 font-semibold">🛡️ Armor:</span>
+        <div class="w-12 sm:w-16 h-2.5 bg-zinc-800 rounded-full overflow-hidden">
+          <div id="armor-bar-fill" class="h-full bg-sky-400 transition-all duration-150" style="width: 100%"></div>
+        </div>
+        <span id="armor-text" class="font-mono font-bold text-sky-300">300</span>
+      </div>
+
+      <div class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg">
+        <span class="text-zinc-400 font-semibold">Cash:</span>
+        <span id="cash-text" class="font-mono font-bold text-amber-400">$3,000</span>
+      </div>
+
+      <div id="hour-hud-box" class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg" title="Every 10 seconds an hour passes: blocks pay & toggled units spawn">
+        <span class="text-zinc-400 font-semibold">Hour:</span>
+        <span id="hour-text" class="font-mono font-bold text-sky-400">12:00</span>
+        <div class="w-10 h-2 bg-zinc-800 rounded-full overflow-hidden">
+          <div id="tick-bar-fill" class="h-full bg-sky-400" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Utilities -->
+    <div class="flex items-center gap-1.5 text-xs">
+      <button id="btn-toggle-music" class="bg-amber-950/80 hover:bg-amber-900/80 border border-amber-500/60 text-amber-200 font-semibold px-2.5 py-1.5 rounded-lg transition" title="Cycle Dark Noir Mafia Music Tracks (Track 1 / Track 2 / OFF)">
+        🎷 Noir I: ON
+      </button>
+      <button id="btn-toggle-sound" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 px-2.5 py-1.5 rounded-lg transition" title="Toggle Sound Effects">
+        🔊 SFX: ON
+      </button>
+      <button id="btn-reset" class="bg-zinc-900 hover:bg-rose-950 border border-zinc-700 hover:border-rose-800 text-zinc-300 hover:text-rose-200 px-2.5 py-1.5 rounded-lg transition">
+        New Game
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Canvas Container -->
+  <main class="relative flex-1 w-full h-full overflow-hidden">
+    <canvas id="gameCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+    <!-- Crew Management (secondary controls) -->
+    <section id="management-panel" class="glass-panel absolute top-4 left-4 z-10 w-[300px] max-w-[calc(100vw-2rem)] p-3 rounded-xl text-xs space-y-2">
+      <div class="flex items-center justify-between gap-2 border-b border-zinc-800 pb-1.5">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Crew Management</span>
+        <span id="stats-badge" class="text-[9px] font-mono text-zinc-500 text-right leading-tight"></span>
+      </div>
+
+      <div class="rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-2 py-1.5">
+        <div class="flex items-center justify-between gap-2">
+          <button id="btn-toggle-soldier" class="text-left font-bold text-emerald-200 hover:text-white transition" title="Auto-spawn Street Enforcers on every tick">Auto Soldato</button>
+          <div class="flex items-center gap-1 font-mono text-[10px] text-emerald-300/80" title="Target Enforcer Spawn Cap">
+            <button id="btn-cap-soldier-dec" class="text-zinc-500 hover:text-white px-1 font-bold">−</button>
+            <span id="cap-soldier-label" class="font-bold">96/192</span>
+            <button id="btn-cap-soldier-inc" class="text-zinc-500 hover:text-white px-1 font-bold">+</button>
+          </div>
+        </div>
+        <div id="mgmt-cost-soldier" class="text-[9px] font-mono text-zinc-500 mt-0.5">$1,200 · $50/hr upkeep</div>
+      </div>
+
+      <div class="rounded-lg border border-indigo-400/30 bg-indigo-950/30 px-2 py-1.5">
+        <div class="flex items-center justify-between gap-2">
+          <button id="btn-toggle-captain" class="text-left font-bold text-indigo-200 hover:text-white transition" title="Auto-spawn Captains on every tick">Auto Caporegime</button>
+          <div class="flex items-center gap-1 font-mono text-[10px] text-indigo-300/80" title="Target Captain Spawn Cap">
+            <button id="btn-cap-captain-dec" class="text-zinc-500 hover:text-white px-1 font-bold">−</button>
+            <span id="cap-captain-label" class="font-bold">11/22</span>
+            <button id="btn-cap-captain-inc" class="text-zinc-500 hover:text-white px-1 font-bold">+</button>
+          </div>
+        </div>
+        <div id="mgmt-cost-captain" class="text-[9px] font-mono text-zinc-500 mt-0.5">$2,200 · $100/hr upkeep</div>
+      </div>
+
+      <div class="rounded-lg border border-purple-400/30 bg-purple-950/30 px-2 py-1.5">
+        <div class="flex items-center justify-between gap-2">
+          <button id="btn-toggle-underboss" class="text-left font-bold text-purple-200 hover:text-white transition" title="Auto-spawn Second-in-Command on every tick">Auto Sottocapo</button>
+          <div class="flex items-center gap-1 font-mono text-[10px] text-purple-300/80" title="Target 2IC Spawn Cap">
+            <button id="btn-cap-underboss-dec" class="text-zinc-500 hover:text-white px-1 font-bold">−</button>
+            <span id="cap-underboss-label" class="font-bold">6/11</span>
+            <button id="btn-cap-underboss-inc" class="text-zinc-500 hover:text-white px-1 font-bold">+</button>
+          </div>
+        </div>
+        <div id="mgmt-cost-underboss" class="text-[9px] font-mono text-zinc-500 mt-0.5">$3,800 · $150/hr upkeep</div>
+      </div>
+
+      <div class="flex items-center justify-between border-t border-zinc-800 pt-1.5">
+        <span class="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Total Upkeep</span>
+        <span id="mgmt-total-upkeep" class="font-mono text-[10px] text-amber-300">$0/hr</span>
+      </div>
+    </section>
+
+    <!-- Combat Action Bar (bottom-center) -->
+    <div id="action-bar" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-stretch gap-1.5 p-1.5 rounded-2xl glass-panel max-w-[calc(100vw-1rem)]">
+      <button id="btn-slash" type="button" class="action-btn action-rose" data-tip="Knife slash — up to 3 targets in front (Space / F)" aria-label="Slash (F)">
+        <span class="action-icon">🔪</span>
+        <span class="action-label">Slash</span>
+        <kbd class="action-key">F</kbd>
+        <span id="action-status-slash" class="action-status">READY</span>
+        <span id="cooldown-slash" class="action-cooldown" aria-hidden="true"></span>
+      </button>
+
+      <button id="btn-pistol" type="button" class="action-btn action-amber" data-tip="9mm pistol — click to fire forward, or right-click to aim (RMB)" aria-label="Pistol (right click)">
+        <span class="action-icon">⌖</span>
+        <span class="action-label">Pistol</span>
+        <kbd class="action-key">RMB</kbd>
+        <span id="action-status-pistol" class="action-status">READY</span>
+        <span id="cooldown-pistol" class="action-cooldown" aria-hidden="true"></span>
+      </button>
+
+      <button id="btn-buy-armor" type="button" class="action-btn action-sky" data-tip="Kevlar armor — +300 armor, once per hour ($3,500) [Q]" aria-label="Buy armor (Q)">
+        <span class="action-icon">🛡️</span>
+        <span class="action-label">Armor</span>
+        <kbd class="action-key">Q</kbd>
+        <span class="action-sub">Kevlar</span>
+        <span id="action-status-armor" class="action-status">$3,500</span>
+        <span id="cooldown-armor" class="action-cooldown" aria-hidden="true"></span>
+      </button>
+
+      <button id="btn-sprint" type="button" class="action-btn action-emerald" data-tip="Hold to sprint — 2s burst, 4s cooldown [Shift]" aria-label="Hold to sprint (Shift)">
+        <span class="action-icon">⚡</span>
+        <span class="action-label">Sprint</span>
+        <kbd class="action-key">SHIFT</kbd>
+        <span class="action-sub">Hold</span>
+        <span id="sprint-text" class="action-status">RDY</span>
+        <div class="action-sprint-bar"><div id="sprint-bar-fill" style="width: 100%"></div></div>
+        <span id="cooldown-sprint" class="action-cooldown" aria-hidden="true"></span>
+      </button>
+    </div>
+
+    <!-- Spectator Mode Pill (Shown when spectating after defeat) -->
+    <div id="spectator-banner" class="hidden glass-panel fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full border border-amber-500/60 flex items-center gap-3 text-xs z-20">
+      <span class="flex items-center gap-1.5 font-bold text-amber-400 uppercase tracking-wider">
+        <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+        Spectator Mode
+      </span>
+      <span class="text-zinc-300 hidden sm:inline">WASD / Click Minimap to pan camera</span>
+      <button id="btn-spectate-new-game" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-full transition">
+        Leave / New Game
+      </button>
+    </div>
+
+    <!-- Player & Faction Standings Panel (Top-Right) -->
+    <div id="faction-board" class="glass-panel absolute top-4 right-4 p-3 rounded-xl text-xs text-zinc-200 pointer-events-none space-y-1 min-w-[280px] z-10">
+      <!-- Populated dynamically via JS -->
+    </div>
+
+    <!-- City Radar Minimap (Bottom-Right) -->
+    <div class="glass-panel absolute bottom-4 right-4 p-2.5 rounded-xl z-10 flex flex-col gap-1.5">
+      <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+        <span>City Radar</span>
+        <span id="minimap-coords" class="font-mono text-zinc-300">(0, 0)</span>
+      </div>
+      <canvas id="minimapCanvas" width="168" height="168" class="rounded-lg border border-zinc-800 cursor-pointer"></canvas>
+    </div>
+
+    <!-- Pre-Game Setup, Multiplayer Lobby & Field Manual Modal -->
+    <div id="setup-modal" class="fixed inset-0 bg-zinc-950/95 flex items-center justify-center z-40 p-3 sm:p-4">
+      <div class="bg-zinc-900 border border-amber-500/30 p-5 sm:p-6 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] max-w-4xl w-full max-h-[94vh] overflow-y-auto relative">
+        <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-600"></div>
+
+        <!-- Modal Header -->
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+          <span id="modal-version-label" class="text-[10px] font-extrabold uppercase tracking-[0.22em] text-amber-400/90"></span>
+          <span class="text-[10px] font-mono text-zinc-500">4 SYNDICATES · 1 CITY</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-2.5 mb-2">
+          <h2 class="font-display-mafia text-4xl sm:text-5xl title-gold-chrome leading-none">
+            HRODIC'S MAFIA
+          </h2>
+          <span class="px-2 py-0.5 rounded-md bg-gradient-to-b from-rose-500 to-rose-700 text-white font-display-mafia text-xl tracking-wider shadow">
+            2D
+          </span>
+        </div>
+
+        <!-- Three Game Modes Selector -->
+        <div class="grid grid-cols-3 gap-2 mb-4 bg-zinc-950/90 p-1.5 rounded-xl border border-zinc-800">
+          <button type="button" data-mode="SINGLE" class="game-mode-btn bg-amber-500/20 border border-amber-500 text-amber-300 py-2 px-3 rounded-lg text-xs font-extrabold uppercase tracking-wider transition">
+            Single Player
+          </button>
+          <button type="button" data-mode="HOST" class="game-mode-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 py-2 px-3 rounded-lg text-xs font-extrabold uppercase tracking-wider transition">
+            Host Multiplayer
+          </button>
+          <button type="button" data-mode="JOIN" class="game-mode-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 py-2 px-3 rounded-lg text-xs font-extrabold uppercase tracking-wider transition">
+            Join Multiplayer
+          </button>
+        </div>
+
+        <!-- Two-Column Layout: Match Settings / Lobby (Left) + Detailed Instructions (Right) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-5">
+
+          <!-- Left Column: Match Configuration & Multiplayer Panels -->
+          <div class="lg:col-span-5 flex flex-col gap-3">
+
+            <!-- HOST MULTIPLAYER LOBBY PANEL -->
+            <div id="mp-host-panel" class="hidden bg-zinc-950/90 border border-emerald-500/40 rounded-xl p-3.5 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                  Host WebRTC Room (2–4 Players)
+                </span>
+                <span id="mp-host-status" class="text-[10px] font-mono text-zinc-400">Offline</span>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <input id="mp-host-name" type="text" maxlength="16" placeholder="Your Boss Alias (e.g. Don Vito)" class="bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded-lg px-2.5 py-1.5 w-full focus:outline-none focus:border-emerald-500" />
+                <button type="button" id="btn-mp-create-room" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg whitespace-nowrap transition">
+                  Create Room
+                </button>
+              </div>
+
+              <div id="mp-host-room-details" class="hidden space-y-2 pt-1 border-t border-zinc-800">
+                <div class="flex items-center justify-between gap-2 bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5">
+                  <div class="overflow-hidden">
+                    <div class="text-[10px] text-zinc-500 uppercase font-bold">Room Code</div>
+                    <div id="mp-room-code-display" class="font-mono text-xs font-bold text-amber-300 truncate">—</div>
+                  </div>
+                  <button type="button" id="btn-mp-copy-invite" class="bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/60 text-amber-200 text-[11px] font-bold px-2.5 py-1 rounded transition whitespace-nowrap">
+                    Copy Invitation
+                  </button>
+                </div>
+
+                <div>
+                  <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
+                    <span>Connected Lobby (Click Slot to Toggle Player / AI)</span>
+                    <span id="mp-host-player-count" class="font-mono text-emerald-400">1 Human · 3 AI</span>
+                  </div>
+                  <div id="mp-host-roster" class="space-y-1"></div>
+                </div>
+
+                <div class="flex justify-end">
+                  <button type="button" id="btn-mp-close-room" class="text-[11px] text-rose-400 hover:text-rose-300 underline">
+                    Close Room
+                  </button>
+                </div>
+              </div>
+              <div id="mp-host-error" class="hidden text-[11px] text-rose-300 bg-rose-950/70 border border-rose-500/40 rounded-lg px-2.5 py-1.5 break-words"></div>
+            </div>
+
+            <!-- JOIN MULTIPLAYER LOBBY PANEL -->
+            <div id="mp-join-panel" class="hidden bg-zinc-950/90 border border-sky-500/40 rounded-xl p-3.5 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-sky-400">
+                  Join Multiplayer Session
+                </span>
+                <span id="mp-join-status" class="text-[10px] font-mono text-zinc-400">Disconnected</span>
+              </div>
+
+              <div class="space-y-2">
+                <input id="mp-guest-name" type="text" maxlength="16" placeholder="Your Boss Alias (e.g. Luca)" class="bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded-lg px-2.5 py-1.5 w-full focus:outline-none focus:border-sky-500" />
+                <div class="flex items-center gap-2">
+                  <input id="mp-join-input" type="text" placeholder="Paste invitation link or RoomCode:Secret" class="bg-zinc-900 border border-zinc-700 text-zinc-200 font-mono text-xs rounded-lg px-2.5 py-1.5 w-full focus:outline-none focus:border-sky-500" />
+                  <button type="button" id="btn-mp-join-room" class="bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg whitespace-nowrap transition">
+                    Connect
+                  </button>
+                </div>
+              </div>
+
+              <div id="mp-join-error" class="hidden text-[11px] text-rose-300 bg-rose-950/70 border border-rose-500/40 rounded-lg px-2.5 py-1.5"></div>
+
+              <div id="mp-guest-lobby-box" class="hidden space-y-2 pt-2 border-t border-zinc-800">
+                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-[11px]">
+                  <div class="text-zinc-400">Assigned Syndicate:</div>
+                  <div id="mp-guest-assigned-faction" class="font-bold text-amber-300">Waiting for host...</div>
+                </div>
+                <div id="mp-guest-settings-summary" class="text-[11px] font-mono text-zinc-400 bg-zinc-900/60 border border-zinc-800/80 rounded-lg px-2.5 py-1.5">
+                  Match Settings: Syncing from host...
+                </div>
+                <div>
+                  <div class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
+                    Lobby Participants
+                  </div>
+                  <div id="mp-guest-roster" class="space-y-1"></div>
+                </div>
+                <div class="flex items-center justify-between pt-1">
+                  <span class="text-[11px] text-amber-300 animate-pulse">Waiting for host to launch...</span>
+                  <button type="button" id="btn-mp-leave-lobby" class="text-[11px] text-rose-400 hover:text-rose-300 underline">
+                    Leave Lobby
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Match Settings Wrapper (Hidden for Guest Joiners) -->
+            <div id="match-settings-wrapper" class="flex flex-col gap-3">
+              <!-- Syndicate Count & Organization Roster (2 to 4 Unique Factions) -->
+              <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-bold uppercase tracking-wider text-amber-300">
+                    Syndicates in War
+                  </span>
+                  <div class="flex items-center gap-1" id="faction-count-btns">
+                    <button type="button" data-fcount="2" class="fcount-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 px-2.5 py-0.5 rounded text-[11px] font-mono font-bold transition">2</button>
+                    <button type="button" data-fcount="3" class="fcount-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 px-2.5 py-0.5 rounded text-[11px] font-mono font-bold transition">3</button>
+                    <button type="button" data-fcount="4" class="fcount-btn bg-amber-500/20 border border-amber-500 text-amber-300 px-2.5 py-0.5 rounded text-[11px] font-mono font-bold transition">4</button>
+                  </div>
+                </div>
+                <div id="faction-slots-container" class="space-y-1.5">
+                  <!-- Populated dynamically with unique organization dropdowns -->
+                </div>
+              </div>
+
+              <!-- Map Size Selector -->
+              <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
+                <div class="flex items-center justify-between mb-2">
+                  <label for="map-size-slider" class="text-xs font-bold uppercase tracking-wider text-zinc-300">
+                    City Grid Size
+                  </label>
+                  <span id="map-size-display" class="font-mono text-sm font-extrabold text-amber-400">15×15 (Default)</span>
+                </div>
+
+                <input
+                  id="map-size-slider"
+                  type="range"
+                  min="5"
+                  max="25"
+                  value="15"
+                  class="w-full accent-amber-500 cursor-pointer mb-2.5"
+                />
+
+                <div class="grid grid-cols-5 gap-1.5 mb-2.5">
+                  <button type="button" data-size="5" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">5×5</button>
+                  <button type="button" data-size="10" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">10×10</button>
+                  <button type="button" data-size="15" class="size-preset-btn bg-amber-500/20 border border-amber-500 text-amber-300 py-1 rounded text-[11px] font-mono font-bold transition">15×15</button>
+                  <button type="button" data-size="20" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">20×20</button>
+                  <button type="button" data-size="25" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">25×25</button>
+                </div>
+
+                <div id="map-cap-preview" class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-zinc-800/90 pt-2">
+                  <span>225 Neighborhoods</span>
+                  <span class="font-mono text-emerald-400">Cap: 192S · 22C · 11U</span>
+                </div>
+              </div>
+
+              <!-- World Seed (SP + Host; guests adopt the host's seed) -->
+              <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
+                <div class="flex items-center justify-between mb-2">
+                  <label for="world-seed-input" class="text-xs font-bold uppercase tracking-wider text-sky-300">
+                    World Seed
+                  </label>
+                  <span id="last-world-seed" class="text-[10px] font-mono text-zinc-500">Last: —</span>
+                </div>
+                <div class="flex gap-1.5">
+                  <input
+                    id="world-seed-input"
+                    type="text"
+                    inputmode="numeric"
+                    placeholder="Blank = random"
+                    class="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-sky-500 font-mono"
+                  />
+                  <button type="button" id="btn-random-seed" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-200 text-[11px] font-bold px-2 rounded-lg transition">Random</button>
+                  <button type="button" id="btn-copy-seed" class="bg-sky-900/60 hover:bg-sky-800/70 border border-sky-600/60 text-sky-200 text-[11px] font-bold px-2 rounded-lg transition">Copy</button>
+                </div>
+                <p class="text-[10px] text-zinc-500 mt-1.5">The host or single-player chooses; guests adopt the host's seed.</p>
+              </div>
+
+              <!-- Seconds Per Tick Selector (10s Turbo to 30s Slow) -->
+              <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
+                <div class="flex items-center justify-between mb-2">
+                  <label for="tick-speed-slider" class="text-xs font-bold uppercase tracking-wider text-zinc-300">
+                    Seconds Per Tick
+                  </label>
+                  <span id="tick-speed-display" class="font-mono text-sm font-extrabold text-sky-400">10s (Turbo)</span>
+                </div>
+
+                <input
+                  id="tick-speed-slider"
+                  type="range"
+                  min="10"
+                  max="30"
+                  step="1"
+                  value="10"
+                  class="w-full accent-sky-400 cursor-pointer mb-1.5"
+                />
+
+                <div class="flex items-center justify-between text-[10px] font-mono text-zinc-500">
+                  <span>10s (Turbo)</span>
+                  <span>20s (Normal)</span>
+                  <span>30s (Slow)</span>
+                </div>
+              </div>
+
+              <!-- Neighborhood Income Selector (Low / Mid / High) -->
+              <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-bold uppercase tracking-wider text-zinc-300">
+                    Neighborhood Income
+                  </span>
+                  <span id="income-tier-display" class="font-mono text-xs font-bold text-emerald-400">$1,000–$1,500 / tick</span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2">
+                  <button type="button" data-income="LOW" class="income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition">
+                    <div class="text-xs font-extrabold">Low</div>
+                    <div class="text-[10px] font-mono text-zinc-400">$250–$500</div>
+                  </button>
+                  <button type="button" data-income="MID" class="income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition">
+                    <div class="text-xs font-extrabold">Mid</div>
+                    <div class="text-[10px] font-mono text-zinc-400">$500–$1,000</div>
+                  </button>
+                  <button type="button" data-income="HIGH" class="income-tier-btn bg-emerald-500/20 border border-emerald-500 text-emerald-300 py-2 px-2 rounded-lg text-center transition">
+                    <div class="text-xs font-extrabold">High</div>
+                    <div class="text-[10px] font-mono text-emerald-200/80">$1,000–$1,500</div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Detailed Controls, Mechanics & HUD Buttons Manual -->
+          <div class="lg:col-span-7 bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5 flex flex-col gap-3 text-[11px] text-zinc-300">
+            <div class="flex items-center justify-between border-b border-zinc-800 pb-1.5">
+              <span class="text-xs font-bold uppercase tracking-wider text-amber-400">
+                Syndicate Hierarchy & Combat Mechanics
+              </span>
+              <span class="text-[10px] font-mono text-zinc-500">FIELD MANUAL</span>
+            </div>
+
+            <!-- Controls & Weapons Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div class="bg-zinc-900/90 border border-zinc-800/90 rounded-lg p-2">
+                <div class="font-bold text-white mb-0.5">🕹️ Movement & Navigation</div>
+                <p class="text-zinc-400 leading-relaxed">
+                  Use <kbd class="bg-zinc-800 text-zinc-200 px-1 rounded">WASD</kbd> / <kbd class="bg-zinc-800 text-zinc-200 px-1 rounded">Arrows</kbd>, <span class="text-zinc-200 font-semibold">Left-Click</span> any street, or click the <span class="text-zinc-200 font-semibold">City Radar</span> minimap to move.
+                </p>
+              </div>
+
+              <div class="bg-zinc-900/90 border border-zinc-800/90 rounded-lg p-2">
+                <div class="font-bold text-amber-300 mb-0.5">⚡ Tactical Sprint (<kbd class="bg-zinc-800 text-zinc-200 px-1 rounded">Shift</kbd>)</div>
+                <p class="text-zinc-400 leading-relaxed">
+                  Hold <kbd class="bg-zinc-800 text-zinc-200 px-1 rounded">Shift</kbd> while moving for a <span class="text-amber-300 font-semibold">1.6× speed burst</span> up to <span class="text-white">2.0s</span>, followed by a <span class="text-white">4.0s</span> cooldown.
+                </p>
+              </div>
+
+              <div class="bg-zinc-900/90 border border-zinc-800/90 rounded-lg p-2">
+                <div class="font-bold text-rose-400 mb-0.5">🔪 Switchblade Slash (<kbd class="bg-zinc-800 text-zinc-200 px-1 rounded">Space</kbd> / <kbd class="bg-zinc-800 text-zinc-200 px-1 rounded">F</kbd>)</div>
+                <p class="text-zinc-400 leading-relaxed">
+                  Close-range cleave (<span class="text-white">52px</span> reach, <span class="text-rose-300 font-semibold">20–40 dmg</span>) hitting up to <span class="text-white">3 enemies</span> in front of you.
+                </p>
+              </div>
+
+              <div class="bg-zinc-900/90 border border-zinc-800/90 rounded-lg p-2">
+                <div class="font-bold text-amber-400 mb-0.5">🔫 9mm Pistol (<span class="text-zinc-200">Right-Click</span>)</div>
+                <p class="text-zinc-400 leading-relaxed">
+                  Fires up to <span class="text-white">1000px</span> (<span class="text-amber-300 font-semibold">40–80 dmg</span>). Point-blank deals <span class="text-white">-50%</span> (&lt;100px) or <span class="text-white">-75%</span> (≤50px); miss chance scales at <span class="text-white">250px (5%)</span>, <span class="text-white">500px (10%)</span>, <span class="text-white">750px (25%)</span>, and <span class="text-white">900px+ (50%)</span>.
+                </p>
+              </div>
+            </div>
+
+            <!-- Syndicate Rules & 4-Tier Hierarchy -->
+            <div class="bg-zinc-900/70 border border-zinc-800/90 rounded-lg p-2.5 space-y-1.5">
+              <div class="font-bold text-emerald-400 uppercase tracking-wider text-[10px]">
+                4-Tier Crime Family Hierarchy, Upkeep & Recruitment Caps
+              </div>
+              <ul class="space-y-1 text-zinc-400 leading-relaxed">
+                <li>
+                  <span class="text-amber-300 font-semibold">• 1. Supreme Leader (Boss · 400 HP):</span> Don / Pakhan / Oyabun / Shan Chu / Capobastone / Patrón. Kevlar Armor (300 HP) costs <span class="text-sky-300 font-semibold">$3,500</span>.
+                </li>
+                <li>
+                  <span class="text-purple-300 font-semibold">• 2. Second-in-Command (Max 5%):</span> Sottocapo / Avtoritet / Wakagashira / Fu Shan Chu / Contabile / Lugarteniente (<span class="text-white">$3,800</span> · $150/hr upkeep · 480 HP + 120 Armor · <span class="text-amber-300">9mm Pistol + 26–38 Blade Slash</span>, 1.0s CD).
+                </li>
+                <li>
+                  <span class="text-indigo-300 font-semibold">• 3. Middle Management (Max 10%):</span> Caporegime / Brigadier / Shateigashira / Hung Kwan / Caposocietà / Jefe de Plaza (<span class="text-white">$2,200</span> · $100/hr upkeep · 340 HP · 18–28 dmg, 1.0s CD).
+                </li>
+                <li>
+                  <span class="text-emerald-300 font-semibold">• 4. Street Enforcers (Max 85%):</span> Soldato / Boyevik / Kobun / Sei Kau Tsai / Picciotto / Sicario (<span class="text-white">$1,200</span> · $50/hr upkeep · 180 HP · 10–18 dmg, 1.0s CD).
+                </li>
+              </ul>
+            </div>
+
+            <!-- Multiplayer Architecture Note -->
+            <div class="bg-zinc-900/70 border border-zinc-800/90 rounded-lg p-2.5">
+              <div class="font-bold text-sky-300 uppercase tracking-wider text-[10px] mb-1">
+                Host-Authoritative P2P Multiplayer (2–4 Players)
+              </div>
+              <p class="text-zinc-400 leading-relaxed">
+                The <span class="text-emerald-300 font-semibold">Host</span> simulates combat, AI, territory capture, and economy, broadcasting authoritative snapshots via encrypted WebRTC (<span class="text-zinc-200 font-mono">Trystero</span>) or multi-tab local bus. Each guest controls a rival Syndicate Boss directly.
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+        <button id="btn-start-game" class="w-full bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold py-3 rounded-xl shadow-lg border border-emerald-400/30 transition text-sm tracking-wide">
+          Launch Turf War
+        </button>
+      </div>
+    </div>
+
+    <!-- Victory Popup Modal -->
+    <div id="victory-banner" class="hidden fixed inset-0 bg-zinc-950/85 flex items-center justify-center z-30">
+      <div class="bg-zinc-900 border-2 border-amber-500 p-7 rounded-2xl shadow-2xl text-center max-w-md mx-4">
+        <div class="inline-block px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-bold uppercase tracking-widest mb-2">
+          City Conquered
+        </div>
+        <h2 class="text-3xl font-extrabold text-white mb-2">Syndicate Victory!</h2>
+        <p id="victory-summary" class="text-sm text-zinc-300 mb-5">
+          All rival Bosses have been eliminated.
+        </p>
+        <div class="flex items-center justify-center gap-3">
+          <button id="btn-victory-continue" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-200 font-semibold px-4 py-2.5 rounded-xl transition">
+            Keep Playing
+          </button>
+          <button id="btn-victory-restart" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl shadow transition">
+            New Turf War
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Defeat Banner Modal (Allows Spectating or Starting New Game) -->
+    <div id="defeat-banner" class="hidden fixed inset-0 bg-zinc-950/85 flex items-center justify-center z-30">
+      <div class="bg-zinc-900 border-2 border-rose-600 p-6 rounded-2xl shadow-2xl text-center max-w-md mx-4">
+        <div class="inline-block px-3 py-1 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-bold uppercase tracking-widest mb-2">
+          Boss Eliminated
+        </div>
+        <h2 class="text-2xl font-extrabold text-rose-400 mb-2">Your Syndicate Has Fallen!</h2>
+        <p class="text-sm text-zinc-300 mb-5">
+          Your Boss was killed. Your neighborhoods have turned Neutral and recruitment has halted, though your surviving crew fights on.
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-3">
+          <button id="btn-spectate-match" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-amber-300 font-bold px-4 py-2.5 rounded-xl transition">
+            Spectate Match
+          </button>
+          <button id="btn-restart-match" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl shadow transition">
+            Start New Game
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Host Disconnected Modal (Multiplayer Guests) -->
+    <div id="disconnect-banner" class="hidden fixed inset-0 bg-zinc-950/85 flex items-center justify-center z-50">
+      <div class="bg-zinc-900 border-2 border-rose-600 p-6 rounded-2xl shadow-2xl text-center max-w-md mx-4">
+        <div class="inline-block px-3 py-1 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-bold uppercase tracking-widest mb-2">
+          Connection Lost
+        </div>
+        <h2 id="disconnect-title" class="text-2xl font-extrabold text-rose-400 mb-2">Host Disconnected</h2>
+        <p id="disconnect-summary" class="text-sm text-zinc-300 mb-5">
+          The authoritative host has left the session. The multiplayer match has ended.
+        </p>
+        <button id="btn-disconnect-return" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl shadow transition">
+          Return to Menu
+        </button>
+      </div>
+    </div>
+
+    <!-- Action Toast -->
+    <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-zinc-900 border border-amber-500/60 text-amber-200 text-xs font-semibold px-4 py-2 rounded-full shadow-lg opacity-0 transition-opacity duration-200 pointer-events-none z-50">
+      Action
+    </div>
+  </main>
+
+  <script type="module" src="./src/main.js"></script>
+
+  <!-- Ko-fi popup widget: the floating launcher is hidden in CSS; the top-bar Tip me button opens it. -->
+  <script src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js" defer></script>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      if (window.kofiWidgetOverlay) {
+        kofiWidgetOverlay.draw('hrodic', {
+          'type': 'floating-chat',
+          'floating-chat.donateButton.text': 'Tip me',
+          'floating-chat.donateButton.background-color': '#5cb85c',
+          'floating-chat.donateButton.text-color': '#fff'
+        });
+      }
+    });
+  </script>
+</body>
+</html>

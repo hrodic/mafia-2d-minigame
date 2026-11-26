@@ -40,6 +40,7 @@ import './lobby.test.js';
 import './lobbyUI.test.js';
 import './guest.test.js';
 import './host.test.js';
+import './hiddenSim.test.js';
 
 runAll().catch((err) => {
   const root = document.getElementById('test-results');

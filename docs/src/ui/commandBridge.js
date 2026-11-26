@@ -1,0 +1,1 @@
+import{getLocalFaction as r,state as t}from"../core/state.js";import{dispatchCommand as m}from"../sim/commands.js";function s(n,e=r()){return t.net&&t.net.isGuest()?(t.net.sendCommand(n),!0):m(e,n)}export{s as sendOrDispatchCommand};

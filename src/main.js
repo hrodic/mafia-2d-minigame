@@ -11,6 +11,7 @@ import { FACTION_META } from './config/organizations.js';
 import { state } from './core/state.js';
 import { on } from './core/events.js';
 import { advanceFixedStep } from './core/fixedStep.js';
+import { createHiddenSim } from './core/hiddenSim.js';
 import { CityMap } from './world/city.js';
 import { render, resizeCanvas } from './render/renderer.js';
 import { resetEffects } from './render/effects.js';
@@ -45,6 +46,14 @@ state.world = new CityMap();
 // Net bridge: state selectors (getLocalFaction/Boss) read state.net. Wired before
 // UI initialization so lobby/input handlers can rely on it.
 state.net = mpNet;
+
+// Host/single-player simulation fallback while the tab is hidden. Guests never
+// simulate; rAF still drives rendering when visible.
+const hiddenSim = createHiddenSim({
+  update,
+  isGameStarted: () => state.gameStarted,
+  isGuest: () => Boolean(state.net && state.net.isGuest()),
+});
 
 // Combat facts -> presentation subscribers. sim/combat.js only emits events.
 on('unit:damaged', combatFx.onUnitDamaged);
@@ -106,6 +115,13 @@ let lastFrameTime = performance.now();
 let simAccumulator = 0;
 
 function gameLoop(now) {
+  if (document.hidden) {
+    hiddenSim.start();
+    lastFrameTime = now;
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+
   const frameDt = Math.min(MAX_FRAME_DELTA, Math.max(0, (now - lastFrameTime) / 1000));
   lastFrameTime = now;
 
@@ -136,6 +152,17 @@ function gameLoop(now) {
   render(frameDt);
   requestAnimationFrame(gameLoop);
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    hiddenSim.start();
+  } else {
+    hiddenSim.stop();
+    lastFrameTime = performance.now();
+    simAccumulator = 0;
+  }
+});
+window.addEventListener('pagehide', () => hiddenSim.stop());
 
 // Bootstrap UI, input bindings and invite-link auto-detection.
 applyVersionLabels();

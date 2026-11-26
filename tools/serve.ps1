@@ -70,6 +70,7 @@ public class TinyHttpServer
 
                 string full = "";
                 try { full = Path.GetFullPath(Path.Combine(root, rel)); } catch { }
+                try { if (full.Length > 0 && Directory.Exists(full)) full = Path.Combine(full, "index.html"); } catch { }
 
                 string status;
                 string type;

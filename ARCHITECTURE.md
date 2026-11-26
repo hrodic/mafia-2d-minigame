@@ -5,11 +5,13 @@ code is organized, how the main systems interact, and where to add features safe
 
 ## Hard constraints
 
-- **No build step and no npm.** The game is served as plain static files and deployed to
-  GitHub Pages. Everything uses **native ES modules** with relative imports that include
-  the `.js` extension.
+- **Zero-build source, no npm install.** Development serves the repository root directly;
+  GitHub Pages publishes the generated `docs/` artifact. Everything uses **native ES
+  modules** with relative imports that include the `.js` extension. `tools/build-pages.ps1`
+  minifies each module with a local esbuild binary (no bundling) and copies `index.html`,
+  `styles.css` and `.nojekyll` into `docs/`.
 - Third-party code is loaded at runtime from CDNs: Tailwind (`cdn.tailwindcss.com`) and
-  Trystero (esm.sh/jsDelivr). No local dependencies.
+  Trystero (esm.sh/jsDelivr). No local runtime dependencies.
 - The game must stay playable and the test suite green at every commit.
 
 ## Directory layout
@@ -29,6 +31,7 @@ src/
     rng.js                 mulberry32, chunk seed hashing, explicit per-chunk RNG
     state.js               `createGameState()` reset factory, shared `state`, selectors
     fixedStep.js           accumulator: fixed sim steps + catch-up guard
+    hiddenSim.js           hidden-tab host simulation fallback (no rendering)
     events.js              synchronous, isolated event bus (sim -> presentation facts)
     spatial.js             per-chunk spatial buckets for neighbour queries
   world/
@@ -87,9 +90,11 @@ tests/
   *.test.js                suites (config, state, world, sim, render, UI, net-adjacent)
   mp-harness.html          iframe harness that forces the same-origin local bus
   SMOKE.md                 manual smoke checklist (per commit / per phase)
+docs/                      generated GitHub Pages artifact (never hand-edit)
 tools/
   serve.ps1                dependency-free PowerShell static server for local dev
   check.ps1                static health check (imports, test registry, duplicate ids)
+  build-pages.ps1          minify src -> docs with esbuild (no bundling); binary is ignored
 .editorconfig              editor whitespace/line-ending rules
 .nojekyll                  GitHub Pages: serve files untouched
 EVENTS.md                  event-bus contract (implemented)
@@ -127,8 +132,11 @@ inside functions called after module evaluation (never at top level).
    accumulator (frame delta clamped to `0.25s`, max `8` catch-up steps), then one
    presentation pass (camera/particles) and one render with render dt. Guests skip fixed
    steps and run `updateGuest(renderDt)` once per frame.
-5. Boots UI/input (`applyVersionLabels`, `initMenus`, `initInput`) and setup renderers.
-6. Detects `?room=&secret=` invite URLs and pre-fills the join panel.
+5. When the tab is hidden, `core/hiddenSim.js` runs host/single-player fixed steps from a
+   timer without rendering; rAF resumes and the accumulator resets when visible. Guests
+   never simulate. Browsers may still throttle background timers.
+6. Boots UI/input (`applyVersionLabels`, `initMenus`, `initInput`) and setup renderers.
+7. Detects `?room=&secret=` invite URLs and pre-fills the join panel.
 
 ### Net bridge
 
@@ -331,8 +339,10 @@ controllers live in their own modules):
   emit per NPC while applying a snapshot.
 - **Determinism:** the world seed is sent in `INIT_MATCH`; guests generate the same city.
 
-Known net limitations (Phase 4 in progress): full-state snapshots and background-tab
-throttling on the host. Snapshot apply uses a per-snapshot unit index (O(n) lookups).
+Known net limitations: full-state snapshots. A hidden host now has a timer-driven fixed-step
+fallback, but browsers can still throttle background timers. Snapshot apply uses a
+per-snapshot unit index (O(n) lookups). Chunk deltas and NAT/TURN work are tracked in
+`PLAN.md` under FUTURE — TO BE DECIDED.
 
 ## Rendering
 
@@ -385,7 +395,8 @@ distance from the camera.
 - Coverage includes config/RNG, transport API normalization (Trystero 0.27 vs local bus),
   protocol envelope/version/snapshot encoding, lobby seats/capacity/rosters, lobby DOM
   rendering/safe names, guest handshake/init routing, snapshot apply reuse/create/remove,
-  host admission/input/AI takeover, event bus, state selectors, chunk determinism, collision,
+  host admission/input/AI takeover, hidden-tab simulation fallback, event bus, state
+  selectors, chunk determinism, collision,
   pathfinding (including wall detours and no corner cutting), units/recruitment, economy,
   territory, combat math/accuracy/armor/aim geometry, effects and casings, interpolation,
   match setup, fixed-step accumulation, command dispatch/equivalence, 600-step headless
@@ -424,9 +435,9 @@ distance from the camera.
   damage/slash/movement pipeline, `createGameState()` reset factory, unified command
   dispatcher for local+remote, fixed `1/120` simulation with render-time presentation,
   and seeded headless/command-equivalence tests.
-- Phase 4 in progress: `net/transport.js` extracted with the Trystero 0.27 shim and curated
-  relay pool; next are protocol/lobby/host/guest; delta/O(1) snapshots; sanitize peer names;
-  background-host resilience; bump protocol version.
-- Phase 5: broader tests, JSDoc/`jsconfig` typing, docs refresh.
+- Phase 4 complete: `transport.js`, `protocol.js`, `lobby.js`, `ui/lobbyUI.js`, `guest.js`
+  and `host.js` extracted; safe lobby/HUD peer names; O(n) snapshot apply; hidden-host
+  simulation fallback.
+- Phase 5 next: broader tests, JSDoc/`jsconfig` typing, docs refresh.
 
 See `PLAN.md` for the step-by-step plan and `AGENTS.md` for the workflow contract.

@@ -42,6 +42,19 @@ bulk-rename hazards and ESM-cycle rules: `references/powershell-extraction.md`.
 Testing harness details (fixtures, singleton state, audio, characterization tests):
 `references/testing-harness.md`.
 
+## Release artifact
+
+GitHub Pages publishes `docs/`, not the repo root. After changing `src/`, `index.html` or
+`styles.css`, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/build-pages.ps1
+```
+
+It minifies each module into `docs/src/` with a local `tools/esbuild.exe` (ignored by git)
+without bundling, then copies `index.html`, `styles.css` and `.nojekyll`. Tests are never
+copied. Do not hand-edit `docs/`; rebuild it and smoke `http://localhost:8123/docs/`.
+
 ## Verify and report
 
 Run the `AGENTS.md` loop: static check -> tests -> game smoke -> MP check when

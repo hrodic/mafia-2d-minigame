@@ -1,0 +1,1 @@
+const n=typeof document<"u"?document.getElementById("gameCanvas"):null,e=n?n.getContext("2d"):null,t=typeof document<"u"?document.getElementById("minimapCanvas"):null,o=t?t.getContext("2d"):null;export{n as canvas,e as ctx,t as minimapCanvas,o as minimapCtx};

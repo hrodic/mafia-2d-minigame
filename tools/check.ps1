@@ -100,6 +100,23 @@ foreach ($file in (Get-ChildItem $simDir -Filter *.js)) {
   }
 }
 
+# Generated Pages artifact, when present: source + shell only, never tests.
+$docsDir = Join-Path $root 'docs'
+if (Test-Path $docsDir -PathType Container) {
+  foreach ($rel in @('index.html', 'styles.css', '.nojekyll', 'src/main.js')) {
+    if (-not (Test-Path (Join-Path $docsDir $rel) -PathType Leaf)) {
+      $errors.Add("missing generated Pages file: docs/$rel")
+    }
+  }
+  if (Test-Path (Join-Path $docsDir 'src/tests') -PathType Container) {
+    $errors.Add('tests must not be copied into docs/')
+  }
+  $docsTests = @(Get-ChildItem $docsDir -Recurse -Filter *.test.js -ErrorAction SilentlyContinue)
+  if ($docsTests.Count -gt 0) {
+    $errors.Add("test files must not be copied into docs/: $($docsTests[0].Name)")
+  }
+}
+
 $testDir = Join-Path $root 'tests'
 $testFiles = @(Get-ChildItem $testDir -Filter *.test.js)
 $runner = [IO.File]::ReadAllText((Join-Path $testDir 'runner.js'))

@@ -6,7 +6,8 @@ every rival Boss. Play solo against AI syndicates or host/join a **2–4 player 
 multiplayer** match where each human controls a rival family.
 
 **Zero-build static game** — plain HTML/CSS/JavaScript, native ES modules, no npm, no
-bundler, no server. Deploys to GitHub Pages as-is.
+bundler, no server. The GitHub Pages artifact in `docs/` is produced by minifying each
+source module with esbuild (no bundling).
 
 ## Features
 
@@ -51,11 +52,27 @@ powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123
 Open `http://localhost:8000/` (or the port you chose). ES modules do not load from
 `file://`, so a server is required.
 
-### Deploy
+### Build the Pages artifact
 
-Push to GitHub and enable Pages for the repository root. No build step. The game needs
-network access for the Tailwind CDN and, for cross-machine multiplayer, the Trystero
-signaling CDN; same-origin multi-tab play works offline via the local bus.
+GitHub Pages publishes only `/docs`. Source modules stay in `src/`; the root docs and tests
+are not served by the site.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/build-pages.ps1
+```
+
+The script:
+
+- downloads a local `tools/esbuild.exe` if missing (ignored by git),
+- minifies each `src/**/*.js` into `docs/src/` without bundling,
+- copies `index.html`, `styles.css` and `.nojekyll` into `docs/`,
+- does not copy tests or test pages.
+
+Commit `docs/` after rebuilding. GitHub Pages settings: Deploy from a branch, then your published branch, folder `/docs`. Rebuild and commit `docs/` whenever source changes.
+published branch → `/docs`**. Rebuild and commit `docs/` whenever source changes.
+
+The game needs network access for the Tailwind CDN and, for cross-machine multiplayer, the
+Trystero signaling CDN; same-origin multi-tab play works offline via the local bus.
 
 ## Tests
 

@@ -18,12 +18,14 @@ architecture description here.
 - **Phase 3 — DONE (`0.4.11`):** shared unit contract, commands, fixed timestep, 600-step
   headless smoke + command-equivalence tests. Balance pass: one human slash rule; non-boss
   AI ranks base speed 150; bosses 140 (sprint is their mobility edge).
-- **Phase 4 — IN PROGRESS (`0.4.18`):** netcode hardening; step 1 split complete; snapshot apply is O(n).
-- **Phase 5 — pending:** quality gates.
+- **Phase 4 — DONE (`0.4.19`):** netcode hardening; step 1 split complete; snapshot apply
+  is O(n); hidden-host fallback added. Chunk deltas and NAT/TURN work moved to the future
+  ideas section.
+- **Phase 5 — NEXT:** quality gates and docs.
 
-Phase 3 is complete on `refactor/phase-3-unified-entity`. Phase 4 is in progress on
-`refactor/phase-4-netcode`; use the `AGENTS.md` verification loop and bump `GAME_VERSION`
-for every commit-sized step.
+Phase 3 is complete on `refactor/phase-3-unified-entity`. Phase 4 is complete on
+`refactor/phase-4-netcode`. Phase 5 is next; use the `AGENTS.md` verification loop and bump
+`GAME_VERSION` for every commit-sized step.
 
 ## Phase 3 — DONE (`0.4.11`)
 
@@ -33,39 +35,50 @@ remote command dispatch; fixed `1/120` timestep with render-time presentation; `
 fully headless; seeded 600-step headless, command-equivalence and fixed-step tests.
 Implementation details live in `ARCHITECTURE.md`; step history is in git.
 
-## Phase 4 — Netcode hardening
+## Phase 4 — DONE (`0.4.19`)
 
-Each step is one verified commit with the two-tab MP check. Split `mpNet.js` carefully;
-never commit a half-split net module.
+Delivered:
 
-1. Split `net/mpNet.js`:
-   - **DONE (`0.4.12`):** `transport.js` — Trystero 0.27 loader/API shim, curated public
-     relay pool, and the same-origin local bus. Fixes the dead `nostr.chaima.info` default
-     and the 0.27 peer-context/send-target mismatch without changing the wire protocol.
-   - **DONE (`0.4.13`):** `protocol.js` — message constants, versioned envelope/version
-     gate, and snapshot encode/decode; wire shape unchanged.
-   - **DONE (`0.4.14`):** `lobby.js` — UI-agnostic seat assignment, human capacity, roster
-     snapshots and guest seat lookup.
-   - **DONE (`0.4.15`):** `ui/lobbyUI.js` — host/guest lobby renderers built with safe DOM
-     nodes; removes peer-name `innerHTML` from the lobby.
-   - **DONE (`0.4.16`):** `guest.js` — guest handshake, lobby/init/snapshot/event handling,
-     input/command streaming and host-disconnect detection.
-   - **DONE (`0.4.17`):** `host.js` — lobby admission/AI slots, launch/INIT_MATCH,
-     snapshot/event broadcast, remote input/commands and peer-leave AI takeover.
-2. **DONE (`0.4.18`):** snapshot apply O(n²) fix — one per-snapshot `Map<id, unit>`,
-   object reuse, new-unit insertion and set-diff deaths.
-3. **NEXT:** chunk deltas: INIT_MATCH full chunks; snapshots only dirty faction/capture
-   state; full resync ~5s. Guest generates unknown chunks from seed.
-4. Security: never interpolate peer names into `innerHTML` (standings, labels); use
-   `textContent`/DOM construction. Lobby (`ui/lobbyUI.js`) and HUD standings are done.
-   Canvas `fillText` is safe.
-5. Hidden-host resilience: `document.hidden` → `setInterval(~16ms)` simulation fallback;
-   return to rAF when visible (no worker).
-6. Bump `GAME_VERSION` for wire changes.
-7. Verify: full MP checklist, invite links, version rejection, disconnect/AI takeover,
-   hidden-host continued simulation.
+1. **Net split (`0.4.12`–`0.4.17`):** `transport.js`, `protocol.js`, `lobby.js`,
+   `ui/lobbyUI.js`, `guest.js`, `host.js`; `mpNet.js` is now a composition facade.
+2. **Snapshot apply (`0.4.18`):** one per-snapshot `Map<id, unit>`, object reuse, new-unit
+   insertion and set-diff deaths; apply is O(n) instead of O(n²).
+3. **Security (`0.4.15`):** lobby and HUD standings build safe DOM; peer names are never
+   parsed as HTML. Canvas `fillText` is safe.
+4. **Hidden-host resilience (`0.4.19`):** `core/hiddenSim.js` runs fixed steps from a 16 ms
+   timer while `document.hidden`; rAF resumes and the accumulator resets when visible.
+   Guests never simulate. Browsers may still throttle background timers.
+5. **Versioning:** `GAME_VERSION` is bumped for every commit-sized step.
 
-## Phase 5 — Quality gates & docs
+Post-merge verification: full MP checklist, invite links, version rejection, disconnect/AI
+takeover and hidden-host continued simulation on the deployed build.
+
+## FUTURE — TO BE DECIDED
+
+These are intentionally outside Phase 4 and are not scheduled.
+
+### Chunk deltas
+
+- Current: every snapshot carries full chunk state.
+- Idea: `INIT_MATCH` full chunks; snapshots only dirty faction/capture state; full resync
+  ~5s; guest generates unknown chunks from the seed.
+- Revisit after measuring snapshot size/rate on a large map.
+- Tradeoffs: bandwidth/CPU win; dirty-tracking and resync complexity; wire change and
+  protocol/version bump.
+
+### NAT / TURN connectivity
+
+- Current: Trystero uses STUN only; Nostr relays are signaling only.
+- Idea: surface `peer-connect-failed` with a clear message; optional `turnConfig` with no
+  default credentials; optional `?netdebug=1` panel for relay sockets, peer connection
+  type, RTT and `turnConfigured`.
+- Hosted/self-hosted options: Cloudflare Realtime TURN, Metered Open Relay, coturn/eturnal/
+  Pion TURN.
+- Tradeoffs: helps strict-NAT peers; adds a service, credentials, bandwidth/latency and
+  credential-handling risk. Do not commit long-lived TURN credentials to a public page.
+- Decision needed before implementation.
+
+## Phase 5 — NEXT: Quality gates & docs
 
 1. Expand tests: snapshot encode/decode, delta apply, capture rates, caps/clamps,
    elimination/victory, malformed remote commands ignored.
@@ -76,10 +89,8 @@ never commit a half-split net module.
 
 ## Pitfalls / known bugs
 
-- Peer names in `innerHTML` — XSS risk; Phase 4.
-- Guest snapshot apply can re-run elimination DOM/SFX; make guest effects idempotent in
-  Phase 4.
-- Background host tabs throttle rAF and stall MP — Phase 4.
+- Hidden host timers can still be throttled by the browser; keep the host tab visible when
+  possible. `core/hiddenSim.js` is a mitigation, not a guarantee.
 - ESM: relative imports need `.js`; no top-level reads in cycles; modules are deferred;
   `file://` is blocked. Test over http.
 - A* uses a linear open list; fine at current node counts; optimize only if profiling says so.
