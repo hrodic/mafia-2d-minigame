@@ -104,8 +104,9 @@ smoke checklist (quick smoke per commit, full checklist per phase).
 
 ## Repository layout
 
-Currently the game is a single `index.html`; the architecture refactor in progress
-splits it into native ES modules. Target layout:
+The architecture refactor is in progress: the game script now lives in `src/main.js` as a
+native ES module and custom CSS in `styles.css`; the module split is being extracted step
+by step, with the game kept playable and tests green at every step. Target layout:
 
 ```
 index.html            markup only + module entry
@@ -123,27 +124,31 @@ src/
 tests/                tests.html, test modules, SMOKE.md
 ```
 
-## Current code map (single-file monolith)
+## Current code map
 
-| Lines | Section |
+`index.html` now holds markup only (HUD, canvases, modals, banners) and loads
+`styles.css` + `src/main.js` (type="module"). `src/main.js` is the original script moved
+intact; the split into `src/` modules is in progress.
+
+| `src/main.js` lines | Section |
 |---|---|
-| 1–578 | HTML: HUD header, canvases, setup/lobby modal, victory/defeat/disconnect banners |
-| 579–1150 | Audio: context, noise/music engine, synthesized SFX |
-| 1152–1264 | Visual FX: blood, decals, tracers, casings, sparks, corpses |
-| 1266–1511 | Constants, enums, organizations, seeded PRNG |
-| 1516–1828 | `DistrictChunk`: seeded urban block generation + ground rendering |
-| 1833–2002 | `CityMap`: chunk store, tile queries, collision, ring expansion |
-| 2004–2742 | Game state globals, A* pathfinder, economy/recruitment, `initWorld` |
-| 2744–3200 | Combat: damage, slash variants, pistol raycast |
-| 3202–3600 | Armor, remote-human boss control, keyboard/mouse/minimap input |
-| 3602–4147 | Simulation `update()`: player, NPC AI, steering, capture, hourly tick |
-| 4149–4991 | Rendering: world, characters, effects, minimap, HUD |
-| 4993–6197 | `mpNet`: transport, lobby, host/guest netcode |
-| 6199–6578 | Setup UI bindings, HUD buttons, main loop, bootstrap |
+| — | `index.html`: markup; `styles.css`: custom CSS |
+| 2–573 | Audio: context, noise/music engine, synthesized SFX |
+| 574–687 | Visual FX: blood, decals, tracers, casings, sparks, corpses |
+| 688–934 | Constants, enums, organizations, seeded PRNG |
+| 935–1251 | `DistrictChunk`: seeded urban block generation + ground rendering |
+| 1252–1425 | `CityMap`: chunk store, tile queries, collision, ring expansion |
+| 1426–2165 | Game state globals, A* pathfinder, economy/recruitment, `initWorld` |
+| 2166–2623 | Combat: damage, slash variants, pistol raycast |
+| 2624–3023 | Armor, remote-human boss control, keyboard/mouse/minimap input |
+| 3024–3570 | Simulation `update()`: player, NPC AI, steering, capture, hourly tick |
+| 3571–4414 | Rendering: world, characters, effects, minimap, HUD |
+| 4415–5620 | `mpNet`: transport, lobby, host/guest netcode |
+| 5621–5998 | Setup UI bindings, HUD buttons, main loop, bootstrap |
 
 ### Known architectural limitations (being fixed)
 
-- One file with ~40 shared mutable globals; simulation, rendering, DOM, audio and
+- One module with ~40 shared mutable globals; simulation, rendering, DOM, audio and
   netcode are interleaved (combat functions play SFX, spawn particles, touch the DOM
   and broadcast network events inline), so the simulation cannot run headless.
 - The player boss is a special-cased object separate from the NPC array, causing
