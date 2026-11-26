@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RUNNING — Hrodic's Mafia 2D tests</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #09090b;
+      color: #e4e4e7;
+      font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+      padding: 24px;
+    }
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 18px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #fbbf24;
+      margin: 0 0 4px;
+    }
+    .hint {
+      color: #71717a;
+      font-size: 12px;
+      margin: 0 0 16px;
+      line-height: 1.6;
+    }
+    .summary {
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      border: 1px solid #3f3f46;
+      background: #18181b;
+      color: #a1a1aa;
+    }
+    .summary.pass {
+      border-color: #059669;
+      background: #022c22;
+      color: #6ee7b7;
+    }
+    .summary.fail {
+      border-color: #e11d48;
+      background: #4c0519;
+      color: #fda4af;
+    }
+    #test-results {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .test-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: #18181b;
+      border: 1px solid #27272a;
+      font-size: 13px;
+    }
+    .test-row.pass {
+      border-color: #14532d;
+    }
+    .test-row.fail {
+      border-color: #7f1d1d;
+      background: #1c0a0a;
+    }
+    .test-mark {
+      width: 16px;
+      text-align: center;
+      font-weight: 700;
+    }
+    .test-row.pass .test-mark {
+      color: #34d399;
+    }
+    .test-row.fail .test-mark {
+      color: #fb7185;
+    }
+    .test-error {
+      flex-basis: 100%;
+      margin: 4px 0 0;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: #09090b;
+      color: #fda4af;
+      font-size: 11px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Hrodic's Mafia 2D — Test Suite</h1>
+    <p class="hint">
+      Zero-dependency browser tests. Must be served over http:// (ES modules do not load
+      from file://). Green list + page title <strong>PASS</strong> means everything is fine.
+    </p>
+    <div id="test-summary" class="summary">Running…</div>
+    <div id="test-results"></div>
+  </main>
+  <script type="module" src="./runner.js"></script>
+</body>
+</html>
