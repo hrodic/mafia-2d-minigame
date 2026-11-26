@@ -18,7 +18,7 @@ code is organized, how the main systems interact, and where to add features safe
 index.html                 markup shell (HUD, canvases, modals, banners)
 styles.css                 custom CSS (Tailwind remains on its CDN)
 src/
-  main.js                  composition root (81 lines): net bridge, hooks, loop, bootstrap
+  main.js                  thin composition root: net bridge, event wiring, loop, bootstrap
   config/
     constants.js           tile/chunk sizes, tick/sprint/pistol tuning
     version.js             GAME_VERSION single source (title/labels/net handshake)
@@ -81,7 +81,7 @@ tools/
   check.ps1                static health check (imports, test registry, duplicate ids)
 .editorconfig              editor whitespace/line-ending rules
 .nojekyll                  GitHub Pages: serve files untouched
-EVENTS.md                  Phase 2 event-bus contract (catalog + subscribers)
+EVENTS.md                  event-bus contract (implemented)
 ARCHITECTURE.md            this document
 AGENTS.md                  contributor workflow contract
 .opencode/skills/          task skills: SKILL.md + references/ (OpenCode discovery)
@@ -338,14 +338,15 @@ distance from the camera.
 - Gameplay numbers live in `config/balance.js` (rank stats, caps, slash/pistol tables,
   accuracy bands, costs/upkeep). Do not inline gameplay numbers in systems; presentation
   feel and AI decision logic stay in their own modules.
-- Never import UI/render/audio from `sim/`; use `runtime` hooks (soon events).
+- Never import UI/render/audio/net from `sim/`; emit events and keep presentation in
+  subscribers (`main.js`). There are no runtime hooks.
 - Keep the game playable and tests green after every change.
 
 ## Known limitations / next phases
 
-- Phase 2 is **complete**: event bus migration, dedup, balance tables, explicit RNG, AI
-  extraction and HUD cadence move are done; `core/runtime.js` is gone. Only `simulation.js`
-  remains allowlisted for per-frame canvas/interpolation/particle coupling (Phase 3).
+- **Phase 2:** event bus migration, dedup, balance tables, explicit RNG, AI extraction and
+  HUD cadence move are done; `core/runtime.js` is gone. Only `simulation.js` remains
+  allowlisted for per-frame canvas/interpolation/particle coupling (Phase 3).
 - Phase 3: player boss folded into the unit model (`control: local/ai/remote`), one
   damage/slash/movement pipeline, `createGameState()` reset factory, unified command
   dispatcher for local+remote, fixed timestep.

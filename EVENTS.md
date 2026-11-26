@@ -1,4 +1,4 @@
-# Events — Phase 2 contract
+# Events — event-bus contract
 
 Status: the bus is implemented in `src/core/events.js` with tests in
 `tests/events.test.js`. Phase 2 migration is complete: combat, units, economy, territory,

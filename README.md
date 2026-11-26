@@ -18,6 +18,8 @@ bundler, no server. Deploys to GitHub Pages as-is.
   and damage falloff, kevlar armor, sprint.
 - Territory capture block by block; boss death eliminates a syndicate; victory/defeat
   with spectator mode.
+- Boss/economy HUD, crew management, bottom combat bar with cooldowns and a faction
+  leaderboard (turf, crew, kills).
 - City radar minimap (larger, easier to read).
 - Synthesized Web Audio SFX and two procedural dark-noir music tracks.
 - Host-authoritative P2P multiplayer with lobby, invite links, human/AI seats, snapshot
@@ -115,7 +117,7 @@ Multiplayer requires both peers to run the same version.
 ## Documentation
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — layers, modules, data flow, netcode, testing.
-- [EVENTS.md](EVENTS.md) — event-bus contract for Phase 2 (catalog + subscribers).
+- [EVENTS.md](EVENTS.md) — implemented event-bus contract (catalog + subscribers).
 - [PLAN.md](PLAN.md) — phased refactor plan and current status.
 - [AGENTS.md](AGENTS.md) — workflow contract for AI/human contributors.
 - `.opencode/skills/` — task skills auto-discovered by OpenCode (zero-build refactor,

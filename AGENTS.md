@@ -4,8 +4,8 @@ Rules for AI/human contributors. One source of truth per topic:
 
 - `README.md` — what the game is, controls, run/deploy.
 - `ARCHITECTURE.md` — layers, modules, data flow, invariants.
-- `PLAN.md` — phase status and the next step.
-- `EVENTS.md` — Phase 2 event-bus contract.
+- `PLAN.md` — phase status and the next step. **Current phase: Phase 3.**
+- `EVENTS.md` — event-bus contract (implemented).
 - `.opencode/skills/` — task skills (zero-build refactor, multiplayer debug).
 
 Precedence: explicit user instruction > this file > other docs. Never invent a path,
