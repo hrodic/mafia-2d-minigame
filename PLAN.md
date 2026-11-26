@@ -32,7 +32,9 @@ This is the living plan. Read `AGENTS.md` for the working contract and
     bullet raycast and drawing share it; characterization tests added.
   - Step 10 DONE (`0.1.2`): radar bounds/cell/offset + world<->map mapping centralized in
     `src/render/minimapLayout.js`; drawing and click mapping share it.
-  - Next: faction-slot selection dedup, data-driven balance, explicit RNG, AI extraction
+  - Step 11 DONE (`0.1.3`): active faction slots centralized in
+    `getActiveFactionSlots`/`clampFactionCount`; match setup and MP lobby seats share it.
+  - Next: data-driven balance tables, explicit RNG, AI extraction
   - Guardrails: benefits/tradeoffs/use-skip rules and the many-NPC + multiplayer
     performance budget are documented in `EVENTS.md`
 - Phases 3-5 - pending (unified entity model/commands/fixed timestep, net hardening, quality)

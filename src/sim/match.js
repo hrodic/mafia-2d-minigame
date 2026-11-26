@@ -9,6 +9,8 @@ import {
   FACTION_META,
   ORGANIZATIONS,
   ensureUniqueOrgs,
+  clampFactionCount,
+  getActiveFactionSlots,
 } from '../config/organizations.js';
 import { state, getLocalBoss } from '../core/state.js';
 import { emit } from '../core/events.js';
@@ -28,16 +30,9 @@ export function initWorld(
   state.currentGridSize = Math.max(5, Math.min(25, gridSize));
   state.tickDuration = Math.max(10, Math.min(30, selectedTickSeconds));
   state.currentIncomeTier = INCOME_TIERS[selectedIncomeTier] ? selectedIncomeTier : 'HIGH';
-  state.activeFactionCount = Math.max(2, Math.min(4, Number(factionCount) || 4));
+  state.activeFactionCount = clampFactionCount(factionCount);
   state.selectedFactionOrgs = ensureUniqueOrgs(orgRoster);
-
-  if (state.activeFactionCount === 2) {
-    state.activeFactions = [Faction.PLAYER, Faction.RIVAL_3];
-  } else if (state.activeFactionCount === 3) {
-    state.activeFactions = [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2];
-  } else {
-    state.activeFactions = [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3];
-  }
+  state.activeFactions = getActiveFactionSlots(state.activeFactionCount);
 
   state.activeFactions.forEach((slot, idx) => {
     const orgId = state.selectedFactionOrgs[idx] || ALL_ORG_IDS[idx];

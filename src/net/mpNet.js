@@ -4,7 +4,7 @@
 
 import { Faction, UnitRank } from '../config/enums.js';
 import { GAME_VERSION } from '../config/version.js';
-import { ORGANIZATIONS, FACTION_META, ensureUniqueOrgs } from '../config/organizations.js';
+import { ORGANIZATIONS, FACTION_META, ensureUniqueOrgs, getActiveFactionSlots } from '../config/organizations.js';
 import { state, getLocalBoss } from '../core/state.js';
 import { initWorld } from '../sim/match.js';
 import { eliminateFaction } from '../sim/territory.js';
@@ -71,12 +71,6 @@ export const mpNet = (() => {
 
   function envelope(type, seq, payload) {
     return { v: GAME_VERSION, type, seq, payload };
-  }
-
-  function getActiveSlotsForCount(count) {
-    if (count === 2) return [Faction.PLAYER, Faction.RIVAL_3];
-    if (count === 3) return [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2];
-    return [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3];
   }
 
   function getCurrentHostConfig() {
@@ -209,7 +203,7 @@ export const mpNet = (() => {
 
   function reassignHostSeats() {
     const cfg = getCurrentHostConfig();
-    const slots = getActiveSlotsForCount(cfg.factionCount);
+    const slots = getActiveFactionSlots(cfg.factionCount);
 
     for (let i = 1; i < 4; i++) {
       if (i >= cfg.factionCount) slotClosedAsAI[i] = false;
@@ -252,7 +246,7 @@ export const mpNet = (() => {
     if (mode !== 'HOST') return;
     reassignHostSeats();
     const cfg = getCurrentHostConfig();
-    const slots = getActiveSlotsForCount(cfg.factionCount);
+    const slots = getActiveFactionSlots(cfg.factionCount);
     const rosterEl = document.getElementById('mp-host-roster');
     const countEl = document.getElementById('mp-host-player-count');
     const startBtn = document.getElementById('btn-start-game');
@@ -379,7 +373,7 @@ export const mpNet = (() => {
   }
 
   function buildLobbyRosterSnapshot(cfg) {
-    const slots = getActiveSlotsForCount(cfg.factionCount);
+    const slots = getActiveFactionSlots(cfg.factionCount);
     const seatedPeers = Array.from(peers.values()).filter((p) => p.faction !== null);
     const roster = [];
     for (let idx = 0; idx < cfg.factionCount; idx++) {

@@ -24,7 +24,7 @@ src/
     version.js             GAME_VERSION single source (title/labels/net handshake)
     enums.js               TileType, PropType, Faction, UnitRank
     balance.js             income tiers, costs, upkeep, boss HP/armor, attack cooldown
-    organizations.js       6 organizations, FACTION_META, ensureUniqueOrgs
+    organizations.js       6 organizations, FACTION_META, slot helpers, ensureUniqueOrgs
   core/
     rng.js                 mulberry32, chunk seed hashing, withSeed (legacy)
     state.js               the single shared `state` object + faction/boss selectors
@@ -327,9 +327,8 @@ distance from the camera.
 
 - Phase 2: finish migrating the last runtime HUD cadence out of `simulation.js` (bus
   implemented; combat, units, economy, territory and match migrated; only `simulation.js`
-  is allowlisted in `tools/check.ps1`); deduplicate faction-slot selection; data-driven
-  balance tables; explicit RNG (remove `withSeed`'s `Math.random` patch); extract AI
-  decisions to `sim/ai.js`.
+  is allowlisted in `tools/check.ps1`); data-driven balance tables; explicit RNG (remove
+  `withSeed`'s `Math.random` patch); extract AI decisions to `sim/ai.js`.
 - Phase 3: player boss folded into the unit model (`control: local/ai/remote`), one
   damage/slash/movement pipeline, `createGameState()` reset factory, unified command
   dispatcher for local+remote, fixed timestep.
