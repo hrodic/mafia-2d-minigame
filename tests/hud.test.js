@@ -128,6 +128,19 @@ test('hud: leaderboard exposes turf, crew and kills with clear labels', () => {
   );
 });
 
+test('hud: leaderboard escapes peer aliases instead of parsing HTML', () => {
+  withHudState({}, () => {
+    state.net = {
+      isActive: () => true,
+      getAliasForFaction: (f) => (f === Faction.PLAYER ? '<img src=x>' : null),
+    };
+    updateHUD();
+    const board = document.getElementById('faction-board');
+    assertEqual(board.querySelector('img'), null);
+    assert(board.textContent.includes('<img src=x>'), board.textContent);
+  });
+});
+
 test('hud: armor hides when depleted and sprint states are labelled', () => {
   withHudState({ player: makePlayer({ armor: 0, sprintCooldown: 2 }) }, () => {
     updateHUD();

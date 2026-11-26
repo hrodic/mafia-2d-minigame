@@ -71,6 +71,7 @@ src/
     combatSfx.js           event subscribers: combat facts -> SFX
   ui/
     hud.js                 primary status, crew management, leaderboard
+    lobbyUI.js             host/guest lobby renderers (safe DOM, no peer-name innerHTML)
     actionBar.js           bottom combat bar: readiness, cooldowns, costs
     hudCadence.js          presentation cadence (4 Hz HUD refresh) driven by main.js
     version.js             applies GAME_VERSION to title + HUD/modal labels
@@ -294,8 +295,10 @@ thresholds are deliberately not here.
   gate, and snapshot encode/decode. The wire shape is unchanged; the module has no state
   mutation or presentation imports.
 - **Lobby rules (`net/lobby.js`):** UI-agnostic host seat assignment, human capacity,
-  roster snapshots and guest seat lookup. The lobby DOM renderer still lives in `mpNet.js`
-  and will move to `ui/lobbyUI.js`.
+  roster snapshots and guest seat lookup.
+- **Lobby UI (`ui/lobbyUI.js`):** host/guest roster rendering, AI/open-slot controls and
+  start-button state. Rows are built with DOM nodes and `textContent`; peer names are never
+  parsed as HTML.
 - **Relays:** an explicit curated `RELAY_URLS` pool (10–12 public relays) replaces
   Trystero's large default pool. All listed relays are used and Trystero fails over when one
   is down. Gameplay does not depend on any single relay.
@@ -319,8 +322,7 @@ thresholds are deliberately not here.
 - **Determinism:** the world seed is sent in `INIT_MATCH`; guests generate the same city.
 
 Known net limitations (Phase 4 in progress): full-state snapshots, O(n²) NPC lookup on
-apply, peer names inserted into lobby `innerHTML` unsanitized, and background-tab throttling
-on the host.
+apply, and background-tab throttling on the host.
 
 ## Rendering
 
@@ -371,8 +373,8 @@ distance from the camera.
 - `tests/mp-harness.html` embeds the game in an iframe to force the local bus; open it in
   two tabs for deterministic host/guest testing without external relays.
 - Coverage includes config/RNG, transport API normalization (Trystero 0.27 vs local bus),
-  protocol envelope/version/snapshot encoding, lobby seats/capacity/rosters, event bus,
-  state selectors, chunk determinism, collision,
+  protocol envelope/version/snapshot encoding, lobby seats/capacity/rosters, lobby DOM
+  rendering/safe names, event bus, state selectors, chunk determinism, collision,
   pathfinding (including wall detours and no corner cutting), units/recruitment, economy,
   territory, combat math/accuracy/armor/aim geometry, effects and casings, interpolation,
   match setup, fixed-step accumulation, command dispatch/equivalence, 600-step headless

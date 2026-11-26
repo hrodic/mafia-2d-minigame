@@ -5,7 +5,7 @@
 import { Faction, UnitRank } from '../config/enums.js';
 import { GAME_VERSION } from '../config/version.js';
 import { RANK_STATS } from '../config/balance.js';
-import { ORGANIZATIONS, FACTION_META, ensureUniqueOrgs } from '../config/organizations.js';
+import { FACTION_META, ensureUniqueOrgs } from '../config/organizations.js';
 import { state, getLocalBoss, getUnitById } from '../core/state.js';
 import { randomWorldSeed } from '../core/rng.js';
 import { initWorld } from '../sim/match.js';
@@ -16,6 +16,7 @@ import { spawnDeadBody, bulletTracers } from '../render/effects.js';
 import { canvas } from '../render/canvas.js';
 import { sfx } from '../audio/sfx.js';
 import { showToast } from '../ui/menus.js';
+import { renderHostLobby, renderGuestLobby } from '../ui/lobbyUI.js';
 import { connectSignalingRoom, randomToken } from './transport.js';
 import {
   MSG,
@@ -94,127 +95,32 @@ export const mpNet = (() => {
     if (mode !== 'HOST') return;
     const cfg = getCurrentHostConfig();
     const slots = reassignHostSeats({ peers, selfPeerId, config: cfg, slotClosedAsAI });
-    const rosterEl = document.getElementById('mp-host-roster');
-    const countEl = document.getElementById('mp-host-player-count');
-    const startBtn = document.getElementById('btn-start-game');
-
     const seatedPeers = getSeatedPeers(peers);
-    let aiCount = 0;
-    let html = '';
+    const openHumans = getOpenHumanCapacity(cfg, slotClosedAsAI);
 
-    for (let idx = 0; idx < cfg.factionCount; idx++) {
-      const slotFaction = slots[idx];
-      const org = ORGANIZATIONS[cfg.orgRoster[idx]] || ORGANIZATIONS.COSA_NOSTRA;
-      const occupant = seatedPeers.find((p) => p.faction === slotFaction);
-
-      if (occupant) {
-        html += `
-          <div class="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-[11px]">
-            <div class="flex items-center gap-2 truncate">
-              <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${org.badge}"></span>
-              <span class="font-bold text-white truncate">${occupant.name}</span>
-              <span class="text-zinc-400">(${org.short})</span>
-            </div>
-            <span class="font-mono text-[10px] font-bold ${occupant.isHost ? 'text-amber-300' : 'text-emerald-400'}">
-              ${occupant.isHost ? 'HOST' : 'PLAYER'}
-            </span>
-          </div>
-        `;
-      } else if (slotClosedAsAI[idx]) {
-        aiCount++;
-        html += `
-          <div class="flex items-center justify-between bg-zinc-900/70 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-[11px]">
-            <div class="flex items-center gap-2 truncate">
-              <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${org.badge}"></span>
-              <span class="font-semibold text-purple-300">AI Syndicate</span>
-              <span class="text-zinc-400">(${org.short})</span>
-            </div>
-            <button type="button" data-toggle-slot="${idx}" class="mp-slot-toggle bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-200 text-[10px] font-bold px-2 py-0.5 rounded transition">
-              Open Player
-            </button>
-          </div>
-        `;
-      } else {
-        html += `
-          <div class="flex items-center justify-between bg-zinc-900/40 border border-dashed border-zinc-800 rounded-lg px-2.5 py-1.5 text-[11px]">
-            <div class="flex items-center gap-2 truncate">
-              <span class="w-2.5 h-2.5 rounded-full opacity-50 flex-shrink-0" style="background:${org.badge}"></span>
-              <span class="text-zinc-500 italic">Open Slot (${org.short})</span>
-            </div>
-            <button type="button" data-toggle-slot="${idx}" class="mp-slot-toggle bg-purple-950/80 hover:bg-purple-900 border border-purple-500/50 text-purple-200 text-[10px] font-bold px-2 py-0.5 rounded transition">
-              Close → AI
-            </button>
-          </div>
-        `;
-      }
-    }
-
-    rosterEl.innerHTML = html;
-    rosterEl.querySelectorAll('.mp-slot-toggle').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const sIdx = Number(btn.getAttribute('data-toggle-slot'));
-        if (sIdx >= 1 && sIdx < 4) {
-          slotClosedAsAI[sIdx] = !slotClosedAsAI[sIdx];
+    renderHostLobby({
+      config: cfg,
+      slots,
+      seatedPeers,
+      slotClosedAsAI,
+      openHumans,
+      hasRoom: Boolean(room),
+      onToggleSlot: (idx) => {
+        if (idx >= 1 && idx < 4) {
+          slotClosedAsAI[idx] = !slotClosedAsAI[idx];
           updateHostLobbyUI();
           broadcastHostLobbyState();
         }
-      });
+      },
     });
-
-    const humanCount = seatedPeers.length;
-    const openHumans = getOpenHumanCapacity(cfg, slotClosedAsAI);
-    countEl.textContent = `${humanCount}/${openHumans} Humans · ${aiCount} AI`;
-
-    if (startBtn && mode === 'HOST') {
-      const allOpenFilled = humanCount >= 2 && humanCount === openHumans;
-      startBtn.disabled = !room || !allOpenFilled;
-      if (!room) {
-        startBtn.textContent = 'Create Room First';
-      } else if (humanCount < 2) {
-        startBtn.textContent = `Waiting for Players (${humanCount}/${openHumans} Humans)...`;
-      } else if (!allOpenFilled) {
-        startBtn.textContent = `Waiting for Open Slots (${humanCount}/${openHumans}) or Close → AI`;
-      } else {
-        startBtn.textContent = `Launch Multiplayer (${humanCount} Humans + ${aiCount} AI)`;
-      }
-    }
   }
 
   function renderGuestLobbyUI() {
-    const assignedEl = document.getElementById('mp-guest-assigned-faction');
-    const settingsEl = document.getElementById('mp-guest-settings-summary');
-    const rosterEl = document.getElementById('mp-guest-roster');
-
     const me = findGuestSeat(guestLobbyRoster, selfPeerId);
     if (me && guestSettings) {
       localFaction = me.faction || Faction.RIVAL_1;
-      const org = ORGANIZATIONS[guestSettings.orgRoster?.[me.slotIdx]] || ORGANIZATIONS.BRATVA;
-      assignedEl.innerHTML = `<span style="color:${org.accent}">${org.name} (${org.ranks.BOSS})</span>`;
-    } else {
-      assignedEl.textContent = 'Assigning seat...';
     }
-
-    if (guestSettings) {
-      settingsEl.textContent = `Map: ${guestSettings.gridSize}×${guestSettings.gridSize} · Tick: ${guestSettings.tickSeconds}s · Income: ${guestSettings.incomeTier}`;
-    }
-
-    let html = '';
-    for (const p of guestLobbyRoster) {
-      const org = ORGANIZATIONS[guestSettings?.orgRoster?.[p.slotIdx]] || ORGANIZATIONS.COSA_NOSTRA;
-      html += `
-        <div class="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1 text-[11px]">
-          <div class="flex items-center gap-2 truncate">
-            <span class="w-2 h-2 rounded-full" style="background:${org.badge}"></span>
-            <span class="font-bold text-zinc-200 truncate">${p.name}</span>
-            <span class="text-zinc-500">(${org.short})</span>
-          </div>
-          <span class="font-mono text-[10px] ${p.isHost ? 'text-amber-300' : p.isAI ? 'text-purple-300' : 'text-emerald-400'}">
-            ${p.isHost ? 'HOST' : p.isAI ? 'AI' : 'PLAYER'}
-          </span>
-        </div>
-      `;
-    }
-    rosterEl.innerHTML = html;
+    renderGuestLobby({ roster: guestLobbyRoster, settings: guestSettings, me });
   }
 
   function broadcastHostLobbyState() {
