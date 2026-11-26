@@ -1,6 +1,6 @@
-// Host-authoritative multiplayer: transport, lobby, snapshots, guest input and
-// action commands. The IIFE keeps the original module structure for Phase 1;
-// Phase 4 splits it into transport/protocol/lobby/host/guest modules.
+// Host-authoritative multiplayer: lobby, snapshots, guest input and action
+// commands. Transport (Trystero + local bus) lives in ./transport.js; Phase 4
+// continues the protocol/lobby/host/guest split.
 
 import { Faction, UnitRank } from '../config/enums.js';
 import { GAME_VERSION } from '../config/version.js';
@@ -16,16 +16,10 @@ import { spawnDeadBody, bulletTracers } from '../render/effects.js';
 import { canvas } from '../render/canvas.js';
 import { sfx } from '../audio/sfx.js';
 import { showToast } from '../ui/menus.js';
+import { connectSignalingRoom, randomToken } from './transport.js';
 
 
 export const mpNet = (() => {
-  const APP_ID = 'hrodic-mafia-2d-p2p-v26';
-  const TRYSTERO_URLS = [
-    'https://esm.sh/@trystero-p2p/nostr@0.27.0?bundle',
-    'https://esm.sh/@trystero-p2p/mqtt@0.27.0?bundle',
-    'https://cdn.jsdelivr.net/npm/@trystero-p2p/nostr@0.27.0/+esm',
-  ];
-
   let mode = 'SINGLE'; // 'SINGLE' | 'HOST' | 'JOIN'
   let room = null;
   let roomCode = '';
@@ -57,15 +51,6 @@ export const mpNet = (() => {
   let guestCmdSeq = 0;
   let inputSendTimer = 0;
 
-  function randomToken(len = 8) {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let out = '';
-    for (let i = 0; i < len; i++) {
-      out += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return out;
-  }
-
   function envelope(type, seq, payload) {
     return { v: GAME_VERSION, type, seq, payload };
   }
@@ -80,122 +65,18 @@ export const mpNet = (() => {
     };
   }
 
-  // CSP-Safe Same-Origin BroadcastChannel + localStorage Room Transport
-  function createLocalBusRoom(fullRoomId) {
-    const channelName = `hrodic_mp_${fullRoomId}`;
-    const bc = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(channelName) : null;
-    const myId = `TAB_${randomToken(10)}`;
-    const mountTs = Date.now();
-    const actionHandlers = new Map();
-    const joinHandlers = [];
-    const leaveHandlers = [];
-    const knownTabs = new Set();
-
-    function dispatchIncoming(raw) {
-      if (!raw || raw.sender === myId) return;
-      if (raw.ts && raw.ts < mountTs - 2000) return;
-      if (raw.target && raw.target !== myId) return;
-
-      if (!knownTabs.has(raw.sender)) {
-        knownTabs.add(raw.sender);
-        joinHandlers.forEach((cb) => cb(raw.sender));
+  function attachSignalingErrorHandler(activeRoom, statusEl, errEl) {
+    if (typeof activeRoom.onError !== 'function') return;
+    activeRoom.onError((err) => {
+      if (err?.code !== 'relay-failed') return;
+      const message = 'Signaling unavailable: all configured relays failed. Check your connection and retry.';
+      if (statusEl) statusEl.textContent = 'Signaling error';
+      if (errEl) {
+        errEl.textContent = message;
+        errEl.classList.remove('hidden');
       }
-
-      if (raw.sys === 'PING') {
-        postPacket({ sys: 'PONG', target: raw.sender });
-        return;
-      }
-      if (raw.sys === 'LEAVE') {
-        knownTabs.delete(raw.sender);
-        leaveHandlers.forEach((cb) => cb(raw.sender));
-        return;
-      }
-      if (raw.ns && actionHandlers.has(raw.ns)) {
-        actionHandlers.get(raw.ns).forEach((cb) => cb(raw.data, raw.sender));
-      }
-    }
-
-    function postPacket(pkt) {
-      const full = { ...pkt, sender: myId, ts: Date.now() };
-      if (bc) {
-        try { bc.postMessage(full); } catch (_) {}
-      }
-      try {
-        localStorage.setItem(`${channelName}_pkt`, JSON.stringify({ ...full, nonce: Math.random() }));
-      } catch (_) {}
-    }
-
-    if (bc) {
-      bc.onmessage = (e) => dispatchIncoming(e.data);
-    }
-    const onStorage = (e) => {
-      if (e.key === `${channelName}_pkt` && e.newValue) {
-        try { dispatchIncoming(JSON.parse(e.newValue)); } catch (_) {}
-      }
-    };
-    window.addEventListener('storage', onStorage);
-
-    const onUnload = () => postPacket({ sys: 'LEAVE' });
-    window.addEventListener('beforeunload', onUnload);
-
-    setTimeout(() => postPacket({ sys: 'PING' }), 60);
-
-    return {
-      selfId: myId,
-      makeAction(ns) {
-        if (!actionHandlers.has(ns)) actionHandlers.set(ns, []);
-        const sendFn = (data, targetPeer = null) => {
-          postPacket({ ns, data, target: typeof targetPeer === 'string' ? targetPeer : null });
-        };
-        const recvFn = (cb) => {
-          actionHandlers.get(ns).push(cb);
-        };
-        return [sendFn, recvFn];
-      },
-      onPeerJoin(cb) {
-        joinHandlers.push(cb);
-        knownTabs.forEach((id) => cb(id));
-      },
-      onPeerLeave(cb) {
-        leaveHandlers.push(cb);
-      },
-      leave() {
-        postPacket({ sys: 'LEAVE' });
-        window.removeEventListener('storage', onStorage);
-        window.removeEventListener('beforeunload', onUnload);
-        if (bc) {
-          try { bc.close(); } catch (_) {}
-        }
-      },
-    };
-  }
-
-  async function connectSignalingRoom(code, secret) {
-    const fullRoomId = `${APP_ID}-${code}-${secret}`;
-    const isEmbeddedSandbox = window.self !== window.top;
-
-    if (!isEmbeddedSandbox) {
-      for (const url of TRYSTERO_URLS) {
-        try {
-          const mod = await Promise.race([
-            import(url),
-            new Promise((_, rej) => setTimeout(() => rej(new Error('Signaling CDN timeout')), 6500)),
-          ]);
-          const joinFn = mod.joinRoom || mod.default?.joinRoom;
-          if (typeof joinFn === 'function') {
-            const rtcRoom = joinFn({ appId: APP_ID, password: secret }, fullRoomId);
-            selfPeerId = typeof mod.selfId === 'string' ? mod.selfId : `RTC_${randomToken(10)}`;
-            return rtcRoom;
-          }
-        } catch (_) {
-          // Fallback to next strategy or local bus
-        }
-      }
-    }
-
-    const localRoom = createLocalBusRoom(fullRoomId);
-    selfPeerId = localRoom.selfId;
-    return localRoom;
+      showToast(message);
+    });
   }
 
   function reassignHostSeats() {
@@ -847,6 +728,8 @@ export const mpNet = (() => {
 
       const activeRoom = await connectSignalingRoom(roomCode, roomSecret);
       room = activeRoom;
+      selfPeerId = activeRoom.selfId;
+      attachSignalingErrorHandler(activeRoom, statusEl, errEl);
       peers.clear();
       peers.set(selfPeerId, {
         peerId: selfPeerId,
@@ -916,6 +799,8 @@ export const mpNet = (() => {
 
       const activeRoom = await connectSignalingRoom(roomCode, roomSecret);
       room = activeRoom;
+      selfPeerId = activeRoom.selfId;
+      attachSignalingErrorHandler(activeRoom, statusEl, errEl);
       setupChannels(activeRoom);
 
       const rawName = document.getElementById('mp-guest-name')?.value?.trim();

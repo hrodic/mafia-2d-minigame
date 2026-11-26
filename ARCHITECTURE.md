@@ -47,7 +47,8 @@ src/
     economy.js             upkeep, income, hourly tick and auto-recruitment
     commands.js            dispatchCommand: local + remote action entry point
   net/
-    mpNet.js               host-authoritative multiplayer (transport, lobby, snapshots)
+    transport.js           Trystero 0.27 loader + curated Nostr relays + local bus
+    mpNet.js               host-authoritative multiplayer (lobby, snapshots, input)
   render/
     canvas.js              shared canvas/context references (guarded for tests)
     renderer.js            frame orchestration: culling, depth sort, layers
@@ -280,11 +281,20 @@ thresholds are deliberately not here.
 
 ## Networking
 
-`net/mpNet.js` (single module in Phase 1; Phase 4 splits it):
+`net/mpNet.js` (transport extracted to `net/transport.js`; the rest of the Phase 4 split
+continues):
 
-- **Transport:** Trystero (`@trystero-p2p/nostr` or `mqtt`, loaded from CDN at runtime)
-  for cross-machine WebRTC; a same-origin **BroadcastChannel + localStorage bus** fallback
-  for multi-tab play and embedded iframes.
+- **Transport (`net/transport.js`):** Trystero 0.27 (`@trystero-p2p/nostr`, or `mqtt` as a
+  CDN fallback) for cross-machine WebRTC, plus a same-origin **BroadcastChannel +
+  localStorage bus** for multi-tab play and embedded iframes. Trystero uses only public
+  Nostr relays for signaling; gameplay traffic stays peer-to-peer.
+- **Relays:** an explicit curated `RELAY_URLS` pool (10–12 public relays) replaces
+  Trystero's large default pool. All listed relays are used and Trystero fails over when one
+  is down. Gameplay does not depend on any single relay.
+- **API normalization:** Trystero 0.27 exposes `{ peerId }` callback contexts and
+  `{ target }` send options. `transport.js` wraps rooms/actions into the stable shape used by
+  `mpNet.js` (`send(data, targetPeerId)`, `receive(cb(data, peerId))`, `selfId`), so the local
+  bus and Trystero share one interface. A total relay failure surfaces through `onError`.
 - **Lobby:** host creates a room code + secret; guests join by code or invite link.
   Seats map peers to factions; unused seats can be closed as AI. Version gate rejects
   mismatched clients.
@@ -352,7 +362,8 @@ distance from the camera.
   so render/HUD/menu tests can run headlessly. State is saved/restored per test.
 - `tests/mp-harness.html` embeds the game in an iframe to force the local bus; open it in
   two tabs for deterministic host/guest testing without external relays.
-- Coverage includes config/RNG, event bus, state selectors, chunk determinism, collision,
+- Coverage includes config/RNG, transport API normalization (Trystero 0.27 vs local bus),
+  event bus, state selectors, chunk determinism, collision,
   pathfinding (including wall detours and no corner cutting), units/recruitment, economy,
   territory, combat math/accuracy/armor/aim geometry, effects and casings, interpolation,
   match setup, fixed-step accumulation, command dispatch/equivalence, 600-step headless
@@ -391,8 +402,9 @@ distance from the camera.
   damage/slash/movement pipeline, `createGameState()` reset factory, unified command
   dispatcher for local+remote, fixed `1/120` simulation with render-time presentation,
   and seeded headless/command-equivalence tests.
-- Phase 4 next: split `net/mpNet.js` into transport/protocol/lobby/host/guest; delta/O(1)
-  snapshots; sanitize peer names; background-host resilience; bump protocol version.
+- Phase 4 in progress: `net/transport.js` extracted with the Trystero 0.27 shim and curated
+  relay pool; next are protocol/lobby/host/guest; delta/O(1) snapshots; sanitize peer names;
+  background-host resilience; bump protocol version.
 - Phase 5: broader tests, JSDoc/`jsconfig` typing, docs refresh.
 
 See `PLAN.md` for the step-by-step plan and `AGENTS.md` for the workflow contract.
