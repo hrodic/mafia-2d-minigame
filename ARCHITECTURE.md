@@ -44,6 +44,7 @@ src/
     combat.js              damage/armor, slashes, pistol raycast, armor purchases
     territory.js           capture progress, elimination, victory
     economy.js             upkeep, income, hourly tick and auto-recruitment
+    commands.js            dispatchCommand: local + remote action entry point
   net/
     mpNet.js               host-authoritative multiplayer (transport, lobby, snapshots)
   render/
@@ -70,6 +71,7 @@ src/
     version.js             applies GAME_VERSION to title + HUD/modal labels
     menus.js               setup modal, lobby buttons, banners, toast, map-size controls
     input.js               keyboard/mouse/minimap + HUD action bindings
+    commandBridge.js       input boundary: guests stream, host/single dispatch
 tests/
   tests.html               zero-dependency test runner page
   harness.js               test/assert helpers + results UI
@@ -279,7 +281,7 @@ thresholds are deliberately not here.
   mismatched clients.
 - **Channels:** `lobby`, `init` (initial match state), `snap` (snapshots), `input`
   (guest movement/aim ~16 Hz), `cmd` (guest actions: move, slash, shoot, armor, recruit
-  prefs, expand, build), `event` (e.g. SHOT tracer broadcast).
+  prefs), `event` (e.g. SHOT tracer broadcast).
 - **Authority:** the host runs the simulation and broadcasts full-state snapshots ~12 Hz;
   guests interpolate positions (`render/interpolation.js`) and send input/commands.
   Peer input older than 500 ms is treated as neutral (no ghost movement). Disconnects
@@ -322,8 +324,12 @@ distance from the camera.
 - `ui/hudCadence.js`: 4 Hz HUD refresh from the main loop.
 - `ui/menus.js`: setup modal, lobby buttons, start-game flow, `openSetupMenu`, banners and
   toasts; exports `initMenus`.
-- `ui/input.js`: keyboard/mouse/minimap handlers, HUD action buttons, guest commands;
-  releases held keys on blur/visibility loss; exports `initInput`.
+- `ui/input.js`: keyboard/mouse/minimap handlers, HUD action buttons; releases held keys
+  on blur/visibility loss; exports `initInput`.
+- `ui/commandBridge.js`: the only guest/local branch for actions. Guests stream the command
+  payload through `state.net.sendCommand`; host/single call `sim/commands.js` directly.
+- `sim/commands.js`: `dispatchCommand(faction, payload)` for move, slash, shoot, armor and
+  recruit prefs. Local input and the host's remote-command receiver share it.
 
 ## Testing
 

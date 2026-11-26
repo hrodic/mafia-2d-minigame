@@ -11,12 +11,7 @@ import { randomWorldSeed } from '../core/rng.js';
 import { initWorld } from '../sim/match.js';
 import { eliminateFaction } from '../sim/territory.js';
 import { getEntityCollisionRadius } from '../sim/movement.js';
-import { getUnitCaps } from '../sim/units.js';
-import {
-  executeBossSlashForFaction,
-  performBossPistolShot,
-  executeBuyArmorForFaction,
-} from '../sim/combat.js';
+import { dispatchCommand } from '../sim/commands.js';
 import { spawnDeadBody, bulletTracers } from '../render/effects.js';
 import { canvas } from '../render/canvas.js';
 import { sfx } from '../audio/sfx.js';
@@ -428,50 +423,6 @@ export const mpNet = (() => {
     );
   }
 
-  function processRemoteCommand(peer, payload) {
-    if (!peer || !peer.faction || !payload || !matchStarted) return;
-    const fac = peer.faction;
-
-    if (payload.cmd === 'MOVE_TO') {
-      const bossNpc = state.npcs.find((n) => n.faction === fac && n.rank === UnitRank.BOSS);
-      if (bossNpc && typeof payload.x === 'number' && typeof payload.y === 'number') {
-        const snapped = state.world.findNearestWalkablePoint(payload.x, payload.y, 12);
-        if (snapped) {
-          bossNpc.targetX = snapped.x;
-          bossNpc.targetY = snapped.y;
-        }
-      }
-    } else if (payload.cmd === 'SLASH') {
-      executeBossSlashForFaction(fac);
-    } else if (payload.cmd === 'SHOOT') {
-      const bossNpc = state.npcs.find((n) => n.faction === fac && n.rank === UnitRank.BOSS);
-      if (bossNpc && typeof payload.tx === 'number' && typeof payload.ty === 'number') {
-        performBossPistolShot(bossNpc, false, payload.tx, payload.ty);
-      }
-    } else if (payload.cmd === 'BUY_ARMOR') {
-      executeBuyArmorForFaction(fac);
-    } else if (payload.cmd === 'RECRUIT_PREF') {
-      const prefs = state.factionRecruitmentPrefs[fac];
-      if (prefs) {
-        if (typeof payload.autoSoldier === 'boolean') prefs.autoSoldier = payload.autoSoldier;
-        if (typeof payload.autoCaptain === 'boolean') prefs.autoCaptain = payload.autoCaptain;
-        if (typeof payload.autoUnderboss === 'boolean') prefs.autoUnderboss = payload.autoUnderboss;
-        if (payload.caps && typeof payload.caps === 'object') {
-          const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
-          if (typeof payload.caps[UnitRank.SOLDIER] === 'number') {
-            prefs.caps[UnitRank.SOLDIER] = Math.max(1, Math.min(maxSoldiers, payload.caps[UnitRank.SOLDIER]));
-          }
-          if (typeof payload.caps[UnitRank.CAPTAIN] === 'number') {
-            prefs.caps[UnitRank.CAPTAIN] = Math.max(1, Math.min(maxCaptains, payload.caps[UnitRank.CAPTAIN]));
-          }
-          if (typeof payload.caps[UnitRank.UNDERBOSS] === 'number') {
-            prefs.caps[UnitRank.UNDERBOSS] = Math.max(1, Math.min(maxUnderbosses, payload.caps[UnitRank.UNDERBOSS]));
-          }
-        }
-      }
-    }
-  }
-
   function buildSnapshotPayload() {
     const chunkStates = [];
     for (const c of state.world.chunks.values()) {
@@ -864,8 +815,8 @@ export const mpNet = (() => {
     rxCmd((env, peerId) => {
       if (!env || mode !== 'HOST' || !matchStarted) return;
       const peer = peers.get(peerId);
-      if (peer && env.type === 'CMD') {
-        processRemoteCommand(peer, env.payload);
+      if (peer && peer.faction && env.type === 'CMD') {
+        dispatchCommand(peer.faction, env.payload);
       }
     });
 

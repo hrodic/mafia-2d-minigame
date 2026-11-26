@@ -15,7 +15,7 @@ architecture description here.
   - AI extracted to `sim/ai.js`
   - HUD cadence moved to `ui/hudCadence.js`
   - UI/UX overhaul: primary status, crew management, action bar, leaderboard + kills
-- **Phase 3 — IN PROGRESS (`0.4.8`; 3.1–3.6 done):** shared unit contract, commands,
+- **Phase 3 — IN PROGRESS (`0.4.9`; 3.1–3.7 done):** shared unit contract, commands,
   fixed timestep. Balance pass: one human slash rule; all AI ranks base speed 150.
 - **Phases 4–5 — pending:** netcode hardening, quality gates.
 
@@ -60,11 +60,11 @@ HUD crew counts. Snapshot apply ignores any NPC entry with the player id, so `pl
 remains the single player channel. NPC-only systems (upkeep, recruit caps, crew filters,
 victory crew) keep using `state.npcs` and cannot accidentally include the player.
 
-**3.7 `sim/commands.js`.** `dispatchCommand(faction, payload)` generalizes
-`processRemoteCommand`. Local UI/input builds the same command objects and dispatches when
-host/single; guests call `state.net.sendCommand(payload)`. The `isGuest` branch lives only
-at the input→command boundary. Commands now: move, slash, shoot, armor, recruit prefs
-(build/expand were removed in `0.3.0`). Verify solo + MP.
+**3.7 `sim/commands.js` — DONE (`0.4.9`).** `dispatchCommand(faction, payload)` now handles
+move, slash, shoot, armor and recruit prefs for local input and remote guests.
+`ui/commandBridge.js` is the only guest/local branch: guests stream the payload, host/single
+dispatch it. `processRemoteCommand` and the guest branches inside combat are gone. Verified
+solo + MP.
 
 **3.8 Fixed timestep.** Accumulator in `main.js`: `SIM_DT = 1/60`, clamp frame delta
 (~0.25s), N sim steps per rAF, render once. Guest interpolation/camera/HUD cadence use

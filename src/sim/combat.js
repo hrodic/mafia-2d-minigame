@@ -5,7 +5,7 @@ import { CHUNK_SIZE, TILE_SIZE, MAX_PISTOL_RANGE, HIT_FLASH_DURATION } from '../
 import { COST_BOSS_ARMOR, MAX_BOSS_ARMOR, PISTOL, SLASH } from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
 import { getPropFootprint, rectContains } from '../world/geometry.js';
-import { state, forEachUnit, isLocalBossAlive } from '../core/state.js';
+import { state, forEachUnit } from '../core/state.js';
 import { emit } from '../core/events.js';
 import { canOccupyPosition, getEntityCollisionRadius } from './movement.js';
 import { eliminateFaction } from './territory.js';
@@ -187,22 +187,14 @@ export function performSlash(attacker, params = {}) {
 }
 
 export function executeBossSlashForFaction(faction) {
-  if (faction === Faction.PLAYER) {
-    performKnifeSlash();
-    return;
-  }
+  if (faction === Faction.PLAYER) return performKnifeSlash();
   const bossNpc = state.npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS);
-  if (!bossNpc) return;
-  performSlash(bossNpc, { profile: SLASH.humanBoss });
+  if (!bossNpc) return false;
+  return performSlash(bossNpc, { profile: SLASH.humanBoss });
 }
 
 export function performKnifeSlash() {
   if (!state.gameStarted) return false;
-  if (state.net && state.net.isGuest()) {
-    if (!isLocalBossAlive()) return false;
-    state.net.sendCommand({ cmd: 'SLASH' });
-    return false;
-  }
   if (!state.player.alive) return false;
   return performSlash(state.player, { profile: SLASH.humanBoss });
 }
@@ -434,14 +426,6 @@ export function executeBuyArmorForFaction(faction) {
 
 export function buyBossArmor() {
   if (!state.gameStarted) return;
-  if (state.net && state.net.isGuest()) {
-    if (!isLocalBossAlive()) {
-      emit('ui:toast', { message: 'Your Boss must be alive to equip armor!' });
-      return;
-    }
-    state.net.sendCommand({ cmd: 'BUY_ARMOR' });
-    return;
-  }
   if (!state.player.alive || !state.factionAlive[Faction.PLAYER]) {
     emit('ui:toast', { message: 'Your Boss must be alive to equip armor!' });
     return;

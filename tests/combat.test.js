@@ -460,15 +460,6 @@ test('combat: rival bosses can buy armor from their treasury', () => {
   );
 });
 
-test('combat: guest armor purchase is forwarded to the host', () => {
-  const sent = [];
-  withCombatState({ net: { isActive: () => true, localFaction: Faction.PLAYER, isGuest: () => true, sendCommand: (cmd) => sent.push(cmd) } }, () => {
-    buyBossArmor();
-    assertEqual(sent.length, 1);
-    assertEqual(sent[0].cmd, 'BUY_ARMOR');
-  });
-});
-
 test('combat: armor purchase failures explain themselves', () => {
   withCombatState({ treasuries: { [Faction.PLAYER]: 100 } }, ({ events }) => {
     buyBossArmor();
@@ -510,19 +501,6 @@ test('combat: NPC boss armor logic reacts to wounds, threats and cooldowns', () 
     state.npcs = [boss];
     assertEqual(tryBuyNpcBossArmor(boss, 1, 0), false);
   });
-});
-
-test('combat: guest slash is sent as a command', () => {
-  const sent = [];
-  withCombatState(
-    { net: { isActive: () => true, localFaction: Faction.PLAYER, isGuest: () => true, sendCommand: (cmd) => sent.push(cmd) } },
-    () => {
-      performKnifeSlash();
-      assertEqual(sent.length, 1);
-      assertEqual(sent[0].cmd, 'SLASH');
-      assertEqual(state.player.attackCooldown, 0);
-    }
-  );
 });
 
 test('combat: player slash damages targets in front and respects cooldown', () => {
