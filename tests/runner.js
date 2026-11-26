@@ -39,6 +39,7 @@ import './protocol.test.js';
 import './lobby.test.js';
 import './lobbyUI.test.js';
 import './guest.test.js';
+import './host.test.js';
 
 runAll().catch((err) => {
   const root = document.getElementById('test-results');

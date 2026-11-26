@@ -2,25 +2,16 @@
 // commands. Transport (Trystero + local bus) lives in ./transport.js; Phase 4
 // continues the protocol/lobby/host/guest split.
 
-import { Faction, UnitRank } from '../config/enums.js';
-import { GAME_VERSION } from '../config/version.js';
+import { Faction } from '../config/enums.js';
 import { FACTION_META, ensureUniqueOrgs } from '../config/organizations.js';
 import { state, getLocalBoss } from '../core/state.js';
-import { randomWorldSeed } from '../core/rng.js';
 import { initWorld } from '../sim/match.js';
-import { dispatchCommand } from '../sim/commands.js';
 import { showToast } from '../ui/menus.js';
-import { renderHostLobby, renderGuestLobby } from '../ui/lobbyUI.js';
+import { renderGuestLobby } from '../ui/lobbyUI.js';
 import { connectSignalingRoom, randomToken } from './transport.js';
-import { MSG, envelope, isVersionCompatible, encodeSnapshot } from './protocol.js';
-import {
-  getSeatedPeers,
-  reassignHostSeats,
-  getOpenHumanCapacity,
-  buildLobbyRosterSnapshot,
-  findGuestSeat,
-} from './lobby.js';
+import { findGuestSeat } from './lobby.js';
 import { createGuestController } from './guest.js';
+import { createHostController } from './host.js';
 
 
 export const mpNet = (() => {
@@ -40,13 +31,8 @@ export const mpNet = (() => {
   let sendCmd = null;
   let sendEvent = null;
 
-  // Host-only state
-  const peers = new Map(); // peerId -> { peerId, name, faction, slotIdx, isHost, lastInput }
-  const slotClosedAsAI = [false, false, false, false];
-  let snapshotSeq = 0;
-  let snapshotTimer = 0;
-
-  // Guest controller (created below once the composition helpers exist).
+  // Controllers are created below once the composition helpers exist.
+  let host = null;
   let guest = null;
 
   function getCurrentHostConfig() {
@@ -57,6 +43,18 @@ export const mpNet = (() => {
       factionCount: state.activeFactionCount,
       orgRoster: ensureUniqueOrgs(state.selectedFactionOrgs),
     };
+  }
+
+  function initializeWorld(payload) {
+    initWorld(
+      payload.gridSize,
+      true,
+      payload.tickSeconds,
+      payload.incomeTier,
+      payload.factionCount,
+      payload.orgRoster,
+      payload.worldSeed
+    );
   }
 
   function attachSignalingErrorHandler(activeRoom, statusEl, errEl) {
@@ -74,27 +72,7 @@ export const mpNet = (() => {
   }
 
   function updateHostLobbyUI() {
-    if (mode !== 'HOST') return;
-    const cfg = getCurrentHostConfig();
-    const slots = reassignHostSeats({ peers, selfPeerId, config: cfg, slotClosedAsAI });
-    const seatedPeers = getSeatedPeers(peers);
-    const openHumans = getOpenHumanCapacity(cfg, slotClosedAsAI);
-
-    renderHostLobby({
-      config: cfg,
-      slots,
-      seatedPeers,
-      slotClosedAsAI,
-      openHumans,
-      hasRoom: Boolean(room),
-      onToggleSlot: (idx) => {
-        if (idx >= 1 && idx < 4) {
-          slotClosedAsAI[idx] = !slotClosedAsAI[idx];
-          updateHostLobbyUI();
-          broadcastHostLobbyState();
-        }
-      },
-    });
+    if (host) host.updateLobbyUI();
   }
 
   function renderGuestLobbyUI() {
@@ -108,26 +86,7 @@ export const mpNet = (() => {
   }
 
   function broadcastHostLobbyState() {
-    if (!room || mode !== 'HOST' || !sendLobby) return;
-    const cfg = getCurrentHostConfig();
-    reassignHostSeats({ peers, selfPeerId, config: cfg, slotClosedAsAI });
-    const roster = buildLobbyRosterSnapshot({ config: cfg, peers, slotClosedAsAI });
-    sendLobby(envelope(MSG.LOBBY_STATE, 0, { roster, settings: cfg }));
-  }
-
-  function sendLobbyStateToPeer(targetPeerId) {
-    if (!room || mode !== 'HOST' || !sendLobby) return;
-    const cfg = getCurrentHostConfig();
-    reassignHostSeats({ peers, selfPeerId, config: cfg, slotClosedAsAI });
-    const roster = buildLobbyRosterSnapshot({ config: cfg, peers, slotClosedAsAI });
-    sendLobby(
-      envelope(MSG.LOBBY_STATE, 0, {
-        yourPeerId: targetPeerId,
-        roster,
-        settings: cfg,
-      }),
-      targetPeerId
-    );
+    if (host) host.broadcastLobbyState();
   }
 
   function setupChannels(activeRoom) {
@@ -165,26 +124,8 @@ export const mpNet = (() => {
 
     if (typeof activeRoom.onPeerLeave === 'function') {
       activeRoom.onPeerLeave((peerId) => {
-        if (mode === 'HOST') {
-          const peer = peers.get(peerId);
-          if (peer && !peer.isHost) {
-            const leftFaction = peer.faction;
-            const leftName = peer.name;
-            peers.delete(peerId);
-            if (matchStarted && leftFaction) {
-              const bossNpc = state.npcs.find((n) => n.faction === leftFaction && n.rank === UnitRank.BOSS);
-              if (bossNpc) {
-                bossNpc.humanPeerId = null;
-                bossNpc.speed = 152;
-              }
-              showToast(`${leftName} disconnected. AI took control of ${FACTION_META[leftFaction].short}.`);
-            } else {
-              reassignHostSeats({ peers, selfPeerId, config: getCurrentHostConfig(), slotClosedAsAI });
-              updateHostLobbyUI();
-              broadcastHostLobbyState();
-              showToast(`${leftName} left the lobby.`);
-            }
-          }
+        if (mode === 'HOST' && host) {
+          host.handlePeerLeave(peerId);
         } else if (mode === 'JOIN' && guest) {
           guest.handlePeerLeave(peerId);
         }
@@ -193,43 +134,8 @@ export const mpNet = (() => {
 
     rxLobby((env, peerId) => {
       if (!env) return;
-      if (mode === 'HOST') {
-        if (env.type === MSG.HELLO) {
-          if (!isVersionCompatible(env)) {
-            sendLobby(envelope(MSG.REJECT, 0, { reason: `Version mismatch (Host is ${GAME_VERSION})` }), peerId);
-            return;
-          }
-          if (matchStarted) {
-            sendLobby(envelope(MSG.REJECT, 0, { reason: 'Match already in progress' }), peerId);
-            return;
-          }
-          if (peers.has(peerId)) {
-            sendLobbyStateToPeer(peerId);
-            return;
-          }
-          const cfg = getCurrentHostConfig();
-          reassignHostSeats({ peers, selfPeerId, config: cfg, slotClosedAsAI });
-          const openCapacity = getOpenHumanCapacity(cfg, slotClosedAsAI);
-          if (peers.size >= openCapacity) {
-            sendLobby(envelope(MSG.REJECT, 0, { reason: 'Lobby is full' }), peerId);
-            return;
-          }
-          const guestName = String(env.payload?.name || 'Guest Boss').slice(0, 16);
-          peers.set(peerId, {
-            peerId,
-            name: guestName,
-            faction: null,
-            slotIdx: -1,
-            isHost: false,
-            lastInput: { mx: 0, my: 0, sprint: false, facing: 0 },
-            lastInputAt: 0,
-          });
-          reassignHostSeats({ peers, selfPeerId, config: cfg, slotClosedAsAI });
-          updateHostLobbyUI();
-          sendLobbyStateToPeer(peerId);
-          broadcastHostLobbyState();
-          showToast(`${guestName} joined the lobby!`);
-        }
+      if (mode === 'HOST' && host) {
+        host.handleLobby(env, peerId);
       } else if (mode === 'JOIN' && guest) {
         guest.handleLobby(env, peerId);
       }
@@ -244,25 +150,11 @@ export const mpNet = (() => {
     });
 
     rxInput((env, peerId) => {
-      if (!env || mode !== 'HOST' || !matchStarted) return;
-      const peer = peers.get(peerId);
-      if (peer && env.type === MSG.INPUT && env.payload) {
-        peer.lastInput = {
-          mx: Math.max(-1, Math.min(1, Number(env.payload.mx) || 0)),
-          my: Math.max(-1, Math.min(1, Number(env.payload.my) || 0)),
-          sprint: Boolean(env.payload.sprint),
-          facing: Number(env.payload.facing) || 0,
-        };
-        peer.lastInputAt = performance.now();
-      }
+      if (host) host.handleInput(env, peerId);
     });
 
     rxCmd((env, peerId) => {
-      if (!env || mode !== 'HOST' || !matchStarted) return;
-      const peer = peers.get(peerId);
-      if (peer && peer.faction && env.type === MSG.CMD) {
-        dispatchCommand(peer.faction, env.payload);
-      }
+      if (host) host.handleCommand(env, peerId);
     });
 
     rxEvent((env, peerId) => {
@@ -288,16 +180,7 @@ export const mpNet = (() => {
       room = activeRoom;
       selfPeerId = activeRoom.selfId;
       attachSignalingErrorHandler(activeRoom, statusEl, errEl);
-      peers.clear();
-      peers.set(selfPeerId, {
-        peerId: selfPeerId,
-        name: hostName,
-        faction: Faction.PLAYER,
-        slotIdx: 0,
-        isHost: true,
-        lastInput: { mx: 0, my: 0, sprint: false, facing: 0 },
-        lastInputAt: 0,
-      });
+      if (host) host.initHost(hostName);
 
       setupChannels(activeRoom);
 
@@ -377,51 +260,8 @@ export const mpNet = (() => {
   }
 
   function launchMultiplayerMatch(gridSize, tickSeconds, incomeTier, factionCount, orgRoster, seedOverride = null) {
-    if (mode !== 'HOST' || !room) return;
-    reassignHostSeats({ peers, selfPeerId, config: getCurrentHostConfig(), slotClosedAsAI });
-    const worldSeed = seedOverride ?? randomWorldSeed();
-    localFaction = Faction.PLAYER;
-    matchStarted = true;
-    snapshotSeq = 0;
-    snapshotTimer = 0;
-
-    initWorld(gridSize, true, tickSeconds, incomeTier, factionCount, orgRoster, worldSeed);
-
-    const badge = document.getElementById('mp-hud-badge');
-    badge.textContent = `MP HOST (${roomCode})`;
-    badge.classList.remove('hidden');
-
-    const assignments = {};
-    for (const p of peers.values()) {
-      if (p.faction) {
-        assignments[p.peerId] = {
-          peerId: p.peerId,
-          name: p.name,
-          faction: p.faction,
-          slotIdx: p.slotIdx,
-          isHost: p.isHost,
-        };
-      }
-    }
-
-    const initialSnapshot = encodeSnapshot(state);
-    for (const p of peers.values()) {
-      if (!p.isHost && p.faction && sendInit) {
-        sendInit(
-          envelope(MSG.INIT_MATCH, 1, {
-            yourPeerId: p.peerId,
-            gridSize,
-            tickSeconds,
-            incomeTier,
-            factionCount,
-            orgRoster,
-            worldSeed,
-            assignments,
-            snapshot: initialSnapshot,
-          }),
-          p.peerId
-        );
-      }
+    if (host) {
+      host.launchMatch({ gridSize, tickSeconds, incomeTier, factionCount, orgRoster, seedOverride });
     }
   }
 
@@ -434,19 +274,11 @@ export const mpNet = (() => {
   }
 
   function broadcastEvent(payload) {
-    if (mode !== 'HOST' || !matchStarted || !sendEvent) return;
-    sendEvent(envelope(MSG.EVENT, snapshotSeq, payload));
+    if (host) host.broadcastEvent(payload);
   }
 
   function updateHost(dt) {
-    snapshotTimer += dt;
-    if (snapshotTimer >= 0.085) {
-      snapshotTimer = 0;
-      snapshotSeq++;
-      if (sendSnap) {
-        sendSnap(envelope(MSG.SNAPSHOT, snapshotSeq, encodeSnapshot(state)));
-      }
-    }
+    if (host) host.update(dt);
   }
 
   function updateGuest(dt) {
@@ -464,7 +296,7 @@ export const mpNet = (() => {
       try { room.leave(); } catch (_) {}
       room = null;
     }
-    peers.clear();
+    if (host) host.reset();
     sendLobby = null;
     sendInit = null;
     sendSnap = null;
@@ -523,6 +355,29 @@ export const mpNet = (() => {
     }
   }
 
+  host = createHostController({
+    getMode: () => mode,
+    isRoomActive: () => Boolean(room),
+    getSelfPeerId: () => selfPeerId,
+    getConfig: getCurrentHostConfig,
+    getMatchStarted: () => matchStarted,
+    setMatchStarted: (started) => { matchStarted = started; },
+    setLocalFaction: (faction) => { localFaction = faction; },
+    getSendLobby: () => sendLobby,
+    getSendInit: () => sendInit,
+    getSendSnap: () => sendSnap,
+    getSendEvent: () => sendEvent,
+    initializeWorld,
+    onMatchLaunched: () => {
+      const badge = document.getElementById('mp-hud-badge');
+      if (badge) {
+        badge.textContent = `MP HOST (${roomCode})`;
+        badge.classList.remove('hidden');
+      }
+    },
+    notify: (message) => showToast(message),
+  });
+
   guest = createGuestController({
     getMode: () => mode,
     isRoomActive: () => Boolean(room),
@@ -569,17 +424,7 @@ export const mpNet = (() => {
       if (joinInput) joinInput.disabled = true;
       renderGuestLobbyUI();
     },
-    initializeWorld: (payload) => {
-      initWorld(
-        payload.gridSize,
-        true,
-        payload.tickSeconds,
-        payload.incomeTier,
-        payload.factionCount,
-        payload.orgRoster,
-        payload.worldSeed
-      );
-    },
+    initializeWorld,
     onMatchInitialized: () => {
       document.getElementById('setup-modal').classList.add('hidden');
       const badge = document.getElementById('mp-hud-badge');
@@ -603,47 +448,24 @@ export const mpNet = (() => {
     isGuest: () => mode === 'JOIN' && matchStarted,
     isHumanFaction: (f) => {
       if (f === Faction.PLAYER) return true;
-      if (mode === 'HOST') {
-        for (const p of peers.values()) {
-          if (p.faction === f) return true;
-        }
+      if (mode === 'HOST' && host) {
+        return host.isHumanFaction(f);
       } else if (mode === 'JOIN' && guest) {
         return guest.getRoster().some((p) => p.faction === f && !p.isAI);
       }
       return false;
     },
-    getPeerForFaction: (f) => {
-      for (const p of peers.values()) {
-        if (p.faction === f && !p.isHost) return p.peerId;
-      }
-      return null;
-    },
+    getPeerForFaction: (f) => (host ? host.getPeerForFaction(f) : null),
     getAliasForFaction: (f) => {
-      if (mode === 'HOST') {
-        for (const p of peers.values()) {
-          if (p.faction === f) return p.name;
-        }
+      if (mode === 'HOST' && host) {
+        return host.getAliasForFaction(f);
       } else if (mode === 'JOIN' && guest) {
         const entry = guest.getRoster().find((p) => p.faction === f && !p.isAI);
         if (entry) return entry.name;
       }
       return null;
     },
-    getPeerInput: (peerId) => {
-      const peer = peers.get(peerId);
-      if (!peer) return null;
-      // A guest that stops streaming (hidden tab, lost focus, crash) must not
-      // keep driving its boss with a stale direction forever.
-      if (!peer.lastInputAt || performance.now() - peer.lastInputAt > 500) {
-        return {
-          mx: 0,
-          my: 0,
-          sprint: false,
-          facing: peer.lastInput ? peer.lastInput.facing : 0,
-        };
-      }
-      return peer.lastInput;
-    },
+    getPeerInput: (peerId) => (host ? host.getPeerInput(peerId) : null),
     setMode,
     createHostRoom,
     joinGuestRoom,

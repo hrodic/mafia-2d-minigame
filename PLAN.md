@@ -18,7 +18,7 @@ architecture description here.
 - **Phase 3 — DONE (`0.4.11`):** shared unit contract, commands, fixed timestep, 600-step
   headless smoke + command-equivalence tests. Balance pass: one human slash rule; non-boss
   AI ranks base speed 150; bosses 140 (sprint is their mobility edge).
-- **Phase 4 — IN PROGRESS (`0.4.16`):** netcode hardening; transport, protocol, lobby rules/UI and guest controller extracted.
+- **Phase 4 — IN PROGRESS (`0.4.17`):** netcode hardening; step 1 split complete (transport, protocol, lobby rules/UI, host/guest controllers).
 - **Phase 5 — pending:** quality gates.
 
 Phase 3 is complete on `refactor/phase-3-unified-entity`. Phase 4 is in progress on
@@ -50,8 +50,10 @@ never commit a half-split net module.
      nodes; removes peer-name `innerHTML` from the lobby.
    - **DONE (`0.4.16`):** `guest.js` — guest handshake, lobby/init/snapshot/event handling,
      input/command streaming and host-disconnect detection.
-   - **NEXT:** `host.js`.
-2. Snapshot apply O(n²) fix: build `Map<id, unit>` once; reuse unit objects; set-diff deaths.
+   - **DONE (`0.4.17`):** `host.js` — lobby admission/AI slots, launch/INIT_MATCH,
+     snapshot/event broadcast, remote input/commands and peer-leave AI takeover.
+2. **NEXT:** Snapshot apply O(n²) fix: build `Map<id, unit>` once; reuse unit objects;
+   set-diff deaths.
 3. Chunk deltas: INIT_MATCH full chunks; snapshots only dirty faction/capture state;
    full resync ~5s. Guest generates unknown chunks from seed.
 4. Security: never interpolate peer names into `innerHTML` (standings, labels); use
