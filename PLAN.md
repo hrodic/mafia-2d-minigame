@@ -15,7 +15,7 @@ architecture description here.
   - AI extracted to `sim/ai.js`
   - HUD cadence moved to `ui/hudCadence.js`
   - UI/UX overhaul: primary status, crew management, action bar, leaderboard + kills
-- **Phase 3 — IN PROGRESS (`0.4.4`; 3.1–3.3 done):** unified entity model, commands,
+- **Phase 3 — IN PROGRESS (`0.4.5`; 3.1–3.4 done):** unified entity model, commands,
   fixed timestep.
 - **Phases 4–5 — pending:** netcode hardening, quality gates.
 
@@ -41,9 +41,10 @@ separate for now). Fixes the latent `player.faction` undefined read.
 `applyDamageToNpc`; the player stays outside `npcs` and elimination runs on death. One
 damage pipeline. Verified both directions (you kill, you die).
 
-**3.4 Unify slash.** One `performSlash(attacker, params)`; existing player/rival/AI variants
-delegate. Preserve differences as parameters (human cooldown `0.34` vs AI `1.0`, arc
-`0.42`/`0.45`, knockback `14`/`12`).
+**3.4 Unify slash — DONE (`0.4.5`).** One `performSlash(attacker, params)`; player, rival
+boss, AI boss and AI melee delegate. Differences stay as parameters/profile data (human
+cooldown `0.34` vs AI `1.0`, arc `0.42`/`0.45`, knockback `14`/`12`). Hit flash is now the
+shared `HIT_FLASH_DURATION` constant (`0.16s`) in `config/constants.js`.
 
 **3.5 Unify movement + sprint.** One `moveUnit(unit, input, dt)` and one sprint updater
 used by local player, AI steering result and remote-human boss. Verify solo, AI bosses,

@@ -7,6 +7,7 @@ import {
   DEFAULT_GRID_SIZE,
   DEFAULT_TICK_DURATION,
   MAX_PISTOL_RANGE,
+  HIT_FLASH_DURATION,
 } from '../src/config/constants.js';
 import {
   INCOME_TIERS,
@@ -37,6 +38,7 @@ test('config: geometry constants are consistent', () => {
   assertEqual(DEFAULT_GRID_SIZE, 15);
   assertEqual(DEFAULT_TICK_DURATION, 10);
   assertEqual(MAX_PISTOL_RANGE, 1000);
+  assertEqual(HIT_FLASH_DURATION, 0.16);
 });
 
 test('config: enums have unique values', () => {

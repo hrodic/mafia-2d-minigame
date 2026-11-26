@@ -12,12 +12,10 @@ import { computeTilePath, MAX_ASTAR_PER_FRAME } from '../world/pathfinding.js';
 import { canOccupyPosition, isPushingFriendly } from './movement.js';
 import { progressCapture, getCaptureRate } from './territory.js';
 import {
-  applyDamageToNpc,
-  damagePlayerBoss,
   performBossKnifeSlash,
   performBossPistolShot,
+  performSlash,
   tryBuyNpcBossArmor,
-  rollDamage,
 } from './combat.js';
 
 /** Scan the 3x3 chunk neighbourhood for the nearest enemy and nearby counts. */
@@ -113,29 +111,11 @@ export function updateNpcAi(u, dt) {
       if (u.rank === UnitRank.BOSS) {
         performBossKnifeSlash(u);
       } else if (u.attackCooldown <= 0) {
-        u.attackCooldown = melee.cooldown;
-        u.slashAnimTimer = melee.anim;
-        emit('slash:performed', {
-          x: u.x,
-          y: u.y,
-          facing: u.facing,
-          color: FACTION_META[u.faction].accent,
-          hitCount: 1,
-          isPlayer: false,
+        performSlash(u, {
+          profile: melee,
+          targets: [nearestEnemy.entity],
+          playerDamageColor: FACTION_META[u.faction].accent,
         });
-        const dmg = rollDamage(u.minDmg, u.maxDmg);
-        if (nearestEnemy.isPlayer) {
-          damagePlayerBoss(dmg, FACTION_META[u.faction].accent, '', u.facing, u.faction);
-        } else {
-          applyDamageToNpc(
-            nearestEnemy.entity,
-            dmg,
-            FACTION_META[u.faction].accent,
-            '',
-            u.facing,
-            u.faction
-          );
-        }
       }
     } else if (
       isRangedShooter &&

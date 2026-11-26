@@ -231,8 +231,9 @@ peer have `humanPeerId` and human speed (225 vs 152 for AI).
 
 ### Combat
 `sim/combat.js`: one armor→HP damage pipeline for units and the player
-(`damagePlayerBoss` delegates to `applyDamageToNpc`), death/elimination, three slash
-entry points (player, rival boss, remote faction), a pistol raycast with distance accuracy bands and
+(`damagePlayerBoss` delegates to `applyDamageToNpc`), death/elimination, one
+`performSlash` pipeline with player/rival/AI wrappers that preserve their
+arc/knockback/cooldown differences, a pistol raycast with distance accuracy bands and
 point-blank damage falloff, and armor purchases (player, rival AI). It emits facts only;
 `render/combatFx.js` draws blood/corpses/text/arcs/tracers and `audio/combatSfx.js` plays
 the combat SFX. The host's `shot:fired` subscriber broadcasts ephemeral tracers to guests.

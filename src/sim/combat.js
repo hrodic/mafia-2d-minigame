@@ -1,7 +1,7 @@
 // Combat: shared damage/armor pipeline, melee slashes, pistol raycast and armor purchases.
 
 import { Faction, UnitRank } from '../config/enums.js';
-import { CHUNK_SIZE, TILE_SIZE, MAX_PISTOL_RANGE } from '../config/constants.js';
+import { CHUNK_SIZE, TILE_SIZE, MAX_PISTOL_RANGE, HIT_FLASH_DURATION } from '../config/constants.js';
 import { COST_BOSS_ARMOR, MAX_BOSS_ARMOR, PISTOL, SLASH } from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
 import { getPropFootprint, rectContains } from '../world/geometry.js';
@@ -32,8 +32,7 @@ export function applyDamageToNpc(
   const isPlayer = target === state.player;
   if (isPlayer && !target.alive) return false;
 
-  // The local boss keeps its slightly shorter hit flash; everyone else uses 0.16s.
-  target.hitFlashTimer = isPlayer ? 0.15 : 0.16;
+  target.hitFlashTimer = HIT_FLASH_DURATION;
 
   let remainingDmg = dmg;
   let absorbed = 0;
@@ -96,202 +95,127 @@ export function applyDamageToNpc(
   return isKill;
 }
 
+function collectSlashTargets(attacker, profile, explicitTargets = null) {
+  const candidates = [];
+
+  const consider = (entity) => {
+    if (!entity || entity === attacker) return;
+    if (entity.faction === attacker.faction) return;
+    if (entity === state.player && !state.player.alive) return;
+
+    const dx = entity.x - attacker.x;
+    const dy = entity.y - attacker.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > profile.reach) return;
+
+    if (profile.arc != null && profile.closeRange != null) {
+      const angleToTarget = Math.atan2(dy, dx);
+      let angleDiff = Math.abs(angleToTarget - attacker.facing);
+      if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+      if (angleDiff > Math.PI * profile.arc && dist >= profile.closeRange) return;
+    }
+
+    candidates.push({ entity, isPlayer: entity === state.player, dist, dx, dy });
+  };
+
+  if (explicitTargets) {
+    for (const entity of explicitTargets) consider(entity);
+  } else {
+    consider(state.player);
+    for (const other of state.npcs) consider(other);
+  }
+
+  candidates.sort((a, b) => a.dist - b.dist);
+  return candidates.slice(0, profile.maxTargets);
+}
+
+/**
+ * One melee slash pipeline for the player, remote-human bosses and AI.
+ * The profile carries reach/arc/knockback/cooldown; params carry the remaining
+ * presentation and target-selection differences.
+ */
+export function performSlash(attacker, params = {}) {
+  if (!attacker || attacker.attackCooldown > 0) return false;
+  const profile = params.profile || SLASH.aiMelee;
+  const isPlayer = attacker === state.player;
+
+  attacker.attackCooldown = profile.cooldown;
+  attacker.slashAnimTimer = profile.anim;
+
+  const targets = collectSlashTargets(attacker, profile, params.targets || null);
+
+  if (params.faceNearest && targets.length > 0) {
+    attacker.facing = Math.atan2(targets[0].dy, targets[0].dx);
+  }
+
+  const hitCount = targets.length;
+  if (hitCount > 0 || params.emitWhenEmpty !== false) {
+    emit('slash:performed', {
+      x: attacker.x,
+      y: attacker.y,
+      facing: attacker.facing,
+      color: params.eventColor ?? (isPlayer ? '#f43f5e' : FACTION_META[attacker.faction].accent),
+      hitCount,
+      isPlayer,
+    });
+  }
+
+  const playerDamageColor = params.playerDamageColor ?? '#f43f5e';
+  const npcDamageColor =
+    params.npcDamageColor ?? (isPlayer ? '#fbbf24' : FACTION_META[attacker.faction].accent);
+  const suffix = params.suffix ?? '';
+
+  for (const item of targets) {
+    const dmg = rollDamage(attacker.minDmg, attacker.maxDmg);
+    const strikeAngle = item.dist > 0.01 ? Math.atan2(item.dy, item.dx) : attacker.facing;
+
+    if (item.isPlayer) {
+      damagePlayerBoss(dmg, playerDamageColor, suffix, strikeAngle, attacker.faction);
+      continue;
+    }
+
+    const knockX = item.entity.x + Math.cos(strikeAngle) * profile.knockback;
+    const knockY = item.entity.y + Math.sin(strikeAngle) * profile.knockback;
+    const nRad = getEntityCollisionRadius(item.entity.rank);
+    if (canOccupyPosition(knockX, knockY, nRad, item.entity.id, false)) {
+      item.entity.x = knockX;
+      item.entity.y = knockY;
+    }
+    applyDamageToNpc(item.entity, dmg, npcDamageColor, suffix, strikeAngle, attacker.faction);
+  }
+
+  return hitCount > 0;
+}
+
 export function executeBossSlashForFaction(faction) {
   if (faction === Faction.PLAYER) {
     performKnifeSlash();
     return;
   }
   const bossNpc = state.npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS);
-  if (!bossNpc || bossNpc.attackCooldown > 0) return;
-
-  const profile = SLASH.rivalBoss;
-  bossNpc.attackCooldown = profile.cooldown;
-  bossNpc.slashAnimTimer = profile.anim;
-
-  const reach = profile.reach;
-  const maxTargets = profile.maxTargets;
-  const candidates = [];
-
-  if (state.player.alive && faction !== Faction.PLAYER) {
-    const dx = state.player.x - bossNpc.x;
-    const dy = state.player.y - bossNpc.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist <= reach) {
-      let angleDiff = Math.abs(Math.atan2(dy, dx) - bossNpc.facing);
-      if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
-      if (angleDiff <= Math.PI * profile.arc || dist < profile.closeRange) {
-        candidates.push({ isPlayer: true, entity: state.player, dist, dx, dy });
-      }
-    }
-  }
-
-  for (let i = 0; i < state.npcs.length; i++) {
-    const other = state.npcs[i];
-    if (other.faction === faction) continue;
-    const dx = other.x - bossNpc.x;
-    const dy = other.y - bossNpc.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist <= reach) {
-      let angleDiff = Math.abs(Math.atan2(dy, dx) - bossNpc.facing);
-      if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
-      if (angleDiff <= Math.PI * profile.arc || dist < profile.closeRange) {
-        candidates.push({ isPlayer: false, entity: other, dist, dx, dy });
-      }
-    }
-  }
-
-  candidates.sort((a, b) => a.dist - b.dist);
-  const targets = candidates.slice(0, maxTargets);
-  emit('slash:performed', {
-    x: bossNpc.x,
-    y: bossNpc.y,
-    facing: bossNpc.facing,
-    color: FACTION_META[faction].accent,
-    hitCount: targets.length,
-    isPlayer: false,
-  });
-
-  for (const item of targets) {
-    const dmg = rollDamage(bossNpc.minDmg, bossNpc.maxDmg);
-    const strikeAngle = item.dist > 0.01 ? Math.atan2(item.dy, item.dx) : bossNpc.facing;
-    if (item.isPlayer) {
-      damagePlayerBoss(dmg, '#f43f5e', '', strikeAngle, faction);
-    } else {
-      const knockX = item.entity.x + Math.cos(strikeAngle) * profile.knockback;
-      const knockY = item.entity.y + Math.sin(strikeAngle) * profile.knockback;
-      const nRad = getEntityCollisionRadius(item.entity.rank);
-      if (canOccupyPosition(knockX, knockY, nRad, item.entity.id, false)) {
-        item.entity.x = knockX;
-        item.entity.y = knockY;
-      }
-      applyDamageToNpc(item.entity, dmg, FACTION_META[faction].accent, '', strikeAngle, faction);
-    }
-  }
+  if (!bossNpc) return;
+  performSlash(bossNpc, { profile: SLASH.rivalBoss });
 }
 
 export function performKnifeSlash() {
-  if (!state.gameStarted) return;
+  if (!state.gameStarted) return false;
   if (state.net && state.net.isGuest()) {
-    if (!isLocalBossAlive()) return;
+    if (!isLocalBossAlive()) return false;
     state.net.sendCommand({ cmd: 'SLASH' });
-    return;
+    return false;
   }
-  if (!state.player.alive || state.player.attackCooldown > 0) return;
-
-  const profile = SLASH.player;
-  state.player.attackCooldown = profile.cooldown;
-  state.player.slashAnimTimer = profile.anim;
-
-  const reach = profile.reach;
-  const maxTargets = profile.maxTargets;
-  const candidates = [];
-
-  for (let i = 0; i < state.npcs.length; i++) {
-    const npc = state.npcs[i];
-    if (npc.faction === Faction.PLAYER) continue;
-    const dx = npc.x - state.player.x;
-    const dy = npc.y - state.player.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist <= reach) {
-      const angleToNpc = Math.atan2(dy, dx);
-      let angleDiff = Math.abs(angleToNpc - state.player.facing);
-      if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
-      if (angleDiff <= Math.PI * profile.arc || dist < profile.closeRange) {
-        candidates.push({ npc, dist, dx, dy });
-      }
-    }
-  }
-
-  candidates.sort((a, b) => a.dist - b.dist);
-  const targets = candidates.slice(0, maxTargets);
-  const hitCount = targets.length;
-  emit('slash:performed', {
-    x: state.player.x,
-    y: state.player.y,
-    facing: state.player.facing,
-    color: '#f43f5e',
-    hitCount,
-    isPlayer: true,
-  });
-
-  for (const item of targets) {
-    const { npc, dist, dx, dy } = item;
-    const dmg = rollDamage(state.player.minDmg, state.player.maxDmg);
-
-    const pushAngle = dist > 0.01 ? Math.atan2(dy, dx) : state.player.facing;
-    const knockX = npc.x + Math.cos(pushAngle) * profile.knockback;
-    const knockY = npc.y + Math.sin(pushAngle) * profile.knockback;
-    const nRad = getEntityCollisionRadius(npc.rank);
-    if (canOccupyPosition(knockX, knockY, nRad, npc.id, false)) {
-      npc.x = knockX;
-      npc.y = knockY;
-    }
-
-    applyDamageToNpc(npc, dmg, '#fbbf24', '', pushAngle, Faction.PLAYER);
-  }
+  if (!state.player.alive) return false;
+  return performSlash(state.player, { profile: SLASH.player });
 }
 
 export function performBossKnifeSlash(bossNpc) {
-  if (bossNpc.attackCooldown > 0) return false;
-  const profile = SLASH.aiBoss;
-  bossNpc.attackCooldown = profile.cooldown;
-  bossNpc.slashAnimTimer = profile.anim;
-
-  const reach = profile.reach;
-  const maxTargets = profile.maxTargets;
-  const candidates = [];
-
-  if (state.player.alive && bossNpc.faction !== Faction.PLAYER) {
-    const dx = state.player.x - bossNpc.x;
-    const dy = state.player.y - bossNpc.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist <= reach) {
-      candidates.push({ isPlayer: true, entity: state.player, dist, dx, dy });
-    }
-  }
-
-  for (let i = 0; i < state.npcs.length; i++) {
-    const other = state.npcs[i];
-    if (other.faction === bossNpc.faction) continue;
-    const dx = other.x - bossNpc.x;
-    const dy = other.y - bossNpc.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist <= reach) {
-      candidates.push({ isPlayer: false, entity: other, dist, dx, dy });
-    }
-  }
-
-  candidates.sort((a, b) => a.dist - b.dist);
-  const targets = candidates.slice(0, maxTargets);
-  if (targets.length === 0) return false;
-
-  bossNpc.facing = Math.atan2(targets[0].dy, targets[0].dx);
-  emit('slash:performed', {
-    x: bossNpc.x,
-    y: bossNpc.y,
-    facing: bossNpc.facing,
-    color: FACTION_META[bossNpc.faction].accent,
-    hitCount: targets.length,
-    isPlayer: false,
+  if (!bossNpc) return false;
+  return performSlash(bossNpc, {
+    profile: SLASH.aiBoss,
+    suffix: '🔪',
+    emitWhenEmpty: false,
+    faceNearest: true,
   });
-
-  for (const item of targets) {
-    const dmg = rollDamage(bossNpc.minDmg, bossNpc.maxDmg);
-    const pushAngle = item.dist > 0.01 ? Math.atan2(item.dy, item.dx) : bossNpc.facing;
-    if (item.isPlayer) {
-      damagePlayerBoss(dmg, '#f43f5e', '🔪', pushAngle, bossNpc.faction);
-    } else {
-      const knockX = item.entity.x + Math.cos(pushAngle) * profile.knockback;
-      const knockY = item.entity.y + Math.sin(pushAngle) * profile.knockback;
-      const nRad = getEntityCollisionRadius(item.entity.rank);
-      if (canOccupyPosition(knockX, knockY, nRad, item.entity.id, false)) {
-        item.entity.x = knockX;
-        item.entity.y = knockY;
-      }
-      applyDamageToNpc(item.entity, dmg, FACTION_META[bossNpc.faction].accent, '🔪', pushAngle, bossNpc.faction);
-    }
-  }
-  return true;
 }
 
 export function traceBulletRay(x0, y0, angle, maxDist) {

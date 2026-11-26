@@ -1,9 +1,11 @@
 // AI decision tests: perception counts and patrol target selection (headless).
 import { test, assert, assertEqual } from './harness.js';
 import { Faction, UnitRank } from '../src/config/enums.js';
+import { FACTION_META } from '../src/config/organizations.js';
 import { state } from '../src/core/state.js';
+import { on } from '../src/core/events.js';
 import { packChunkKey } from '../src/world/city.js';
-import { scanNearby, choosePatrolChunk } from '../src/sim/ai.js';
+import { scanNearby, choosePatrolChunk, updateNpcAi } from '../src/sim/ai.js';
 
 const STATE_KEYS = ['world', 'player', 'npcs', 'spatialBuckets'];
 
@@ -93,6 +95,71 @@ test('ai: patrol chooses the nearest non-owned chunk in scan range', () => {
       assertEqual(target.cy, 0);
     }
   );
+});
+
+test('ai: melee soldier attacks an adjacent player with accent color and full cooldown', () => {
+  const unit = npc({
+    id: 42,
+    rank: UnitRank.SOLDIER,
+    faction: Faction.RIVAL_1,
+    x: 0,
+    y: 0,
+    hp: 180,
+    maxHp: 180,
+    speed: 128,
+    minDmg: 10,
+    maxDmg: 10,
+    attackCooldown: 0,
+    goalX: 0,
+    goalY: 0,
+    aiTimer: 1,
+    pathTimer: 1,
+    dodgeDir: 1,
+  });
+  const player = {
+    id: 0,
+    faction: Faction.PLAYER,
+    rank: UnitRank.BOSS,
+    control: 'local',
+    bodyRadius: 13.5,
+    x: 10,
+    y: 0,
+    hp: 400,
+    maxHp: 400,
+    armor: 0,
+    alive: true,
+    facing: 0,
+    hitFlashTimer: 0,
+  };
+  const events = [];
+  const unsubscribe = on('slash:performed', (payload) => events.push({ type: 'slash:performed', payload }));
+  const unsubscribeHit = on('unit:damaged', (payload) => events.push({ type: 'unit:damaged', payload }));
+  try {
+    withAiState(
+      {
+        world: { chunks: new Map(), worldToTile: () => ({ cx: 0, cy: 0 }), getChunk: () => null },
+        player,
+        npcs: [unit],
+        spatialBuckets: new Map(),
+      },
+      () => {
+        updateNpcAi(unit, 0.016);
+        assert(state.player.hp < 400, `player should be slashed, hp=${state.player.hp}`);
+        assertEqual(unit.attackCooldown, 1.0);
+        assertEqual(unit.slashAnimTimer, 0.18);
+        assertEqual(events.length, 2);
+        assertEqual(events[0].type, 'slash:performed');
+        assertEqual(events[0].payload.color, FACTION_META[Faction.RIVAL_1].accent);
+        assertEqual(events[0].payload.hitCount, 1);
+        assertEqual(events[1].type, 'unit:damaged');
+        assertEqual(events[1].payload.textColor, FACTION_META[Faction.RIVAL_1].accent);
+        assertEqual(events[1].payload.suffix, '');
+      }
+    );
+  } finally {
+    unsubscribe();
+    unsubscribeHit();
+  }
 });
 
 test('ai: patrol falls back to any non-owned chunk', () => {
