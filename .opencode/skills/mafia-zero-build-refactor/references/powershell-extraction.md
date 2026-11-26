@@ -32,5 +32,5 @@ $block[0] = 'export function foo() {'
 
 - Relative imports must include `.js`; no bare specifiers.
 - In a cycle, never read an imported binding at module top level. Pass parameters or use a
-  bridge (`core/state.js`, `core/runtime.js`).
+  bridge (`core/state.js`).
 - Export `function`/`const`; for values importers must reassign, use a shared object field.

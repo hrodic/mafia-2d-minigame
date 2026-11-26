@@ -29,7 +29,6 @@ src/
     rng.js                 mulberry32, chunk seed hashing, explicit per-chunk RNG
     state.js               the single shared `state` object + faction/boss selectors
     events.js              synchronous, isolated event bus (sim -> presentation facts)
-    runtime.js             transitional presentation hooks (being replaced by events)
     spatial.js             per-chunk spatial buckets for neighbour queries
   world/
     chunk.js               DistrictChunk: seeded 15×15 block generation
@@ -65,6 +64,7 @@ src/
     combatSfx.js           event subscribers: combat facts -> SFX
   ui/
     hud.js                 top-bar values, sprint/timer bars, standings, recruit labels
+    hudCadence.js          presentation cadence (4 Hz HUD refresh) driven by main.js
     version.js             applies GAME_VERSION to title + HUD/modal labels
     menus.js               setup modal, lobby buttons, banners, toast, map-size controls
     input.js               keyboard/mouse/minimap + HUD action bindings
@@ -93,7 +93,7 @@ config → core → world → sim / render / audio / net → ui → main
 ```
 
 - `sim/` must never import `ui/`, `render/`, `audio/` or `net/`, and must not touch the
-  DOM. It mutates `state` and calls `core/runtime.js` hooks for presentation.
+  DOM. It mutates `state` and emits events; presentation subscribes in `main.js`.
 - `render/` reads state and draws; it does not mutate gameplay state.
 - `ui/` owns the DOM and translates input into state changes/commands.
 - `net/` owns the multiplayer state machine and drives `sim/match`/`sim/simulation` on
@@ -109,7 +109,7 @@ inside functions called after module evaluation (never at top level).
 
 1. Creates the single `CityMap` instance (`state.world`).
 2. Sets `state.net = mpNet` (the net bridge; see below).
-3. Wires presentation hooks in `core/runtime.js`.
+3. Wires event subscribers and the HUD cadence (`ui/hudCadence.js`).
 4. Starts the rAF loop (`update` then `render` when `state.gameStarted`) with a variable
    timestep capped at 50 ms.
 5. Boots UI/input (`applyVersionLabels`, `initMenus`, `initInput`) and setup renderers.
@@ -121,18 +121,14 @@ inside functions called after module evaluation (never at top level).
 `state.net`. This lets gameplay code work identically in single-player and multiplayer
 without importing the net module (which would create a cycle).
 
-### Runtime hooks (transitional)
+### HUD cadence
 
-`core/runtime.js` exposes function slots wired by `main.js`:
+`ui/hudCadence.js` owns the 4 Hz HUD refresh. `main.js` calls it once per frame after
+`update(dt)` and before `render()`. The simulation no longer owns presentation cadence.
 
-| Hook | Used by | Effect |
-|---|---|---|
-| `updateHUD` | simulation | refresh HUD (cadence) |
-
-Combat, units, economy, territory and match no longer use runtime hooks: their presentation
-is wired through events (`ui:toast`, `chunk:captured`, `faction:eliminated`, `match:*`, etc.).
-Only `simulation.js` retains the periodic `updateHUD` call; Phase 3 can move that cadence to
-the render/UI loop and delete `core/runtime.js` (see `EVENTS.md`).
+Combat, units, economy, territory, match and AI use events for discrete presentation;
+`core/runtime.js` has been removed. `simulation.js` still has per-frame canvas/interpolation/
+particle coupling (Phase 3).
 
 ### Event bus (Phase 2)
 
@@ -339,10 +335,9 @@ distance from the camera.
 
 ## Known limitations / next phases
 
-- Phase 2: finish moving the last periodic HUD cadence out of `simulation.js` and delete
-  `core/runtime.js` (all event migrations, dedup, balance tables, explicit RNG and AI
-  extraction are done; only `simulation.js` is allowlisted for per-frame canvas/particles/
-  interpolation).
+- Phase 2 is **complete**: event bus migration, dedup, balance tables, explicit RNG, AI
+  extraction and HUD cadence move are done; `core/runtime.js` is gone. Only `simulation.js`
+  remains allowlisted for per-frame canvas/interpolation/particle coupling (Phase 3).
 - Phase 3: player boss folded into the unit model (`control: local/ai/remote`), one
   damage/slash/movement pipeline, `createGameState()` reset factory, unified command
   dispatcher for local+remote, fixed timestep.

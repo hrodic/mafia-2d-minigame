@@ -1,9 +1,10 @@
 # Events — Phase 2 contract
 
 Status: the bus is implemented in `src/core/events.js` with tests in
-`tests/events.test.js`. Migration of simulation side effects to events is in progress; the
-transitional `core/runtime.js` hooks remain active until each one is replaced. The end state
-is a fully headless `sim/` plus independent presentation subscribers.
+`tests/events.test.js`. Phase 2 migration is complete: combat, units, economy, territory,
+match and AI use events, and the transitional `core/runtime.js` bridge has been removed.
+`sim/simulation.js` still has per-frame presentation coupling (canvas/interpolation/
+particles) until Phase 3, but no runtime hooks.
 
 ## Bus API
 
@@ -86,8 +87,8 @@ Snapshot state still comes from the host; events are only for ephemeral presenta
 6. **Match DONE** — `sim/match.js` emits `match:initialized`; effects/UI/labels/HUD reset in
    `main.js`. Only `sim/simulation.js` remains allowlisted (canvas aim, per-frame particles,
    guest presentation; Phase 3).
-7. When the last `runtime.updateHUD` call moves out of `simulation.js`, delete
-   `core/runtime.js` and update `ARCHITECTURE.md`.
+7. **HUD cadence DONE** — `ui/hudCadence.js` refreshes the HUD at 4 Hz from the main loop;
+   `core/runtime.js` is deleted.
 
 ## Testing
 

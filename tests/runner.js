@@ -27,6 +27,7 @@ import './ai.test.js';
 import './render.test.js';
 import './minimapLayout.test.js';
 import './hud.test.js';
+import './hudCadence.test.js';
 import './menus.test.js';
 
 runAll().catch((err) => {

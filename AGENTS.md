@@ -82,16 +82,16 @@ command, number or test result; read the file or run the check.
 | Rendering / minimap / effects | `src/render/*` |
 | Radar layout math | `src/render/minimapLayout.js` |
 | Audio | `src/audio/*` |
-| Wiring / hooks / loop | `src/main.js`, `src/core/runtime.js` |
+| Wiring / hooks / loop | `src/main.js`, `src/ui/hudCadence.js` |
 | Match setup reset (effects / UI / labels / HUD) | `src/main.js` (`match:initialized` subscribers) |
 | Event bus / presentation events | `src/core/events.js`, `EVENTS.md` |
 
 ## Invariants
 
 - `sim/` is headless: never import `ui/`, `render/`, `audio/` or `net/`; never touch the
-  DOM. Use `core/runtime.js` hooks until each is migrated to `core/events.js`; emit facts
-  and let subscribers in `main.js` handle presentation. `tools/check.ps1` enforces a
-  layering ratchet; the remaining allowlist may only shrink.
+  DOM. Emit facts and let subscribers in `main.js` handle presentation; there are no runtime
+  hooks. `tools/check.ps1` enforces a layering ratchet; the remaining allowlist may only
+  shrink.
 - Events are discrete cross-layer facts: never emit per frame or per NPC per frame, and
   never route authoritative state or replication through events. Continuous visuals read
   `state`; snapshots stay authoritative. See `EVENTS.md`.

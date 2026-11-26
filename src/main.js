@@ -4,7 +4,6 @@
 import { DEFAULT_GRID_SIZE } from './config/constants.js';
 import { FACTION_META } from './config/organizations.js';
 import { state } from './core/state.js';
-import { runtime } from './core/runtime.js';
 import { on } from './core/events.js';
 import { CityMap } from './world/city.js';
 import { render, resizeCanvas } from './render/renderer.js';
@@ -25,6 +24,7 @@ import {
 } from './ui/menus.js';
 import { initInput } from './ui/input.js';
 import { applyVersionLabels } from './ui/version.js';
+import { updateHudCadence } from './ui/hudCadence.js';
 import { mpNet } from './net/mpNet.js';
 import { sfx } from './audio/sfx.js';
 import * as combatSfx from './audio/combatSfx.js';
@@ -36,10 +36,6 @@ state.world = new CityMap();
 // Net bridge: state selectors (getLocalFaction/Boss) read state.net. Wired before
 // UI initialization so lobby/input handlers can rely on it.
 state.net = mpNet;
-
-// Presentation hooks used by simulation modules. Phase 2 replaces these with the
-// event bus; keeping them here makes sim/ headless-importable.
-runtime.updateHUD = updateHUD;
 
 // Combat facts -> presentation subscribers. sim/combat.js only emits events.
 on('unit:damaged', combatFx.onUnitDamaged);
@@ -104,6 +100,7 @@ function gameLoop(now) {
 
   if (state.gameStarted) {
     update(dt);
+    updateHudCadence(dt, updateHUD);
     render();
   }
 

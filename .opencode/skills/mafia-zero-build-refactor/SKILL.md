@@ -20,8 +20,8 @@ procedure.
 
 - Move code intact first, then extract one cohesive subsystem per step.
 - Dependency direction: `config -> core -> world -> sim/render/audio/net -> ui -> main`.
-- `sim/` never imports `ui/`, `render/`, `audio/`, `net/`; use `core/runtime.js` hooks
-  until `EVENTS.md` is implemented.
+- `sim/` never imports `ui/`, `render/`, `audio/`, `net/`; it emits events and never
+  touches presentation.
 - Events are discrete cross-layer facts only. Never emit per frame or per NPC per frame,
   never route state/replication through them, and keep subscribers cheap. Continuous
   visuals read `state`. The full rules and performance budget are in `EVENTS.md`.
@@ -33,7 +33,7 @@ procedure.
   `ui/` or `net/`. The remaining debt allowlist may only shrink.
 - Migrating a system to events: emit facts in `sim/`, add handlers in
   `render/combatFx.js`-style modules, wire them in `main.js`, and delete the old direct
-  calls/runtime hooks in the same step. Test the emitted payloads.
+  calls/legacy hooks in the same step. Test the emitted payloads.
 
 ## Scripted extraction
 

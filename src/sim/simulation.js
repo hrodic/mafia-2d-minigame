@@ -7,7 +7,6 @@ import {
   SPRINT_SPEED_MULTIPLIER,
 } from '../config/constants.js';
 import { state, getLocalBoss, isLocalBossAlive } from '../core/state.js';
-import { runtime } from '../core/runtime.js';
 import { rebuildSpatialBuckets } from '../core/spatial.js';
 import { canvas } from '../render/canvas.js';
 import { stepGuestPresentation } from '../render/interpolation.js';
@@ -57,11 +56,6 @@ export function update(dt) {
 
     state.tickTimer += dt;
     if (state.tickTimer >= state.tickDuration) state.tickTimer %= state.tickDuration;
-    state.hudUpdateTimer += dt;
-    if (state.hudUpdateTimer >= 0.25) {
-      state.hudUpdateTimer = 0;
-      runtime.updateHUD();
-    }
     return;
   }
 
@@ -189,12 +183,6 @@ export function update(dt) {
   if (state.tickTimer >= state.tickDuration) {
     state.tickTimer -= state.tickDuration;
     processHourlyTick();
-  }
-
-  state.hudUpdateTimer += dt;
-  if (state.hudUpdateTimer >= 0.25) {
-    state.hudUpdateTimer = 0;
-    runtime.updateHUD();
   }
 
   if (state.net && state.net.isHost()) {

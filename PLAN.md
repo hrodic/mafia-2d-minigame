@@ -8,7 +8,7 @@ This is the living plan. Read `AGENTS.md` for the working contract and
 - Phase 0 - DONE (docs, zero-dependency test harness, smoke checklist)
 - Phase 1 - DONE (full modular split; tests green; `src/main.js` is a thin composition root)
 - Versioning: SemVer started at `0.1.0`; bump PATCH/MINOR on every commit-sized step
-- Phase 2 - IN PROGRESS
+- Phase 2 - COMPLETE
   - Step 1 DONE: `core/events.js` event bus + `tests/events.test.js` (additive; hooks intact)
   - Step 2 DONE: combat migrated to events (`sim/combat.js` emits only; presentation in
     `render/combatFx.js` + `audio/combatSfx.js`; net SHOT broadcast moved to `main.js`).
@@ -43,8 +43,9 @@ This is the living plan. Read `AGENTS.md` for the working contract and
     guests adopt the host seed. Header badge + setup copy/reuse; seed in `match:initialized`.
   - Step 15 DONE (`0.2.1`): AI extracted to `sim/ai.js` (`scanNearby`,
     `choosePatrolChunk`, `updateNpcAi`), with headless tests; `simulation.js` is orchestration.
-  - Next: move the periodic HUD cadence out of `simulation.js`, delete `core/runtime.js`,
-    then start Phase 3 (unified entity/command pipeline, fixed timestep)
+  - Step 16 DONE (`0.2.2`): HUD cadence moved to `src/ui/hudCadence.js`; `core/runtime.js`
+    deleted. Phase 2 complete.
+  - Next: Phase 3 (unified entity/command pipeline, fixed timestep)
   - Guardrails: benefits/tradeoffs/use-skip rules and the many-NPC + multiplayer
     performance budget are documented in `EVENTS.md`
 - Phases 3-5 - pending (unified entity model/commands/fixed timestep, net hardening, quality)
