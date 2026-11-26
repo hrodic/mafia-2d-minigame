@@ -12,6 +12,7 @@ import './audio.test.js';
 import './effects.test.js';
 import './movement.test.js';
 import './units.test.js';
+import './economy.test.js';
 
 runAll().catch((err) => {
   const root = document.getElementById('test-results');
