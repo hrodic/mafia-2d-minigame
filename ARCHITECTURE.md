@@ -52,6 +52,7 @@ src/
     world.js               buildings/props
     characters.js          characters + corpses
     effects.js             blood/decals/tracers/casings/sparks/floating text
+    backdrop.js            subtle city pattern outside the playable chunks
     combatFx.js            event subscribers: combat facts -> visual effects
     recruitFx.js           event subscriber: unit:recruited -> floating text
     territoryFx.js         event subscriber: chunk:captured -> turf text + radar
@@ -159,7 +160,7 @@ One exported `state` object in `core/state.js` holds the match:
   `currentGridSize`, `tickDuration`, `currentIncomeTier`, `currentWorldSeed`
 - recruitment: caps + per-faction preferences
 - flags/timers: `gameStarted`, `gameOver`, `victoryShown`, `gameHour`, `tickTimer`,
-  `hudUpdateTimer`, `minimapCacheTimer`, `isSpectating`, `showBorders`, ...
+  `hudUpdateTimer`, `minimapCacheTimer`, `isSpectating`, ...
 - `net`: the multiplayer module (set by `main.js`)
 
 `sim/match.js:initWorld` resets match state, sets the world generation context, builds
@@ -273,13 +274,14 @@ host.
 ## Rendering
 
 `render/renderer.js` culls chunks/tiles to the viewport, collects ground/buildings/props
-and characters into a depth-sorted list, and draws layers: ground + faction tint/borders,
-capture bars, blood decals/corpses, waypoint/aim UI, characters (with HP/armor bars and
-rank labels), then effects (slash arcs, muzzle flashes, tracers, blood, sparks, casings,
-floating text). `render/minimap.js` caches the faction territory layer and overlays units,
-the boss, the camera rect and chunk coordinates; `render/minimapLayout.js` owns the shared
-bounds/cell/offset and world<->map mapping (also used by radar clicks). `render/canvas.js`
-owns canvas refs and is guarded so tests can import modules without a game DOM.
+and characters into a depth-sorted list, and draws layers: a subtle world-space city
+backdrop (outside the playable chunks), ground + faction tint, capture bars, blood
+decals/corpses, waypoint/aim UI, characters (with HP/armor bars and rank labels), then
+effects (slash arcs, muzzle flashes, tracers, blood, sparks, casings, floating text).
+`render/minimap.js` caches the faction territory layer and overlays units, the boss, the
+camera rect and chunk coordinates; `render/minimapLayout.js` owns the shared bounds/cell/
+offset and world<->map mapping (also used by radar clicks). The radar canvas is 168px and
+uses slightly larger unit markers.
 
 ## Audio
 

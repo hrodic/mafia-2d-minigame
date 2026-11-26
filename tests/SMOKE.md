@@ -52,10 +52,12 @@ Serve the repo over http first (`python -m http.server 8000` or any static serve
 - [ ] Pistol: range ring, accuracy label, tracers, casings, ricochets, misses ("MISS!").
 - [ ] Armor: Q/button buys 300 armor ($3,500), absorbs damage, once per tick, HUD shows.
 - [ ] Rival AI bosses buy armor, use pistol/slash, capture blocks, recruit crew.
-- [ ] Territory: capture bar fills, block tint/borders update, minimap updates.
+- [ ] Territory: capture bar fills, block tint updates, minimap updates.
 - [ ] Economy: hourly tick adds income minus upkeep; treasury never negative.
 - [ ] Auto-recruit: toggles + caps work; units spawn near boss/owned turf; limits honored.
-- [ ] Expand Ring adds perimeter blocks; Click-Build toggle + toast; Borders toggle.
+- [ ] Build/border controls are gone (no Expand Ring, Click-Build or Borders buttons).
+- [ ] Outside the generated map, a subtle dark city backdrop is visible (not flat black).
+- [ ] City Radar is larger/readable and still shows player/boss/unit markers.
 - [ ] Kill a rival boss → toast + turf neutral; kill all → victory banner + summary.
 - [ ] Die → defeat banner → Spectate pans camera → spectator banner "Leave/New Game".
 - [ ] Music: Noir I → Noir II → OFF; SFX toggle mutes/unmutes.
@@ -69,7 +71,7 @@ Serve the repo over http first (`python -m http.server 8000` or any static serve
   `src/config/version.js` in one tab).
 - [ ] Launch: world identical on both peers (same seed); guest cannot choose the seed, sees the host's seed badge, and sees all factions.
 - [ ] Guest input: movement, sprint, facing/aim, slash, shoot, armor, recruit prefs,
-      expand ring, build block all take effect on host simulation.
+      capture, recruit, slash/shoot and armor all take effect on host simulation.
 - [ ] Snapshots smooth (interpolation) and combat animations show on guest.
 - [ ] Host/guest HP, armor, cash, hour and standings match.
 - [ ] Peer leaves mid-match → AI takeover toast; remaining players continue.

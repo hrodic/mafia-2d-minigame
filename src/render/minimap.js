@@ -56,7 +56,7 @@ export function renderMinimap() {
     const mx = pos.x;
     const my = pos.y;
     minimapCtx.fillStyle = u.rank === UnitRank.BOSS ? '#ffffff' : (FACTION_META[u.faction]?.accent || '#a1a1aa');
-    const r = u.rank === UnitRank.BOSS ? 2.5 : 1.2;
+    const r = u.rank === UnitRank.BOSS ? 3.0 : 1.5;
     minimapCtx.fillRect(mx - r, my - r, r * 2, r * 2);
   }
 
@@ -66,7 +66,7 @@ export function renderMinimap() {
     const py = pos.y;
     minimapCtx.fillStyle = '#fef08a';
     minimapCtx.beginPath();
-    minimapCtx.arc(px, py, 2.8, 0, Math.PI * 2);
+    minimapCtx.arc(px, py, 3.2, 0, Math.PI * 2);
     minimapCtx.fill();
   }
 

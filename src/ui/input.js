@@ -1,9 +1,7 @@
 // Gameplay input: keyboard, mouse, minimap and HUD action buttons.
 
-import { CHUNK_PX } from '../config/constants.js';
-import { Faction, UnitRank } from '../config/enums.js';
-import { FACTION_META } from '../config/organizations.js';
-import { state, getLocalFaction, getLocalBoss, isLocalBossAlive } from '../core/state.js';
+import { UnitRank } from '../config/enums.js';
+import { state, getLocalBoss, isLocalBossAlive } from '../core/state.js';
 import {
   getAudioCtx,
   ensureAudioContext,
@@ -13,9 +11,8 @@ import {
 } from '../audio/engine.js';
 import { canvas, minimapCanvas } from '../render/canvas.js';
 import { getMinimapLayout, minimapToWorld } from '../render/minimapLayout.js';
-import { addFloatingText } from '../render/effects.js';
 import { performKnifeSlash, buyBossArmor, performBossPistolShot } from '../sim/combat.js';
-import { updateHUD, syncRecruitButtonLabels } from './hud.js';
+import { syncRecruitButtonLabels } from './hud.js';
 import { showToast } from './menus.js';
 
 export function initInput() {
@@ -108,23 +105,6 @@ canvas.addEventListener('mousedown', (e) => {
   const chunk = state.world.getChunk(cx, cy);
 
   if (!chunk) {
-    if (state.allowClickExpand) {
-      if (state.net && state.net.isGuest()) {
-        state.net.sendCommand({ cmd: 'BUILD_BLOCK', cx, cy });
-        return;
-      }
-      const myFac = getLocalFaction();
-      const newChunk = state.world.generateChunk(cx, cy, myFac);
-      addFloatingText(
-        newChunk.cx * CHUNK_PX + CHUNK_PX / 2,
-        newChunk.cy * CHUNK_PX + CHUNK_PX / 2,
-        `NEW BLOCK (${newChunk.incomeLabel})`,
-        FACTION_META[myFac].accent
-      );
-      updateHUD();
-    } else {
-      showToast('Enable "Click-Build" or use "+ Expand Ring" to add blocks');
-    }
     return;
   }
 
@@ -272,30 +252,6 @@ document.getElementById('btn-pistol').addEventListener('click', () => {
   } else {
     performBossPistolShot(state.player, true, tx, ty);
   }
-});
-
-document.getElementById('btn-toggle-expand-click').addEventListener('click', (e) => {
-  state.allowClickExpand = !state.allowClickExpand;
-  e.target.textContent = `Click-Build: ${state.allowClickExpand ? 'ON' : 'OFF'}`;
-});
-
-document.getElementById('btn-expand-ring').addEventListener('click', () => {
-  if (!state.gameStarted) return;
-  if (state.net && state.net.isGuest()) {
-    state.net.sendCommand({ cmd: 'EXPAND_RING' });
-    return;
-  }
-  const added = state.world.expandPerimeterRing(Faction.PLAYER);
-  if (added > 0) {
-    state.minimapCacheTimer = 1.0;
-    showToast(`Expanded city perimeter (+${added} neighborhoods)`);
-    updateHUD();
-  }
-});
-
-document.getElementById('btn-toggle-grid').addEventListener('click', (e) => {
-  state.showBorders = !state.showBorders;
-  e.target.textContent = `Borders: ${state.showBorders ? 'ON' : 'OFF'}`;
 });
 
 document.getElementById('btn-toggle-music').addEventListener('click', (e) => {

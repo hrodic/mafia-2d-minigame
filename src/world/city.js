@@ -1,7 +1,7 @@
 // City map: chunk storage, tile queries, collision and perimeter expansion.
 
 import { CHUNK_SIZE, TILE_SIZE } from '../config/constants.js';
-import { TileType, Faction } from '../config/enums.js';
+import { TileType } from '../config/enums.js';
 import { DistrictChunk } from './chunk.js';
 import { getPropFootprint, circleIntersectsRect } from './geometry.js';
 
@@ -141,25 +141,5 @@ export class CityMap {
       }
     }
     return true;
-  }
-
-  expandPerimeterRing(faction = Faction.PLAYER) {
-    let minCx = Infinity, maxCx = -Infinity, minCy = Infinity, maxCy = -Infinity;
-    for (const chunk of this.chunks.values()) {
-      if (chunk.cx < minCx) minCx = chunk.cx;
-      if (chunk.cx > maxCx) maxCx = chunk.cx;
-      if (chunk.cy < minCy) minCy = chunk.cy;
-      if (chunk.cy > maxCy) maxCy = chunk.cy;
-    }
-    let added = 0;
-    for (let cy = minCy - 1; cy <= maxCy + 1; cy++) {
-      for (let cx = minCx - 1; cx <= maxCx + 1; cx++) {
-        if (!this.hasChunk(cx, cy)) {
-          this.generateChunk(cx, cy, faction);
-          added++;
-        }
-      }
-    }
-    return added;
   }
 }

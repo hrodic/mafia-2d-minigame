@@ -18,7 +18,7 @@ bundler, no server. Deploys to GitHub Pages as-is.
   and damage falloff, kevlar armor, sprint.
 - Territory capture block by block; boss death eliminates a syndicate; victory/defeat
   with spectator mode.
-- City expansion (expand ring or click-to-build), city radar minimap.
+- City radar minimap (larger, easier to read).
 - Synthesized Web Audio SFX and two procedural dark-noir music tracks.
 - Host-authoritative P2P multiplayer with lobby, invite links, human/AI seats, snapshot
   interpolation and AI takeover on disconnect.
@@ -33,7 +33,7 @@ bundler, no server. Deploys to GitHub Pages as-is.
 | Space / F | Knife slash |
 | Right-click | Pistol shot at cursor |
 | Q | Buy kevlar armor |
-| HUD buttons | Recruit toggles/caps, armor, slash, pistol, expand, borders, music, SFX, new game |
+| HUD buttons | Recruit toggles/caps, armor, slash, pistol, music, SFX, new game |
 
 ## Run locally
 

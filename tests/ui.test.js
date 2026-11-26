@@ -1,6 +1,6 @@
 // Static UI integration checks for index.html (zero dependencies, no network beyond
 // fetching the page itself). Guards the Ko-fi support button and the modal header.
-import { test, assert } from './harness.js';
+import { test, assert, assertEqual } from './harness.js';
 import { GAME_VERSION } from '../src/config/version.js';
 
 async function fetchIndexHtml() {
@@ -45,6 +45,23 @@ test('ui: Ko-fi init runs after the page is ready (does not block the game)', as
     html.includes("window.addEventListener('DOMContentLoaded'"),
     'Ko-fi init should run on DOMContentLoaded'
   );
+});
+
+test('ui: removed build/border controls are not present', async () => {
+  const html = await fetchIndexHtml();
+  for (const id of ['btn-toggle-expand-click', 'btn-expand-ring', 'btn-toggle-grid']) {
+    assert(!html.includes(`id="${id}"`), `${id} should be removed`);
+  }
+});
+
+test('ui: radar canvas is larger and square', async () => {
+  const html = await fetchIndexHtml();
+  const match = html.match(/id="minimapCanvas"[^>]*width="(\d+)"[^>]*height="(\d+)"/);
+  assert(match, 'minimap canvas not found');
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  assertEqual(width, height);
+  assert(width >= 160, `radar should be at least 160px, got ${width}`);
 });
 
 test('ui: setup modal shows the version in place of the old edition label', async () => {

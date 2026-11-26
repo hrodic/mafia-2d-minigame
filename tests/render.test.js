@@ -11,7 +11,7 @@ import { drawBuilding, drawProp } from '../src/render/world.js';
 import { drawCharacter, drawDeadBody } from '../src/render/characters.js';
 import { renderMinimap } from '../src/render/minimap.js';
 
-const STATE_KEYS = ['world', 'player', 'camera', 'npcs', 'showBorders', 'mouse', 'minimapCacheTimer', 'floatingTexts', 'net'];
+const STATE_KEYS = ['world', 'player', 'camera', 'npcs', 'mouse', 'minimapCacheTimer', 'floatingTexts', 'net'];
 const GENERATION = {
   seed: 5150,
   gridSize: 15,
@@ -56,7 +56,6 @@ function withRenderState(opts, fn) {
   state.player = opts.player || makePlayer();
   state.camera = { x: state.player.x, y: state.player.y };
   state.npcs = opts.npcs || [];
-  state.showBorders = true;
   state.mouse = { screenX: null, screenY: null, inside: false };
   state.minimapCacheTimer = 1.0;
   state.floatingTexts = [];

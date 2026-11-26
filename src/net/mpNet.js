@@ -468,21 +468,6 @@ export const mpNet = (() => {
           }
         }
       }
-    } else if (payload.cmd === 'EXPAND_RING') {
-      if (state.factionAlive[fac]) {
-        const added = state.world.expandPerimeterRing(fac);
-        if (added > 0) {
-          state.minimapCacheTimer = 1.0;
-          showToast(`${FACTION_META[fac].short} expanded city perimeter (+${added} blocks)`);
-        }
-      }
-    } else if (payload.cmd === 'BUILD_BLOCK') {
-      if (state.factionAlive[fac] && typeof payload.cx === 'number' && typeof payload.cy === 'number') {
-        if (!state.world.hasChunk(payload.cx, payload.cy)) {
-          state.world.generateChunk(payload.cx, payload.cy, fac);
-          state.minimapCacheTimer = 1.0;
-        }
-      }
     }
   }
 

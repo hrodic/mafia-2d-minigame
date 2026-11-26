@@ -100,8 +100,6 @@ export const state = {
   // --- match / UI flags & timers -------------------------------------------
   gameStarted: false,
   isSpectating: false,
-  showBorders: true,
-  allowClickExpand: false,
   gameOver: false,
   victoryShown: false,
   tickTimer: 0,
