@@ -16,6 +16,7 @@ import './economy.test.js';
 import './territory.test.js';
 import './combat.test.js';
 import './interpolation.test.js';
+import './match.test.js';
 
 runAll().catch((err) => {
   const root = document.getElementById('test-results');
