@@ -27,6 +27,8 @@ import {
   FACTION_META,
   ALL_FACTION_SLOTS,
   ensureUniqueOrgs,
+  getActiveFactionSlots,
+  clampFactionCount,
 } from '../src/config/organizations.js';
 
 test('config: geometry constants are consistent', () => {
@@ -42,6 +44,25 @@ test('config: enums have unique values', () => {
     const values = Object.values(enumDef);
     assertEqual(new Set(values).size, values.length);
   }
+});
+
+test('config: faction count clamps to 2..4 (invalid falls back to 4)', () => {
+  assertEqual(clampFactionCount(2), 2);
+  assertEqual(clampFactionCount(3), 3);
+  assertEqual(clampFactionCount(4), 4);
+  assertEqual(clampFactionCount('3'), 3);
+  assertEqual(clampFactionCount(1), 2);
+  assertEqual(clampFactionCount(9), 4);
+  assertEqual(clampFactionCount(undefined), 4);
+  assertEqual(clampFactionCount(0), 4);
+});
+
+test('config: active faction slots derive from the clamped count', () => {
+  assertDeepEqual(getActiveFactionSlots(2), [Faction.PLAYER, Faction.RIVAL_3]);
+  assertDeepEqual(getActiveFactionSlots(3), [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2]);
+  assertDeepEqual(getActiveFactionSlots(4), ALL_FACTION_SLOTS);
+  assertDeepEqual(getActiveFactionSlots(1), getActiveFactionSlots(2));
+  assertDeepEqual(getActiveFactionSlots(9), ALL_FACTION_SLOTS);
 });
 
 test('config: income tiers are ordered and valid', () => {

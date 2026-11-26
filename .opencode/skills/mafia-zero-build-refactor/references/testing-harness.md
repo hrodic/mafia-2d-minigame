@@ -23,3 +23,11 @@ No npm. `tests/tests.html` + `tests/harness.js`:
 
 `tests/world-golden.test.js` hashes each seeded chunk (tiles, props, colors, solid mask,
 income, faction) with FNV-1a. Equal hashes after a refactor prove generation is unchanged.
+
+## Testing event migrations
+
+- Subscribe a capture listener around the call and assert event type + payload fields.
+- Wire the real presentation handlers in the test harness when you also assert effects;
+  they run synchronously, so visual/RNG behavior stays identical.
+- Keep at least one test that asserts behavior without presentation handlers, to prove the
+  sim module is decoupled.

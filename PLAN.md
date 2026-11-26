@@ -6,14 +6,60 @@ This is the living plan. Read `AGENTS.md` for the working contract and
 ## Status
 
 - Phase 0 - DONE (docs, zero-dependency test harness, smoke checklist)
-- Phase 1 - DONE (full modular split; 183 browser tests; `src/main.js` is 81 lines)
-- Phase 2 - NEXT (event bus, deduplication, data-driven balance, explicit RNG, AI module)
+- Phase 1 - DONE (full modular split; tests green; `src/main.js` is a thin composition root)
+- Versioning: SemVer started at `0.1.0`; bump PATCH/MINOR on every commit-sized step
+- Phase 2 - COMPLETE
+  - Step 1 DONE: `core/events.js` event bus + `tests/events.test.js` (additive; hooks intact)
+  - Step 2 DONE: combat migrated to events (`sim/combat.js` emits only; presentation in
+    `render/combatFx.js` + `audio/combatSfx.js`; net SHOT broadcast moved to `main.js`).
+    `tools/check.ps1` now enforces the `sim/` layering ratchet.
+  - Fix: guest movement crash (`canvas` missing import in `net/mpNet.js`); static guard
+    added so `canvas.*` usage requires the canvas import. Guest movement re-verified.
+  - Step 3 DONE: units migrated (`unit:recruited` -> `render/recruitFx.js`); allowlist debt
+    shrank.
+  - Step 4 DONE: economy migrated (`hour:tick` -> HUD subscriber); runtime import removed.
+  - Step 5 DONE: territory migrated (`chunk:captured`, `faction:eliminated`,
+    `match:victory`, `match:defeat`); `render/territoryFx.js` + main subscribers; runtime
+    hooks removed from `runtime.js`.
+  - Step 6 DONE: match setup migrated to `match:initialized` (effects/UI/labels/HUD
+    subscribers). Allowlist debt is now only `simulation.js` (canvas aim, per-frame
+    particles, guest presentation; Phase 3).
+  - Step 7 DONE: `GAME_VERSION` single source in `src/config/version.js`; title/HUD/modal
+    labels applied by `src/ui/version.js`; static check rejects duplicated literals.
+  - Step 8 DONE: SemVer baseline `0.1.0`; patch/minor bump policy documented and enforced
+    (format + single source).
+  - Step 9 DONE (`0.1.1`): prop footprints centralized in `src/world/geometry.js`; collision,
+    bullet raycast and drawing share it; characterization tests added.
+  - Step 10 DONE (`0.1.2`): radar bounds/cell/offset + world<->map mapping centralized in
+    `src/render/minimapLayout.js`; drawing and click mapping share it.
+  - Step 11 DONE (`0.1.3`): active faction slots centralized in
+    `getActiveFactionSlots`/`clampFactionCount`; match setup and MP lobby seats share it.
+  - Step 12 DONE (`0.1.4`): data-driven balance tables (`RANK_STATS`, `UNIT_CAPS`, `SLASH`,
+    `PISTOL`/accuracy bands) drive spawn, collision/capture, combat and caps; values locked
+    by `tests/balance.test.js`.
+  - Step 13 DONE (`0.1.5`): worldgen uses an explicit per-chunk PRNG; `withSeed` removed
+    and `Math.random()` is blocked in `src/world/` by the static check. Golden maps unchanged.
+  - Step 14 DONE (`0.2.0`): shareable world seeds. SP/Host choose a seed (blank = random);
+    guests adopt the host seed. Header badge + setup copy/reuse; seed in `match:initialized`.
+  - Step 15 DONE (`0.2.1`): AI extracted to `sim/ai.js` (`scanNearby`,
+    `choosePatrolChunk`, `updateNpcAi`), with headless tests; `simulation.js` is orchestration.
+  - Step 16 DONE (`0.2.2`): HUD cadence moved to `src/ui/hudCadence.js`; `core/runtime.js`
+    deleted. Phase 2 complete.
+  - Post-Phase-2 UX (`0.3.0`): removed Borders, Click-Build and Expand Ring controls/logic.
+  - Post-Phase-2 visuals (`0.3.1`): subtle city backdrop outside chunks; radar enlarged to
+    168px with larger unit markers.
+  - UX overhaul (`0.4.0`): primary boss/economy strip, separate crew management, bottom
+    combat action bar (cooldown/ready/cost/shortcut states, hold-to-sprint), faction
+    leaderboard with kills (host-synced).
+  - Next: Phase 3 (unified entity/command pipeline, fixed timestep)
+  - Guardrails: benefits/tradeoffs/use-skip rules and the many-NPC + multiplayer
+    performance budget are documented in `EVENTS.md`
+- Phases 3-5 - pending (unified entity model/commands/fixed timestep, net hardening, quality)
 
 Safety nets in place before Phase 2:
 - `tests/world-golden.test.js` pins seeded chunk hashes (guards the explicit-RNG refactor).
-- `tools/check.ps1` statically verifies imports, test registration and DOM ids.
-- `EVENTS.md` defines the target event-bus API, catalog and subscriber map.
-- Phases 3-5 - pending (unified entity model/commands/fixed timestep, net hardening, quality)
+- `tools/check.ps1` statically verifies imports, test registration, DOM ids and skills.
+- `EVENTS.md` defines the event-bus API, catalog and subscriber map (bus implemented).
 
 Every step must keep the game playable, deployable, and the tests green. Pause after each
 phase for owner validation. Do not commit/push without approval; always work on a branch.
@@ -33,19 +79,19 @@ phase for owner validation. Do not commit/push without approval; always work on 
   interpolation; shell casings are now rendered.
 - The old code-map line ranges are obsolete; use `ARCHITECTURE.md`.
 
-## Phase 2 starting point (next session)
+## Phase 2 starting point
 
-1. `core/events.js`: event bus; move sim presentation side effects (damage, shot, death,
-   capture, tick, victory/defeat) to events; wire subscribers in main/UI/audio/net.
-2. Deduplicate prop footprints (`world/geometry.js`), minimap layout, faction-slot
-   selection, and `GAME_VERSION` single source.
-3. Data-driven balance tables (`RANK_STATS`, weapons) and remove inline numbers.
-4. Explicit RNG for worldgen; remove `withSeed`'s `Math.random` patch.
-5. Extract AI decisions to `sim/ai.js`.
+1. Event bus + migration **DONE** (combat, units, economy, territory, match).
+2. Deduplication **DONE** (prop geometry, minimap layout, faction slots, `GAME_VERSION`).
+3. Data-driven balance tables **DONE** (`RANK_STATS`, `UNIT_CAPS`, `SLASH`, `PISTOL`).
+4. Explicit worldgen RNG **DONE** (`withSeed` removed; `Math.random()` blocked in `src/world/`).
+5. **DONE:** AI decisions extracted to `sim/ai.js`.
 6. Extend tests and keep the game playable/tests green after every commit.
 
 ---
-# Mafia 2D — Architecture Refactor Plan (executor handoff)
+
+> Historical plan below. The **Status** section above is authoritative; items in the original
+> text may already be done.# Mafia 2D — Architecture Refactor Plan (executor handoff)
 
 Execute phases **in order, one at a time**. Do not skip verification steps.
 

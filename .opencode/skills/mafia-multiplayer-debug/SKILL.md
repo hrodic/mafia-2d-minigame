@@ -41,6 +41,8 @@ Compare host vs guest: `humanPeerId`, last input age, `x/netX`, `path/targetX`, 
 - Jitter: snapshots applied to `x/y` instead of `netX/netY`; apply targets and smooth at
   render rate (`dt * 14`).
 - Host tab backgrounded: rAF throttled to ~1 fps; keep it visible or use two windows.
+- Host frame drops with many NPCs: look for per-NPC/per-frame event emits or expensive
+  subscribers; gameplay events must be discrete, visuals state-driven (`EVENTS.md`).
 - Audio throws after tests: cache noise buffers per `AudioContext` (WeakMap).
 
 Do not change protocol/snapshot shape without checking `ARCHITECTURE.md` and both tabs.

@@ -18,7 +18,7 @@ bundler, no server. Deploys to GitHub Pages as-is.
   and damage falloff, kevlar armor, sprint.
 - Territory capture block by block; boss death eliminates a syndicate; victory/defeat
   with spectator mode.
-- City expansion (expand ring or click-to-build), city radar minimap.
+- City radar minimap (larger, easier to read).
 - Synthesized Web Audio SFX and two procedural dark-noir music tracks.
 - Host-authoritative P2P multiplayer with lobby, invite links, human/AI seats, snapshot
   interpolation and AI takeover on disconnect.
@@ -29,11 +29,12 @@ bundler, no server. Deploys to GitHub Pages as-is.
 |---|---|
 | WASD / Arrows | Move boss |
 | Left-click street / minimap | Move to waypoint (A* pathfinding) |
-| Shift | Sprint |
-| Space / F | Knife slash |
-| Right-click | Pistol shot at cursor |
-| Q | Buy kevlar armor |
-| HUD buttons | Recruit toggles/caps, armor, slash, pistol, expand, borders, music, SFX, new game |
+| Shift or hold Sprint button | Sprint |
+| Space / F or Slash button | Knife slash |
+| Right-click or Pistol button | Pistol shot at cursor |
+| Q or Armor button | Buy kevlar armor |
+| Crew Management panel | Recruit toggles/caps |
+| Utility buttons | Music, SFX, New Game |
 
 ## Run locally
 
@@ -79,6 +80,37 @@ no external relays): `tests/mp-harness.html`.
 - Web Audio API synthesis, seeded PRNG world generation, A* pathfinding.
 - Multiplayer: Trystero WebRTC signaling (`nostr`/`mqtt` from CDN) + same-origin
   BroadcastChannel/localStorage fallback; host simulates, guests stream input.
+
+## Tuning
+
+All gameplay numbers live in **`src/config/balance.js`**:
+
+- `RANK_STATS` — HP, armor, damage, AI/human speed, radius, capture rate, cost/upkeep.
+- `UNIT_CAPS` — crew caps, neighborhood floor, human cap fraction.
+- `SLASH` — reach, targets, arc, close-range, knockback, cooldown per attacker profile.
+- `PISTOL` — damage, cooldown, knockback, accuracy bands.
+- `INCOME_TIERS`, costs/upkeep and boss aliases.
+
+Presentation feel and AI decision logic stay in their own modules. Changing balance values
+is a normal patch/balance commit; the tables are locked by `tests/balance.test.js`, so update
+its expected values in the same change when the tuning is intentional.
+
+## Seeds
+
+Every new match has a **world seed** (1–2147483647; `0` is also accepted if typed):
+
+- Single-player and the **host** choose the seed; a blank field generates a random one.
+- Guests do **not** choose: they receive the host's seed and build the same city.
+- Click the header seed badge (or the setup **Copy** button) to copy the current seed.
+- Reuse it to replay the same map; the **Random** button fills a new one.
+
+## Versioning
+
+SemVer (`MAJOR.MINOR.PATCH`) starting at `0.1.0`. The single source is
+`src/config/version.js`; the title, HUD/modal labels and multiplayer handshake read it.
+Every commit-sized step bumps the version: **PATCH** for fixes/refactors/docs/tests,
+**MINOR** for new user-visible capabilities. `1.0.0` will be the first stable release.
+Multiplayer requires both peers to run the same version.
 
 ## Documentation
 

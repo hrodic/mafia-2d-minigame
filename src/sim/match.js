@@ -9,10 +9,11 @@ import {
   FACTION_META,
   ORGANIZATIONS,
   ensureUniqueOrgs,
+  clampFactionCount,
+  getActiveFactionSlots,
 } from '../config/organizations.js';
 import { state, getLocalBoss } from '../core/state.js';
-import { runtime } from '../core/runtime.js';
-import { resetEffects } from '../render/effects.js';
+import { emit } from '../core/events.js';
 import { resetDefaultPlayerSpawnCaps, spawnUnitInChunk } from './units.js';
 
 
@@ -29,16 +30,9 @@ export function initWorld(
   state.currentGridSize = Math.max(5, Math.min(25, gridSize));
   state.tickDuration = Math.max(10, Math.min(30, selectedTickSeconds));
   state.currentIncomeTier = INCOME_TIERS[selectedIncomeTier] ? selectedIncomeTier : 'HIGH';
-  state.activeFactionCount = Math.max(2, Math.min(4, Number(factionCount) || 4));
+  state.activeFactionCount = clampFactionCount(factionCount);
   state.selectedFactionOrgs = ensureUniqueOrgs(orgRoster);
-
-  if (state.activeFactionCount === 2) {
-    state.activeFactions = [Faction.PLAYER, Faction.RIVAL_3];
-  } else if (state.activeFactionCount === 3) {
-    state.activeFactions = [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2];
-  } else {
-    state.activeFactions = [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3];
-  }
+  state.activeFactions = getActiveFactionSlots(state.activeFactionCount);
 
   state.activeFactions.forEach((slot, idx) => {
     const orgId = state.selectedFactionOrgs[idx] || ALL_ORG_IDS[idx];
@@ -53,7 +47,6 @@ export function initWorld(
   };
   state.world.clear();
   state.npcs.length = 0;
-  resetEffects();
   state.spatialBuckets.clear();
   state.gameStarted = autoStart;
   state.isSpectating = false;
@@ -65,12 +58,11 @@ export function initWorld(
   state.gameHour = 12;
   state.nextNpcId = 1;
 
-  runtime.resetMatchUI(state.tickDuration);
-
   for (const f of ALL_FACTION_SLOTS) {
     const isActive = state.activeFactions.includes(f);
     state.treasuries[f] = isActive ? 3000 : 0;
     state.factionAlive[f] = isActive;
+    state.factionKills[f] = 0;
   }
 
   for (let cy = 0; cy < state.currentGridSize; cy++) {
@@ -80,7 +72,6 @@ export function initWorld(
   }
 
   resetDefaultPlayerSpawnCaps();
-  runtime.syncRecruitButtonLabels();
 
   state.player.x = 1.5 * TILE_SIZE;
   state.player.y = 1.5 * TILE_SIZE;
@@ -121,5 +112,8 @@ export function initWorld(
   state.camera.x = localBoss.x;
   state.camera.y = localBoss.y;
 
-  runtime.updateHUD();
+  emit('match:initialized', {
+    tickDuration: state.tickDuration,
+    worldSeed: state.currentWorldSeed,
+  });
 }

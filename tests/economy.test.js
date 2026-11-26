@@ -4,8 +4,9 @@ import { Faction, UnitRank } from '../src/config/enums.js';
 import { UPKEEP_SOLDIER, UPKEEP_CAPTAIN, UPKEEP_UNDERBOSS, COST_SOLDIER } from '../src/config/balance.js';
 import { ALL_FACTION_SLOTS } from '../src/config/organizations.js';
 import { state } from '../src/core/state.js';
-import { runtime } from '../src/core/runtime.js';
+import { on } from '../src/core/events.js';
 import { CityMap } from '../src/world/city.js';
+import { onUnitRecruited } from '../src/render/recruitFx.js';
 import {
   calculateFactionUpkeep,
   recalculateHourlyIncome,
@@ -59,15 +60,15 @@ function withEconomyState(opts, fn) {
   state.floatingTexts = [];
   state.spatialBuckets = new Map();
 
-  let hudCalls = 0;
-  const originalHud = runtime.updateHUD;
-  runtime.updateHUD = () => {
-    hudCalls++;
-  };
+  const events = [];
+  const unsubscribers = [
+    on('hour:tick', (payload) => events.push({ type: 'hour:tick', payload })),
+    on('unit:recruited', onUnitRecruited),
+  ];
   try {
-    return fn({ map, hudCalls: () => hudCalls });
+    return fn({ map, events });
   } finally {
-    runtime.updateHUD = originalHud;
+    for (const unsubscribe of unsubscribers) unsubscribe();
     for (const key of STATE_KEYS) state[key] = saved[key];
   }
 }
@@ -77,6 +78,10 @@ function withChunk(map, cx, cy, faction, income) {
   chunk.faction = faction;
   if (income !== undefined) chunk.income = income;
   return chunk;
+}
+
+function eventsOf(events, type) {
+  return events.filter((entry) => entry.type === type);
 }
 
 test('economy: upkeep totals sum per rank and ignore bosses/unknown factions', () => {
@@ -143,14 +148,22 @@ test('economy: the hourly tick advances the clock and pays net income', () => {
         { faction: Faction.RIVAL_1, rank: UnitRank.CAPTAIN },
       ],
     },
-    ({ hudCalls }) => {
+    ({ events }) => {
       processHourlyTick();
       assertEqual(state.gameHour, 13);
       assertEqual(state.treasuries[Faction.PLAYER], 400 + 1000 - UPKEEP_SOLDIER);
       assertEqual(state.treasuries[Faction.RIVAL_1], 400 + 500 - UPKEEP_CAPTAIN);
       assertEqual(state.treasuries[Faction.RIVAL_2], 0);
       assertEqual(state.minimapCacheTimer, 1.0);
-      assertEqual(hudCalls(), 1);
+
+      const ticks = eventsOf(events, 'hour:tick');
+      assertEqual(ticks.length, 1);
+      assertEqual(ticks[0].payload.hour, 13);
+      assertEqual(ticks[0].payload.income[Faction.PLAYER], 1000);
+      assertEqual(ticks[0].payload.income[Faction.RIVAL_1], 500);
+      assertEqual(ticks[0].payload.upkeep[Faction.PLAYER], UPKEEP_SOLDIER);
+      assertEqual(ticks[0].payload.upkeep[Faction.RIVAL_1], UPKEEP_CAPTAIN);
+      assertEqual(ticks[0].payload.treasuries[Faction.PLAYER], 400 + 1000 - UPKEEP_SOLDIER);
     }
   );
 });
@@ -191,13 +204,13 @@ test('economy: auto-recruit hires with tick income until funds run out', () => {
       treasuries: { [Faction.PLAYER]: 500 },
       autoSoldier: true,
     },
-    ({ hudCalls }) => {
+    ({ events }) => {
       processHourlyTick();
       assertEqual(state.npcs.length, 1);
       assertEqual(state.npcs[0].rank, UnitRank.SOLDIER);
       assertEqual(state.treasuries[Faction.PLAYER], 500 + 1000 - COST_SOLDIER);
       assertEqual(state.floatingTexts.length, 1);
-      assertEqual(hudCalls(), 1);
+      assertEqual(eventsOf(events, 'hour:tick').length, 1);
     }
   );
 });

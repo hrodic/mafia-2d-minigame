@@ -42,7 +42,9 @@ Serve the repo over http first (`python -m http.server 8000` or any static serve
       tick speed 10–30 s, income tier Low/Mid/High.
 
 ### Single player
-- [ ] Boss HP/armor/cash/sprint/hour HUD values update correctly.
+
+- [ ] World seed: start with a known seed, New Game, reuse it → same map; change it → different map.
+- [ ] Seed badge/Copy puts the current seed on the clipboard.- [ ] Boss HP/armor/cash/sprint/hour HUD values update correctly.
 - [ ] Movement: WASD, arrows, click street, minimap click; waypoint marker shows.
 - [ ] Collision: cannot walk through buildings/cars/dumpsters; doors/alley paths work.
 - [ ] Sprint: 1.6× burst 2 s, cooldown 4 s, HUD bar reflects state.
@@ -50,10 +52,15 @@ Serve the repo over http first (`python -m http.server 8000` or any static serve
 - [ ] Pistol: range ring, accuracy label, tracers, casings, ricochets, misses ("MISS!").
 - [ ] Armor: Q/button buys 300 armor ($3,500), absorbs damage, once per tick, HUD shows.
 - [ ] Rival AI bosses buy armor, use pistol/slash, capture blocks, recruit crew.
-- [ ] Territory: capture bar fills, block tint/borders update, minimap updates.
+- [ ] Territory: capture bar fills, block tint updates, minimap updates.
 - [ ] Economy: hourly tick adds income minus upkeep; treasury never negative.
 - [ ] Auto-recruit: toggles + caps work; units spawn near boss/owned turf; limits honored.
-- [ ] Expand Ring adds perimeter blocks; Click-Build toggle + toast; Borders toggle.
+- [ ] Build/border controls are gone (no Expand Ring, Click-Build or Borders buttons).
+- [ ] Outside the generated map, a subtle dark city backdrop is visible (not flat black).
+- [ ] City Radar is larger/readable and still shows player/boss/unit markers.
+- [ ] Bottom action bar: slash/pistol/armor/sprint cooldowns, costs, shortcuts and tooltips;
+  armor shows a cooldown overlay; sprint works while holding the button.
+- [ ] Leaderboard shows Turf / Crew / Kills with a readable rank order.
 - [ ] Kill a rival boss → toast + turf neutral; kill all → victory banner + summary.
 - [ ] Die → defeat banner → Spectate pans camera → spectator banner "Leave/New Game".
 - [ ] Music: Noir I → Noir II → OFF; SFX toggle mutes/unmutes.
@@ -63,12 +70,13 @@ Serve the repo over http first (`python -m http.server 8000` or any static serve
 - [ ] Host creates/room code copies invite link; invite URL auto-fills join panel.
 - [ ] Guest joins, gets assigned a syndicate and settings echo the host's.
 - [ ] Human/AI slot toggles and org changes broadcast to the guest.
-- [ ] Version mismatch rejection works (simulate by editing GAME_VERSION in a tab).
-- [ ] Launch: world identical on both peers (same seed); guest sees all factions.
+- [ ] Version mismatch rejection works (simulate by editing `GAME_VERSION` in
+  `src/config/version.js` in one tab).
+- [ ] Launch: world identical on both peers (same seed); guest cannot choose the seed, sees the host's seed badge, and sees all factions.
 - [ ] Guest input: movement, sprint, facing/aim, slash, shoot, armor, recruit prefs,
-      expand ring, build block all take effect on host simulation.
+      capture, recruit, slash/shoot and armor all take effect on host simulation.
 - [ ] Snapshots smooth (interpolation) and combat animations show on guest.
-- [ ] Host/guest HP, armor, cash, hour and standings match.
+- [ ] Host/guest HP, armor, cash, hour and standings match; guest leaderboard reflects host kills.
 - [ ] Peer leaves mid-match → AI takeover toast; remaining players continue.
 - [ ] Host leaves mid-match → guests see disconnect modal → Return to Menu.
 

@@ -3,7 +3,7 @@
 import { Faction, UnitRank } from '../config/enums.js';
 import { UPKEEP_SOLDIER, UPKEEP_CAPTAIN, UPKEEP_UNDERBOSS } from '../config/balance.js';
 import { state } from '../core/state.js';
-import { runtime } from '../core/runtime.js';
+import { emit } from '../core/events.js';
 import { recruitUnit } from './units.js';
 
 
@@ -107,5 +107,10 @@ export function processHourlyTick() {
   }
 
   state.minimapCacheTimer = 1.0;
-  runtime.updateHUD();
+  emit('hour:tick', {
+    hour: state.gameHour,
+    income: incomeTotals,
+    upkeep: upkeepTotals,
+    treasuries: { ...state.treasuries },
+  });
 }

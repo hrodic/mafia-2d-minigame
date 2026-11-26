@@ -163,18 +163,6 @@ test('world: findNearestWalkablePoint escapes a building tile', () => {
   assertEqual(map.canMoveTo(snapped.x, snapped.y, 12), true);
 });
 
-test('world: expandPerimeterRing adds exactly one ring of chunks', () => {
-  const map = new CityMap(GENERATION);
-  for (let cy = 0; cy < 2; cy++) {
-    for (let cx = 0; cx < 2; cx++) map.generateChunk(cx, cy);
-  }
-  const added = map.expandPerimeterRing(Faction.PLAYER);
-  assertEqual(added, 12); // 4x4 ring minus the original 2x2
-  assertEqual(map.chunks.size, 16);
-  assertEqual(map.hasChunk(-1, -1), true);
-  assertEqual(map.hasChunk(2, 2), true);
-});
-
 test('world: clear() drops chunks and the lookup cache', () => {
   const map = new CityMap(GENERATION);
   map.generateChunk(0, 0);

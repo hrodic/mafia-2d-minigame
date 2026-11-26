@@ -1,8 +1,9 @@
 // City map: chunk storage, tile queries, collision and perimeter expansion.
 
 import { CHUNK_SIZE, TILE_SIZE } from '../config/constants.js';
-import { TileType, PropType, Faction } from '../config/enums.js';
+import { TileType } from '../config/enums.js';
 import { DistrictChunk } from './chunk.js';
+import { getPropFootprint, circleIntersectsRect } from './geometry.js';
 
 
 export function packChunkKey(cx, cy) {
@@ -128,58 +129,17 @@ export class CityMap {
         const lx = ((gx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
         const ly = ((gy % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
         const prop = chunk.props[ly][lx];
-        if (prop === PropType.NONE) continue;
-
-        if (prop === PropType.CAR) {
-          const tileWx = gx * TILE_SIZE;
-          const tileWy = gy * TILE_SIZE;
-          const isVert = chunk.propVertical[ly][lx];
-          const side = chunk.propCurbSide[ly][lx];
-          const rx = isVert ? (side === 'W' ? tileWx + 21 : tileWx + 5) : tileWx + 5;
-          const ry = isVert ? tileWy + 5 : (side === 'N' ? tileWy + 21 : tileWy + 5);
-          const rw = isVert ? 18 : 34;
-          const rh = isVert ? 34 : 18;
-
-          const closestX = Math.max(rx, Math.min(wx, rx + rw));
-          const closestY = Math.max(ry, Math.min(wy, ry + rh));
-          const dx = wx - closestX;
-          const dy = wy - closestY;
-          if (dx * dx + dy * dy < radius * radius) return false;
-        } else if (prop === PropType.DUMPSTER) {
-          const tileWx = gx * TILE_SIZE;
-          const tileWy = gy * TILE_SIZE;
-          const rx = tileWx + 9;
-          const ry = tileWy + 10;
-          const rw = 26;
-          const rh = 22;
-          const closestX = Math.max(rx, Math.min(wx, rx + rw));
-          const closestY = Math.max(ry, Math.min(wy, ry + rh));
-          const dx = wx - closestX;
-          const dy = wy - closestY;
-          if (dx * dx + dy * dy < radius * radius) return false;
-        }
+        if (!prop) continue;
+        const rect = getPropFootprint(
+          prop,
+          gx * TILE_SIZE,
+          gy * TILE_SIZE,
+          chunk.propVertical[ly][lx],
+          chunk.propCurbSide[ly][lx]
+        );
+        if (rect && circleIntersectsRect(rect, wx, wy, radius)) return false;
       }
     }
     return true;
-  }
-
-  expandPerimeterRing(faction = Faction.PLAYER) {
-    let minCx = Infinity, maxCx = -Infinity, minCy = Infinity, maxCy = -Infinity;
-    for (const chunk of this.chunks.values()) {
-      if (chunk.cx < minCx) minCx = chunk.cx;
-      if (chunk.cx > maxCx) maxCx = chunk.cx;
-      if (chunk.cy < minCy) minCy = chunk.cy;
-      if (chunk.cy > maxCy) maxCy = chunk.cy;
-    }
-    let added = 0;
-    for (let cy = minCy - 1; cy <= maxCy + 1; cy++) {
-      for (let cx = minCx - 1; cx <= maxCx + 1; cx++) {
-        if (!this.hasChunk(cx, cy)) {
-          this.generateChunk(cx, cy, faction);
-          added++;
-        }
-      }
-    }
-    return added;
   }
 }

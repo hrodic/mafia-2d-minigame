@@ -1,9 +1,7 @@
 // Gameplay input: keyboard, mouse, minimap and HUD action buttons.
 
-import { CHUNK_PX } from '../config/constants.js';
-import { Faction, UnitRank } from '../config/enums.js';
-import { FACTION_META } from '../config/organizations.js';
-import { state, getLocalFaction, getLocalBoss, isLocalBossAlive } from '../core/state.js';
+import { UnitRank } from '../config/enums.js';
+import { state, getLocalBoss, isLocalBossAlive } from '../core/state.js';
 import {
   getAudioCtx,
   ensureAudioContext,
@@ -12,9 +10,9 @@ import {
   setSoundEnabled,
 } from '../audio/engine.js';
 import { canvas, minimapCanvas } from '../render/canvas.js';
-import { addFloatingText } from '../render/effects.js';
+import { getMinimapLayout, minimapToWorld } from '../render/minimapLayout.js';
 import { performKnifeSlash, buyBossArmor, performBossPistolShot } from '../sim/combat.js';
-import { updateHUD, syncRecruitButtonLabels } from './hud.js';
+import { syncRecruitButtonLabels } from './hud.js';
 import { showToast } from './menus.js';
 
 export function initInput() {
@@ -47,9 +45,10 @@ window.addEventListener('keyup', (e) => {
 // Losing focus can swallow keyup events; clear held keys and send a stop so the
 // guest boss never keeps walking into a wall after alt-tab/HUD clicks.
 function releaseAllKeys() {
-  if (state.keys.size === 0) return;
+  const hadInput = state.keys.size > 0 || state.sprintButtonHeld;
   state.keys.clear();
-  if (state.net && state.net.isGuest()) {
+  state.sprintButtonHeld = false;
+  if (hadInput && state.net && state.net.isGuest()) {
     state.net.flushGuestInput();
   }
 }
@@ -107,23 +106,6 @@ canvas.addEventListener('mousedown', (e) => {
   const chunk = state.world.getChunk(cx, cy);
 
   if (!chunk) {
-    if (state.allowClickExpand) {
-      if (state.net && state.net.isGuest()) {
-        state.net.sendCommand({ cmd: 'BUILD_BLOCK', cx, cy });
-        return;
-      }
-      const myFac = getLocalFaction();
-      const newChunk = state.world.generateChunk(cx, cy, myFac);
-      addFloatingText(
-        newChunk.cx * CHUNK_PX + CHUNK_PX / 2,
-        newChunk.cy * CHUNK_PX + CHUNK_PX / 2,
-        `NEW BLOCK (${newChunk.incomeLabel})`,
-        FACTION_META[myFac].accent
-      );
-      updateHUD();
-    } else {
-      showToast('Enable "Click-Build" or use "+ Expand Ring" to add blocks');
-    }
     return;
   }
 
@@ -159,27 +141,12 @@ minimapCanvas.addEventListener('click', (e) => {
   getAudioCtx();
   if (!state.gameStarted || state.world.chunks.size === 0) return;
   const rect = minimapCanvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-
-  let minCx = Infinity, maxCx = -Infinity, minCy = Infinity, maxCy = -Infinity;
-  for (const chunk of state.world.chunks.values()) {
-    if (chunk.cx < minCx) minCx = chunk.cx;
-    if (chunk.cx > maxCx) maxCx = chunk.cx;
-    if (chunk.cy < minCy) minCy = chunk.cy;
-    if (chunk.cy > maxCy) maxCy = chunk.cy;
-  }
-  const cols = Math.max(1, maxCx - minCx + 1);
-  const rows = Math.max(1, maxCy - minCy + 1);
-  const pad = 6;
-  const innerW = minimapCanvas.width - pad * 2;
-  const innerH = minimapCanvas.height - pad * 2;
-  const cellSize = Math.min(innerW / cols, innerH / rows);
-  const offsetX = pad + (innerW - cellSize * cols) / 2;
-  const offsetY = pad + (innerH - cellSize * rows) / 2;
-
-  const worldX = (minCx + (mx - offsetX) / cellSize) * CHUNK_PX;
-  const worldY = (minCy + (my - offsetY) / cellSize) * CHUNK_PX;
+  if (!rect.width || !rect.height) return;
+  const mx = (e.clientX - rect.left) * (minimapCanvas.width / rect.width);
+  const my = (e.clientY - rect.top) * (minimapCanvas.height / rect.height);
+  const layout = getMinimapLayout(state.world.chunks.values(), minimapCanvas.width, minimapCanvas.height);
+  if (!layout) return;
+  const { x: worldX, y: worldY } = minimapToWorld(layout, mx, my);
 
   if (state.net && state.net.isGuest()) {
     if (!isLocalBossAlive()) {
@@ -270,7 +237,10 @@ document.getElementById('btn-cap-underboss-inc').addEventListener('click', () =>
   pushRecruitPrefsToHost();
 });
 
-document.getElementById('btn-buy-armor').addEventListener('click', () => buyBossArmor());
+document.getElementById('btn-buy-armor').addEventListener('click', () => {
+  getAudioCtx();
+  buyBossArmor();
+});
 document.getElementById('btn-slash').addEventListener('click', () => performKnifeSlash());
 document.getElementById('btn-pistol').addEventListener('click', () => {
   getAudioCtx();
@@ -285,29 +255,24 @@ document.getElementById('btn-pistol').addEventListener('click', () => {
   }
 });
 
-document.getElementById('btn-toggle-expand-click').addEventListener('click', (e) => {
-  state.allowClickExpand = !state.allowClickExpand;
-  e.target.textContent = `Click-Build: ${state.allowClickExpand ? 'ON' : 'OFF'}`;
-});
-
-document.getElementById('btn-expand-ring').addEventListener('click', () => {
-  if (!state.gameStarted) return;
-  if (state.net && state.net.isGuest()) {
-    state.net.sendCommand({ cmd: 'EXPAND_RING' });
-    return;
+const sprintButton = document.getElementById('btn-sprint');
+if (sprintButton) {
+  const startSprint = (event) => {
+    event.preventDefault();
+    getAudioCtx();
+    state.sprintButtonHeld = true;
+    if (state.net && state.net.isGuest()) state.net.flushGuestInput();
+  };
+  const stopSprint = () => {
+    if (!state.sprintButtonHeld) return;
+    state.sprintButtonHeld = false;
+    if (state.net && state.net.isGuest()) state.net.flushGuestInput();
+  };
+  sprintButton.addEventListener('pointerdown', startSprint);
+  for (const type of ['pointerup', 'pointercancel', 'pointerleave', 'blur']) {
+    sprintButton.addEventListener(type, stopSprint);
   }
-  const added = state.world.expandPerimeterRing(Faction.PLAYER);
-  if (added > 0) {
-    state.minimapCacheTimer = 1.0;
-    showToast(`Expanded city perimeter (+${added} neighborhoods)`);
-    updateHUD();
-  }
-});
-
-document.getElementById('btn-toggle-grid').addEventListener('click', (e) => {
-  state.showBorders = !state.showBorders;
-  e.target.textContent = `Borders: ${state.showBorders ? 'ON' : 'OFF'}`;
-});
+}
 
 document.getElementById('btn-toggle-music').addEventListener('click', (e) => {
   ensureAudioContext();

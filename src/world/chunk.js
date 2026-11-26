@@ -4,7 +4,7 @@ import { CHUNK_SIZE, TILE_SIZE, CHUNK_PX, DEFAULT_GRID_SIZE } from '../config/co
 import { TileType, PropType, Faction } from '../config/enums.js';
 import { INCOME_TIERS } from '../config/balance.js';
 import { ALL_FACTION_SLOTS } from '../config/organizations.js';
-import { hashChunkSeed, withSeed } from '../core/rng.js';
+import { hashChunkSeed, createMulberry32 } from '../core/rng.js';
 
 const CAR_PALETTE = ['#18181b', '#27272a', '#e4e4e7', '#1e293b', '#3f3f46', '#7f1d1d'];
 
@@ -36,12 +36,11 @@ export class DistrictChunk {
     this.propRenderList = [];
 
     const chunkSeed = this.generation.seed !== null ? hashChunkSeed(this.generation.seed, cx, cy) : null;
-    withSeed(chunkSeed, () => {
-      const tier = INCOME_TIERS[this.generation.incomeTier] || INCOME_TIERS.HIGH;
-      this.income = tier.min + Math.floor(Math.random() * (tier.max - tier.min + 1));
-      this.incomeLabel = `$${this.income.toLocaleString()}/hr`;
-      this.generateUrbanBlock();
-    });
+    const rng = chunkSeed !== null ? createMulberry32(chunkSeed) : Math.random;
+    const tier = INCOME_TIERS[this.generation.incomeTier] || INCOME_TIERS.HIGH;
+    this.income = tier.min + Math.floor(rng() * (tier.max - tier.min + 1));
+    this.incomeLabel = `$${this.income.toLocaleString()}/hr`;
+    this.generateUrbanBlock(rng);
 
     this.buildSolidMask();
     this.buildStaticRenderLists();
@@ -178,7 +177,7 @@ export class DistrictChunk {
     }
   }
 
-  generateUrbanBlock() {
+  generateUrbanBlock(rng) {
     const LAST = CHUNK_SIZE - 1;
     const IN = CHUNK_SIZE - 2;
 
@@ -193,8 +192,8 @@ export class DistrictChunk {
     }
 
     const placeBuildingRect = (x0, y0, x1, y1, elevOverride = null, styleOverride = null) => {
-      const elev = elevOverride !== null ? elevOverride : 2 + Math.floor(Math.random() * 3);
-      const style = styleOverride !== null ? styleOverride : Math.floor(Math.random() * 3);
+      const elev = elevOverride !== null ? elevOverride : 2 + Math.floor(rng() * 3);
+      const style = styleOverride !== null ? styleOverride : Math.floor(rng() * 3);
       for (let y = y0; y <= y1; y++) {
         for (let x = x0; x <= x1; x++) {
           this.ground[y][x] = TileType.BUILDING;
@@ -222,7 +221,7 @@ export class DistrictChunk {
       }
     };
 
-    const archetype = Math.floor(Math.random() * 6);
+    const archetype = Math.floor(rng() * 6);
 
     if (archetype === 0) {
       placeBuildingRect(2, 2, 5, 5);
@@ -286,10 +285,10 @@ export class DistrictChunk {
       { x: IN, y: 10, vert: true, side: 'E' },
     ];
     for (let i = parkingBays.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(rng() * (i + 1));
       [parkingBays[i], parkingBays[j]] = [parkingBays[j], parkingBays[i]];
     }
-    const targetCars = 2 + Math.floor(Math.random() * 2);
+    const targetCars = 2 + Math.floor(rng() * 2);
     let placedCars = 0;
     for (const bay of parkingBays) {
       if (placedCars >= targetCars) break;
@@ -297,7 +296,7 @@ export class DistrictChunk {
         this.ground[bay.y][bay.x] = TileType.ASPHALT;
         this.elevation[bay.y][bay.x] = 0;
         this.props[bay.y][bay.x] = PropType.CAR;
-        this.propColors[bay.y][bay.x] = CAR_PALETTE[Math.floor(Math.random() * CAR_PALETTE.length)];
+        this.propColors[bay.y][bay.x] = CAR_PALETTE[Math.floor(rng() * CAR_PALETTE.length)];
         this.propVertical[bay.y][bay.x] = bay.vert;
         this.propCurbSide[bay.y][bay.x] = bay.side;
         placedCars++;
@@ -306,7 +305,7 @@ export class DistrictChunk {
 
     const lampSpots = [[1, 1], [IN, 1], [1, IN], [IN, IN]];
     for (const [lx, ly] of lampSpots) {
-      if (this.ground[ly][lx] === TileType.SIDEWALK && Math.random() < 0.78) {
+      if (this.ground[ly][lx] === TileType.SIDEWALK && rng() < 0.78) {
         this.props[ly][lx] = PropType.STREETLIGHT;
       }
     }
@@ -315,12 +314,12 @@ export class DistrictChunk {
       for (let lx = 1; lx < LAST; lx++) {
         if (this.props[ly][lx] !== PropType.NONE) continue;
         const g = this.ground[ly][lx];
-        if (g === TileType.ALLEY && Math.random() < 0.07) {
+        if (g === TileType.ALLEY && rng() < 0.07) {
           this.props[ly][lx] = PropType.DUMPSTER;
         } else if (
           (g === TileType.SIDEWALK || g === TileType.PLAZA) &&
           (lx === 1 || lx === IN || ly === 1 || ly === IN) &&
-          Math.random() < 0.08
+          rng() < 0.08
         ) {
           this.props[ly][lx] = PropType.TREE;
         }

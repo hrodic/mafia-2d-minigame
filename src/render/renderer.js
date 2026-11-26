@@ -18,6 +18,7 @@ import {
 import { canvas, ctx } from './canvas.js';
 import { drawBuilding, drawProp } from './world.js';
 import { drawCharacter, drawDeadBody } from './characters.js';
+import { drawCityBackdrop } from './backdrop.js';
 import { renderMinimap } from './minimap.js';
 
 
@@ -50,6 +51,9 @@ export function render() {
   ctx.save();
   ctx.translate(-camLeft, -camTop);
 
+  // Decorative city outside the generated/playable chunks.
+  drawCityBackdrop(ctx, camLeft, camTop, viewW, viewH);
+
   const minCx = Math.floor(camLeft / CHUNK_PX) - 1;
   const maxCx = Math.floor(camRight / CHUNK_PX) + 1;
   const minCy = Math.floor(camTop / CHUNK_PX) - 1;
@@ -71,12 +75,6 @@ export function render() {
       if (chunk.faction !== Faction.NEUTRAL) {
         ctx.fillStyle = meta.tint;
         ctx.fillRect(ox, oy, CHUNK_PX, CHUNK_PX);
-      }
-
-      if (state.showBorders) {
-        ctx.strokeStyle = meta.border;
-        ctx.lineWidth = chunk.faction === Faction.NEUTRAL ? 1 : 2.2;
-        ctx.strokeRect(ox + 1, oy + 1, CHUNK_PX - 2, CHUNK_PX - 2);
       }
 
       // Capture progress bar in chunk center

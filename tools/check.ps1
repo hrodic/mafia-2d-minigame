@@ -1,8 +1,9 @@
 # Static health check for the zero-build project. No npm/node required.
 # Usage: powershell -ExecutionPolicy Bypass -File tools/check.ps1
 # Verifies: required files, relative imports resolve, no bare static imports,
-# every test suite is registered in the runner, index.html has unique ids, and
-# each .opencode/skills/<id>/SKILL.md has valid frontmatter + existing references.
+# every test suite is registered in the runner, index.html has unique ids,
+# each .opencode/skills/<id>/SKILL.md has valid frontmatter + existing references,
+# and the sim/ layering ratchet + singleton imports (canvas) are respected.
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -37,6 +38,65 @@ foreach ($file in $jsFiles) {
 
   foreach ($m in [regex]::Matches($text, "(?m)^\s*import\s+(?:[^'""]+?\s+from\s+)?['""](?!\.)([^'""]+)['""]")) {
     $errors.Add("bare static import in $($file.FullName): $($m.Groups[1].Value)")
+  }
+
+  # Catch missing singleton imports introduced by module extraction (e.g. canvas in mpNet).
+  if ($file.Name -ne 'canvas.js' -and
+      $text -match '\bcanvas\.(?:width|height|getBoundingClientRect|parentElement|addEventListener|style|classList)' -and
+      $text -notmatch "import\s*\{[^}]*\bcanvas\b[^}]*\}\s*from\s*['""][^'""]*canvas\.js['""]") {
+    $errors.Add("missing canvas import in $($file.FullName): uses canvas.* without importing it")
+  }
+}
+
+# Worldgen must use an explicit PRNG; only the unseeded fallback may name Math.random.
+$worldDir = Join-Path $root 'src/world'
+foreach ($worldFile in (Get-ChildItem $worldDir -Filter *.js)) {
+  $worldText = [IO.File]::ReadAllText($worldFile.FullName)
+  if ($worldText -match 'Math\.random\s*\(') {
+    $errors.Add("Math.random() in worldgen ($($worldFile.Name)); use the injected rng")
+  }
+}
+
+# Single version source: GAME_VERSION lives in one file; no duplicates in src/index.html.
+$versionFile = Join-Path $root 'src/config/version.js'
+$gameVersion = $null
+if (-not (Test-Path $versionFile -PathType Leaf)) {
+  $errors.Add('missing required file: src/config/version.js')
+} else {
+  $versionSource = [IO.File]::ReadAllText($versionFile)
+  $versionMatch = [regex]::Match($versionSource, "GAME_VERSION\s*=\s*'([^']+)'")
+  if (-not $versionMatch.Success) {
+    $errors.Add('src/config/version.js must export GAME_VERSION as a single-quoted string')
+  } elseif ($versionMatch.Groups[1].Value -notmatch '^\d+\.\d+\.\d+$') {
+    $errors.Add("GAME_VERSION must be SemVer MAJOR.MINOR.PATCH: $($versionMatch.Groups[1].Value)")
+  } else {
+    $gameVersion = $versionMatch.Groups[1].Value
+  }
+}
+if ($gameVersion) {
+  $versionFiles = @($jsFiles) + @(Get-Item (Join-Path $root 'index.html'))
+  foreach ($file in $versionFiles) {
+    if ($file.FullName -eq $versionFile) { continue }
+    $versionContent = [IO.File]::ReadAllText($file.FullName)
+    if ($versionContent.Contains($gameVersion)) {
+      $errors.Add("version literal duplicated in $($file.FullName); use GAME_VERSION")
+    }
+  }
+}
+
+# Layering ratchet: sim/ must not import presentation/net layers. The remaining Phase 2
+# debt is allowlisted; remove entries as each module migrates and never add new ones.
+$simDir = Join-Path $root 'src/sim'
+$simPresentationDebt = @('simulation.js')
+$simDebtFound = New-Object System.Collections.Generic.List[string]
+foreach ($file in (Get-ChildItem $simDir -Filter *.js)) {
+  $text = [IO.File]::ReadAllText($file.FullName)
+  if ($text -match "from\s+['""]\.\./(render|audio|ui|net)/") {
+    if ($simPresentationDebt -contains $file.Name) {
+      $simDebtFound.Add($file.Name)
+    } else {
+      $errors.Add("layering: src/sim/$($file.Name) imports render/audio/ui/net")
+    }
   }
 }
 
@@ -97,7 +157,12 @@ if (Test-Path $skillsDir -PathType Container) {
 }
 
 if ($errors.Count -eq 0) {
-  Write-Output "OK: $($jsFiles.Count) modules, $($testFiles.Count) test suites, $skillCount skills; imports resolve; runner complete; no duplicate ids."
+  $debt = if ($simDebtFound.Count -eq 0) {
+    'sim headless'
+  } else {
+    "sim presentation debt: $(($simDebtFound | Sort-Object) -join ', ')"
+  }
+  Write-Output "OK: $($jsFiles.Count) modules, $($testFiles.Count) test suites, $skillCount skills; imports resolve; runner complete; no duplicate ids; $debt."
   exit 0
 }
 

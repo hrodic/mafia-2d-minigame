@@ -135,6 +135,22 @@ export const ALL_FACTION_SLOTS = [
   Faction.RIVAL_3,
 ];
 
+/** Clamp a requested player count to the supported 2..4 range. */
+export function clampFactionCount(count) {
+  return Math.max(2, Math.min(4, Number(count) || 4));
+}
+
+/**
+ * Active slots for a match. 2P keeps the host and the last rival; 3P uses the first
+ * three slots; 4P uses all. Single source for setup and multiplayer lobby seats.
+ */
+export function getActiveFactionSlots(count) {
+  const n = clampFactionCount(count);
+  if (n === 2) return [Faction.PLAYER, Faction.RIVAL_3];
+  if (n === 3) return [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2];
+  return [...ALL_FACTION_SLOTS];
+}
+
 /**
  * Return exactly 4 org ids, filling missing/duplicate/invalid entries with the first
  * unused organization. Used by both match setup and the multiplayer lobby.

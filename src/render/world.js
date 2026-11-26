@@ -3,6 +3,7 @@
 import { TILE_SIZE } from '../config/constants.js';
 import { PropType } from '../config/enums.js';
 import { ctx } from './canvas.js';
+import { getPropFootprint } from '../world/geometry.js';
 
 
 export function drawBuilding(item) {
@@ -42,11 +43,9 @@ export function drawBuilding(item) {
 
 export function drawProp(item) {
   const { wx, wy, prop, color, vertical, curbSide } = item;
-  if (prop === PropType.CAR) {
-    const rx = vertical ? (curbSide === 'W' ? wx + 21 : wx + 5) : wx + 5;
-    const ry = vertical ? wy + 5 : (curbSide === 'N' ? wy + 21 : wy + 5);
-    const rw = vertical ? 18 : 34;
-    const rh = vertical ? 34 : 18;
+  const rect = getPropFootprint(prop, wx, wy, vertical, curbSide);
+  if (prop === PropType.CAR && rect) {
+    const { x: rx, y: ry, w: rw, h: rh } = rect;
 
     ctx.fillStyle = 'rgba(0,0,0,0.42)';
     ctx.fillRect(rx + 2, ry + 3, rw, rh);
@@ -64,11 +63,11 @@ export function drawProp(item) {
       ctx.fillRect(rx + 6, ry + 3, 6, rh - 6);
       ctx.fillRect(rx + rw - 11, ry + 3, 5, rh - 6);
     }
-  } else if (prop === PropType.DUMPSTER) {
+  } else if (prop === PropType.DUMPSTER && rect) {
     ctx.fillStyle = 'rgba(0,0,0,0.38)';
     ctx.fillRect(wx + 11, wy + 13, 26, 22);
     ctx.fillStyle = '#14532d';
-    ctx.fillRect(wx + 9, wy + 10, 26, 22);
+    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
     ctx.fillStyle = '#09090b';
     ctx.fillRect(wx + 10, wy + 11, 24, 6);
   } else if (prop === PropType.STREETLIGHT) {

@@ -4,7 +4,7 @@ import { test, assert, assertEqual } from './harness.js';
 import { Faction, UnitRank, PropType } from '../src/config/enums.js';
 import { CHUNK_SIZE, TILE_SIZE } from '../src/config/constants.js';
 import { state } from '../src/core/state.js';
-import { runtime } from '../src/core/runtime.js';
+import { on } from '../src/core/events.js';
 import { isSoundEnabled, setSoundEnabled } from '../src/audio/engine.js';
 import { resetEffects } from '../src/render/effects.js';
 import { update } from '../src/sim/simulation.js';
@@ -23,7 +23,6 @@ const STATE_KEYS = [
   'isSpectating',
   'tickTimer',
   'tickDuration',
-  'hudUpdateTimer',
   'minimapCacheTimer',
   'gameHour',
   'net',
@@ -152,7 +151,6 @@ function withSimState(opts, fn) {
   state.isSpectating = false;
   state.tickTimer = opts.tickTimer ?? 0;
   state.tickDuration = opts.tickDuration ?? 100;
-  state.hudUpdateTimer = opts.hudUpdateTimer ?? 0;
   state.minimapCacheTimer = 0;
   state.gameHour = opts.gameHour ?? 12;
   state.net = opts.net || null;
@@ -166,18 +164,12 @@ function withSimState(opts, fn) {
   state.factionRecruitmentPrefs = JSON.parse(JSON.stringify(saved.factionRecruitmentPrefs));
   resetEffects();
 
-  let hudCalls = 0;
-  const originalHud = runtime.updateHUD;
-  runtime.updateHUD = () => {
-    hudCalls++;
-  };
   const sound = isSoundEnabled();
   setSoundEnabled(false);
 
   try {
-    return fn({ hudCalls: () => hudCalls });
+    return fn({});
   } finally {
-    runtime.updateHUD = originalHud;
     setSoundEnabled(sound);
     for (const key of STATE_KEYS) state[key] = saved[key];
     resetEffects();
@@ -185,13 +177,11 @@ function withSimState(opts, fn) {
 }
 
 test('simulation: host movement, timers and HUD cadence', () => {
-  withSimState({ keys: ['d'], hudUpdateTimer: 0.24, player: makePlayer({ attackCooldown: 0.5 }) }, ({ hudCalls }) => {
+  withSimState({ keys: ['d'], player: makePlayer({ attackCooldown: 0.5 }) }, () => {
     update(0.1);
     assert(state.player.x > 100, `player should move right, x=${state.player.x}`);
     assertEqual(state.player.y, 100);
     assertEqual(state.player.attackCooldown.toFixed(1), '0.4');
-    assertEqual(hudCalls(), 1, 'HUD should refresh at the 250ms cadence');
-    assertEqual(state.hudUpdateTimer, 0);
     assert(state.camera.x > 0, 'camera should follow the boss');
   });
 });
@@ -213,12 +203,19 @@ test('simulation: hourly tick fires from update and pays income', () => {
       treasuries: { [Faction.PLAYER]: 0 },
       activeFactions: [Faction.PLAYER],
     },
-    ({ hudCalls }) => {
-      update(0.1);
-      assertEqual(state.gameHour, 13);
-      assert(state.tickTimer < 0.1, `tick timer should wrap, got ${state.tickTimer}`);
-      assertEqual(state.treasuries[Faction.PLAYER], 1000);
-      assert(hudCalls() >= 1, 'tick should refresh the HUD');
+    () => {
+      const ticks = [];
+      const unsubscribe = on('hour:tick', (payload) => ticks.push(payload));
+      try {
+        update(0.1);
+        assertEqual(state.gameHour, 13);
+        assert(state.tickTimer < 0.1, `tick timer should wrap, got ${state.tickTimer}`);
+        assertEqual(state.treasuries[Faction.PLAYER], 1000);
+        assertEqual(ticks.length, 1, 'tick should emit hour:tick');
+        assertEqual(ticks[0].hour, 13);
+      } finally {
+        unsubscribe();
+      }
     }
   );
 });
@@ -242,17 +239,15 @@ test('simulation: guest update forwards input, follows the local boss and decays
       npcs: [boss],
       keys: ['d'],
       player: makePlayer({ x: 100, y: 100 }),
-      hudUpdateTimer: 0.2,
       tickTimer: 5,
       tickDuration: 10,
     },
-    ({ hudCalls }) => {
+    () => {
       update(0.1);
       assertEqual(calls.input, 1, 'guest input should be streamed');
       assertEqual(state.player.x, 100, 'guest must not simulate the host player');
       assert(state.camera.x > 0, 'guest camera should follow the local boss');
       assert(boss.slashAnimTimer < 0.18, 'guest animation timers must decay');
-      assertEqual(hudCalls(), 1);
     }
   );
 });
@@ -286,6 +281,25 @@ test('simulation: NPC AI runs and spatial buckets are rebuilt', () => {
   });
 });
 
+test('simulation: non-boss melee emits slash:performed', () => {
+  const player = makePlayer({ x: 100, y: 100 });
+  const npc = makeNpc({ x: 130, y: 100, faction: Faction.RIVAL_1 });
+  withSimState({ player, npcs: [npc] }, () => {
+    const slashes = [];
+    const unsubscribe = on('slash:performed', (payload) => slashes.push(payload));
+    try {
+      update(0.016);
+      assertEqual(slashes.length, 1);
+      assertEqual(slashes[0].hitCount, 1);
+      assertEqual(slashes[0].isPlayer, false);
+      assertEqual(slashes[0].x, 130);
+      assert(state.player.hp < 400, 'the melee should still damage the player');
+    } finally {
+      unsubscribe();
+    }
+  });
+});
+
 test('simulation: click-to-move walks the player toward the waypoint', () => {
   withSimState({ player: makePlayer({ x: 100, y: 100, targetX: 300, targetY: 100 }) }, () => {
     for (let i = 0; i < 5; i++) update(0.1);
@@ -294,9 +308,8 @@ test('simulation: click-to-move walks the player toward the waypoint', () => {
 });
 
 test('simulation: update is a no-op before the match starts', () => {
-  withSimState({ gameStarted: false }, ({ hudCalls }) => {
+  withSimState({ gameStarted: false }, () => {
     update(1);
-    assertEqual(hudCalls(), 0);
     assertEqual(state.player.x, 100);
   });
 });

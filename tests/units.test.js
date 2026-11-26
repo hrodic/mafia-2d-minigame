@@ -10,7 +10,9 @@ import {
 } from '../src/config/balance.js';
 import { ALL_FACTION_SLOTS } from '../src/config/organizations.js';
 import { state } from '../src/core/state.js';
+import { on } from '../src/core/events.js';
 import { CityMap } from '../src/world/city.js';
+import { onUnitRecruited } from '../src/render/recruitFx.js';
 import {
   getUnitCaps,
   resetDefaultPlayerSpawnCaps,
@@ -54,9 +56,17 @@ function withUnitsState(opts, fn) {
   state.floatingTexts = [];
   state.spatialBuckets = new Map();
 
+  const events = [];
+  const unsubscribers = [
+    on('unit:recruited', (payload) => events.push({ type: 'unit:recruited', payload })),
+    // Mirror production wiring so the floating-text assertion stays meaningful.
+    on('unit:recruited', onUnitRecruited),
+  ];
+
   try {
-    return fn({ map });
+    return fn({ map, events });
   } finally {
+    for (const unsubscribe of unsubscribers) unsubscribe();
     for (const key of STATE_KEYS) state[key] = saved[key];
   }
 }
@@ -65,6 +75,10 @@ function ownedChunk(map, faction = Faction.PLAYER, cx = 0, cy = 0) {
   const chunk = map.generateChunk(cx, cy);
   chunk.faction = faction;
   return chunk;
+}
+
+function eventsOf(events, type) {
+  return events.filter((entry) => entry.type === type);
 }
 
 test('units: caps scale with the number of neighborhoods', () => {
@@ -180,7 +194,7 @@ test('units: AI boss spawns slow, human boss spawns fast with a peer id', () => 
 });
 
 test('units: recruiting charges the treasury and spawns a unit', () => {
-  withUnitsState({ treasuries: { [Faction.PLAYER]: 10000 } }, ({ map }) => {
+  withUnitsState({ treasuries: { [Faction.PLAYER]: 10000 } }, ({ map, events }) => {
     ownedChunk(map, Faction.PLAYER);
     assertEqual(recruitUnit(Faction.PLAYER, UnitRank.SOLDIER), true);
     assertEqual(state.treasuries[Faction.PLAYER], 10000 - COST_SOLDIER);
@@ -188,8 +202,16 @@ test('units: recruiting charges the treasury and spawns a unit', () => {
     assertEqual(state.npcs[0].rank, UnitRank.SOLDIER);
     assertEqual(state.floatingTexts.length, 1);
 
+    const recruited = eventsOf(events, 'unit:recruited');
+    assertEqual(recruited.length, 1);
+    assertEqual(recruited[0].payload.unit, state.npcs[0]);
+    assertEqual(recruited[0].payload.faction, Faction.PLAYER);
+    assertEqual(recruited[0].payload.rank, UnitRank.SOLDIER);
+    assertEqual(recruited[0].payload.cost, COST_SOLDIER);
+
     assertEqual(recruitUnit(Faction.PLAYER, UnitRank.SOLDIER, true), true);
     assertEqual(state.floatingTexts.length, 1, 'silent recruit should not float text');
+    assertEqual(eventsOf(events, 'unit:recruited').length, 1, 'silent recruit should not emit');
     assertEqual(state.treasuries[Faction.PLAYER], 10000 - COST_SOLDIER * 2);
   });
 });

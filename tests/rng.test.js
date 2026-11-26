@@ -1,6 +1,39 @@
 // Deterministic PRNG tests: world generation reproducibility depends on these.
 import { test, assert, assertEqual, assertDeepEqual } from './harness.js';
-import { createMulberry32, hashChunkSeed, withSeed } from '../src/core/rng.js';
+import { createMulberry32, hashChunkSeed, randomWorldSeed, parseWorldSeed } from '../src/core/rng.js';
+import { DistrictChunk } from '../src/world/chunk.js';
+
+test('rng: seeded worldgen never reassigns Math.random', () => {
+  const descriptor = Object.getOwnPropertyDescriptor(Math, 'random');
+  Object.defineProperty(Math, 'random', {
+    value: () => {
+      throw new Error('Math.random used during seeded worldgen');
+    },
+    writable: false,
+    configurable: true,
+  });
+  try {
+    const chunk = new DistrictChunk(0, 0, { seed: 123, gridSize: 15, incomeTier: 'HIGH' });
+    assert(chunk.income > 0);
+  } finally {
+    Object.defineProperty(Math, 'random', descriptor);
+  }
+});
+
+test('rng: unseeded worldgen still uses the global random source', () => {
+  const descriptor = Object.getOwnPropertyDescriptor(Math, 'random');
+  Object.defineProperty(Math, 'random', {
+    value: () => 0.5,
+    writable: true,
+    configurable: true,
+  });
+  try {
+    const chunk = new DistrictChunk(0, 0, { seed: null, gridSize: 15, incomeTier: 'HIGH' });
+    assertEqual(chunk.income, 1250);
+  } finally {
+    Object.defineProperty(Math, 'random', descriptor);
+  }
+});
 
 test('rng: mulberry32 is deterministic for a given seed', () => {
   const a = createMulberry32(123456);
@@ -33,26 +66,23 @@ test('rng: chunk seed hashing is stable and position-sensitive', () => {
   assertEqual(hashChunkSeed(99, -2, -7), hashChunkSeed(99, -2, -7));
 });
 
-test('rng: withSeed is reproducible and restores Math.random', () => {
-  const original = Math.random;
-  let first;
-  let second;
-  withSeed(7, () => {
-    first = Math.random();
-  });
-  withSeed(7, () => {
-    second = Math.random();
-  });
-  assertEqual(first, second);
-  assert(Math.random === original, 'Math.random must be restored');
+test('rng: randomWorldSeed stays in the supported integer range', () => {
+  for (let i = 0; i < 200; i++) {
+    const seed = randomWorldSeed();
+    assert(Number.isInteger(seed), `seed not integer: ${seed}`);
+    assert(seed >= 1 && seed <= 2147483647, `seed out of range: ${seed}`);
+  }
 });
 
-test('rng: withSeed(null) runs without swapping Math.random', () => {
-  const original = Math.random;
-  let ran = false;
-  withSeed(null, () => {
-    ran = true;
-  });
-  assert(ran);
-  assert(Math.random === original);
+test('rng: parseWorldSeed accepts blank/invalid as random and valid integers as seeds', () => {
+  assertEqual(parseWorldSeed(''), null);
+  assertEqual(parseWorldSeed('   '), null);
+  assertEqual(parseWorldSeed(undefined), null);
+  assertEqual(parseWorldSeed('abc'), null);
+  assertEqual(parseWorldSeed('12.5'), null);
+  assertEqual(parseWorldSeed('-3'), null);
+  assertEqual(parseWorldSeed('2147483648'), null);
+  assertEqual(parseWorldSeed('0'), 0);
+  assertEqual(parseWorldSeed('12345'), 12345);
+  assertEqual(parseWorldSeed(777), 777);
 });

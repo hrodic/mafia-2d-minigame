@@ -1,7 +1,8 @@
 // Deterministic PRNG helpers.
 //
-// `withSeed` temporarily swaps Math.random so legacy world-generation code is
-// reproducible; it is replaced by an explicit injected rng in Phase 2.
+// World generation receives an explicit PRNG (createMulberry32) derived from the world
+// seed; it never swaps the browser-global Math.random. Unseeded worlds fall back to
+// Math.random at the call site.
 
 export function createMulberry32(seed) {
   let a = seed >>> 0;
@@ -20,13 +21,24 @@ export function hashChunkSeed(baseSeed, cx, cy) {
   return (h ^ (h >>> 16)) >>> 0;
 }
 
-export function withSeed(seed, fn) {
-  if (seed === null || seed === undefined) return fn();
-  const origRandom = Math.random;
-  Math.random = createMulberry32(seed);
-  try {
-    return fn();
-  } finally {
-    Math.random = origRandom;
+const MAX_WORLD_SEED = 2147483647;
+
+/** Random base seed for a fresh match (1..2147483647). */
+export function randomWorldSeed() {
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    return (crypto.getRandomValues(new Uint32Array(1))[0] % MAX_WORLD_SEED) + 1;
   }
+  return Math.floor(Math.random() * MAX_WORLD_SEED) + 1;
+}
+
+/**
+ * Parse a user-entered seed. Blank/invalid returns null (caller generates one).
+ * 0 is a valid explicit seed; the supported range is 0..2147483647.
+ */
+export function parseWorldSeed(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return null;
+  const seed = Number(text);
+  if (!Number.isInteger(seed) || seed < 0 || seed > MAX_WORLD_SEED) return null;
+  return seed;
 }

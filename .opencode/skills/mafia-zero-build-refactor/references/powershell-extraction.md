@@ -24,11 +24,13 @@ $block[0] = 'export function foo() {'
   (`name:`), shorthand (`{ name }`), spreads (`...name`) and quoted strings. A rename once
   corrupted the DOM id `mp-host-player-count` and broke the lobby.
 - After extraction, load the game in a browser. Some modules (e.g. `mpNet.js`) are not
-  imported by tests, so missing imports only fail at runtime.
+  imported by tests, so missing imports only fail at runtime. Exercise the guest flow too:
+  a missing `canvas` import in `mpNet.js` broke only guest input while single-player worked.
+  `tools/check.ps1` now guards `canvas.*` usage.
 
 ## ESM rules
 
 - Relative imports must include `.js`; no bare specifiers.
 - In a cycle, never read an imported binding at module top level. Pass parameters or use a
-  bridge (`core/state.js`, `core/runtime.js`).
+  bridge (`core/state.js`).
 - Export `function`/`const`; for values importers must reassign, use a shared object field.

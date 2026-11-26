@@ -1,18 +1,16 @@
 // Territory capture, faction elimination and victory/defeat transitions.
-// Presentation side effects go through core/runtime.js hooks.
+// Emits facts; presentation lives in subscribers (see EVENTS.md).
 
 import { Faction, UnitRank } from '../config/enums.js';
-import { CHUNK_PX } from '../config/constants.js';
-import { FACTION_META } from '../config/organizations.js';
+import { RANK_STATS } from '../config/balance.js';
 import { state, getLocalFaction } from '../core/state.js';
-import { runtime } from '../core/runtime.js';
-import { addFloatingText } from '../render/effects.js';
+import { emit } from '../core/events.js';
 
 export const CAPTURE_RATES = {
-  [UnitRank.BOSS]: 0.375,
-  [UnitRank.UNDERBOSS]: 0.24,
-  [UnitRank.CAPTAIN]: 0.18,
-  [UnitRank.SOLDIER]: 0.12,
+  [UnitRank.BOSS]: RANK_STATS[UnitRank.BOSS].captureRate,
+  [UnitRank.UNDERBOSS]: RANK_STATS[UnitRank.UNDERBOSS].captureRate,
+  [UnitRank.CAPTAIN]: RANK_STATS[UnitRank.CAPTAIN].captureRate,
+  [UnitRank.SOLDIER]: RANK_STATS[UnitRank.SOLDIER].captureRate,
 };
 
 export function getCaptureRate(rank) {
@@ -32,21 +30,10 @@ export function progressCapture(chunk, faction, dt, rate) {
     chunk.faction = faction;
     chunk.captureProgress = 0;
     chunk.capturingFaction = null;
+    emit('chunk:captured', { chunk, faction });
     return true;
   }
   return false;
-}
-
-/** Presentation for a freshly captured chunk (floating label, radar, HUD). */
-export function onChunkCaptured(chunk, faction) {
-  addFloatingText(
-    chunk.cx * CHUNK_PX + CHUNK_PX / 2,
-    chunk.cy * CHUNK_PX + 28,
-    `${FACTION_META[faction].short} TURF`,
-    FACTION_META[faction].accent
-  );
-  state.minimapCacheTimer = 1.0;
-  runtime.updateHUD();
 }
 
 export function checkVictoryCondition() {
@@ -58,10 +45,13 @@ export function checkVictoryCondition() {
     state.victoryShown = true;
     const myBlocks = Array.from(state.world.chunks.values()).filter((c) => c.faction === myFac).length;
     const survivingCrew = state.npcs.filter((n) => n.faction === myFac).length;
-    const myOrg = FACTION_META[myFac];
-    runtime.onVictory(
-      `All rival Supreme Leaders have been eliminated! ${myOrg.name} (${myOrg.ranks.BOSS}) rules ${myBlocks}/${state.world.chunks.size} neighborhoods with $${state.treasuries[myFac].toLocaleString()} in cash and ${survivingCrew} surviving crew.`
-    );
+    emit('match:victory', {
+      faction: myFac,
+      blocks: myBlocks,
+      totalBlocks: state.world.chunks.size,
+      cash: state.treasuries[myFac],
+      crew: survivingCrew,
+    });
   }
 }
 
@@ -88,10 +78,9 @@ export function eliminateFaction(faction) {
 
   if (faction === getLocalFaction()) {
     state.gameOver = true;
-    runtime.onDefeat();
+    emit('match:defeat', { faction });
   } else {
-    runtime.onFactionEliminated(faction);
+    emit('faction:eliminated', { faction });
     checkVictoryCondition();
   }
-  runtime.updateHUD();
 }

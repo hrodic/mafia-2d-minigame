@@ -2,35 +2,33 @@
 
 import { Faction, UnitRank } from '../config/enums.js';
 import { CHUNK_SIZE, CHUNK_PX, TILE_SIZE } from '../config/constants.js';
-import {
-  BOSS_MAX_HP,
-  MAX_BOSS_ARMOR,
-  COST_SOLDIER,
-  COST_CAPTAIN,
-  COST_UNDERBOSS,
-} from '../config/balance.js';
-import { ALL_FACTION_SLOTS, FACTION_META } from '../config/organizations.js';
+import { RANK_STATS, UNIT_CAPS } from '../config/balance.js';
+import { ALL_FACTION_SLOTS } from '../config/organizations.js';
 import { state } from '../core/state.js';
-import { addFloatingText } from '../render/effects.js';
-import { canOccupyPosition, getEntityCollisionRadius } from './movement.js';
+import { emit } from '../core/events.js';
+import { canOccupyPosition } from './movement.js';
 
 
 export function getUnitCaps() {
-  const totalNeighborhoods = Math.max(25, state.world.chunks.size || state.currentGridSize * state.currentGridSize);
-  const maxUnderbosses = Math.max(1, Math.floor(totalNeighborhoods * 0.05));
-  const maxCaptains = Math.max(1, Math.floor(totalNeighborhoods * 0.10));
+  const totalNeighborhoods = Math.max(
+    UNIT_CAPS.minNeighborhoods,
+    state.world.chunks.size || state.currentGridSize * state.currentGridSize
+  );
+  const maxUnderbosses = Math.max(1, Math.floor(totalNeighborhoods * UNIT_CAPS.underbossFraction));
+  const maxCaptains = Math.max(1, Math.floor(totalNeighborhoods * UNIT_CAPS.captainFraction));
   const maxSoldiers = Math.max(1, totalNeighborhoods - maxCaptains - maxUnderbosses);
   return { totalNeighborhoods, maxSoldiers, maxCaptains, maxUnderbosses };
 }
 
 export function resetDefaultPlayerSpawnCaps() {
   const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
-  state.playerSpawnCaps[UnitRank.SOLDIER] = Math.min(maxSoldiers, Math.max(1, Math.round(maxSoldiers * 0.5)));
-  state.playerSpawnCaps[UnitRank.CAPTAIN] = Math.min(maxCaptains, Math.max(1, Math.round(maxCaptains * 0.5)));
-  state.playerSpawnCaps[UnitRank.UNDERBOSS] = Math.min(maxUnderbosses, Math.max(1, Math.round(maxUnderbosses * 0.5)));
+  const humanCap = UNIT_CAPS.humanCapFraction;
+  state.playerSpawnCaps[UnitRank.SOLDIER] = Math.min(maxSoldiers, Math.max(1, Math.round(maxSoldiers * humanCap)));
+  state.playerSpawnCaps[UnitRank.CAPTAIN] = Math.min(maxCaptains, Math.max(1, Math.round(maxCaptains * humanCap)));
+  state.playerSpawnCaps[UnitRank.UNDERBOSS] = Math.min(maxUnderbosses, Math.max(1, Math.round(maxUnderbosses * humanCap)));
   for (const f of ALL_FACTION_SLOTS) {
     const isHumanRemote = f !== Faction.PLAYER && state.net && state.net.isHumanFaction(f);
-    const mult = f === Faction.PLAYER || isHumanRemote ? 0.5 : 1.0;
+    const mult = f === Faction.PLAYER || isHumanRemote ? humanCap : 1.0;
     state.factionRecruitmentPrefs[f] = {
       autoSoldier: true,
       autoCaptain: true,
@@ -62,7 +60,8 @@ export function spawnUnitInChunk(faction, chunk, rank = UnitRank.SOLDIER) {
     [1, 0], [IN, 0], [1, CHUNK_SIZE - 1], [IN, CHUNK_SIZE - 1],
   ];
 
-  const bodyRadius = getEntityCollisionRadius(rank);
+  const stats = RANK_STATS[rank] || RANK_STATS[UnitRank.SOLDIER];
+  const bodyRadius = stats.radius;
 
   for (let attempt = 0; attempt < spots.length; attempt++) {
     const [lx, ly] = spots[(attempt + state.nextNpcId) % spots.length];
@@ -70,14 +69,12 @@ export function spawnUnitInChunk(faction, chunk, rank = UnitRank.SOLDIER) {
     const wy = chunk.cy * CHUNK_PX + (ly + 0.5) * TILE_SIZE;
 
     if (canOccupyPosition(wx, wy, bodyRadius)) {
-      const isBoss = rank === UnitRank.BOSS;
-      const isUnderboss = rank === UnitRank.UNDERBOSS;
-      const isCaptain = rank === UnitRank.CAPTAIN;
-      const maxHp = isBoss ? BOSS_MAX_HP : isUnderboss ? 480 : isCaptain ? 340 : 180;
-      const minDmg = isBoss ? 20 : isUnderboss ? 26 : isCaptain ? 18 : 10;
-      const maxDmg = isBoss ? 40 : isUnderboss ? 38 : isCaptain ? 28 : 18;
-      const startArmor = isUnderboss ? 120 : 0;
-      const assignedPeerId = isBoss && state.net ? state.net.getPeerForFaction(faction) : null;
+      const assignedPeerId =
+        rank === UnitRank.BOSS && state.net ? state.net.getPeerForFaction(faction) : null;
+      const speed =
+        rank === UnitRank.BOSS && assignedPeerId
+          ? stats.speedHuman
+          : stats.speedAi + Math.random() * stats.speedJitter;
 
       const unit = {
         id: state.nextNpcId++,
@@ -89,17 +86,17 @@ export function spawnUnitInChunk(faction, chunk, rank = UnitRank.SOLDIER) {
         targetX: null,
         targetY: null,
         bodyRadius,
-        speed: isBoss ? (assignedPeerId ? 225 : 152) : isUnderboss ? 148 : isCaptain ? 140 : 128 + Math.random() * 16,
-        hp: maxHp,
-        maxHp,
-        armor: startArmor,
-        maxArmor: isBoss ? MAX_BOSS_ARMOR : startArmor,
+        speed,
+        hp: stats.hp,
+        maxHp: stats.hp,
+        armor: stats.startArmor,
+        maxArmor: stats.maxArmor,
         armorCooldown: 0,
         sprintTimer: 0,
         sprintCooldown: 0,
         isSprinting: false,
-        minDmg,
-        maxDmg,
+        minDmg: stats.minDmg,
+        maxDmg: stats.maxDmg,
         facing: Math.random() * Math.PI * 2,
         goalX: wx,
         goalY: wy,
@@ -124,12 +121,8 @@ export function spawnUnitInChunk(faction, chunk, rank = UnitRank.SOLDIER) {
 
 export function recruitUnit(faction, rank, silent = false, cachedCounts = null, cachedOwnedChunks = null) {
   if (!state.factionAlive[faction]) return false;
-  const cost =
-    rank === UnitRank.UNDERBOSS
-      ? COST_UNDERBOSS
-      : rank === UnitRank.CAPTAIN
-      ? COST_CAPTAIN
-      : COST_SOLDIER;
+  const stats = RANK_STATS[rank] || RANK_STATS[UnitRank.SOLDIER];
+  const cost = stats.cost;
   if (state.treasuries[faction] < cost) return false;
 
   const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
@@ -190,8 +183,7 @@ export function recruitUnit(faction, rank, silent = false, cachedCounts = null, 
   if (unit) {
     if (cachedCounts) cachedCounts[faction][countKey]++;
     if (!silent) {
-      const rankLabel = (FACTION_META[faction].ranks[rank] || rank).toUpperCase();
-      addFloatingText(unit.x, unit.y - 26, `+${rankLabel} ($${cost.toLocaleString()})`, FACTION_META[faction].accent);
+      emit('unit:recruited', { unit, faction, rank, cost });
     }
     return true;
   } else {

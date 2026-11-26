@@ -3,8 +3,10 @@
 // Phase 4 splits it into transport/protocol/lobby/host/guest modules.
 
 import { Faction, UnitRank } from '../config/enums.js';
-import { ORGANIZATIONS, FACTION_META, ensureUniqueOrgs } from '../config/organizations.js';
+import { GAME_VERSION } from '../config/version.js';
+import { ORGANIZATIONS, FACTION_META, ensureUniqueOrgs, getActiveFactionSlots } from '../config/organizations.js';
 import { state, getLocalBoss } from '../core/state.js';
+import { randomWorldSeed } from '../core/rng.js';
 import { initWorld } from '../sim/match.js';
 import { eliminateFaction } from '../sim/territory.js';
 import { getEntityCollisionRadius } from '../sim/movement.js';
@@ -15,12 +17,12 @@ import {
   executeBuyArmorForFaction,
 } from '../sim/combat.js';
 import { spawnDeadBody, bulletTracers } from '../render/effects.js';
+import { canvas } from '../render/canvas.js';
 import { sfx } from '../audio/sfx.js';
 import { showToast } from '../ui/menus.js';
 
 
 export const mpNet = (() => {
-  const GAME_VERSION = 'BETA.2026.11.26';
   const APP_ID = 'hrodic-mafia-2d-p2p-v26';
   const TRYSTERO_URLS = [
     'https://esm.sh/@trystero-p2p/nostr@0.27.0?bundle',
@@ -70,12 +72,6 @@ export const mpNet = (() => {
 
   function envelope(type, seq, payload) {
     return { v: GAME_VERSION, type, seq, payload };
-  }
-
-  function getActiveSlotsForCount(count) {
-    if (count === 2) return [Faction.PLAYER, Faction.RIVAL_3];
-    if (count === 3) return [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2];
-    return [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3];
   }
 
   function getCurrentHostConfig() {
@@ -208,7 +204,7 @@ export const mpNet = (() => {
 
   function reassignHostSeats() {
     const cfg = getCurrentHostConfig();
-    const slots = getActiveSlotsForCount(cfg.factionCount);
+    const slots = getActiveFactionSlots(cfg.factionCount);
 
     for (let i = 1; i < 4; i++) {
       if (i >= cfg.factionCount) slotClosedAsAI[i] = false;
@@ -251,7 +247,7 @@ export const mpNet = (() => {
     if (mode !== 'HOST') return;
     reassignHostSeats();
     const cfg = getCurrentHostConfig();
-    const slots = getActiveSlotsForCount(cfg.factionCount);
+    const slots = getActiveFactionSlots(cfg.factionCount);
     const rosterEl = document.getElementById('mp-host-roster');
     const countEl = document.getElementById('mp-host-player-count');
     const startBtn = document.getElementById('btn-start-game');
@@ -378,7 +374,7 @@ export const mpNet = (() => {
   }
 
   function buildLobbyRosterSnapshot(cfg) {
-    const slots = getActiveSlotsForCount(cfg.factionCount);
+    const slots = getActiveFactionSlots(cfg.factionCount);
     const seatedPeers = Array.from(peers.values()).filter((p) => p.faction !== null);
     const roster = [];
     for (let idx = 0; idx < cfg.factionCount; idx++) {
@@ -472,21 +468,6 @@ export const mpNet = (() => {
           }
         }
       }
-    } else if (payload.cmd === 'EXPAND_RING') {
-      if (state.factionAlive[fac]) {
-        const added = state.world.expandPerimeterRing(fac);
-        if (added > 0) {
-          state.minimapCacheTimer = 1.0;
-          showToast(`${FACTION_META[fac].short} expanded city perimeter (+${added} blocks)`);
-        }
-      }
-    } else if (payload.cmd === 'BUILD_BLOCK') {
-      if (state.factionAlive[fac] && typeof payload.cx === 'number' && typeof payload.cy === 'number') {
-        if (!state.world.hasChunk(payload.cx, payload.cy)) {
-          state.world.generateChunk(payload.cx, payload.cy, fac);
-          state.minimapCacheTimer = 1.0;
-        }
-      }
     }
   }
 
@@ -517,6 +498,7 @@ export const mpNet = (() => {
       tickTimer: Math.round(state.tickTimer * 100) / 100,
       treasuries: { ...state.treasuries },
       factionAlive: { ...state.factionAlive },
+      kills: { ...state.factionKills },
       playerBoss: {
         x: Math.round(state.player.x * 10) / 10,
         y: Math.round(state.player.y * 10) / 10,
@@ -540,6 +522,7 @@ export const mpNet = (() => {
     state.tickTimer = snap.tickTimer ?? state.tickTimer;
 
     if (snap.treasuries) Object.assign(state.treasuries, snap.treasuries);
+    if (snap.kills) Object.assign(state.factionKills, snap.kills);
     if (snap.factionAlive) {
       for (const f of state.activeFactions) {
         const wasAlive = state.factionAlive[f];
@@ -1004,10 +987,10 @@ export const mpNet = (() => {
     }
   }
 
-  function launchMultiplayerMatch(gridSize, tickSeconds, incomeTier, factionCount, orgRoster) {
+  function launchMultiplayerMatch(gridSize, tickSeconds, incomeTier, factionCount, orgRoster, seedOverride = null) {
     if (mode !== 'HOST' || !room) return;
     reassignHostSeats();
-    const worldSeed = Math.floor(Math.random() * 2147483647) + 1;
+    const worldSeed = seedOverride ?? randomWorldSeed();
     localFaction = Faction.PLAYER;
     matchStarted = true;
     snapshotSeq = 0;
@@ -1061,7 +1044,7 @@ export const mpNet = (() => {
     if (state.keys.has('s') || state.keys.has('arrowdown')) my += 1;
     if (state.keys.has('a') || state.keys.has('arrowleft')) mx -= 1;
     if (state.keys.has('d') || state.keys.has('arrowright')) mx += 1;
-    const sprint = state.keys.has('shift');
+    const sprint = state.keys.has('shift') || state.sprintButtonHeld;
 
     const localBoss = getLocalBoss();
     let facing = localBoss ? localBoss.facing : 0;
