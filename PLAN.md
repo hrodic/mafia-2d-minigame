@@ -21,11 +21,12 @@ architecture description here.
 - **Phase 4 — DONE (`0.4.19`):** netcode hardening; step 1 split complete; snapshot apply
   is O(n); hidden-host fallback added. Chunk deltas and NAT/TURN work moved to the future
   ideas section.
-- **Phase 5 — NEXT:** quality gates and docs.
+- **Phase 5 — IN PROGRESS (`0.4.20`):** quality gates and docs; targeted net/protocol tests
+  added and one duplicate balance check removed.
 
 Phase 3 is complete on `refactor/phase-3-unified-entity`. Phase 4 is complete on
-`refactor/phase-4-netcode`. Phase 5 is next; use the `AGENTS.md` verification loop and bump
-`GAME_VERSION` for every commit-sized step.
+`refactor/phase-4-netcode`. Phase 5 is in progress on `refactor/phase-5-quality`; use the
+`AGENTS.md` verification loop and bump `GAME_VERSION` for every commit-sized step.
 
 ## Phase 3 — DONE (`0.4.11`)
 
@@ -78,12 +79,14 @@ These are intentionally outside Phase 4 and are not scheduled.
   credential-handling risk. Do not commit long-lived TURN credentials to a public page.
 - Decision needed before implementation.
 
-## Phase 5 — NEXT: Quality gates & docs
+## Phase 5 — IN PROGRESS: Quality gates & docs
 
-1. Expand tests: snapshot encode/decode, delta apply, capture rates, caps/clamps,
-   elimination/victory, malformed remote commands ignored.
-2. JSDoc public APIs + `// @ts-check` where clean; add `jsconfig.json` (`checkJs`, strict
-   null checks where feasible). No npm.
+1. **DONE (`0.4.20`):** targeted tests for guest snapshot ordering/sender/malformed
+   payloads, unknown-chunk generation, duplicate host HELLO and remote command routing.
+   Removed the duplicate balance assertions from `config.test.js`; capture rates,
+   caps/clamps, elimination/victory and malformed commands were already covered.
+2. **NEXT:** JSDoc public APIs + `// @ts-check` where clean; add `jsconfig.json` (`checkJs`,
+   strict null checks where feasible). No npm.
 3. Refresh README/architecture docs, deploy steps, how to add content via balance tables.
 4. Validate the deployed GitHub Pages URL (module MIME, relative paths, CDNs, invites).
 

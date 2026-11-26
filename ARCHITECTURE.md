@@ -395,8 +395,9 @@ distance from the camera.
 - Coverage includes config/RNG, transport API normalization (Trystero 0.27 vs local bus),
   protocol envelope/version/snapshot encoding, lobby seats/capacity/rosters, lobby DOM
   rendering/safe names, guest handshake/init routing, snapshot apply reuse/create/remove,
-  host admission/input/AI takeover, hidden-tab simulation fallback, event bus, state
-  selectors, chunk determinism, collision,
+  snapshot ordering/sender/malformed guards, unknown-chunk generation, host admission and
+  duplicate HELLO, remote command gating, AI takeover, hidden-tab simulation fallback,
+  event bus, state selectors, chunk determinism, collision,
   pathfinding (including wall detours and no corner cutting), units/recruitment, economy,
   territory, combat math/accuracy/armor/aim geometry, effects and casings, interpolation,
   match setup, fixed-step accumulation, command dispatch/equivalence, 600-step headless

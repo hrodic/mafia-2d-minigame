@@ -196,6 +196,73 @@ test('guest: snapshot apply reuses existing units, creates new ones and removes 
   });
 });
 
+test('guest: non-host, stale and malformed snapshots are ignored', () => {
+  withSnapshotState(() => {
+    const { controller, setMatchStarted } = makeController();
+    controller.handleLobby({ type: MSG.LOBBY_STATE, payload: {} }, 'host');
+    setMatchStarted(true);
+
+    controller.handleSnapshot(
+      { type: MSG.SNAPSHOT, seq: 2, payload: { npcs: [npcRow('u1', 'SOLDIER', 10, 20)] } },
+      'host'
+    );
+    assertEqual(state.npcs.find((u) => u.id === 'u1').netX, 10);
+
+    // Older sequence.
+    controller.handleSnapshot(
+      { type: MSG.SNAPSHOT, seq: 1, payload: { npcs: [npcRow('u1', 'SOLDIER', 99, 99)] } },
+      'host'
+    );
+    assertEqual(state.npcs.find((u) => u.id === 'u1').netX, 10);
+
+    // Wrong sender.
+    controller.handleSnapshot(
+      { type: MSG.SNAPSHOT, seq: 3, payload: { npcs: [npcRow('u1', 'SOLDIER', 77, 77)] } },
+      'other'
+    );
+    assertEqual(state.npcs.find((u) => u.id === 'u1').netX, 10);
+
+    // Malformed payload.
+    controller.handleSnapshot({ type: MSG.SNAPSHOT, seq: 4, payload: null }, 'host');
+    assertEqual(state.npcs.find((u) => u.id === 'u1').netX, 10);
+  });
+});
+
+test('guest: snapshot chunks generate unknown chunks and refresh the radar', () => {
+  withSnapshotState(() => {
+    const chunks = new Map();
+    state.world = {
+      chunks,
+      getChunk: (cx, cy) => chunks.get(`${cx},${cy}`) || null,
+      generateChunk: (cx, cy, faction) => {
+        const chunk = { cx, cy, faction, captureProgress: 0, capturingFaction: null };
+        chunks.set(`${cx},${cy}`, chunk);
+        return chunk;
+      },
+    };
+    state.minimapCacheTimer = 0;
+
+    const { controller, setMatchStarted } = makeController();
+    controller.handleLobby({ type: MSG.LOBBY_STATE, payload: {} }, 'host');
+    setMatchStarted(true);
+    controller.handleSnapshot(
+      {
+        type: MSG.SNAPSHOT,
+        seq: 1,
+        payload: { chunks: [[4, 5, 'RIVAL_1', 0.42, 'PLAYER']] },
+      },
+      'host'
+    );
+
+    const chunk = chunks.get('4,5');
+    assert(chunk, 'unknown chunk should be generated');
+    assertEqual(chunk.faction, 'RIVAL_1');
+    assertEqual(chunk.captureProgress, 0.42);
+    assertEqual(chunk.capturingFaction, 'PLAYER');
+    assertEqual(state.minimapCacheTimer, 1.0);
+  });
+});
+
 test('guest: reset clears the host, roster, settings and sequence state', () => {
   const { controller } = makeController();
   controller.handleLobby(

@@ -1,6 +1,6 @@
 // Host controller tests: lobby admission, rejection, input routing and AI takeover.
 import { test, assert, assertEqual, assertDeepEqual } from './harness.js';
-import { Faction } from '../src/config/enums.js';
+import { Faction, UnitRank } from '../src/config/enums.js';
 import { GAME_VERSION } from '../src/config/version.js';
 import { state } from '../src/core/state.js';
 import { createHostController } from '../src/net/host.js';
@@ -98,6 +98,65 @@ test('host: remote input is clamped and stored', () => {
   assertEqual(input.my, -1);
   assertEqual(input.sprint, true);
   assertEqual(input.facing, 2);
+});
+
+test('host: duplicate HELLO refreshes lobby state without duplicating the guest', () => {
+  const { controller, calls } = makeHost();
+  const hello = { v: GAME_VERSION, type: MSG.HELLO, payload: { name: 'Guest Boss' } };
+
+  controller.handleLobby(hello, 'g1');
+  const joinedBefore = calls.notified.filter((message) => message.includes('joined')).length;
+  const sentBefore = calls.sent.length;
+
+  controller.handleLobby(hello, 'g1');
+
+  assertEqual(calls.notified.filter((message) => message.includes('joined')).length, joinedBefore);
+  assert(calls.sent.length > sentBefore, 'duplicate HELLO should resend lobby state');
+  assertEqual(calls.sent[calls.sent.length - 1][0].type, MSG.LOBBY_STATE);
+  assertEqual(controller.getPeerForFaction(Faction.RIVAL_1), 'g1');
+});
+
+test('host: commands from seated peers are dispatched; unknown peers are ignored', () => {
+  const { controller, setMatchStarted } = makeHost();
+  controller.handleLobby(
+    { v: GAME_VERSION, type: MSG.HELLO, payload: { name: 'Guest Boss' } },
+    'g1'
+  );
+  setMatchStarted(true);
+
+  const savedWorld = state.world;
+  const savedNpcs = state.npcs;
+  try {
+    state.world = { findNearestWalkablePoint: (x, y) => ({ x, y }) };
+    state.npcs = [
+      {
+        id: 'boss1',
+        faction: Faction.RIVAL_1,
+        rank: UnitRank.BOSS,
+        targetX: null,
+        targetY: null,
+        path: null,
+        pathTimer: 0,
+      },
+    ];
+
+    controller.handleCommand(
+      { type: MSG.CMD, payload: { cmd: 'MOVE_TO', x: 12, y: 34 } },
+      'g1'
+    );
+    assertEqual(state.npcs[0].targetX, 12);
+    assertEqual(state.npcs[0].targetY, 34);
+
+    controller.handleCommand(
+      { type: MSG.CMD, payload: { cmd: 'MOVE_TO', x: 99, y: 99 } },
+      'unknown-peer'
+    );
+    assertEqual(state.npcs[0].targetX, 12);
+    assertEqual(state.npcs[0].targetY, 34);
+  } finally {
+    state.world = savedWorld;
+    state.npcs = savedNpcs;
+  }
 });
 
 test('host: peer leave before launch frees the seat; mid-match returns the boss to AI', () => {

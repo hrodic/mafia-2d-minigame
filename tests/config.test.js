@@ -12,18 +12,7 @@ import {
   MAX_FRAME_DELTA,
   MAX_SIM_STEPS,
 } from '../src/config/constants.js';
-import {
-  INCOME_TIERS,
-  COST_SOLDIER,
-  COST_CAPTAIN,
-  COST_UNDERBOSS,
-  COST_BOSS_ARMOR,
-  BOSS_MAX_HP,
-  MAX_BOSS_ARMOR,
-  UPKEEP_SOLDIER,
-  UPKEEP_CAPTAIN,
-  UPKEEP_UNDERBOSS,
-} from '../src/config/balance.js';
+import { INCOME_TIERS } from '../src/config/balance.js';
 import { TileType, PropType, Faction, UnitRank } from '../src/config/enums.js';
 import {
   ORGANIZATIONS,
@@ -80,18 +69,6 @@ test('config: income tiers are ordered and valid', () => {
     assert(tier.max >= tier.min, `${key} has max < min`);
     assert(tier.label, `${key} is missing a label`);
   }
-});
-
-test('config: balance values match the original tuning', () => {
-  assertEqual(COST_SOLDIER, 1200);
-  assertEqual(COST_CAPTAIN, 2200);
-  assertEqual(COST_UNDERBOSS, 3800);
-  assertEqual(COST_BOSS_ARMOR, 3500);
-  assertEqual(BOSS_MAX_HP, 400);
-  assertEqual(MAX_BOSS_ARMOR, 300);
-  assertEqual(UPKEEP_SOLDIER, 50);
-  assertEqual(UPKEEP_CAPTAIN, 100);
-  assertEqual(UPKEEP_UNDERBOSS, 150);
 });
 
 test('config: every organization is complete', () => {
