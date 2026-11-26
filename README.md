@@ -83,9 +83,8 @@ python -m http.server 8000
 
 Then open `http://localhost:8000/`.
 
-> **Why a server?** The test page uses ES modules and, during the architecture
-> refactor, the game itself moves to native ES modules too. Browsers block module
-> loading from `file://`, so `http://` is required from then on.
+> **Why a server?** The game and tests use native ES modules. Browsers block module
+> loading from `file://`, so `http://` is required (GitHub Pages provides it).
 
 Multiplayer needs network access for the Trystero CDN; multi-tab local play works
 offline on the same origin.
@@ -105,56 +104,74 @@ smoke checklist (quick smoke per commit, full checklist per phase), and
 
 ## Repository layout
 
-The architecture refactor is in progress: the game script now lives in `src/main.js` as a
-native ES module and custom CSS in `styles.css`; the module split is being extracted step
-by step, with the game kept playable and tests green at every step. Target layout:
+Native ES modules, no build step. `index.html` is the shell; `styles.css` holds custom
+CSS; `src/main.js` is a thin composition root.
 
 ```
 index.html            markup only + module entry
-styles.css            extracted custom CSS
+styles.css            custom CSS (Tailwind stays on its CDN)
 src/
-  main.js             bootstrap / wiring / loop
-  config/             constants, enums, organizations, balance tables
-  core/               rng, state, events, spatial index
-  world/              districts, city map, collision, pathfinding
-  sim/                simulation, units, movement, combat, AI, territory, economy
-  net/                transport, protocol, lobby, host, guest
-  render/             renderer, world, characters, effects, minimap, camera
-  audio/              music engine, synthesized SFX
-  ui/                 HUD, menus, lobby UI, input bindings
-tests/                tests.html, test modules, SMOKE.md
+  main.js             composition root: net bridge, runtime hooks, loop, bootstrap
+  config/             constants.js · enums.js · balance.js · organizations.js
+  core/               rng.js · state.js · runtime.js · spatial.js
+  world/              chunk.js · city.js · pathfinding.js
+  sim/                match.js · simulation.js · movement.js · units.js ·
+                      combat.js · territory.js · economy.js
+  net/                mpNet.js (transport, lobby, host/guest snapshots)
+  render/             canvas.js · renderer.js · world.js · characters.js ·
+                      effects.js · minimap.js · interpolation.js
+  audio/              engine.js (music) · sfx.js
+  ui/                 hud.js · menus.js · input.js
+tests/                tests.html · *.test.js · mp-harness.html · SMOKE.md
 ```
 
-## Current code map
+## Architecture
 
-`index.html` now holds markup only (HUD, canvases, modals, banners) and loads
-`styles.css` + `src/main.js` (type="module"). `src/main.js` is the original script moved
-intact; the split into `src/` modules is in progress.
+- **Dependency direction:** `config → core → world → sim/render/audio/net → ui → main`.
+  `sim/` is DOM-free and audio-free; state mutations flow out through the transitional
+  `core/runtime.js` hooks (HUD refresh, toasts, banners, SFX), wired once in `main.js`.
+  Phase 2 replaces these hooks with an event bus so the simulation is fully headless.
+- **Shared state:** one `state` object (`core/state.js`). Selectors
+  `getLocalFaction` / `getLocalBoss` resolve local vs. remote-controlled bosses through
+  `state.net`, so gameplay code does not branch on multiplayer mode.
+- **World:** seeded `DistrictChunk` generation (mulberry32 + per-chunk hashing) gives
+  peers identical cities; `CityMap` owns tile queries/collision; A* powers both AI and
+  click-to-move (remote and local).
+- **Simulation:** `sim/simulation.js` orchestrates movement, AI, combat, capture and the
+  hourly economy for the host/single-player. Guests run only presentation interpolation
+  (`render/interpolation.js`) and stream input/commands to the host.
+- **Net:** `net/mpNet.js` is the host-authoritative module (Trystero WebRTC with a
+  same-origin BroadcastChannel/localStorage fallback). Phase 4 splits it into
+  transport/protocol/lobby/host/guest and hardens the snapshot format.
+- **Rendering/UI:** `render/` reads state and draws; `ui/hud|menus|input` own the DOM.
+  `main.js` wires everything and runs `update → render` each frame.
+- **Zero infrastructure:** native ES modules with relative `.js` imports, Tailwind via
+  CDN, Trystero via runtime CDN import, deployable as static files.
 
-| `src/main.js` lines | Section |
-|---|---|
-| — | `index.html`: markup; `styles.css`: custom CSS |
-| 2–573 | Audio: context, noise/music engine, synthesized SFX |
-| 574–687 | Visual FX: blood, decals, tracers, casings, sparks, corpses |
-| 688–934 | Constants, enums, organizations, seeded PRNG |
-| 935–1251 | `DistrictChunk`: seeded urban block generation + ground rendering |
-| 1252–1425 | `CityMap`: chunk store, tile queries, collision, ring expansion |
-| 1426–2165 | Game state globals, A* pathfinder, economy/recruitment, `initWorld` |
-| 2166–2623 | Combat: damage, slash variants, pistol raycast |
-| 2624–3023 | Armor, remote-human boss control, keyboard/mouse/minimap input |
-| 3024–3570 | Simulation `update()`: player, NPC AI, steering, capture, hourly tick |
-| 3571–4414 | Rendering: world, characters, effects, minimap, HUD |
-| 4415–5620 | `mpNet`: transport, lobby, host/guest netcode |
-| 5621–5998 | Setup UI bindings, HUD buttons, main loop, bootstrap |
+## Testing
 
-### Known architectural limitations (being fixed)
+Automated tests are a **zero-dependency browser page** — no npm, no test framework:
 
-- One module with ~40 shared mutable globals; simulation, rendering, DOM, audio and
-  netcode are interleaved (combat functions play SFX, spawn particles, touch the DOM
-  and broadcast network events inline), so the simulation cannot run headless.
-- The player boss is a special-cased object separate from the NPC array, causing
-  duplicated damage/slash/movement/sprint code paths and hardcoded `Faction.PLAYER`.
-- Balance numbers scattered inline; prop collision geometry defined in three places.
-- `withSeed()` monkey-patches `Math.random`; variable-timestep loop tied to rAF.
-- Guest snapshot apply is O(n²), full chunk state is sent ~12 Hz, and peer names are
-  injected into `innerHTML` unsanitized.
+```
+http://localhost:8000/tests/tests.html
+```
+
+It prints a green/red list and sets the page title to `PASS`/`FAIL`; the suite currently
+covers config/RNG, state, world generation, pathfinding, units, movement, economy,
+territory, combat, effects, interpolation, match setup, simulation orchestration, HUD,
+menus and rendering. See `tests/SMOKE.md` for the manual smoke checklist and
+`tests/mp-harness.html` for deterministic two-tab multiplayer testing over the local bus.
+
+### Known limitations (next phases)
+
+- Presentation side effects still flow through `runtime` hooks instead of a typed event
+  bus (Phase 2).
+- The player boss remains a special-cased object; damage/slash/movement paths still have
+  some duplication (Phase 3 folds it into the unit model).
+- Variable-timestep loop tied to rAF (Phase 3 introduces a fixed timestep).
+- `withSeed()` still temporarily swaps `Math.random`; prop geometry is duplicated in
+  collision/raycast/drawing (Phase 2).
+- Network snapshots send full state ~12 Hz and apply in O(n²); lobby peer names are still
+  injected into `innerHTML` (Phase 4 hardens the protocol and sanitizes names).
+- Background host tabs are throttled by browsers; keep the host visible for smooth
+  two-tab testing, or use two computers/windows.
