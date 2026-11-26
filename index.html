@@ -28,6 +28,7 @@
         <span id="mp-hud-badge" class="hidden text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 px-1.5 py-0.5 rounded">
           MP HOST
         </span>
+        <button id="world-seed-hud" type="button" class="hidden text-[10px] font-mono font-bold uppercase tracking-wider bg-sky-500/10 border border-sky-500/40 text-sky-300 px-1.5 py-0.5 rounded cursor-pointer" title="World seed — click to copy"></button>
       </div>
       <span id="stats-badge" class="hidden xl:inline-block text-xs bg-zinc-900 border border-zinc-700 text-zinc-300 px-2.5 py-0.5 rounded-full">
         Turf: 1/225 | Crew: 0/225 | Income: $0/hr
@@ -344,6 +345,28 @@
                   <span>225 Neighborhoods</span>
                   <span class="font-mono text-emerald-400">Cap: 192S · 22C · 11U</span>
                 </div>
+              </div>
+
+              <!-- World Seed (SP + Host; guests adopt the host's seed) -->
+              <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
+                <div class="flex items-center justify-between mb-2">
+                  <label for="world-seed-input" class="text-xs font-bold uppercase tracking-wider text-sky-300">
+                    World Seed
+                  </label>
+                  <span id="last-world-seed" class="text-[10px] font-mono text-zinc-500">Last: —</span>
+                </div>
+                <div class="flex gap-1.5">
+                  <input
+                    id="world-seed-input"
+                    type="text"
+                    inputmode="numeric"
+                    placeholder="Blank = random"
+                    class="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-sky-500 font-mono"
+                  />
+                  <button type="button" id="btn-random-seed" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-200 text-[11px] font-bold px-2 rounded-lg transition">Random</button>
+                  <button type="button" id="btn-copy-seed" class="bg-sky-900/60 hover:bg-sky-800/70 border border-sky-600/60 text-sky-200 text-[11px] font-bold px-2 rounded-lg transition">Copy</button>
+                </div>
+                <p class="text-[10px] text-zinc-500 mt-1.5">The host or single-player chooses; guests adopt the host's seed.</p>
               </div>
 
               <!-- Seconds Per Tick Selector (10s Turbo to 30s Slow) -->

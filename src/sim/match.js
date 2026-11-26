@@ -111,5 +111,8 @@ export function initWorld(
   state.camera.x = localBoss.x;
   state.camera.y = localBoss.y;
 
-  emit('match:initialized', { tickDuration: state.tickDuration });
+  emit('match:initialized', {
+    tickDuration: state.tickDuration,
+    worldSeed: state.currentWorldSeed,
+  });
 }

@@ -48,6 +48,15 @@ foreach ($file in $jsFiles) {
   }
 }
 
+# Worldgen must use an explicit PRNG; only the unseeded fallback may name Math.random.
+$worldDir = Join-Path $root 'src/world'
+foreach ($worldFile in (Get-ChildItem $worldDir -Filter *.js)) {
+  $worldText = [IO.File]::ReadAllText($worldFile.FullName)
+  if ($worldText -match 'Math\.random\s*\(') {
+    $errors.Add("Math.random() in worldgen ($($worldFile.Name)); use the injected rng")
+  }
+}
+
 # Single version source: GAME_VERSION lives in one file; no duplicates in src/index.html.
 $versionFile = Join-Path $root 'src/config/version.js'
 $gameVersion = $null

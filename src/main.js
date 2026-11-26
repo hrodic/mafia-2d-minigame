@@ -21,6 +21,7 @@ import {
   resetMatchUI,
   showVictoryBanner,
   showDefeatBanner,
+  setWorldSeedDisplay,
 } from './ui/menus.js';
 import { initInput } from './ui/input.js';
 import { applyVersionLabels } from './ui/version.js';
@@ -91,6 +92,7 @@ on('match:defeat', () => showDefeatBanner());
 on('match:defeat', updateHUD);
 on('match:initialized', resetEffects);
 on('match:initialized', ({ tickDuration }) => resetMatchUI(tickDuration));
+on('match:initialized', ({ worldSeed }) => setWorldSeedDisplay(worldSeed));
 on('match:initialized', syncRecruitButtonLabels);
 on('match:initialized', updateHUD);
 

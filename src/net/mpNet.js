@@ -6,6 +6,7 @@ import { Faction, UnitRank } from '../config/enums.js';
 import { GAME_VERSION } from '../config/version.js';
 import { ORGANIZATIONS, FACTION_META, ensureUniqueOrgs, getActiveFactionSlots } from '../config/organizations.js';
 import { state, getLocalBoss } from '../core/state.js';
+import { randomWorldSeed } from '../core/rng.js';
 import { initWorld } from '../sim/match.js';
 import { eliminateFaction } from '../sim/territory.js';
 import { getEntityCollisionRadius } from '../sim/movement.js';
@@ -999,10 +1000,10 @@ export const mpNet = (() => {
     }
   }
 
-  function launchMultiplayerMatch(gridSize, tickSeconds, incomeTier, factionCount, orgRoster) {
+  function launchMultiplayerMatch(gridSize, tickSeconds, incomeTier, factionCount, orgRoster, seedOverride = null) {
     if (mode !== 'HOST' || !room) return;
     reassignHostSeats();
-    const worldSeed = Math.floor(Math.random() * 2147483647) + 1;
+    const worldSeed = seedOverride ?? randomWorldSeed();
     localFaction = Faction.PLAYER;
     matchStarted = true;
     snapshotSeq = 0;

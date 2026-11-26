@@ -37,7 +37,11 @@ This is the living plan. Read `AGENTS.md` for the working contract and
   - Step 12 DONE (`0.1.4`): data-driven balance tables (`RANK_STATS`, `UNIT_CAPS`, `SLASH`,
     `PISTOL`/accuracy bands) drive spawn, collision/capture, combat and caps; values locked
     by `tests/balance.test.js`.
-  - Next: explicit RNG for worldgen, AI extraction to `sim/ai.js`
+  - Step 13 DONE (`0.1.5`): worldgen uses an explicit per-chunk PRNG; `withSeed` removed
+    and `Math.random()` is blocked in `src/world/` by the static check. Golden maps unchanged.
+  - Step 14 DONE (`0.2.0`): shareable world seeds. SP/Host choose a seed (blank = random);
+    guests adopt the host seed. Header badge + setup copy/reuse; seed in `match:initialized`.
+  - Next: AI extraction to `sim/ai.js`
   - Guardrails: benefits/tradeoffs/use-skip rules and the many-NPC + multiplayer
     performance budget are documented in `EVENTS.md`
 - Phases 3-5 - pending (unified entity model/commands/fixed timestep, net hardening, quality)
@@ -67,18 +71,17 @@ phase for owner validation. Do not commit/push without approval; always work on 
 
 ## Phase 2 starting point
 
-1. `core/events.js`: event bus **DONE** (`tests/events.test.js`). Still to do: add `emit`
-   calls for damage/shot/death/capture/tick/victory/defeat, wire subscribers in
-   main/UI/audio/net, then remove each `runtime` hook.
-2. Deduplicate prop footprints (`world/geometry.js`), minimap layout, faction-slot
-   selection, and `GAME_VERSION` single source.
-3. Data-driven balance tables (`RANK_STATS`, weapons) and remove inline numbers.
-4. Explicit RNG for worldgen; remove `withSeed`'s `Math.random` patch.
-5. Extract AI decisions to `sim/ai.js`.
+1. Event bus + migration **DONE** (combat, units, economy, territory, match).
+2. Deduplication **DONE** (prop geometry, minimap layout, faction slots, `GAME_VERSION`).
+3. Data-driven balance tables **DONE** (`RANK_STATS`, `UNIT_CAPS`, `SLASH`, `PISTOL`).
+4. Explicit worldgen RNG **DONE** (`withSeed` removed; `Math.random()` blocked in `src/world/`).
+5. **NEXT:** extract AI decisions to `sim/ai.js`.
 6. Extend tests and keep the game playable/tests green after every commit.
 
 ---
-# Mafia 2D — Architecture Refactor Plan (executor handoff)
+
+> Historical plan below. The **Status** section above is authoritative; items in the original
+> text may already be done.# Mafia 2D — Architecture Refactor Plan (executor handoff)
 
 Execute phases **in order, one at a time**. Do not skip verification steps.
 

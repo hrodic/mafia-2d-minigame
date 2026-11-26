@@ -26,7 +26,7 @@ src/
     balance.js             RANK_STATS, UNIT_CAPS, SLASH, PISTOL, income/cost tables
     organizations.js       6 organizations, FACTION_META, slot helpers, ensureUniqueOrgs
   core/
-    rng.js                 mulberry32, chunk seed hashing, withSeed (legacy)
+    rng.js                 mulberry32, chunk seed hashing, explicit per-chunk RNG
     state.js               the single shared `state` object + faction/boss selectors
     events.js              synchronous, isolated event bus (sim -> presentation facts)
     runtime.js             transitional presentation hooks (being replaced by events)
@@ -167,16 +167,16 @@ One exported `state` object in `core/state.js` holds the match:
 
 `sim/match.js:initWorld` resets match state, sets the world generation context, builds
 chunks, spawns rival bosses and positions the camera. At the end it emits
-`match:initialized` (`{ tickDuration }`); `main.js` subscribers reset effects, setup UI,
-recruit labels and HUD.
+`match:initialized` (`{ tickDuration, worldSeed }`); `main.js` subscribers reset effects,
+setup UI, recruit labels, seed display and HUD.
 
 ## World
 
 - **DistrictChunk** (`world/chunk.js`) generates a 15×15 block from six archetypes with
   buildings, alleys, plazas, cars, dumpsters, streetlights and trees. Generation is
-  deterministic from a world seed + chunk coordinates (mulberry32 + seed hashing), so
-  host and guests build identical cities. Chunks precompute a solid mask and static
-  render lists.
+  deterministic from a world seed + chunk coordinates via an explicit
+  `createMulberry32(hashChunkSeed(...))` stream (no global `Math.random` mutation), so host
+  and guests build identical cities. Chunks precompute a solid mask and static render lists.
 - **CityMap** (`world/city.js`) stores chunks, answers tile queries
   (`worldToTile`, `isWalkable`, `isTileNavigable`), does radius collision
   (`canMoveTo`), snaps to nearest walkable points, and expands perimeter rings.
@@ -334,8 +334,7 @@ distance from the camera.
 
 - Phase 2: finish migrating the last runtime HUD cadence out of `simulation.js` (bus
   implemented; combat, units, economy, territory and match migrated; only `simulation.js`
-  is allowlisted in `tools/check.ps1`); explicit RNG (remove `withSeed`'s `Math.random`
-  patch); extract AI decisions to `sim/ai.js`.
+  is allowlisted in `tools/check.ps1`); extract AI decisions to `sim/ai.js`.
 - Phase 3: player boss folded into the unit model (`control: local/ai/remote`), one
   damage/slash/movement pipeline, `createGameState()` reset factory, unified command
   dispatcher for local+remote, fixed timestep.

@@ -94,6 +94,15 @@ Presentation feel and AI decision logic stay in their own modules. Changing bala
 is a normal patch/balance commit; the tables are locked by `tests/balance.test.js`, so update
 its expected values in the same change when the tuning is intentional.
 
+## Seeds
+
+Every new match has a **world seed** (1–2147483647; `0` is also accepted if typed):
+
+- Single-player and the **host** choose the seed; a blank field generates a random one.
+- Guests do **not** choose: they receive the host's seed and build the same city.
+- Click the header seed badge (or the setup **Copy** button) to copy the current seed.
+- Reuse it to replay the same map; the **Random** button fills a new one.
+
 ## Versioning
 
 SemVer (`MAJOR.MINOR.PATCH`) starting at `0.1.0`. The single source is

@@ -3,6 +3,7 @@
 import { INCOME_TIERS } from '../config/balance.js';
 import { ORGANIZATIONS, ALL_ORG_IDS, ensureUniqueOrgs } from '../config/organizations.js';
 import { state } from '../core/state.js';
+import { parseWorldSeed, randomWorldSeed } from '../core/rng.js';
 import { getAudioCtx } from '../audio/engine.js';
 import { initWorld } from '../sim/match.js';
 
@@ -16,6 +17,57 @@ export function showToast(msg) {
   toastTimeout = setTimeout(() => {
     el.style.opacity = '0';
   }, 2400);
+}
+
+function readRequestedSeed() {
+  const input = document.getElementById('world-seed-input');
+  return parseWorldSeed(input ? input.value : null);
+}
+
+export function setWorldSeedDisplay(seed = state.currentWorldSeed) {
+  const hud = document.getElementById('world-seed-hud');
+  if (hud) {
+    if (seed === null || seed === undefined) {
+      hud.classList.add('hidden');
+    } else {
+      hud.textContent = `SEED ${seed}`;
+      hud.classList.remove('hidden');
+    }
+  }
+  const last = document.getElementById('last-world-seed');
+  if (last) last.textContent = `Last: ${seed ?? '—'}`;
+}
+
+function fallbackCopy(value) {
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    document.execCommand('copy');
+    showToast(`Seed ${value} copied`);
+  } catch (_) {
+    showToast('Copy failed — select the seed manually');
+  }
+  textarea.remove();
+}
+
+function copySeed(value) {
+  if (value === null || value === undefined) {
+    showToast('No world seed yet');
+    return;
+  }
+  const text = String(value);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => showToast(`Seed ${text} copied`))
+      .catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
 }
 
 export function renderFactionSlotsUI() {
@@ -92,6 +144,7 @@ function openSetupMenu() {
   document.getElementById('spectator-banner').classList.add('hidden');
   document.getElementById('disconnect-banner').classList.add('hidden');
   document.getElementById('setup-modal').classList.remove('hidden');
+  setWorldSeedDisplay();
 }
 
 
@@ -113,6 +166,17 @@ export function showDefeatBanner() {
 }
 
 export function initMenus() {
+document.getElementById('btn-random-seed')?.addEventListener('click', () => {
+  const input = document.getElementById('world-seed-input');
+  if (input) input.value = String(randomWorldSeed());
+});
+document.getElementById('btn-copy-seed')?.addEventListener('click', () => {
+  copySeed(readRequestedSeed() ?? state.currentWorldSeed);
+});
+document.getElementById('world-seed-hud')?.addEventListener('click', () => {
+  copySeed(state.currentWorldSeed);
+});
+
 document.querySelectorAll('.game-mode-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     state.net.setMode(btn.getAttribute('data-mode'));
@@ -215,16 +279,35 @@ document.getElementById('btn-start-game').addEventListener('click', () => {
   getAudioCtx();
   const gridSize = Number(document.getElementById('map-size-slider').value) || 15;
   const tickSeconds = Number(document.getElementById('tick-speed-slider').value) || 10;
+  const requestedSeed = readRequestedSeed();
 
   if (state.net && state.net.mode === 'HOST') {
     document.getElementById('setup-modal').classList.add('hidden');
-    state.net.launchMultiplayerMatch(gridSize, tickSeconds, state.currentIncomeTier, state.activeFactionCount, state.selectedFactionOrgs);
+    state.net.launchMultiplayerMatch(
+      gridSize,
+      tickSeconds,
+      state.currentIncomeTier,
+      state.activeFactionCount,
+      state.selectedFactionOrgs,
+      requestedSeed
+    );
+    setWorldSeedDisplay();
     return;
   }
 
+  const worldSeed = requestedSeed ?? randomWorldSeed();
   state.net.cleanup(true);
   document.getElementById('setup-modal').classList.add('hidden');
-  initWorld(gridSize, true, tickSeconds, state.currentIncomeTier, state.activeFactionCount, state.selectedFactionOrgs, null);
+  initWorld(
+    gridSize,
+    true,
+    tickSeconds,
+    state.currentIncomeTier,
+    state.activeFactionCount,
+    state.selectedFactionOrgs,
+    worldSeed
+  );
+  setWorldSeedDisplay(worldSeed);
 });
 
 document.getElementById('btn-reset').addEventListener('click', openSetupMenu);

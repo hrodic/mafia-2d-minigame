@@ -8,6 +8,7 @@ import {
   resetMatchUI,
   showVictoryBanner,
   showDefeatBanner,
+  setWorldSeedDisplay,
 } from '../src/ui/menus.js';
 
 test('menus: showToast writes the message and makes it visible', () => {
@@ -40,6 +41,19 @@ test('menus: victory and defeat banners show their content', () => {
   document.getElementById('defeat-banner').classList.add('hidden');
   showDefeatBanner();
   assert(!document.getElementById('defeat-banner').classList.contains('hidden'));
+});
+
+test('menus: seed display shows the current seed and hides when absent', () => {
+  const hud = document.getElementById('world-seed-hud');
+  const last = document.getElementById('last-world-seed');
+  setWorldSeedDisplay(12345);
+  assert(!hud.classList.contains('hidden'));
+  assert(hud.textContent.includes('12345'), hud.textContent);
+  assertEqual(last.textContent, 'Last: 12345');
+
+  setWorldSeedDisplay(null);
+  assert(hud.classList.contains('hidden'));
+  assertEqual(last.textContent, 'Last: —');
 });
 
 test('menus: map size preview updates display and caps', () => {

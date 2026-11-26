@@ -99,6 +99,7 @@ test('match: initWorld configures a 2-faction 5x5 match deterministically', () =
     const started = events.filter((entry) => entry.type === 'match:initialized');
     assertEqual(started.length, 1);
     assertEqual(started[0].payload.tickDuration, 12);
+    assertEqual(started[0].payload.worldSeed, 12345);
   });
 });
 

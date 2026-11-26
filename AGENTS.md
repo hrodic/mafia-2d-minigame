@@ -78,6 +78,7 @@ command, number or test result; read the file or run the check.
 | Setup modal / banners / toasts | `src/ui/menus.js` |
 | Keyboard / mouse / HUD buttons | `src/ui/input.js` |
 | Snapshots / lobby / transport | `src/net/mpNet.js` |
+| World seed (generate / parse / UI) | `src/core/rng.js`, `src/ui/menus.js`, `src/sim/match.js`, `src/net/mpNet.js` |
 | Rendering / minimap / effects | `src/render/*` |
 | Radar layout math | `src/render/minimapLayout.js` |
 | Audio | `src/audio/*` |
@@ -98,7 +99,8 @@ command, number or test result; read the file or run the check.
   work in the simulation frame.
 - Host is authoritative. Guests never simulate; they stream input/commands and interpolate
   snapshots.
-- Worldgen is deterministic from the seed; host and guests must build the same city.
+- Worldgen is deterministic from the seed and uses an explicit per-chunk PRNG; never
+  reassign `Math.random` and never call `Math.random()` in `src/world/`.
 - `state.net` is the bridge for `core/state.js` selectors; `main.js` sets it before UI init.
 - Do not rebalance or change gameplay numbers during refactors unless asked.
 - Keep `GAME_VERSION` in `src/config/version.js` as the single source; the title, HUD/modal

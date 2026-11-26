@@ -42,7 +42,9 @@ Serve the repo over http first (`python -m http.server 8000` or any static serve
       tick speed 10–30 s, income tier Low/Mid/High.
 
 ### Single player
-- [ ] Boss HP/armor/cash/sprint/hour HUD values update correctly.
+
+- [ ] World seed: start with a known seed, New Game, reuse it → same map; change it → different map.
+- [ ] Seed badge/Copy puts the current seed on the clipboard.- [ ] Boss HP/armor/cash/sprint/hour HUD values update correctly.
 - [ ] Movement: WASD, arrows, click street, minimap click; waypoint marker shows.
 - [ ] Collision: cannot walk through buildings/cars/dumpsters; doors/alley paths work.
 - [ ] Sprint: 1.6× burst 2 s, cooldown 4 s, HUD bar reflects state.
@@ -65,7 +67,7 @@ Serve the repo over http first (`python -m http.server 8000` or any static serve
 - [ ] Human/AI slot toggles and org changes broadcast to the guest.
 - [ ] Version mismatch rejection works (simulate by editing `GAME_VERSION` in
   `src/config/version.js` in one tab).
-- [ ] Launch: world identical on both peers (same seed); guest sees all factions.
+- [ ] Launch: world identical on both peers (same seed); guest cannot choose the seed, sees the host's seed badge, and sees all factions.
 - [ ] Guest input: movement, sprint, facing/aim, slash, shoot, armor, recruit prefs,
       expand ring, build block all take effect on host simulation.
 - [ ] Snapshots smooth (interpolation) and combat animations show on guest.
