@@ -1,5 +1,6 @@
 // Guest controller tests: lobby handshake, rejection, init and hello routing.
-import { test, assertEqual, assertDeepEqual } from './harness.js';
+import { test, assert, assertEqual, assertDeepEqual } from './harness.js';
+import { state } from '../src/core/state.js';
 import { createGuestController } from '../src/net/guest.js';
 import { MSG } from '../src/net/protocol.js';
 
@@ -39,7 +40,61 @@ function makeController() {
     controller,
     calls,
     getState: () => ({ mode, selfPeerId, matchStarted, localFaction }),
+    setMatchStarted: (started) => { matchStarted = started; },
   };
+}
+
+const SNAPSHOT_STATE_KEYS = [
+  'npcs',
+  'player',
+  'world',
+  'activeFactions',
+  'treasuries',
+  'factionKills',
+  'factionAlive',
+  'gameHour',
+  'tickTimer',
+  'minimapCacheTimer',
+];
+
+function withSnapshotState(fn) {
+  const saved = {};
+  for (const key of SNAPSHOT_STATE_KEYS) saved[key] = state[key];
+  state.npcs = [
+    {
+      id: 'u1',
+      faction: 'RIVAL_1',
+      rank: 'SOLDIER',
+      x: 1,
+      y: 2,
+      facing: 0,
+      hp: 50,
+      maxHp: 100,
+      armor: 0,
+      maxArmor: 0,
+      slashAnimTimer: 0,
+      muzzleFlashTimer: 0,
+      humanPeerId: null,
+    },
+  ];
+  state.player = { id: 0 };
+  state.world = { chunks: new Map() };
+  state.activeFactions = ['PLAYER', 'RIVAL_1'];
+  state.treasuries = {};
+  state.factionKills = {};
+  state.factionAlive = { PLAYER: true, RIVAL_1: true };
+  state.gameHour = 1;
+  state.tickTimer = 0;
+  state.minimapCacheTimer = 0;
+  try {
+    return fn();
+  } finally {
+    for (const key of SNAPSHOT_STATE_KEYS) state[key] = saved[key];
+  }
+}
+
+function npcRow(id, rank, x, y) {
+  return [id, 'RIVAL_1', rank, x, y, 0, 50, 100, 0, 0, 0, 0, ''];
 }
 
 test('guest: lobby state updates roster, settings, self id and host peer', () => {
@@ -102,6 +157,43 @@ test('guest: peer join sends HELLO and host leave triggers disconnect only for t
   assertEqual(calls.disconnected, 0);
   controller.handlePeerLeave('host');
   assertEqual(calls.disconnected, 1);
+});
+
+test('guest: snapshot apply reuses existing units, creates new ones and removes dead ids', () => {
+  withSnapshotState(() => {
+    const { controller, setMatchStarted } = makeController();
+    controller.handleLobby({ type: MSG.LOBBY_STATE, payload: {} }, 'host');
+    setMatchStarted(true);
+
+    controller.handleSnapshot(
+      {
+        type: MSG.SNAPSHOT,
+        seq: 1,
+        payload: { npcs: [npcRow('u1', 'SOLDIER', 10, 20), npcRow('u2', 'CAPTAIN', 30, 40)] },
+      },
+      'host'
+    );
+
+    const u1 = state.npcs.find((u) => u.id === 'u1');
+    const u2 = state.npcs.find((u) => u.id === 'u2');
+    assert(u1, 'existing unit should be reused');
+    assert(u2, 'new unit should be created');
+    assertEqual(u1.netX, 10);
+    assertEqual(u1.netY, 20);
+    assertEqual(u2.netX, 30);
+    assertEqual(u2.netY, 40);
+    assertEqual(u2.x, 30);
+    assertEqual(u2.y, 40);
+
+    controller.handleSnapshot(
+      { type: MSG.SNAPSHOT, seq: 2, payload: { npcs: [npcRow('u2', 'CAPTAIN', 35, 45)] } },
+      'host'
+    );
+
+    assertEqual(state.npcs.some((u) => u.id === 'u1'), false);
+    assertEqual(state.npcs.length, 1);
+    assertEqual(state.npcs[0].netX, 35);
+  });
 });
 
 test('guest: reset clears the host, roster, settings and sequence state', () => {

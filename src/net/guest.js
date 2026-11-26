@@ -5,7 +5,7 @@
 
 import { UnitRank } from '../config/enums.js';
 import { RANK_STATS } from '../config/balance.js';
-import { state, getLocalBoss, getUnitById } from '../core/state.js';
+import { state, getLocalBoss } from '../core/state.js';
 import { eliminateFaction } from '../sim/territory.js';
 import { getEntityCollisionRadius } from '../sim/movement.js';
 import { spawnDeadBody, bulletTracers } from '../render/effects.js';
@@ -210,6 +210,9 @@ export function createGuestController(deps) {
     }
 
     if (Array.isArray(snap.npcs)) {
+      const unitById = new Map();
+      for (const unit of state.npcs) unitById.set(unit.id, unit);
+
       const seenIds = new Set();
       for (let i = 0; i < snap.npcs.length; i++) {
         const [id, fac, rank, x, y, facing, hp, maxHp, armor, maxArmor, slash, shoot, hPeer] = snap.npcs[i];
@@ -218,7 +221,7 @@ export function createGuestController(deps) {
         seenIds.add(id);
         const stats = RANK_STATS[rank] || RANK_STATS[UnitRank.SOLDIER];
         const isHumanBoss = rank === UnitRank.BOSS && Boolean(hPeer);
-        let unit = getUnitById(id);
+        let unit = unitById.get(id);
         if (!unit) {
           unit = {
             id,
@@ -259,6 +262,7 @@ export function createGuestController(deps) {
             stuckTimer: 0,
           };
           state.npcs.push(unit);
+          unitById.set(id, unit);
         } else {
           unit.speed = isHumanBoss ? stats.speedHuman : stats.speedAi;
           unit.netX = x;

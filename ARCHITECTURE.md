@@ -331,8 +331,8 @@ controllers live in their own modules):
   emit per NPC while applying a snapshot.
 - **Determinism:** the world seed is sent in `INIT_MATCH`; guests generate the same city.
 
-Known net limitations (Phase 4 in progress): full-state snapshots, O(n²) NPC lookup on
-apply, and background-tab throttling on the host.
+Known net limitations (Phase 4 in progress): full-state snapshots and background-tab
+throttling on the host. Snapshot apply uses a per-snapshot unit index (O(n) lookups).
 
 ## Rendering
 
@@ -384,8 +384,8 @@ distance from the camera.
   two tabs for deterministic host/guest testing without external relays.
 - Coverage includes config/RNG, transport API normalization (Trystero 0.27 vs local bus),
   protocol envelope/version/snapshot encoding, lobby seats/capacity/rosters, lobby DOM
-  rendering/safe names, guest handshake/init routing, host admission/input/AI takeover,
-  event bus, state selectors, chunk determinism, collision,
+  rendering/safe names, guest handshake/init routing, snapshot apply reuse/create/remove,
+  host admission/input/AI takeover, event bus, state selectors, chunk determinism, collision,
   pathfinding (including wall detours and no corner cutting), units/recruitment, economy,
   territory, combat math/accuracy/armor/aim geometry, effects and casings, interpolation,
   match setup, fixed-step accumulation, command dispatch/equivalence, 600-step headless
