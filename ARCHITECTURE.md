@@ -253,8 +253,11 @@ subscribe in `main.js`.
 ### Balance data
 `config/balance.js` is the tuning surface: `RANK_STATS` (HP, armor, damage, AI/human speed,
 radius, capture rate, cost/upkeep), `UNIT_CAPS`, `SLASH` profiles, and `PISTOL` stats +
-accuracy bands. Systems read the tables at spawn/attack time and copy derived stats onto units
-(state is snapshotted). Presentation feel and AI decision thresholds are deliberately not here.
+accuracy bands. All AI ranks currently share a `150` base speed; human-controlled bosses
+use `speedHuman` (`225`). Local and remote humans share one `SLASH.humanBoss` profile, while
+AI keeps its own no-arc/longer-cooldown profiles. Systems read the tables at spawn/attack
+time and copy derived stats onto units (state is snapshotted). Presentation feel and AI
+decision thresholds are deliberately not here.
 
 ## Networking
 

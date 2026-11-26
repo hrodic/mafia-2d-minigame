@@ -15,8 +15,8 @@ architecture description here.
   - AI extracted to `sim/ai.js`
   - HUD cadence moved to `ui/hudCadence.js`
   - UI/UX overhaul: primary status, crew management, action bar, leaderboard + kills
-- **Phase 3 — IN PROGRESS (`0.4.5`; 3.1–3.4 done):** unified entity model, commands,
-  fixed timestep.
+- **Phase 3 — IN PROGRESS (`0.4.6`; 3.1–3.4 done):** unified entity model, commands,
+  fixed timestep. Balance pass: one human slash rule; all AI ranks base speed 150.
 - **Phases 4–5 — pending:** netcode hardening, quality gates.
 
 Work on `refactor/phase-3-unified-entity` (verify with `git branch --show-current`). Use
@@ -42,9 +42,9 @@ separate for now). Fixes the latent `player.faction` undefined read.
 damage pipeline. Verified both directions (you kill, you die).
 
 **3.4 Unify slash — DONE (`0.4.5`).** One `performSlash(attacker, params)`; player, rival
-boss, AI boss and AI melee delegate. Differences stay as parameters/profile data (human
-cooldown `0.34` vs AI `1.0`, arc `0.42`/`0.45`, knockback `14`/`12`). Hit flash is now the
-shared `HIT_FLASH_DURATION` constant (`0.16s`) in `config/constants.js`.
+boss, AI boss and AI melee delegate. Human controls share one `SLASH.humanBoss` profile
+(cooldown `0.34`, arc `0.42`, knockback `14`); AI keeps its own profiles (`1.0` cooldown,
+no arc, knockback `12`). Hit flash is the shared `HIT_FLASH_DURATION` (`0.16s`).
 
 **3.5 Unify movement + sprint.** One `moveUnit(unit, input, dt)` and one sprint updater
 used by local player, AI steering result and remote-human boss. Verify solo, AI bosses,

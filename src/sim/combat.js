@@ -194,7 +194,7 @@ export function executeBossSlashForFaction(faction) {
   }
   const bossNpc = state.npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS);
   if (!bossNpc) return;
-  performSlash(bossNpc, { profile: SLASH.rivalBoss });
+  performSlash(bossNpc, { profile: SLASH.humanBoss });
 }
 
 export function performKnifeSlash() {
@@ -205,7 +205,7 @@ export function performKnifeSlash() {
     return false;
   }
   if (!state.player.alive) return false;
-  return performSlash(state.player, { profile: SLASH.player });
+  return performSlash(state.player, { profile: SLASH.humanBoss });
 }
 
 export function performBossKnifeSlash(bossNpc) {

@@ -4,6 +4,7 @@
 
 import { Faction, UnitRank } from '../config/enums.js';
 import { GAME_VERSION } from '../config/version.js';
+import { RANK_STATS } from '../config/balance.js';
 import { ORGANIZATIONS, FACTION_META, ensureUniqueOrgs, getActiveFactionSlots } from '../config/organizations.js';
 import { state, getLocalBoss } from '../core/state.js';
 import { randomWorldSeed } from '../core/rng.js';
@@ -573,6 +574,8 @@ export const mpNet = (() => {
       for (let i = 0; i < snap.npcs.length; i++) {
         const [id, fac, rank, x, y, facing, hp, maxHp, armor, maxArmor, slash, shoot, hPeer] = snap.npcs[i];
         seenIds.add(id);
+        const stats = RANK_STATS[rank] || RANK_STATS[UnitRank.SOLDIER];
+        const isHumanBoss = rank === UnitRank.BOSS && Boolean(hPeer);
         let unit = state.npcs.find((n) => n.id === id);
         if (!unit) {
           unit = {
@@ -587,7 +590,7 @@ export const mpNet = (() => {
             targetX: null,
             targetY: null,
             bodyRadius: getEntityCollisionRadius(rank),
-            speed: 150,
+            speed: isHumanBoss ? stats.speedHuman : stats.speedAi,
             hp,
             maxHp,
             armor,
@@ -615,6 +618,7 @@ export const mpNet = (() => {
           };
           state.npcs.push(unit);
         } else {
+          unit.speed = isHumanBoss ? stats.speedHuman : stats.speedAi;
           unit.netX = x;
           unit.netY = y;
           unit.facing = facing;

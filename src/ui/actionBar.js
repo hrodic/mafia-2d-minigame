@@ -49,7 +49,7 @@ export function updateActionBar() {
   const armorFull = armorVal >= MAX_BOSS_ARMOR;
 
   setDisabled(els.slash, !alive || attackCd > 0);
-  setCooldown(els.slashCd, attackCd, SLASH.player.cooldown);
+  setCooldown(els.slashCd, attackCd, SLASH.humanBoss.cooldown);
   setStatus(els.slashStatus, attackCd > 0 ? `${attackCd.toFixed(1)}s` : 'READY');
 
   setDisabled(els.pistol, !alive || attackCd > 0);

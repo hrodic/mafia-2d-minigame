@@ -13,6 +13,8 @@ export const INCOME_TIERS = {
 
 export const UNIT_ATTACK_COOLDOWN = 1.0;
 
+// All AI-controlled ranks share one 150 px/s base for now. Role/tier speed can
+// diverge later; human-controlled bosses still use speedHuman.
 export const RANK_STATS = {
   [UnitRank.BOSS]: {
     hp: 400,
@@ -20,7 +22,7 @@ export const RANK_STATS = {
     maxArmor: 300,
     minDmg: 20,
     maxDmg: 40,
-    speedAi: 152,
+    speedAi: 150,
     speedHuman: 225,
     speedJitter: 0,
     radius: 13.5,
@@ -34,8 +36,8 @@ export const RANK_STATS = {
     maxArmor: 120,
     minDmg: 26,
     maxDmg: 38,
-    speedAi: 148,
-    speedHuman: 148,
+    speedAi: 150,
+    speedHuman: 150,
     speedJitter: 0,
     radius: 12.8,
     captureRate: 0.24,
@@ -48,8 +50,8 @@ export const RANK_STATS = {
     maxArmor: 0,
     minDmg: 18,
     maxDmg: 28,
-    speedAi: 140,
-    speedHuman: 140,
+    speedAi: 150,
+    speedHuman: 150,
     speedJitter: 0,
     radius: 12,
     captureRate: 0.18,
@@ -62,9 +64,9 @@ export const RANK_STATS = {
     maxArmor: 0,
     minDmg: 10,
     maxDmg: 18,
-    speedAi: 128,
-    speedHuman: 128,
-    speedJitter: 16,
+    speedAi: 150,
+    speedHuman: 150,
+    speedJitter: 0,
     radius: 11,
     captureRate: 0.12,
     cost: 1200,
@@ -80,20 +82,12 @@ export const UNIT_CAPS = {
 };
 
 export const SLASH = {
-  player: {
+  // One rule set for every human-controlled boss (local player or remote guest).
+  humanBoss: {
     reach: 52,
     maxTargets: 3,
     arc: 0.42,
     closeRange: 30,
-    knockback: 14,
-    cooldown: 0.34,
-    anim: 0.18,
-  },
-  rivalBoss: {
-    reach: 52,
-    maxTargets: 3,
-    arc: 0.45,
-    closeRange: 32,
     knockback: 14,
     cooldown: 0.34,
     anim: 0.18,

@@ -690,23 +690,23 @@ test('combat: player slash keeps its arc, knockback, cooldown and presentation',
   );
 });
 
-test('combat: remote faction slash keeps its wider arc, close range and accent colors', () => {
+test('combat: remote faction slash uses the shared human arc and close range', () => {
   withCombatState(
     {
       player: makePlayer({ x: 1000, y: 0 }),
       npcs: [
         makeNpc({ id: 10, rank: UnitRank.BOSS, faction: Faction.RIVAL_1, x: 0, y: 0, facing: 0 }),
-        makeNpc({ id: 11, faction: Faction.RIVAL_2, x: 0, y: 40, hp: 100, maxHp: 100 }),
-        makeNpc({ id: 12, faction: Faction.RIVAL_2, x: 0, y: 30, hp: 100, maxHp: 100 }),
+        makeNpc({ id: 11, faction: Faction.RIVAL_2, x: 0, y: 35, hp: 100, maxHp: 100 }),
+        makeNpc({ id: 12, faction: Faction.RIVAL_2, x: 0, y: 31, hp: 100, maxHp: 100 }),
+        makeNpc({ id: 13, faction: Faction.RIVAL_2, x: 0, y: 29, hp: 100, maxHp: 100 }),
       ],
     },
     ({ events }) => {
       executeBossSlashForFaction(Faction.RIVAL_1);
       const boss = state.npcs.find((n) => n.id === 10);
-      const outsideArc = state.npcs.find((n) => n.id === 11);
-      const insideCloseRange = state.npcs.find((n) => n.id === 12);
-      assertEqual(outsideArc.hp, 100, '90deg at range 40 is outside the 0.45 arc');
-      assert(insideCloseRange.hp < 100, 'range 30 is inside closeRange 32');
+      assertEqual(state.npcs.find((n) => n.id === 11).hp, 100, '90deg at range 35 is outside the human arc');
+      assertEqual(state.npcs.find((n) => n.id === 12).hp, 100, 'range 31 is outside the shared 30 close range');
+      assert(state.npcs.find((n) => n.id === 13).hp < 100, 'range 29 is inside the shared 30 close range');
       assertEqual(boss.attackCooldown, 0.34);
 
       const hit = eventsOf(events, 'unit:damaged')[0];
@@ -716,6 +716,41 @@ test('combat: remote faction slash keeps its wider arc, close range and accent c
       assertEqual(slash.payload.color, FACTION_META[Faction.RIVAL_1].accent);
       assertEqual(slash.payload.hitCount, 1);
       assertEqual(slash.payload.isPlayer, false);
+    }
+  );
+});
+
+test('combat: local and remote humans use identical slash rules', () => {
+  const angle = (78 * Math.PI) / 180;
+  const targetX = Math.cos(angle) * 40;
+  const targetY = Math.sin(angle) * 40;
+
+  withCombatState(
+    {
+      player: makePlayer({ facing: 0 }),
+      npcs: [makeNpc({ x: targetX, y: targetY, hp: 100, maxHp: 100 })],
+    },
+    ({ events }) => {
+      performKnifeSlash();
+      assertEqual(state.npcs[0].hp, 100, 'local human must miss at 78deg and range 40');
+      assertEqual(state.player.attackCooldown, 0.34);
+      assertEqual(eventsOf(events, 'slash:performed')[0].payload.hitCount, 0);
+    }
+  );
+
+  withCombatState(
+    {
+      player: makePlayer({ x: 1000, y: 0 }),
+      npcs: [
+        makeNpc({ id: 1, rank: UnitRank.BOSS, faction: Faction.RIVAL_1, x: 0, y: 0, facing: 0 }),
+        makeNpc({ id: 2, faction: Faction.RIVAL_2, x: targetX, y: targetY, hp: 100, maxHp: 100 }),
+      ],
+    },
+    ({ events }) => {
+      executeBossSlashForFaction(Faction.RIVAL_1);
+      assertEqual(state.npcs.find((n) => n.id === 2).hp, 100, 'remote human must miss at the same angle');
+      assertEqual(state.npcs.find((n) => n.id === 1).attackCooldown, 0.34);
+      assertEqual(eventsOf(events, 'slash:performed')[0].payload.hitCount, 0);
     }
   );
 });

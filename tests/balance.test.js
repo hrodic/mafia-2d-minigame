@@ -27,7 +27,7 @@ const EXPECTED_RANKS = {
     maxArmor: 300,
     minDmg: 20,
     maxDmg: 40,
-    speedAi: 152,
+    speedAi: 150,
     speedHuman: 225,
     speedJitter: 0,
     radius: 13.5,
@@ -41,8 +41,8 @@ const EXPECTED_RANKS = {
     maxArmor: 120,
     minDmg: 26,
     maxDmg: 38,
-    speedAi: 148,
-    speedHuman: 148,
+    speedAi: 150,
+    speedHuman: 150,
     speedJitter: 0,
     radius: 12.8,
     captureRate: 0.24,
@@ -55,8 +55,8 @@ const EXPECTED_RANKS = {
     maxArmor: 0,
     minDmg: 18,
     maxDmg: 28,
-    speedAi: 140,
-    speedHuman: 140,
+    speedAi: 150,
+    speedHuman: 150,
     speedJitter: 0,
     radius: 12,
     captureRate: 0.18,
@@ -69,9 +69,9 @@ const EXPECTED_RANKS = {
     maxArmor: 0,
     minDmg: 10,
     maxDmg: 18,
-    speedAi: 128,
-    speedHuman: 128,
-    speedJitter: 16,
+    speedAi: 150,
+    speedHuman: 150,
+    speedJitter: 0,
     radius: 11,
     captureRate: 0.12,
     cost: 1200,
@@ -109,21 +109,19 @@ test('balance: unit caps and attack pacing are unchanged', () => {
   assertEqual(UNIT_ATTACK_COOLDOWN, 1.0);
 });
 
-test('balance: slash profiles preserve player/boss differences', () => {
-  assertDeepEqual(SLASH.player, {
+test('balance: all AI ranks share the 150 base speed for now', () => {
+  for (const rank of Object.values(UnitRank)) {
+    assertEqual(RANK_STATS[rank].speedAi, 150, `${rank}.speedAi`);
+    assertEqual(RANK_STATS[rank].speedJitter, 0, `${rank}.speedJitter`);
+  }
+});
+
+test('balance: one human slash rule, distinct AI slash rules', () => {
+  assertDeepEqual(SLASH.humanBoss, {
     reach: 52,
     maxTargets: 3,
     arc: 0.42,
     closeRange: 30,
-    knockback: 14,
-    cooldown: 0.34,
-    anim: 0.18,
-  });
-  assertDeepEqual(SLASH.rivalBoss, {
-    reach: 52,
-    maxTargets: 3,
-    arc: 0.45,
-    closeRange: 32,
     knockback: 14,
     cooldown: 0.34,
     anim: 0.18,
@@ -146,6 +144,8 @@ test('balance: slash profiles preserve player/boss differences', () => {
     cooldown: 1.0,
     anim: 0.18,
   });
+  assertEqual(SLASH.player, undefined);
+  assertEqual(SLASH.rivalBoss, undefined);
 });
 
 test('balance: pistol stats and accuracy bands are ordered and covered', () => {

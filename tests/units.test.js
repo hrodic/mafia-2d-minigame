@@ -175,14 +175,14 @@ test('units: underbosses spawn with armor and higher damage', () => {
   });
 });
 
-test('units: AI boss spawns slow, human boss spawns fast with a peer id', () => {
+test('units: AI boss spawns at base speed, human boss at human speed with a peer id', () => {
   withUnitsState({}, ({ map }) => {
     const chunk = map.generateChunk(14, 0);
     const boss = spawnUnitInChunk(Faction.RIVAL_1, chunk, UnitRank.BOSS);
     assertEqual(boss.hp, BOSS_MAX_HP);
     assertEqual(boss.maxArmor, MAX_BOSS_ARMOR);
     assertEqual(boss.bodyRadius, 13.5);
-    assertEqual(boss.speed, 152);
+    assertEqual(boss.speed, 150);
     assertEqual(boss.humanPeerId, null);
   });
   withUnitsState({ net: { getPeerForFaction: () => 'peer-x' } }, ({ map }) => {
