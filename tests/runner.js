@@ -6,6 +6,8 @@ import './rng.test.js';
 import './config.test.js';
 import './state.test.js';
 import './ui.test.js';
+import './world.test.js';
+import './pathfinding.test.js';
 
 runAll().catch((err) => {
   const root = document.getElementById('test-results');
