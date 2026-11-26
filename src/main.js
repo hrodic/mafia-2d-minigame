@@ -41,6 +41,16 @@ import { stepGuestPresentation } from './render/interpolation.js';
 import { canvas, ctx, minimapCanvas, minimapCtx } from './render/canvas.js';
 import { render, resizeCanvas } from './render/renderer.js';
 import { updateHUD, syncRecruitButtonLabels } from './ui/hud.js';
+import {
+  initMenus,
+  showToast,
+  renderFactionSlotsUI,
+  updateMapSizePreview,
+  resetMatchUI,
+  showVictoryBanner,
+  showDefeatBanner,
+} from './ui/menus.js';
+import { initInput } from './ui/input.js';
 import { ensureAudioContext, getAudioCtx, isSoundEnabled, setSoundEnabled, cycleMusicTrack } from './audio/engine.js';
 import { sfx } from './audio/sfx.js';
 import {
@@ -117,16 +127,6 @@ import { update } from './sim/simulation.js';
 
 
 
-    let toastTimeout = null;
-    function showToast(msg) {
-      const el = document.getElementById('toast');
-      el.textContent = msg;
-      el.style.opacity = '1';
-      clearTimeout(toastTimeout);
-      toastTimeout = setTimeout(() => {
-        el.style.opacity = '0';
-      }, 2400);
-    }
 
 
 
@@ -141,196 +141,6 @@ import { update } from './sim/simulation.js';
 
 
 
-    window.addEventListener('keydown', (e) => {
-      getAudioCtx();
-      const k = e.key.toLowerCase();
-      const wasDown = state.keys.has(k);
-      state.keys.add(k);
-      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) {
-        e.preventDefault();
-      }
-      if (!wasDown && typeof mpNet !== 'undefined' && mpNet.isGuest()) {
-        if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift'].includes(k)) {
-          mpNet.flushGuestInput();
-        }
-      }
-      if (k === ' ' || k === 'f') performKnifeSlash();
-      if (k === 'q') buyBossArmor();
-    });
-    window.addEventListener('keyup', (e) => {
-      const k = e.key.toLowerCase();
-      state.keys.delete(k);
-      if (typeof mpNet !== 'undefined' && mpNet.isGuest()) {
-        if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift'].includes(k)) {
-          mpNet.flushGuestInput();
-        }
-      }
-    });
-
-    // Losing focus can swallow keyup events; clear held keys and send a stop so the
-    // guest boss never keeps walking into a wall after alt-tab/HUD clicks.
-    function releaseAllKeys() {
-      if (state.keys.size === 0) return;
-      state.keys.clear();
-      if (typeof mpNet !== 'undefined' && mpNet.isGuest()) {
-        mpNet.flushGuestInput();
-      }
-    }
-    window.addEventListener('blur', releaseAllKeys);
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) releaseAllKeys();
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      state.mouse.screenX = e.clientX - rect.left;
-      state.mouse.screenY = e.clientY - rect.top;
-      state.mouse.inside = true;
-    });
-
-    canvas.addEventListener('mouseleave', () => {
-      state.mouse.inside = false;
-    });
-
-    canvas.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-    });
-
-    function screenToWorld(clientX, clientY) {
-      const rect = canvas.getBoundingClientRect();
-      const sx = clientX - rect.left;
-      const sy = clientY - rect.top;
-      return {
-        wx: state.camera.x - rect.width / 2 + sx,
-        wy: state.camera.y - rect.height / 2 + sy,
-      };
-    }
-
-    canvas.addEventListener('mousedown', (e) => {
-      getAudioCtx();
-      if (!state.gameStarted) return;
-      const { wx, wy } = screenToWorld(e.clientX, e.clientY);
-
-      if (e.button === 2) {
-        if (typeof mpNet !== 'undefined' && mpNet.isGuest()) {
-          if (isLocalBossAlive()) {
-            mpNet.sendCommand({ cmd: 'SHOOT', tx: wx, ty: wy });
-          }
-          return;
-        }
-        if (state.player.alive && !state.gameOver) {
-          performBossPistolShot(state.player, true, wx, wy);
-        }
-        return;
-      }
-
-      if (e.button !== 0) return;
-
-      const { cx, cy } = state.world.worldToTile(wx, wy);
-      const chunk = state.world.getChunk(cx, cy);
-
-      if (!chunk) {
-        if (state.allowClickExpand) {
-          if (typeof mpNet !== 'undefined' && mpNet.isGuest()) {
-            mpNet.sendCommand({ cmd: 'BUILD_BLOCK', cx, cy });
-            return;
-          }
-          const myFac = getLocalFaction();
-          const newChunk = state.world.generateChunk(cx, cy, myFac);
-          addFloatingText(
-            newChunk.cx * CHUNK_PX + CHUNK_PX / 2,
-            newChunk.cy * CHUNK_PX + CHUNK_PX / 2,
-            `NEW BLOCK (${newChunk.incomeLabel})`,
-            FACTION_META[myFac].accent
-          );
-          updateHUD();
-        } else {
-          showToast('Enable "Click-Build" or use "+ Expand Ring" to add blocks');
-        }
-        return;
-      }
-
-      if (typeof mpNet !== 'undefined' && mpNet.isGuest()) {
-        if (!isLocalBossAlive()) {
-          state.camera.x = wx;
-          state.camera.y = wy;
-          return;
-        }
-        const snapped = state.world.findNearestWalkablePoint(wx, wy, 12);
-        if (snapped) {
-          mpNet.sendCommand({ cmd: 'MOVE_TO', x: snapped.x, y: snapped.y });
-        }
-        return;
-      }
-
-      if (state.gameOver || !state.player.alive) {
-        state.camera.x = wx;
-        state.camera.y = wy;
-        return;
-      }
-
-      const snapped = state.world.findNearestWalkablePoint(wx, wy, 12);
-      if (snapped) {
-        state.player.targetX = snapped.x;
-        state.player.targetY = snapped.y;
-      } else {
-        showToast('Blocked by building');
-      }
-    });
-
-    minimapCanvas.addEventListener('click', (e) => {
-      getAudioCtx();
-      if (!state.gameStarted || state.world.chunks.size === 0) return;
-      const rect = minimapCanvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-
-      let minCx = Infinity, maxCx = -Infinity, minCy = Infinity, maxCy = -Infinity;
-      for (const chunk of state.world.chunks.values()) {
-        if (chunk.cx < minCx) minCx = chunk.cx;
-        if (chunk.cx > maxCx) maxCx = chunk.cx;
-        if (chunk.cy < minCy) minCy = chunk.cy;
-        if (chunk.cy > maxCy) maxCy = chunk.cy;
-      }
-      const cols = Math.max(1, maxCx - minCx + 1);
-      const rows = Math.max(1, maxCy - minCy + 1);
-      const pad = 6;
-      const innerW = minimapCanvas.width - pad * 2;
-      const innerH = minimapCanvas.height - pad * 2;
-      const cellSize = Math.min(innerW / cols, innerH / rows);
-      const offsetX = pad + (innerW - cellSize * cols) / 2;
-      const offsetY = pad + (innerH - cellSize * rows) / 2;
-
-      const worldX = (minCx + (mx - offsetX) / cellSize) * CHUNK_PX;
-      const worldY = (minCy + (my - offsetY) / cellSize) * CHUNK_PX;
-
-      if (typeof mpNet !== 'undefined' && mpNet.isGuest()) {
-        if (!isLocalBossAlive()) {
-          state.camera.x = worldX;
-          state.camera.y = worldY;
-          return;
-        }
-        const snapped = state.world.findNearestWalkablePoint(worldX, worldY, 12);
-        if (snapped) {
-          mpNet.sendCommand({ cmd: 'MOVE_TO', x: snapped.x, y: snapped.y });
-          showToast('Boss waypoint set via Radar');
-        }
-        return;
-      }
-
-      if (state.gameOver || !state.player.alive) {
-        state.camera.x = worldX;
-        state.camera.y = worldY;
-        return;
-      }
-
-      const snapped = state.world.findNearestWalkablePoint(worldX, worldY, 12);
-      if (snapped) {
-        state.player.targetX = snapped.x;
-        state.player.targetY = snapped.y;
-        showToast('Boss waypoint set via Radar');
-      }
-    });
 
 
 
@@ -1569,16 +1379,8 @@ import { update } from './sim/simulation.js';
     runtime.updateHUD = updateHUD;
     runtime.showToast = showToast;
     runtime.syncRecruitButtonLabels = syncRecruitButtonLabels;
-    runtime.resetMatchUI = (tickSeconds) => {
-      document.getElementById('defeat-banner').classList.add('hidden');
-      document.getElementById('victory-banner').classList.add('hidden');
-      document.getElementById('spectator-banner').classList.add('hidden');
-      document.getElementById('hour-hud-box').title =
-        `Every ${tickSeconds} seconds an hour passes: blocks pay & toggled units spawn`;
-    };
-    runtime.onDefeat = () => {
-      document.getElementById('defeat-banner').classList.remove('hidden');
-    };
+    runtime.resetMatchUI = resetMatchUI;
+    runtime.onDefeat = showDefeatBanner;
     runtime.onFactionEliminated = (faction) => {
       sfx.playFactionEliminated();
       const meta = FACTION_META[faction];
@@ -1586,333 +1388,17 @@ import { update } from './sim/simulation.js';
     };
     runtime.onVictory = (summary) => {
       sfx.playVictory();
-      document.getElementById('victory-summary').textContent = summary;
-      document.getElementById('victory-banner').classList.remove('hidden');
+      showVictoryBanner(summary);
     };
 
     // =========================================================================
     // 12. SETUP MODAL CONTROLS, HUD BUTTON BINDINGS & MAIN GAME LOOP
     // =========================================================================
-    function renderFactionSlotsUI() {
-      state.selectedFactionOrgs = ensureUniqueOrgs(state.selectedFactionOrgs);
-      const container = document.getElementById('faction-slots-container');
-      const seatLabels = ['Seat 1 (Host)', 'Seat 2', 'Seat 3', 'Seat 4'];
-      let html = '';
 
-      for (let i = 0; i < state.activeFactionCount; i++) {
-        const currentOrgId = state.selectedFactionOrgs[i];
-        const org = ORGANIZATIONS[currentOrgId];
-        let optionsHtml = '';
-        for (const id of ALL_ORG_IDS) {
-          const o = ORGANIZATIONS[id];
-          optionsHtml += `<option value="${id}" ${id === currentOrgId ? 'selected' : ''}>${o.name} (${o.ranks.BOSS})</option>`;
-        }
-        html += `
-          <div class="flex items-center justify-between gap-2 bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5">
-            <div class="flex items-center gap-2 text-[11px]">
-              <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${org.badge}"></span>
-              <span class="font-bold text-zinc-300">${seatLabels[i]}</span>
-            </div>
-            <select data-slot-idx="${i}" class="faction-org-select bg-zinc-950 border border-zinc-700 text-zinc-200 text-[11px] rounded px-2 py-1 focus:outline-none focus:border-amber-500">
-              ${optionsHtml}
-            </select>
-          </div>
-        `;
-      }
 
-      container.innerHTML = html;
-      container.querySelectorAll('.faction-org-select').forEach((sel) => {
-        sel.addEventListener('change', (e) => {
-          const idx = Number(e.target.getAttribute('data-slot-idx'));
-          const chosen = e.target.value;
-          const prev = state.selectedFactionOrgs[idx];
-          const conflictIdx = state.selectedFactionOrgs.findIndex((id, k) => k !== idx && id === chosen);
-          if (conflictIdx !== -1) {
-            state.selectedFactionOrgs[conflictIdx] = prev;
-          }
-          state.selectedFactionOrgs[idx] = chosen;
-          renderFactionSlotsUI();
-          if (mpNet.mode === 'HOST') {
-            mpNet.updateHostLobbyUI();
-            mpNet.broadcastHostLobbyState();
-          }
-        });
-      });
-    }
 
-    function updateMapSizePreview(val) {
-      const n = Math.max(5, Math.min(25, Number(val) || 15));
-      document.getElementById('map-size-slider').value = n;
-      document.getElementById('map-size-display').textContent = n === 15 ? '15×15 (Default)' : `${n}×${n}`;
-      const total = n * n;
-      const maxU = Math.max(1, Math.floor(total * 0.05));
-      const maxC = Math.max(1, Math.floor(total * 0.10));
-      const maxS = Math.max(1, total - maxC - maxU);
-      document.getElementById('map-cap-preview').innerHTML = `<span>${total} Neighborhoods</span><span class="font-mono text-emerald-400">Cap: ${maxS}S · ${maxC}C · ${maxU}U</span>`;
 
-      document.querySelectorAll('.size-preset-btn').forEach((btn) => {
-        const active = Number(btn.getAttribute('data-size')) === n;
-        btn.className = active
-          ? 'size-preset-btn bg-amber-500/20 border border-amber-500 text-amber-300 py-1 rounded text-[11px] font-mono font-bold transition'
-          : 'size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition';
-      });
-    }
 
-    document.querySelectorAll('.game-mode-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        mpNet.setMode(btn.getAttribute('data-mode'));
-      });
-    });
-
-    document.querySelectorAll('.fcount-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        state.activeFactionCount = Number(btn.getAttribute('data-fcount')) || 4;
-        document.querySelectorAll('.fcount-btn').forEach((b) => {
-          const active = Number(b.getAttribute('data-fcount')) === state.activeFactionCount;
-          b.className = active
-            ? 'fcount-btn bg-amber-500/20 border border-amber-500 text-amber-300 px-2.5 py-0.5 rounded text-[11px] font-mono font-bold transition'
-            : 'fcount-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 px-2.5 py-0.5 rounded text-[11px] font-mono font-bold transition';
-        });
-        renderFactionSlotsUI();
-        if (mpNet.mode === 'HOST') {
-          mpNet.updateHostLobbyUI();
-          mpNet.broadcastHostLobbyState();
-        }
-      });
-    });
-
-    document.getElementById('map-size-slider').addEventListener('input', (e) => {
-      updateMapSizePreview(e.target.value);
-      if (mpNet.mode === 'HOST') mpNet.broadcastHostLobbyState();
-    });
-
-    document.querySelectorAll('.size-preset-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        updateMapSizePreview(btn.getAttribute('data-size'));
-        if (mpNet.mode === 'HOST') mpNet.broadcastHostLobbyState();
-      });
-    });
-
-    document.getElementById('tick-speed-slider').addEventListener('input', (e) => {
-      const sec = Number(e.target.value) || 10;
-      const label = sec <= 12 ? `${sec}s (Turbo)` : sec <= 22 ? `${sec}s (Normal)` : `${sec}s (Slow)`;
-      document.getElementById('tick-speed-display').textContent = label;
-      if (mpNet.mode === 'HOST') mpNet.broadcastHostLobbyState();
-    });
-
-    document.querySelectorAll('.income-tier-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        state.currentIncomeTier = btn.getAttribute('data-income') || 'HIGH';
-        const tier = INCOME_TIERS[state.currentIncomeTier];
-        document.getElementById('income-tier-display').textContent = `$${tier.min.toLocaleString()}–$${tier.max.toLocaleString()} / tick`;
-        document.querySelectorAll('.income-tier-btn').forEach((b) => {
-          const active = b.getAttribute('data-income') === state.currentIncomeTier;
-          b.className = active
-            ? 'income-tier-btn bg-emerald-500/20 border border-emerald-500 text-emerald-300 py-2 px-2 rounded-lg text-center transition'
-            : 'income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition';
-        });
-        if (mpNet.mode === 'HOST') mpNet.broadcastHostLobbyState();
-      });
-    });
-
-    document.getElementById('btn-mp-create-room').addEventListener('click', () => {
-      getAudioCtx();
-      mpNet.createHostRoom();
-    });
-
-    document.getElementById('btn-mp-copy-invite').addEventListener('click', () => {
-      const codeText = document.getElementById('mp-room-code-display').textContent.trim();
-      if (!codeText || codeText === '—') return;
-      const [rCode, rSec] = codeText.split(':');
-      const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(rCode)}&secret=${encodeURIComponent(rSec)}`;
-      const ta = document.createElement('textarea');
-      ta.value = inviteUrl;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      try {
-        document.execCommand('copy');
-        showToast('Invitation link copied to clipboard!');
-      } catch (_) {
-        showToast(`Room Code: ${codeText}`);
-      }
-      document.body.removeChild(ta);
-    });
-
-    document.getElementById('btn-mp-close-room').addEventListener('click', () => {
-      mpNet.cleanup(false);
-      document.getElementById('mp-host-status').textContent = 'Offline';
-      mpNet.updateHostLobbyUI();
-    });
-
-    document.getElementById('btn-mp-join-room').addEventListener('click', () => {
-      getAudioCtx();
-      mpNet.joinGuestRoom();
-    });
-
-    document.getElementById('btn-mp-leave-lobby').addEventListener('click', () => {
-      mpNet.cleanup(false);
-      document.getElementById('mp-join-status').textContent = 'Disconnected';
-    });
-
-    document.getElementById('btn-start-game').addEventListener('click', () => {
-      getAudioCtx();
-      const gridSize = Number(document.getElementById('map-size-slider').value) || 15;
-      const tickSeconds = Number(document.getElementById('tick-speed-slider').value) || 10;
-
-      if (mpNet.mode === 'HOST') {
-        document.getElementById('setup-modal').classList.add('hidden');
-        mpNet.launchMultiplayerMatch(gridSize, tickSeconds, state.currentIncomeTier, state.activeFactionCount, state.selectedFactionOrgs);
-        return;
-      }
-
-      mpNet.cleanup(true);
-      document.getElementById('setup-modal').classList.add('hidden');
-      initWorld(gridSize, true, tickSeconds, state.currentIncomeTier, state.activeFactionCount, state.selectedFactionOrgs, null);
-    });
-
-    // Top HUD Action Buttons
-    function pushRecruitPrefsToHost() {
-      if (mpNet.isGuest()) {
-        mpNet.sendCommand({
-          cmd: 'RECRUIT_PREF',
-          autoSoldier: state.autoRecruitSoldier,
-          autoCaptain: state.autoRecruitCaptain,
-          autoUnderboss: state.autoRecruitUnderboss,
-          caps: { ...state.playerSpawnCaps },
-        });
-      }
-    }
-
-    document.getElementById('btn-toggle-soldier').addEventListener('click', () => {
-      state.autoRecruitSoldier = !state.autoRecruitSoldier;
-      syncRecruitButtonLabels();
-      pushRecruitPrefsToHost();
-    });
-    document.getElementById('btn-cap-soldier-dec').addEventListener('click', () => {
-      state.playerSpawnCaps[UnitRank.SOLDIER]--;
-      syncRecruitButtonLabels();
-      pushRecruitPrefsToHost();
-    });
-    document.getElementById('btn-cap-soldier-inc').addEventListener('click', () => {
-      state.playerSpawnCaps[UnitRank.SOLDIER]++;
-      syncRecruitButtonLabels();
-      pushRecruitPrefsToHost();
-    });
-
-    document.getElementById('btn-toggle-captain').addEventListener('click', () => {
-      state.autoRecruitCaptain = !state.autoRecruitCaptain;
-      syncRecruitButtonLabels();
-      pushRecruitPrefsToHost();
-    });
-    document.getElementById('btn-cap-captain-dec').addEventListener('click', () => {
-      state.playerSpawnCaps[UnitRank.CAPTAIN]--;
-      syncRecruitButtonLabels();
-      pushRecruitPrefsToHost();
-    });
-    document.getElementById('btn-cap-captain-inc').addEventListener('click', () => {
-      state.playerSpawnCaps[UnitRank.CAPTAIN]++;
-      syncRecruitButtonLabels();
-      pushRecruitPrefsToHost();
-    });
-
-    document.getElementById('btn-toggle-underboss').addEventListener('click', () => {
-      state.autoRecruitUnderboss = !state.autoRecruitUnderboss;
-      syncRecruitButtonLabels();
-      pushRecruitPrefsToHost();
-    });
-    document.getElementById('btn-cap-underboss-dec').addEventListener('click', () => {
-      state.playerSpawnCaps[UnitRank.UNDERBOSS]--;
-      syncRecruitButtonLabels();
-      pushRecruitPrefsToHost();
-    });
-    document.getElementById('btn-cap-underboss-inc').addEventListener('click', () => {
-      state.playerSpawnCaps[UnitRank.UNDERBOSS]++;
-      syncRecruitButtonLabels();
-      pushRecruitPrefsToHost();
-    });
-
-    document.getElementById('btn-buy-armor').addEventListener('click', () => buyBossArmor());
-    document.getElementById('btn-slash').addEventListener('click', () => performKnifeSlash());
-    document.getElementById('btn-pistol').addEventListener('click', () => {
-      getAudioCtx();
-      const myBoss = getLocalBoss();
-      if (!myBoss || !isLocalBossAlive()) return;
-      const tx = myBoss.x + Math.cos(myBoss.facing) * 260;
-      const ty = myBoss.y + Math.sin(myBoss.facing) * 260;
-      if (mpNet.isGuest()) {
-        mpNet.sendCommand({ cmd: 'SHOOT', tx, ty });
-      } else {
-        performBossPistolShot(state.player, true, tx, ty);
-      }
-    });
-
-    document.getElementById('btn-toggle-expand-click').addEventListener('click', (e) => {
-      state.allowClickExpand = !state.allowClickExpand;
-      e.target.textContent = `Click-Build: ${state.allowClickExpand ? 'ON' : 'OFF'}`;
-    });
-
-    document.getElementById('btn-expand-ring').addEventListener('click', () => {
-      if (!state.gameStarted) return;
-      if (mpNet.isGuest()) {
-        mpNet.sendCommand({ cmd: 'EXPAND_RING' });
-        return;
-      }
-      const added = state.world.expandPerimeterRing(Faction.PLAYER);
-      if (added > 0) {
-        state.minimapCacheTimer = 1.0;
-        showToast(`Expanded city perimeter (+${added} neighborhoods)`);
-        updateHUD();
-      }
-    });
-
-    document.getElementById('btn-toggle-grid').addEventListener('click', (e) => {
-      state.showBorders = !state.showBorders;
-      e.target.textContent = `Borders: ${state.showBorders ? 'ON' : 'OFF'}`;
-    });
-
-    document.getElementById('btn-toggle-music').addEventListener('click', (e) => {
-      ensureAudioContext();
-      const music = cycleMusicTrack();
-      e.target.textContent = !music.enabled
-        ? '🎷 Music: OFF'
-        : music.track === 0
-        ? '🎷 Noir I: ON'
-        : '🎷 Noir II: ON';
-    });
-
-    document.getElementById('btn-toggle-sound').addEventListener('click', (e) => {
-      const enabled = setSoundEnabled(!isSoundEnabled());
-      e.target.textContent = '🔊 SFX: ' + (enabled ? 'ON' : 'OFF');
-    });
-
-    function openSetupMenu() {
-      mpNet.cleanup(true);
-      mpNet.setMode('SINGLE');
-      state.gameStarted = false;
-      document.getElementById('defeat-banner').classList.add('hidden');
-      document.getElementById('victory-banner').classList.add('hidden');
-      document.getElementById('spectator-banner').classList.add('hidden');
-      document.getElementById('disconnect-banner').classList.add('hidden');
-      document.getElementById('setup-modal').classList.remove('hidden');
-    }
-
-    document.getElementById('btn-reset').addEventListener('click', openSetupMenu);
-    document.getElementById('btn-victory-restart').addEventListener('click', openSetupMenu);
-    document.getElementById('btn-restart-match').addEventListener('click', openSetupMenu);
-    document.getElementById('btn-spectate-new-game').addEventListener('click', openSetupMenu);
-    document.getElementById('btn-disconnect-return').addEventListener('click', openSetupMenu);
-
-    document.getElementById('btn-victory-continue').addEventListener('click', () => {
-      document.getElementById('victory-banner').classList.add('hidden');
-    });
-
-    document.getElementById('btn-spectate-match').addEventListener('click', () => {
-      state.isSpectating = true;
-      document.getElementById('defeat-banner').classList.add('hidden');
-      document.getElementById('spectator-banner').classList.remove('hidden');
-    });
 
     // Main RequestAnimationFrame Loop
     let lastFrameTime = performance.now();
@@ -1929,6 +1415,8 @@ import { update } from './sim/simulation.js';
     }
 
     // Bootstrap Setup UI & Invite URL Auto-Detection
+    initMenus();
+    initInput();
     renderFactionSlotsUI();
     updateMapSizePreview(DEFAULT_GRID_SIZE);
 
