@@ -19,7 +19,7 @@ let lampGlowSprite = null;
 function getLampGlowSprite() {
   if (lampGlowSprite) return lampGlowSprite;
   if (typeof document === 'undefined') return null;
-  const size = 128;
+  const size = 256;
   const spriteCanvas = document.createElement('canvas');
   spriteCanvas.width = size;
   spriteCanvas.height = size;
@@ -27,8 +27,8 @@ function getLampGlowSprite() {
   if (!g) return null;
   const half = size / 2;
   const gradient = g.createRadialGradient(half, half, 0, half, half, half);
-  gradient.addColorStop(0, 'rgba(253, 224, 71, 0.32)');
-  gradient.addColorStop(0.45, 'rgba(245, 158, 11, 0.16)');
+  gradient.addColorStop(0, 'rgba(253, 224, 71, 0.38)');
+  gradient.addColorStop(0.45, 'rgba(245, 158, 11, 0.18)');
   gradient.addColorStop(1, 'rgba(245, 158, 11, 0)');
   g.fillStyle = gradient;
   g.fillRect(0, 0, size, size);

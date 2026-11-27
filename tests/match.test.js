@@ -137,7 +137,7 @@ test('match: the player boss is reset and spawns at the top-left corner', () => 
     assertEqual(state.gameOver, false);
     assertEqual(state.victoryShown, false);
     assertEqual(state.isSpectating, false);
-    assertEqual(state.gameHour, 12);
+    assertEqual(state.gameHour, 19);
     assertEqual(state.tickTimer, 0);
     assertEqual(state.nextNpcId, 1 + 3, 'three rival bosses should have spawned');
     assertEqual(state.camera.x, state.player.x);
@@ -254,7 +254,7 @@ test('match: initWorld resets stale flags, timers, economy, caps and player stat
     assertEqual(state.gameOver, false);
     assertEqual(state.victoryShown, false);
     assertEqual(state.tickTimer, 0);
-    assertEqual(state.gameHour, 12);
+    assertEqual(state.gameHour, 19);
     assertEqual(state.hudUpdateTimer, 0);
     assertEqual(state.minimapCacheTimer, 1.0);
     assertEqual(state.nextNpcId, 1 + 1, 'one active rival boss should have spawned');

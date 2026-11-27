@@ -164,7 +164,7 @@ test('render: lamps turn off by day and ambient light turns sunny', () => {
   fills.length = 0;
   drawAmbientLight(fakeCtx, 800, 600, 23);
   assertEqual(fills.length, 1);
-  assert(fills[0].startsWith('rgba(18, 30, 52'), fills[0]);
+  assertEqual(fills[0], 'rgba(18, 30, 52, 0.480)');
 
   withRenderState({}, () => {
     const x = 120;
@@ -261,6 +261,19 @@ test('render: rain decisions happen only at day/night boundaries', () => {
     if (day !== night) changes++;
   }
   assert(changes > 0, 'night decisions should sometimes differ from day decisions');
+});
+
+test('render: night lamp pools reach twice the old radius', () => {
+  withRenderState({}, () => {
+    state.gameHour = 23;
+    state.tickTimer = 0;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawStreetlightGlows([{ wx: 100, wy: 100 }]);
+    const cx = 100 + TILE_SIZE / 2;
+    const cy = 100 + TILE_SIZE * 0.6;
+    const sample = ctx.getImageData(Math.round(cx + 80), Math.round(cy), 1, 1).data;
+    assert(sample[3] > 0, 'lamp glow should extend beyond the old 64px radius');
+  });
 });
 
 test('render: rain overlay is capped and can be suppressed by the schedule flag', () => {

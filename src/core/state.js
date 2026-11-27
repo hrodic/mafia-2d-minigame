@@ -146,7 +146,7 @@ export function createGameState(config = {}) {
     gameOver: false,
     victoryShown: false,
     tickTimer: 0,
-    gameHour: 12,
+    gameHour: 19,
     hudUpdateTimer: 0,
     minimapCacheTimer: 1.0,
 

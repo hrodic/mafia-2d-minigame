@@ -47,7 +47,7 @@ export function drawAmbientLight(ctx, width, height, hour) {
   }
   if (night > 0.01) {
     ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = `rgba(18, 30, 52, ${(0.16 * night).toFixed(3)})`;
+    ctx.fillStyle = `rgba(18, 30, 52, ${(0.48 * night).toFixed(3)})`;
     ctx.fillRect(0, 0, width, height);
   }
   ctx.restore();

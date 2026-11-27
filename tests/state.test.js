@@ -63,7 +63,7 @@ test('state: collections and match flags have the expected initial values', () =
   assertEqual(state.gameStarted, false);
   assertEqual(state.gameOver, false);
   assertEqual(state.victoryShown, false);
-  assertEqual(state.gameHour, 12);
+  assertEqual(state.gameHour, 19);
   assertEqual(state.tickTimer, 0);
   assertEqual(state.nextNpcId, 1);
   assertEqual(state.currentGridSize, DEFAULT_GRID_SIZE);
@@ -210,7 +210,7 @@ test('state factory: fresh default state matches the exported initial values', (
   assertEqual(fresh.gameOver, false);
   assertEqual(fresh.victoryShown, false);
   assertEqual(fresh.tickTimer, 0);
-  assertEqual(fresh.gameHour, 12);
+  assertEqual(fresh.gameHour, 19);
   assertEqual(fresh.hudUpdateTimer, 0);
   assertEqual(fresh.minimapCacheTimer, 1.0);
   assertEqual(fresh.currentGridSize, DEFAULT_GRID_SIZE);
