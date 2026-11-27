@@ -444,6 +444,9 @@ distance from the camera.
 - Phase 4 complete: `transport.js`, `protocol.js`, `lobby.js`, `ui/lobbyUI.js`, `guest.js`
   and `host.js` extracted; safe lobby/HUD peer names; O(n) snapshot apply; hidden-host
   simulation fallback.
-- Phase 5 next: broader tests, JSDoc/`jsconfig` typing, docs refresh.
+- Phase 5 complete: targeted tests and dedup, `jsconfig`/`// @ts-check` typing with
+  `tools/typecheck.ps1`, `docs/` deploy guidance and generated-artifact rules.
+- No active phase. Deployed Pages validation and optional netcode ideas are tracked under
+  FUTURE in `PLAN.md`.
 
-See `PLAN.md` for the step-by-step plan and `AGENTS.md` for the workflow contract.
+See `PLAN.md` for phase history and future ideas; `AGENTS.md` for the workflow contract.

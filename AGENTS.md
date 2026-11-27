@@ -4,7 +4,7 @@ Rules for AI/human contributors. One source of truth per topic:
 
 - `README.md` — what the game is, controls, run/deploy.
 - `ARCHITECTURE.md` — layers, modules, data flow, invariants.
-- `PLAN.md` — phase status and the next step. **Current phase: Phase 5 (in progress).**
+- `PLAN.md` — phase status and future ideas. **Current phase: none (Phases 0–5 complete).**
 - `EVENTS.md` — event-bus contract (implemented).
 - `.opencode/skills/` — task skills (zero-build refactor, multiplayer debug).
 
@@ -49,8 +49,11 @@ Run these before every commit:
 
 `GAME_VERSION` in `src/config/version.js` is the single source (`MAJOR.MINOR.PATCH`).
 
-- Every commit-sized step bumps the version in the same commit.
-- **MINOR** for a new user-visible capability; **PATCH** for fixes, refactors, docs, tests,
+- Every commit-sized step that changes source, tests, config or the shipped artifact bumps
+  the version in the same commit.
+- Planning/status documentation-only edits (`PLAN.md`, `AGENTS.md`, `ARCHITECTURE.md`, README
+  wording) do not bump the version.
+- **MINOR** for a new user-visible capability; **PATCH** for fixes, refactors, tests,
   performance or internal changes.
 - Intentional balance tuning updates `tests/balance.test.js` expected values in the same
   commit.

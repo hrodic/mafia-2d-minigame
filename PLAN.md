@@ -21,12 +21,12 @@ architecture description here.
 - **Phase 4 — DONE (`0.4.19`):** netcode hardening; step 1 split complete; snapshot apply
   is O(n); hidden-host fallback added. Chunk deltas and NAT/TURN work moved to the future
   ideas section.
-- **Phase 5 — IN PROGRESS (`0.4.22`):** quality gates and docs; tests/typecheck/build tooling
-  documented and enforced; deploy/smoke guidance refreshed; Pages validation remains.
+- **Phase 5 — DONE (`0.4.22`):** quality gates and docs; tests/typecheck/build tooling
+  documented and enforced; deploy/smoke guidance refreshed. Deployed Pages validation moved
+  to the future ideas section by owner decision.
 
-Phase 3 is complete on `refactor/phase-3-unified-entity`. Phase 4 is complete on
-`refactor/phase-4-netcode`. Phase 5 is in progress on `refactor/phase-5-quality`; use the
-`AGENTS.md` verification loop and bump `GAME_VERSION` for every commit-sized step.
+Phases 3, 4 and 5 are complete. `refactor/phase-5-quality` is ready to merge. There is no
+active phase; future ideas and optional tasks are listed below.
 
 ## Phase 3 — DONE (`0.4.11`)
 
@@ -51,12 +51,33 @@ Delivered:
    Guests never simulate. Browsers may still throttle background timers.
 5. **Versioning:** `GAME_VERSION` is bumped for every commit-sized step.
 
-Post-merge verification: full MP checklist, invite links, version rejection, disconnect/AI
-takeover and hidden-host continued simulation on the deployed build.
+## Phase 5 — DONE (`0.4.22`)
+
+Delivered:
+
+1. **Tests (`0.4.20`):** targeted guest snapshot ordering/sender/malformed checks,
+   unknown-chunk generation, duplicate host HELLO and remote command routing. Removed the
+   duplicate balance assertions from `config.test.js`; capture rates, caps/clamps,
+   elimination/victory and malformed commands were already covered.
+2. **Type checking (`0.4.21`):** `jsconfig.json` with `// @ts-check` opt-in, JSDoc on clean
+   core/net modules, and `tools/typecheck.ps1` using an ignored native `tsc.exe`. No npm or
+   transpilation.
+3. **Docs/deploy (`0.4.22`):** README/architecture/deploy/smoke docs refreshed; `docs/` is
+   pure esbuild output and never hand-edited; static validation tooling is listed in
+   `AGENTS.md`, `README.md` and the zero-build skill.
+4. **Closure (no version bump):** deployed Pages validation moved to FUTURE by owner
+   decision. Planning/status documentation changes do not require a patch release.
 
 ## FUTURE — TO BE DECIDED
 
-These are intentionally outside Phase 4 and are not scheduled.
+These are outside the closed phases and are not scheduled.
+
+### Deployed GitHub Pages validation
+
+- Run after merge with Pages set to the published branch and folder `/docs`.
+- Check module MIME/types, relative paths, CDN loading, invite links and multiplayer.
+- Confirm `/docs/` loads, `/docs/tests/...` returns 404, no tests/source are served through
+  the site, and the console is clean.
 
 ### Chunk deltas
 
@@ -78,22 +99,6 @@ These are intentionally outside Phase 4 and are not scheduled.
 - Tradeoffs: helps strict-NAT peers; adds a service, credentials, bandwidth/latency and
   credential-handling risk. Do not commit long-lived TURN credentials to a public page.
 - Decision needed before implementation.
-
-## Phase 5 — IN PROGRESS: Quality gates & docs
-
-1. **DONE (`0.4.20`):** targeted tests for guest snapshot ordering/sender/malformed
-   payloads, unknown-chunk generation, duplicate host HELLO and remote command routing.
-   Removed the duplicate balance assertions from `config.test.js`; capture rates,
-   caps/clamps, elimination/victory and malformed commands were already covered.
-2. **DONE (`0.4.21`):** `jsconfig.json` for editor checking (`checkJs` opt-in via
-   `// @ts-check`), JSDoc on `fixedStep`, `hiddenSim`, `events`, `protocol` and `lobby`.
-   `tools/typecheck.ps1` downloads the ignored native `tsc.exe` and passes. No npm or
-   transpilation.
-3. **DONE (`0.4.22`):** README/architecture/deploy/smoke docs refreshed; `docs/` is
-   documented as pure esbuild output and never hand-edited; static validation tooling is
-   listed in `AGENTS.md`, `README.md` and the zero-build skill.
-4. **NEXT:** validate the deployed GitHub Pages URL (module MIME, relative paths, CDNs,
-   invites, multiplayer, `/docs` only).
 
 ## Pitfalls / known bugs
 
