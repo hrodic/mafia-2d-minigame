@@ -114,6 +114,7 @@ no external relays): `tests/mp-harness.html`.
 - Web Audio API synthesis, seeded PRNG world generation, A* pathfinding.
 - Multiplayer: Trystero WebRTC signaling (`nostr`/`mqtt` from CDN) + same-origin
   BroadcastChannel/localStorage fallback; host simulates, guests stream input.
+- Page-view analytics: GoatCounter, loaded asynchronously and non-blocking.
 
 ## Tuning
 
