@@ -356,7 +356,7 @@
               <div id="mp-host-room-details" class="hidden space-y-2 pt-1 border-t border-zinc-800">
                 <div class="flex items-center justify-between gap-2 bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5">
                   <div class="overflow-hidden">
-                    <div class="text-[10px] text-zinc-500 uppercase font-bold">Room Code</div>
+                    <div class="text-[10px] text-zinc-500 uppercase font-bold">Invite Code</div>
                     <div id="mp-room-code-display" class="font-mono text-xs font-bold text-amber-300 truncate">—</div>
                   </div>
                   <button type="button" id="btn-mp-copy-invite" class="bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/60 text-amber-200 text-[11px] font-bold px-2.5 py-1 rounded transition whitespace-nowrap">
@@ -393,7 +393,7 @@
               <div class="space-y-2">
                 <input id="mp-guest-name" type="text" maxlength="16" placeholder="Your Boss Alias (e.g. Luca)" class="bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded-lg px-2.5 py-1.5 w-full focus:outline-none focus:border-sky-500" />
                 <div class="flex items-center gap-2">
-                  <input id="mp-join-input" type="text" placeholder="Paste invitation link or RoomCode:Secret" class="bg-zinc-900 border border-zinc-700 text-zinc-200 font-mono text-xs rounded-lg px-2.5 py-1.5 w-full focus:outline-none focus:border-sky-500" />
+                  <input id="mp-join-input" type="text" placeholder="Paste invite code or link" class="bg-zinc-900 border border-zinc-700 text-zinc-200 font-mono text-xs rounded-lg px-2.5 py-1.5 w-full focus:outline-none focus:border-sky-500" />
                   <button type="button" id="btn-mp-join-room" class="bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg whitespace-nowrap transition">
                     Connect
                   </button>
@@ -433,7 +433,7 @@
                   <span class="text-[9px] font-mono text-zinc-500">EASY SETUP</span>
                 </div>
                 <p class="text-zinc-400 leading-relaxed">
-                  One player hosts the city and everyone else joins with an invite link. Each player controls their own Boss and fights for turf.
+                  One player hosts the city and everyone else joins with a short invite code or link. Each player controls their own Boss and fights for turf.
                 </p>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -447,14 +447,14 @@
                   <div class="manual-step border border-sky-500/25 bg-zinc-950/70 rounded-lg p-2">
                     <div class="font-bold text-sky-300 text-[11px] mb-0.5">2 · Invite your friends</div>
                     <p class="text-zinc-400 leading-relaxed">
-                      Press <span class="manual-chip">Copy Invitation</span> and send the link in chat. Friends can open it straight away, or paste it into the Join screen.
+                      Press <span class="manual-chip">Copy Invitation</span> and share the code or link. Friends can open the link straight away, or paste the code into the Join screen.
                     </p>
                   </div>
 
                   <div class="manual-step border border-amber-500/25 bg-zinc-950/70 rounded-lg p-2">
                     <div class="font-bold text-amber-300 text-[11px] mb-0.5">3 · Join a game</div>
                     <p class="text-zinc-400 leading-relaxed">
-                      Pick <span class="manual-chip">Join Multiplayer</span>, enter a Boss alias, paste the invite link and press <span class="manual-chip">Connect</span>. Wait in the lobby until the host launches.
+                      Pick <span class="manual-chip">Join Multiplayer</span>, enter a Boss alias, paste the invite code or link and press <span class="manual-chip">Connect</span>. Wait in the lobby until the host launches.
                     </p>
                   </div>
                 </div>

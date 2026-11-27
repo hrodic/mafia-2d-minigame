@@ -51,6 +51,7 @@ src/
     commands.js            dispatchCommand: local + remote action entry point
   net/
     transport.js           Trystero 0.27 loader + curated Nostr relays + local bus
+    invite.js              short invite code formatting/parsing + fragment links
     protocol.js            message types, versioned envelope, snapshot encode/decode
     lobby.js               UI-agnostic seats, capacity and roster snapshots
     guest.js               guest join/lobby/snapshot/input controller
@@ -307,7 +308,9 @@ controllers live in their own modules):
 - **Transport (`net/transport.js`):** Trystero 0.27 (`@trystero-p2p/nostr`, or `mqtt` as a
   CDN fallback) for cross-machine WebRTC, plus a same-origin **BroadcastChannel +
   localStorage bus** for multi-tab play and embedded iframes. Trystero uses only public
-  Nostr relays for signaling; gameplay traffic stays peer-to-peer.
+  Nostr relays for signaling; gameplay traffic stays peer-to-peer. The app id is a stable
+  reverse-domain namespace (`io.github.hrodic.mafia2d`); short invite codes are parsed by
+  `net/invite.js` and secrets travel in the URL fragment, never the HTTP query.
 - **Protocol (`net/protocol.js`):** message type constants, the versioned envelope/version
   gate, and snapshot encode/decode. The wire shape is unchanged; the module has no state
   mutation or presentation imports.

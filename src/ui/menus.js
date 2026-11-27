@@ -7,6 +7,7 @@ import { state } from '../core/state.js';
 import { parseWorldSeed, randomWorldSeed } from '../core/rng.js';
 import { getAudioCtx } from '../audio/engine.js';
 import { initWorld } from '../sim/match.js';
+import { buildInviteUrl } from '../net/invite.js';
 
 
 let toastTimeout = null;
@@ -422,8 +423,7 @@ document.getElementById('btn-mp-create-room').addEventListener('click', () => {
 document.getElementById('btn-mp-copy-invite').addEventListener('click', () => {
   const codeText = document.getElementById('mp-room-code-display').textContent.trim();
   if (!codeText || codeText === '—') return;
-  const [rCode, rSec] = codeText.split(':');
-  const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(rCode)}&secret=${encodeURIComponent(rSec)}`;
+  const inviteUrl = buildInviteUrl(window.location.origin, window.location.pathname, codeText);
   const ta = document.createElement('textarea');
   ta.value = inviteUrl;
   ta.style.position = 'fixed';
@@ -434,7 +434,7 @@ document.getElementById('btn-mp-copy-invite').addEventListener('click', () => {
     document.execCommand('copy');
     showToast('Invitation link copied to clipboard!');
   } catch (_) {
-    showToast(`Room Code: ${codeText}`);
+    showToast(`Invite code: ${codeText}`);
   }
   document.body.removeChild(ta);
 });

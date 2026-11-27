@@ -11,7 +11,10 @@
 //   makeAction(ns) -> [send(data, targetPeerId?), receive(cb(data, peerId))]
 //   onPeerJoin(cb(peerId)), onPeerLeave(cb(peerId)), leave(), selfId
 
-export const APP_ID = 'hrodic-mafia-2d-p2p-v26';
+// Stable namespace for this game. Keep it readable and version-free: the
+// GAME_VERSION handshake handles compatibility, while changing this value
+// intentionally creates an entirely separate room namespace.
+export const APP_ID = 'io.github.hrodic.mafia2d';
 
 // Curated from Trystero 0.27's default pool. Public relays come and go, so keep a
 // small pool and let Trystero fail over instead of pinning a single relay.
