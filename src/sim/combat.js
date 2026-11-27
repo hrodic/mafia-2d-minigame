@@ -292,11 +292,57 @@ export function hasClearShot(shooter, targetX, targetY) {
   return !traceBulletRay(muzzleX, muzzleY, angle, Math.max(1, dist - 4)).blocked;
 }
 
+/** Start a reload if the magazine is not full. Manual and auto reload share this. */
+export function startReload(unit) {
+  if (!unit || (unit.reloadTimer || 0) > 0) return false;
+  if (unit.ammo == null) unit.ammo = PISTOL.magazine;
+  if (unit.ammo >= PISTOL.magazine) return false;
+  unit.ammo = 0;
+  unit.reloadTimer = PISTOL.reloadTime;
+  return true;
+}
+
+/** True when a same-faction unit sits on the bullet path before the target. */
+export function hasFriendlyInShotPath(shooter, targetX, targetY) {
+  const dist = Math.hypot(targetX - shooter.x, targetY - shooter.y);
+  if (dist <= 0.01) return false;
+  const { angle, muzzleX, muzzleY } = getPistolAim(shooter.x, shooter.y, targetX, targetY);
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+
+  for (const unit of state.npcs) {
+    if (!unit || unit === shooter || unit.faction !== shooter.faction || unit.hp <= 0) continue;
+    const rx = unit.x - muzzleX;
+    const ry = unit.y - muzzleY;
+    const proj = rx * cos + ry * sin;
+    if (proj < 0 || proj > dist) continue;
+    const perp = Math.abs(-rx * sin + ry * cos);
+    if (perp <= getEntityCollisionRadius(unit.rank) + 4) return true;
+  }
+
+  const player = state.player;
+  if (player && player !== shooter && player.alive && player.faction === shooter.faction) {
+    const rx = player.x - muzzleX;
+    const ry = player.y - muzzleY;
+    const proj = rx * cos + ry * sin;
+    if (proj >= 0 && proj <= dist) {
+      const perp = Math.abs(-rx * sin + ry * cos);
+      if (perp <= getEntityCollisionRadius(UnitRank.BOSS) + 4) return true;
+    }
+  }
+  return false;
+}
+
 /** Advance reload state; refills the magazine when the reload completes. */
 export function tickWeapon(unit, dt) {
   if (!unit || !(unit.reloadTimer > 0)) return;
-  unit.reloadTimer = Math.max(0, unit.reloadTimer - dt);
-  if (unit.reloadTimer === 0) unit.ammo = PISTOL.magazine;
+  const remaining = unit.reloadTimer - dt;
+  if (remaining <= 1e-6) {
+    unit.reloadTimer = 0;
+    unit.ammo = PISTOL.magazine;
+    return;
+  }
+  unit.reloadTimer = remaining;
 }
 
 export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY) {
@@ -308,7 +354,7 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
   shooter.facing = angle;
   shooter.attackCooldown = PISTOL.fireCooldown;
   shooter.ammo -= 1;
-  if (shooter.ammo <= 0) shooter.reloadTimer = PISTOL.reloadTime;
+  if (shooter.ammo <= 0) startReload(shooter);
   shooter.muzzleFlashTimer = 0.09;
 
   const shooterFaction = isPlayerShooter ? Faction.PLAYER : shooter.faction;
@@ -335,7 +381,7 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
 
   for (let i = 0; i < state.npcs.length; i++) {
     const npc = state.npcs[i];
-    if (npc.faction === shooterFaction) continue;
+    if (npc === shooter) continue;
     const rx = npc.x - muzzleX;
     const ry = npc.y - muzzleY;
     const proj = rx * cos + ry * sin;
@@ -349,7 +395,7 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
     }
   }
 
-  if (!isPlayerShooter && state.player.alive && shooterFaction !== Faction.PLAYER) {
+  if (!isPlayerShooter && state.player && state.player.alive) {
     const rx = state.player.x - muzzleX;
     const ry = state.player.y - muzzleY;
     const proj = rx * cos + ry * sin;

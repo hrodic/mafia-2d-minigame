@@ -18,8 +18,10 @@ source module with esbuild (no bundling).
 - Hourly economy: neighborhood income, crew upkeep, corruption penalties, negative cash,
   auto-recruitment and treasury.
 - Combat: knife slash (arc, up to 3 targets), 9 mm pistol for bosses/underbosses with
-  distance-based accuracy, a 10-round magazine and a 5s reload, plus critical hits
-  (5% base, 20% from behind, 2× damage)
+  distance-based accuracy, a 10-round magazine, 4s reload (R to reload early), pistol
+  friendly fire, plus critical hits (5% base, 20% from behind, 2× damage)
+- Friendly-turf HP regeneration (Boss 5, Underboss 4, Captain 2, Soldier 1 per second)
+  while not taking damage
   and damage falloff, kevlar armor, sprint.
 - Territory capture block by block; boss death eliminates a syndicate; victory/defeat
   with spectator mode.

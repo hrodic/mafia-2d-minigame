@@ -2,6 +2,7 @@
 import { test, assert, assertEqual } from './harness.js';
 import { Faction, UnitRank, PropType } from '../src/config/enums.js';
 import { CHUNK_SIZE } from '../src/config/constants.js';
+import { PISTOL } from '../src/config/balance.js';
 import { state } from '../src/core/state.js';
 import { dispatchCommand } from '../src/sim/commands.js';
 import { sendOrDispatchCommand } from '../src/ui/commandBridge.js';
@@ -216,6 +217,26 @@ test('commands: SHOOT routes the player and a remote faction boss', () => {
       assertEqual(state.npcs[0].attackCooldown, 0.2);
     }
   );
+});
+
+test('commands: RELOAD starts a 4s reload for local and remote bosses', () => {
+  withCommandState({}, () => {
+    state.player.ammo = 5;
+    state.player.reloadTimer = 0;
+    assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'RELOAD' }), true);
+    assertEqual(state.player.ammo, 0);
+    assertEqual(state.player.reloadTimer, PISTOL.reloadTime);
+    assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'RELOAD' }), false);
+  });
+
+  withCommandState({ npcs: [makeBoss({ humanPeerId: 'peer' })] }, () => {
+    const boss = state.npcs[0];
+    boss.ammo = 3;
+    boss.reloadTimer = 0;
+    assertEqual(dispatchCommand(Faction.RIVAL_1, { cmd: 'RELOAD' }), true);
+    assertEqual(boss.ammo, 0);
+    assertEqual(boss.reloadTimer, PISTOL.reloadTime);
+  });
 });
 
 test('commands: BUY_ARMOR charges the player and remote factions', () => {

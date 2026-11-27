@@ -3,7 +3,7 @@
 
 import { Faction, UnitRank } from '../config/enums.js';
 import { CHUNK_SIZE, CHUNK_PX, TILE_SIZE, MAX_PISTOL_RANGE } from '../config/constants.js';
-import { SLASH } from '../config/balance.js';
+import { SLASH, AI_TACTICS } from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
 import { state } from '../core/state.js';
 import { emit } from '../core/events.js';
@@ -13,6 +13,7 @@ import { moveUnit } from './movement.js';
 import { progressCapture, getCapturePerTick } from './territory.js';
 import {
   hasClearShot,
+  hasFriendlyInShotPath,
   performBossKnifeSlash,
   performBossPistolShot,
   performSlash,
@@ -87,10 +88,67 @@ export function choosePatrolChunk(u, uCx, uCy) {
   return targetChunk;
 }
 
+/** Pick a point away from the threat, preferring own turf when possible. */
+function chooseRetreatPoint(u, enemy) {
+  if (!state.world.findNearestWalkablePoint) return null;
+  const away = Math.atan2(u.y - enemy.y, u.x - enemy.x);
+  const distance = AI_TACTICS.bossRetreatDistance;
+  let best = null;
+  let bestScore = -Infinity;
+  for (const offset of [0, 0.55, -0.55, 1.1, -1.1]) {
+    const angle = away + offset;
+    const gx = u.x + Math.cos(angle) * distance;
+    const gy = u.y + Math.sin(angle) * distance;
+    const snapped = state.world.findNearestWalkablePoint(gx, gy, u.bodyRadius);
+    if (!snapped) continue;
+    const travel = Math.hypot(snapped.x - u.x, snapped.y - u.y);
+    if (travel < distance * 0.35) continue;
+    let score = travel - Math.abs(offset) * 40;
+    if (state.world.worldToTile && state.world.getChunk) {
+      const tile = state.world.worldToTile(snapped.x, snapped.y);
+      const chunk = state.world.getChunk(tile.cx, tile.cy);
+      if (chunk && chunk.faction === u.faction) score += 80;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = { x: snapped.x, y: snapped.y };
+    }
+  }
+  return best;
+}
+
+/** Pick a lateral point that leaves the current firing line. */
+function chooseFlankPoint(u, enemy) {
+  if (!state.world.findNearestWalkablePoint) return null;
+  const forward = Math.atan2(enemy.y - u.y, enemy.x - u.x);
+  const preferred = u.flankSide || (u.id % 2 === 0 ? 1 : -1);
+  const radius = AI_TACTICS.flankDistance;
+  for (const side of [preferred, -preferred]) {
+    const angle = forward + side * (Math.PI / 2);
+    const gx = u.x + Math.cos(angle) * radius;
+    const gy = u.y + Math.sin(angle) * radius;
+    const snapped = state.world.findNearestWalkablePoint(gx, gy, u.bodyRadius);
+    if (!snapped) continue;
+    if (Math.hypot(snapped.x - u.x, snapped.y - u.y) < radius * 0.45) continue;
+    return { x: snapped.x, y: snapped.y, side };
+  }
+  // Both sides blocked: back off to break the line and re-open a route.
+  const angle = forward + Math.PI;
+  const gx = u.x + Math.cos(angle) * radius * 0.8;
+  const gy = u.y + Math.sin(angle) * radius * 0.8;
+  const snapped = state.world.findNearestWalkablePoint(gx, gy, u.bodyRadius);
+  if (snapped && Math.hypot(snapped.x - u.x, snapped.y - u.y) > radius * 0.4) {
+    return { x: snapped.x, y: snapped.y, side: 0 };
+  }
+  return null;
+}
+
 /** One AI step for a non-remote, non-player unit. */
 export function updateNpcAi(u, dt) {
   u.aiTimer -= dt;
   u.pathTimer -= dt;
+  u.retreatTimer = Math.max(0, (u.retreatTimer || 0) - dt);
+  u.flankTimer = Math.max(0, (u.flankTimer || 0) - dt);
 
   const { uCx, uCy, nearestEnemy, nearestEnemyDist, nearbyEnemyCount, nearbyAllyCount } =
     scanNearby(u);
@@ -104,11 +162,41 @@ export function updateNpcAi(u, dt) {
   const aggroRange = isRangedShooter ? 680 : 480;
   const melee = SLASH.aiMeleeByRank[u.rank] || SLASH.aiMelee;
 
-  if (nearestEnemy && nearestEnemyDist <= aggroRange) {
-    u.goalX = nearestEnemy.x;
-    u.goalY = nearestEnemy.y;
+  let retreating = u.rank === UnitRank.BOSS && u.retreatTimer > 0;
+  if (!retreating && u.rank === UnitRank.BOSS && nearestEnemy) {
+    const hpFraction = u.maxHp > 0 ? u.hp / u.maxHp : 1;
+    const noArmor = (u.armor || 0) <= 0;
+    const critical = hpFraction <= AI_TACTICS.bossRetreatHpFraction;
+    const outnumbered =
+      nearbyEnemyCount >= AI_TACTICS.bossRetreatMinEnemies &&
+      nearbyEnemyCount > nearbyAllyCount;
+    if (noArmor && (critical || outnumbered)) {
+      const point = chooseRetreatPoint(u, nearestEnemy);
+      if (point) {
+        u.retreatX = point.x;
+        u.retreatY = point.y;
+        u.retreatTimer = AI_TACTICS.bossRetreatDuration;
+        u.flankTimer = 0;
+        u.path = null;
+        u.pathTimer = 0;
+        retreating = true;
+      }
+    }
+  }
+
+  if (retreating) {
+    u.goalX = u.retreatX;
+    u.goalY = u.retreatY;
+  } else if (nearestEnemy && nearestEnemyDist <= aggroRange) {
+    const flanking = u.flankTimer > 0;
+    u.goalX = flanking ? u.flankX : nearestEnemy.x;
+    u.goalY = flanking ? u.flankY : nearestEnemy.y;
 
     if (nearestEnemyDist <= melee.reach) {
+      // Knives have no friendly-fire restriction: always take the free hit.
+      u.flankTimer = 0;
+      u.goalX = nearestEnemy.x;
+      u.goalY = nearestEnemy.y;
       u.facing = Math.atan2(nearestEnemy.y - u.y, nearestEnemy.x - u.x);
       if (u.rank === UnitRank.BOSS) {
         performBossKnifeSlash(u);
@@ -125,10 +213,25 @@ export function updateNpcAi(u, dt) {
       nearestEnemyDist <= MAX_PISTOL_RANGE &&
       u.attackCooldown <= 0 &&
       (u.ammo ?? 1) > 0 &&
-      !(u.reloadTimer > 0) &&
-      hasClearShot(u, nearestEnemy.x, nearestEnemy.y)
+      !(u.reloadTimer > 0)
     ) {
-      performBossPistolShot(u, false, nearestEnemy.x, nearestEnemy.y);
+      const clear = hasClearShot(u, nearestEnemy.x, nearestEnemy.y);
+      const friendBlocked = clear && hasFriendlyInShotPath(u, nearestEnemy.x, nearestEnemy.y);
+      if (clear && !friendBlocked) {
+        performBossPistolShot(u, false, nearestEnemy.x, nearestEnemy.y);
+      } else if (friendBlocked && !flanking) {
+        const point = chooseFlankPoint(u, nearestEnemy);
+        if (point) {
+          u.flankX = point.x;
+          u.flankY = point.y;
+          u.flankTimer = AI_TACTICS.flankDuration;
+          u.flankSide = point.side === 0 ? 1 : -point.side;
+          u.goalX = point.x;
+          u.goalY = point.y;
+          u.path = null;
+          u.pathTimer = 0;
+        }
+      }
     }
   } else if (u.aiTimer <= 0) {
     u.aiTimer = 1.6 + Math.random() * 1.8;
@@ -187,7 +290,7 @@ export function updateNpcAi(u, dt) {
     {
       mx: moveX,
       my: moveY,
-      sprint: false,
+      sprint: retreating,
       ignorePlayer: false,
       ignoreNpcId: u.id,
       dodge: true,
@@ -197,7 +300,9 @@ export function updateNpcAi(u, dt) {
   );
 
   // Territory capture by NPCs
-  const uTile = state.world.worldToTile(u.x, u.y);
-  const uChunk = state.world.getChunk(uTile.cx, uTile.cy);
-  progressCapture(uChunk, u.faction, dt, getCapturePerTick(u.rank));
+  if (!retreating) {
+    const uTile = state.world.worldToTile(u.x, u.y);
+    const uChunk = state.world.getChunk(uTile.cx, uTile.cy);
+    progressCapture(uChunk, u.faction, dt, getCapturePerTick(u.rank));
+  }
 }

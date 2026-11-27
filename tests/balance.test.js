@@ -36,6 +36,7 @@ const EXPECTED_RANKS = {
     speedJitter: 0,
     radius: 13.5,
     capturePerTick: 1,
+    regenPerSecond: 5,
     cost: 0,
     upkeep: 0,
   },
@@ -50,6 +51,7 @@ const EXPECTED_RANKS = {
     speedJitter: 0,
     radius: 12.8,
     capturePerTick: 1,
+    regenPerSecond: 4,
     cost: 4000,
     upkeep: 600,
   },
@@ -64,6 +66,7 @@ const EXPECTED_RANKS = {
     speedJitter: 0,
     radius: 12,
     capturePerTick: 0.5,
+    regenPerSecond: 2,
     cost: 2500,
     upkeep: 300,
   },
@@ -78,6 +81,7 @@ const EXPECTED_RANKS = {
     speedJitter: 0,
     radius: 11,
     capturePerTick: 0.2,
+    regenPerSecond: 1,
     cost: 1000,
     upkeep: 100,
   },
@@ -198,7 +202,7 @@ test('balance: pistol stats, magazine and accuracy bands are locked', () => {
   assertEqual(PISTOL.knockbackMax, 15);
   assertEqual(PISTOL.magazine, 10);
   assertEqual(PISTOL.fireCooldown, 0.2);
-  assertEqual(PISTOL.reloadTime, 5);
+  assertEqual(PISTOL.reloadTime, 4);
   assertEqual(PISTOL.outOfRange.failChance, 1);
   assertEqual(PISTOL.outOfRange.dmgMult, 0);
   assertEqual(PISTOL.outOfRange.label, '0% chance');

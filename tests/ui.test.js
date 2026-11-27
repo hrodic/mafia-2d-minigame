@@ -190,12 +190,12 @@ test('ui: hierarchy manual is a scannable rank table', async () => {
   assertEqual(table.querySelectorAll('tbody tr').length, 4);
 
   const headers = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim().toLowerCase());
-  for (const header of ['rank', 'hp', 'dmg', 'hire', 'upkeep', 'cap']) {
+  for (const header of ['rank', 'hp', 'dmg', 'regen', 'hire', 'upkeep', 'cap']) {
     assert(headers.includes(header), `missing "${header}" column`);
   }
 
   const text = table.textContent;
-  for (const value of ['$4,000', '$2,500', '$1,000', '800', '600', '300', '×1', '×2', '×10']) {
+  for (const value of ['$4,000', '$2,500', '$1,000', '800', '600', '300', '5/s', '4/s', '2/s', '1/s', '×1', '×2', '×10']) {
     assert(text.includes(value), `rank table should show ${value}`);
   }
 

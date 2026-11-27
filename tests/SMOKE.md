@@ -28,7 +28,7 @@ powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123
 - [ ] Move: WASD + click-to-move + minimap click.
 - [ ] While moving, click a new street point: the boss immediately switches to the new target.
 - [ ] Slash (Space/F) works.
-- [ ] Right-click pistol fires (tracer + accuracy label).
+- [ ] Right-click pistol fires (tracer + accuracy label); R reloads early.
 - [ ] Capture one block (progress bar → tint change).
 - [ ] One economy tick fires (hour advances, income/upkeep applied).
 - [ ] `http://localhost:8123/tests/tests.html` → all tests green, title says `PASS`.
@@ -71,7 +71,11 @@ powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123
 - [ ] Pistol: range ring, accuracy label, tracers, casings, ricochets, misses ("MISS!").
 - [ ] Armor: Q/button buys 300 armor ($3,500), absorbs damage, once per tick, HUD shows.
 - [ ] Rival AI bosses buy armor, use pistol/slash, capture blocks, recruit crew; shooters
-  hold fire when a building blocks the bullet path (no ammo wasted on walls).
+  hold fire when a building or ally blocks the bullet path.
+- [ ] Wounded/unarmored bosses buy armor or sprint away; blocked shooters sidestep allies
+  in the firing lane and knife at close range.
+- [ ] Pistol rounds can damage allied units; knives never hit allies.
+- [ ] HP regens on friendly turf only, pauses while taking damage, and clamps at max.
 - [ ] Territory: capture bar fills (per tick), block tint updates, minimap updates.
 - [ ] Contested turf: no capture progress while an enemy unit stands on enemy turf; neutral
   turf captures freely.
@@ -81,7 +85,7 @@ powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123
 - [ ] Outside the generated map, a subtle dark city backdrop is visible (not flat black).
 - [ ] City Radar is larger/readable and still shows player/boss/unit markers.
 - [ ] Bottom action bar: slash/pistol/armor/sprint cooldowns, costs, shortcuts and tooltips;
-  the pistol badge counts rounds down and shows a 5s reload fill at 0; armor shows a
+  the pistol badge counts rounds down, R reloads early, and the fill shows the 4s reload; armor shows a
   cooldown overlay; sprint works while holding the button.
 - [ ] Leaderboard shows Turf / Crew / Kills with a readable rank order.
 - [ ] Kill a rival boss → toast + turf neutral; kill all → victory banner + summary.

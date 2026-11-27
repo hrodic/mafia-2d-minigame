@@ -12,6 +12,7 @@ import { progressCapture, getCapturePerTick } from './territory.js';
 import { processHourlyTick } from './economy.js';
 import { updateNpcAi } from './ai.js';
 import { tickWeapon } from './combat.js';
+import { regenUnit } from './regen.js';
 
 /** One fixed host/single-player simulation step. No presentation work here. */
 export function update(dt) {
@@ -92,11 +93,16 @@ export function update(dt) {
 
     if (u.rank === UnitRank.BOSS && u.humanPeerId) {
       updateHumanControlledRivalBoss(u, dt);
+      regenUnit(u, dt);
       continue;
     }
 
     updateNpcAi(u, dt);
+    regenUnit(u, dt);
   }
+
+  // Player regen after all NPC attacks, so a hit this frame suppresses it immediately.
+  regenUnit(state.player, dt);
 
   // Hourly Economy & Auto-Recruitment Tick
   state.tickTimer += dt;

@@ -21,6 +21,7 @@ import './units.test.js';
 import './economy.test.js';
 import './territory.test.js';
 import './combat.test.js';
+import './regen.test.js';
 import './commands.test.js';
 import './phase3.test.js';
 import './interpolation.test.js';

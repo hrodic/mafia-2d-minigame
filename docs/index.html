@@ -237,7 +237,7 @@
         <span id="cooldown-slash" class="action-cooldown" aria-hidden="true"></span>
       </button>
 
-      <button id="btn-pistol" type="button" class="action-btn action-amber" data-tip="9mm pistol — 10 rounds, 0.2s cadence, 5s reload (RMB)" aria-label="Pistol (right click)">
+      <button id="btn-pistol" type="button" class="action-btn action-amber" data-tip="9mm pistol — 10 rounds, 0.2s cadence, 4s reload (RMB / R reload)" aria-label="Pistol (right click, R reload)">
         <span class="action-icon">⌖</span>
         <span id="action-label-pistol" class="action-label">Pistol</span>
         <kbd class="action-key">RMB</kbd>
@@ -709,8 +709,8 @@
                     </tr>
                     <tr>
                       <th scope="row"><span class="manual-action action-amber">Pistol</span></th>
-                      <td><span class="manual-key">RMB</span></td>
-                      <td>600px · 10 rounds · 0.2s cadence · 5s reload. Bosses/Second only.</td>
+                      <td><span class="manual-key">RMB</span><span class="manual-key">R</span></td>
+                      <td>600px · 10 rounds · 0.2s cadence · 4s reload · R reloads early. Bosses/Underbosses only; rounds can hit allies.</td>
                     </tr>
                     <tr>
                       <th scope="row"><span class="manual-action action-sky">Armor</span></th>
@@ -781,7 +781,7 @@
                   <div class="manual-stats">
                     <span class="manual-stat"><b>10</b> rounds</span>
                     <span class="manual-stat"><b>0.2s</b> cadence</span>
-                    <span class="manual-stat"><b>5s</b> reload</span>
+                    <span class="manual-stat"><b>4s</b> reload</span>
                   </div>
                   <div class="manual-table-wrap manual-table-wrap-flat">
                     <table class="manual-table manual-table-compact manual-weapon-table">
@@ -804,7 +804,7 @@
                     </table>
                   </div>
                   <p class="manual-note">
-                    Only bosses and underbosses carry it; AI holds fire when a building blocks the shot.
+                    Only bosses and underbosses carry it; R reloads early. Rounds can hit allies, while AI holds fire when a building or ally blocks the shot.
                   </p>
                 </div>
               </div>
@@ -821,7 +821,7 @@
                 <div class="font-bold text-emerald-400 uppercase tracking-wider text-[10px]">
                   Crime Family Ranks
                 </div>
-                <span class="text-[9px] font-mono text-zinc-500">HIRE · UPKEEP · CAP</span>
+                <span class="text-[9px] font-mono text-zinc-500">HIRE · UPKEEP · REGEN · CAP</span>
               </div>
 
               <div class="manual-table-wrap">
@@ -831,6 +831,7 @@
                       <th scope="col">Rank</th>
                       <th scope="col" title="Health; armor absorbs damage first">HP</th>
                       <th scope="col" title="Blade damage per hit">Dmg</th>
+                      <th scope="col" title="HP per second on friendly turf while not taking damage">Regen</th>
                       <th scope="col" title="One-time recruitment cost">Hire</th>
                       <th scope="col" title="Paid every hour">Upkeep</th>
                       <th scope="col" title="Maximum per grid side">Cap</th>
@@ -847,6 +848,7 @@
                       </th>
                       <td class="stat-cell"><span class="stat-main">800</span><span class="stat-sub">+300 armor</span></td>
                       <td class="stat-cell"><span class="stat-main">30–40</span><span class="stat-sub">blade</span></td>
+                      <td class="stat-cell"><span class="stat-main">5/s</span><span class="stat-sub">own turf</span></td>
                       <td class="stat-cell"><span class="stat-main text-zinc-500">—</span><span class="stat-sub">armor $3,500</span></td>
                       <td class="stat-cell"><span class="stat-main text-zinc-500">—</span></td>
                       <td class="stat-cell"><span class="cap-pill">1</span></td>
@@ -861,6 +863,7 @@
                       </th>
                       <td class="stat-cell"><span class="stat-main">800</span><span class="stat-sub">+120 armor</span></td>
                       <td class="stat-cell"><span class="stat-main">25–35</span><span class="stat-sub">blade</span></td>
+                      <td class="stat-cell"><span class="stat-main">4/s</span><span class="stat-sub">own turf</span></td>
                       <td class="stat-cell"><span class="stat-main money">$4,000</span></td>
                       <td class="stat-cell"><span class="stat-main">$600</span><span class="stat-sub">/ hr</span></td>
                       <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×1">×1</span></td>
@@ -875,6 +878,7 @@
                       </th>
                       <td class="stat-cell"><span class="stat-main">600</span></td>
                       <td class="stat-cell"><span class="stat-main">20–30</span><span class="stat-sub">blade</span></td>
+                      <td class="stat-cell"><span class="stat-main">2/s</span><span class="stat-sub">own turf</span></td>
                       <td class="stat-cell"><span class="stat-main money">$2,500</span></td>
                       <td class="stat-cell"><span class="stat-main">$300</span><span class="stat-sub">/ hr</span></td>
                       <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×2">×2</span></td>
@@ -889,6 +893,7 @@
                       </th>
                       <td class="stat-cell"><span class="stat-main">300</span></td>
                       <td class="stat-cell"><span class="stat-main">15–25</span><span class="stat-sub">blade</span></td>
+                      <td class="stat-cell"><span class="stat-main">1/s</span><span class="stat-sub">own turf</span></td>
                       <td class="stat-cell"><span class="stat-main money">$1,000</span></td>
                       <td class="stat-cell"><span class="stat-main">$100</span><span class="stat-sub">/ hr</span></td>
                       <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×10">×10</span></td>
@@ -898,7 +903,7 @@
               </div>
 
               <p class="text-[10px] text-zinc-500 leading-relaxed">
-                Hire is one-time; upkeep is paid every hour. Rank is the shared structure; each syndicate uses its own title in-game (Don, Pakhan, Sottocapo …). Caps scale with the city grid: Underbosses ×1, Captains ×2, Soldiers ×10 (15×15 allows 15 / 30 / 150). Minimums are 1 / 2 / 10. Lower each rank's ceiling in Crew Limits before launch, then set your own target in Crew Management with MIN / − / + / MAX. Corruption reduces income by 1% for every 10 neighborhoods and every 25 living units; the Crew Management totals show the Turf, Crew and total percentages. Armor absorbs damage before HP. Bosses and Underbosses carry the pistol (50–80 at up to 600px, 10-round magazine, 5s reload); Captains and Soldiers are knife-only. Capture points are per tick and stack: Boss/Underboss 1, Captain 0.5, Soldier 0.2. You cannot capture enemy turf while any enemy unit is on it; neutral turf never resists.
+                Hire is one-time; upkeep is paid every hour. Rank is the shared structure; each syndicate uses its own title in-game (Don, Pakhan, Sottocapo …). Caps scale with the city grid: Underbosses ×1, Captains ×2, Soldiers ×10 (15×15 allows 15 / 30 / 150). Minimums are 1 / 2 / 10. Lower each rank's ceiling in Crew Limits before launch, then set your own target in Crew Management with MIN / − / + / MAX. Corruption reduces income by 1% for every 10 neighborhoods and every 25 living units; the Crew Management totals show the Turf, Crew and total percentages. Armor absorbs damage before HP. Bosses and Underbosses carry the pistol (50-80 at up to 600px, 10-round magazine, 4s reload); Captains and Soldiers are knife-only. Capture points are per tick and stack: Boss/Underboss 1, Captain 0.5, Soldier 0.2. You cannot capture enemy turf while any enemy unit is on it; neutral turf never resists. HP regenerates only on your own turf while not taking damage: Boss 5, Underboss 4, Captain 2, Soldier 1 per second.
               </p>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2 border-t border-zinc-800/80">
@@ -916,7 +921,7 @@
                   <div class="font-bold text-zinc-200 uppercase tracking-wider mb-1">Attack Timing</div>
                   <ul class="space-y-0.5">
                     <li>Boss slash: 0.8s cooldown · 3 targets · 52px reach · 150° arc</li>
-                    <li>Boss &amp; Underboss pistol: 0.2s cadence · 10 rounds · 5s reload · 50–80 dmg · 600px range</li>
+                    <li>Boss &amp; Underboss pistol: 0.2s cadence · 10 rounds · 4s reload · 50-80 dmg · 600px range · R reload</li>
                     <li>Crew knife: Underboss 3 / 120° / 1.0s / 50px · Captain 2 / 100° / 1.2s / 48px · Soldier 1 / 90° / 1.5s / 46px</li>
                     <li>Boss armor: $3,500 for +300 · once per hour</li>
                     <li>Sprint: 1.6× for 2.0s · 4.0s cooldown</li>

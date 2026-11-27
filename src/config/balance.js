@@ -24,6 +24,7 @@ export const RANK_STATS = {
     speedJitter: 0,
     radius: 13.5,
     capturePerTick: 1,
+    regenPerSecond: 5,
     cost: 0,
     upkeep: 0,
   },
@@ -38,6 +39,7 @@ export const RANK_STATS = {
     speedJitter: 0,
     radius: 12.8,
     capturePerTick: 1,
+    regenPerSecond: 4,
     cost: 4000,
     upkeep: 600,
   },
@@ -52,6 +54,7 @@ export const RANK_STATS = {
     speedJitter: 0,
     radius: 12,
     capturePerTick: 0.5,
+    regenPerSecond: 2,
     cost: 2500,
     upkeep: 300,
   },
@@ -66,6 +69,7 @@ export const RANK_STATS = {
     speedJitter: 0,
     radius: 11,
     capturePerTick: 0.2,
+    regenPerSecond: 1,
     cost: 1000,
     upkeep: 100,
   },
@@ -75,6 +79,15 @@ export const CORRUPTION = {
   neighborhoodsPerStep: 10,
   unitsPerStep: 25,
   percentPerStep: 1,
+};
+
+export const AI_TACTICS = {
+  bossRetreatHpFraction: 0.35,
+  bossRetreatMinEnemies: 3,
+  bossRetreatDuration: 2.2,
+  bossRetreatDistance: 280,
+  flankDistance: 90,
+  flankDuration: 0.9,
 };
 
 export const UNIT_CAPS = {
@@ -178,7 +191,7 @@ export const PISTOL = {
   knockbackMax: 15,
   magazine: 10,
   fireCooldown: 0.2,
-  reloadTime: 5,
+  reloadTime: 4,
   outOfRange: {
     failChance: 1,
     dmgMult: 0,

@@ -8,6 +8,7 @@ import {
   executeBossSlashForFaction,
   executeBuyArmorForFaction,
   performBossPistolShot,
+  startReload,
 } from './combat.js';
 import { clampUnitCap } from './units.js';
 
@@ -80,6 +81,12 @@ export function dispatchCommand(faction, payload) {
       if (!boss || !Number.isFinite(payload.tx) || !Number.isFinite(payload.ty)) return false;
       if (faction === Faction.PLAYER && !state.player.alive) return false;
       return performBossPistolShot(boss, faction === Faction.PLAYER, payload.tx, payload.ty);
+    }
+    case 'RELOAD': {
+      const boss = getBossForFaction(faction);
+      if (!boss) return false;
+      if (faction === Faction.PLAYER && !state.player.alive) return false;
+      return startReload(boss);
     }
     case 'BUY_ARMOR':
       if (faction === Faction.PLAYER) {
