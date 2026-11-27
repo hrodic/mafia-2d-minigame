@@ -19,6 +19,7 @@ const KEYS = [
   'treasuries',
   'factionAlive',
   'factionKills',
+  'factionDeaths',
   'activeFactions',
   'gameHour',
   'tickTimer',
@@ -69,6 +70,7 @@ function withHudState(opts, fn) {
   state.treasuries = { ...saved.treasuries, ...(opts.treasuries || {}) };
   state.factionAlive = { ...saved.factionAlive, ...(opts.factionAlive || {}) };
   state.factionKills = { ...saved.factionKills, ...(opts.factionKills || {}) };
+  state.factionDeaths = { ...saved.factionDeaths, ...(opts.factionDeaths || {}) };
   state.activeFactions = [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3];
   state.gameHour = opts.gameHour ?? 5;
   state.tickTimer = opts.tickTimer ?? 5;
@@ -125,10 +127,11 @@ test('hud: updateHUD writes HP, armor, cash, clock and territory stats', () => {
   );
 });
 
-test('hud: leaderboard exposes turf, crew and kills with clear labels', () => {
+test('hud: leaderboard exposes turf, kills and deaths with clear labels', () => {
   withHudState(
     {
       factionKills: { [Faction.PLAYER]: 4, [Faction.RIVAL_1]: 2 },
+      factionDeaths: { [Faction.PLAYER]: 1, [Faction.RIVAL_1]: 3 },
       npcs: [{ faction: Faction.PLAYER, rank: UnitRank.SOLDIER }],
     },
     () => {
@@ -136,10 +139,11 @@ test('hud: leaderboard exposes turf, crew and kills with clear labels', () => {
       const board = document.getElementById('faction-board').textContent;
       assert(board.includes('Faction Leaderboard'), board);
       assert(board.includes('Turf'), board);
-      assert(board.includes('Crew'), board);
       assert(board.includes('Kills'), board);
+      assert(board.includes('Deaths'), board);
+      assert(!board.includes('Crew'), 'leaderboard should not expose crew counts');
       assert(board.includes('4'), board);
-      assert(board.includes('2'), board);
+      assert(board.includes('3'), board);
     }
   );
 });

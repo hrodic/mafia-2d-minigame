@@ -51,6 +51,7 @@ const SNAPSHOT_STATE_KEYS = [
   'activeFactions',
   'treasuries',
   'factionKills',
+  'factionDeaths',
   'factionAlive',
   'gameHour',
   'tickTimer',
@@ -82,6 +83,7 @@ function withSnapshotState(fn) {
   state.activeFactions = ['PLAYER', 'RIVAL_1'];
   state.treasuries = {};
   state.factionKills = {};
+  state.factionDeaths = {};
   state.factionAlive = { PLAYER: true, RIVAL_1: true };
   state.gameHour = 1;
   state.tickTimer = 0;

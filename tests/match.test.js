@@ -33,6 +33,7 @@ const STATE_KEYS = [
   'treasuries',
   'factionAlive',
   'factionKills',
+  'factionDeaths',
   'playerSpawnCaps',
   'factionRecruitmentPrefs',
   'player',

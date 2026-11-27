@@ -80,6 +80,7 @@ export function encodeSnapshot(state) {
     treasuries: { ...state.treasuries },
     factionAlive: { ...state.factionAlive },
     kills: { ...state.factionKills },
+    deaths: { ...state.factionDeaths },
     playerBoss: {
       x: Math.round(state.player.x * 10) / 10,
       y: Math.round(state.player.y * 10) / 10,

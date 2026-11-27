@@ -20,6 +20,10 @@ function creditKill(killerFaction, victimFaction) {
   if (state.factionKills[killerFaction] !== undefined) state.factionKills[killerFaction]++;
 }
 
+function creditDeath(victimFaction) {
+  if (state.factionDeaths[victimFaction] !== undefined) state.factionDeaths[victimFaction]++;
+}
+
 export function applyDamageToNpc(
   target,
   dmg,
@@ -76,6 +80,7 @@ export function applyDamageToNpc(
     }
 
     creditKill(killerFaction, deadFaction);
+    creditDeath(deadFaction);
     if (deadIdx !== -1) state.npcs.splice(deadIdx, 1);
     emit('unit:died', {
       unit: target,

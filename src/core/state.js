@@ -48,11 +48,13 @@ export function createGameState(config = {}) {
   const treasuries = {};
   const factionAlive = {};
   const factionKills = {};
+  const factionDeaths = {};
   for (const faction of ALL_FACTION_SLOTS) {
     const isActive = activeFactions.includes(faction);
     treasuries[faction] = isActive ? 3000 : 0;
     factionAlive[faction] = isActive;
     factionKills[faction] = 0;
+    factionDeaths[faction] = 0;
   }
 
   const playerSpawnX = 1.5 * TILE_SIZE;
@@ -73,6 +75,7 @@ export function createGameState(config = {}) {
     treasuries,
     factionAlive,
     factionKills,
+    factionDeaths,
 
     // --- local player boss --------------------------------------------------
     player: {

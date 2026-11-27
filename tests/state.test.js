@@ -347,6 +347,7 @@ test('state factory: active factions get cash and inactive slots are zeroed', ()
   assertEqual(fresh.factionAlive[Faction.RIVAL_2], false);
   for (const faction of [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3]) {
     assertEqual(fresh.factionKills[faction], 0);
+    assertEqual(fresh.factionDeaths[faction], 0);
   }
 });
 
@@ -377,6 +378,7 @@ test('state factory: each call returns independent nested containers', () => {
   assert(first.treasuries !== second.treasuries);
   assert(first.factionAlive !== second.factionAlive);
   assert(first.factionKills !== second.factionKills);
+  assert(first.factionDeaths !== second.factionDeaths);
   assert(first.player !== second.player);
   assert(first.camera !== second.camera);
   assert(first.mouse !== second.mouse);

@@ -382,7 +382,7 @@ distance from the camera.
 
 - `ui/hud.js`: primary boss/economy status, collapsible crew management panel (caps,
   recruit costs, turf/crew/gross/upkeep/net totals), collapsible faction leaderboard
-  (turf, crew, kills).
+  (turf, kills, deaths).
 - `ui/actionBar.js`: bottom-center combat bar. Slash/pistol/armor/sprint show ready/cooling
   states, cooldown overlays, costs and shortcuts; sprint is hold-to-run and guest input
   includes the held state.

@@ -252,6 +252,7 @@ export function updateHUD() {
     [Faction.RIVAL_3]: 0,
   };
   const killCounts = state.factionKills || {};
+  const deathCounts = state.factionDeaths || {};
 
   for (const chunk of state.world.chunks.values()) {
     if (blockCounts[chunk.faction] !== undefined) blockCounts[chunk.faction]++;
@@ -280,18 +281,18 @@ export function updateHUD() {
   }
 
   let boardHtml = `
-      <div class="grid grid-cols-[1fr_2.6rem_2.4rem_2.4rem] gap-1 mt-1 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
+      <div class="grid grid-cols-[1fr_2.4rem_2.3rem_2.6rem] gap-1 mt-1 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
         <span>Syndicate</span>
         <span class="text-right" title="Neighborhoods controlled">Turf</span>
-        <span class="text-right" title="Living crew members">Crew</span>
         <span class="text-right" title="Enemy units killed">Kills</span>
+        <span class="text-right" title="Units lost">Deaths</span>
       </div>
     `;
   const ranked = [...state.activeFactions].sort(
     (a, b) =>
       (blockCounts[b] || 0) - (blockCounts[a] || 0) ||
       (killCounts[b] || 0) - (killCounts[a] || 0) ||
-      (crewCounts[b] || 0) - (crewCounts[a] || 0)
+      (deathCounts[a] || 0) - (deathCounts[b] || 0)
   );
   ranked.forEach((f, index) => {
     const meta = FACTION_META[f];
@@ -300,15 +301,15 @@ export function updateHUD() {
     const alias = state.net && state.net.isActive() ? state.net.getAliasForFaction(f) : null;
     const displayName = alias ? `${meta.short} · ${escapeHtml(alias)}` : meta.short;
     boardHtml += `
-      <div class="grid grid-cols-[1fr_2.6rem_2.4rem_2.4rem] items-center gap-1 ${!alive ? 'opacity-45 line-through' : ''} ${isMe ? 'bg-amber-500/5 -mx-1 px-1 rounded' : ''}">
+      <div class="grid grid-cols-[1fr_2.4rem_2.3rem_2.6rem] items-center gap-1 ${!alive ? 'opacity-45 line-through' : ''} ${isMe ? 'bg-amber-500/5 -mx-1 px-1 rounded' : ''}">
         <div class="flex items-center gap-1.5 min-w-0">
           <span class="text-[9px] font-mono text-zinc-600 w-3">${index + 1}</span>
           <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${meta.badge}"></span>
           <span class="font-bold truncate ${isMe ? 'text-amber-300' : 'text-zinc-200'}">${displayName}${isMe ? ' (You)' : ''}</span>
         </div>
         <span class="text-right font-mono text-[11px] text-zinc-300">${blockCounts[f] || 0}</span>
-        <span class="text-right font-mono text-[11px] text-zinc-300">${crewCounts[f] || 0}</span>
-        <span class="text-right font-mono text-[11px] ${killCounts[f] ? 'text-rose-300' : 'text-zinc-500'}">${killCounts[f] || 0}</span>
+        <span class="text-right font-mono text-[11px] ${killCounts[f] ? 'text-emerald-300' : 'text-zinc-500'}">${killCounts[f] || 0}</span>
+        <span class="text-right font-mono text-[11px] ${deathCounts[f] ? 'text-rose-300' : 'text-zinc-500'}">${deathCounts[f] || 0}</span>
       </div>
     `;
   });

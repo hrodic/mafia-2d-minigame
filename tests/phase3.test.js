@@ -21,6 +21,7 @@ const STATE_KEYS = [
   'treasuries',
   'factionAlive',
   'factionKills',
+  'factionDeaths',
   'camera',
   'mouse',
   'keys',
