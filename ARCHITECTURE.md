@@ -261,6 +261,11 @@ position/danger, threatened owned chunks, the local focus target and each unit's
 selected global stance (Defend/Expand) and local order (Guard/Attack); defaults are
 Expand/Attack. Orders travel through `SET_GLOBAL_STANCE` / `SET_LOCAL_ORDER` commands and
 compact snapshot codes. This module only reads sim facts; presentation reads the state.
+Global **Defend** is applied in `sim/ai.js` and `sim/units.js`: non-boss allies outside the
+boss aura pick only owned patrol destinations (threatened block → owned border → nearest
+owned), and reinforcements prefer safe friendly turf near the threatened block, avoiding
+blocks with 3+ enemies. Capture stays automatic; Defend only restricts deliberate
+destinations. Local Guard wiring is still pending.
 `sim/ai.js`: `scanNearby` (nearest enemy + ally/enemy counts in the 3×3 spatial buckets),
 a one-second boss equipment shop (Glock first, first ammo/reload, then MP9 once the
 syndicate has 5 living units and 3 blocks), boss armor purchase, melee for every rank and

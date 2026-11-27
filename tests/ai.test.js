@@ -5,9 +5,20 @@ import { FACTION_META } from '../src/config/organizations.js';
 import { state } from '../src/core/state.js';
 import { on } from '../src/core/events.js';
 import { packChunkKey } from '../src/world/city.js';
-import { scanNearby, choosePatrolChunk, updateNpcAi } from '../src/sim/ai.js';
+import { CHUNK_PX } from '../src/config/constants.js';
+import { scanNearby, choosePatrolChunk, chooseDefendChunk, updateNpcAi } from '../src/sim/ai.js';
+import { GLOBAL_STANCE, createFactionTactics } from '../src/config/tactics.js';
 
-const STATE_KEYS = ['world', 'player', 'npcs', 'spatialBuckets', 'treasuries'];
+const STATE_KEYS = ['world', 'player', 'npcs', 'spatialBuckets', 'treasuries', 'factionTactics'];
+
+function defaultTactics() {
+  return {
+    [Faction.PLAYER]: createFactionTactics(),
+    [Faction.RIVAL_1]: createFactionTactics(),
+    [Faction.RIVAL_2]: createFactionTactics(),
+    [Faction.RIVAL_3]: createFactionTactics(),
+  };
+}
 
 function withAiState(opts, fn) {
   const saved = {};
@@ -16,6 +27,7 @@ function withAiState(opts, fn) {
   state.player = opts.player || { x: 100, y: 100, faction: Faction.PLAYER, alive: true };
   state.npcs = opts.npcs || [];
   state.spatialBuckets = opts.spatialBuckets || new Map();
+  state.factionTactics = defaultTactics();
   state.treasuries = saved.treasuries;
   if (opts.treasuries) {
     state.treasuries = { ...saved.treasuries, ...opts.treasuries };
@@ -583,6 +595,108 @@ test('ai: patrol falls back to any non-owned chunk', () => {
       const target = choosePatrolChunk(unit, 0, 0);
       assertEqual(target.cx, 20);
       assertEqual(target.cy, 20);
+    }
+  );
+});
+
+function defendWorld(chunks) {
+  const map = new Map(chunks.map((c) => [`${c.cx},${c.cy}`, c]));
+  return {
+    chunks: map,
+    getChunk: (cx, cy) => map.get(`${cx},${cy}`) || null,
+    worldToTile: (x, y) => ({
+      cx: Math.floor(x / CHUNK_PX),
+      cy: Math.floor(y / CHUNK_PX),
+      lx: 0,
+      ly: 0,
+    }),
+    findNearestWalkablePoint: (x, y) => ({ x, y }),
+    canMoveTo: () => true,
+    isWalkable: () => true,
+    isTileNavigable: () => true,
+  };
+}
+
+test('ai: defend destinations stay on owned turf and prefer threatened blocks', () => {
+  const owned = { cx: 0, cy: 0, faction: Faction.RIVAL_1 };
+  const threatened = { cx: 3, cy: 0, faction: Faction.RIVAL_1 };
+  const neutral = { cx: 1, cy: 0, faction: Faction.NEUTRAL };
+  const unit = npc({ x: 100, y: 100 });
+  withAiState({ world: defendWorld([owned, threatened, neutral]) }, () => {
+    state.factionTactics[Faction.RIVAL_1].threatenedChunks = [threatened];
+    assertEqual(chooseDefendChunk(unit), threatened);
+  });
+});
+
+test('ai: defend border patrol never targets the owned interior', () => {
+  const interior = { cx: 0, cy: 0, faction: Faction.RIVAL_1 };
+  const ring = [
+    { cx: -1, cy: 0, faction: Faction.RIVAL_1 },
+    { cx: 1, cy: 0, faction: Faction.RIVAL_1 },
+    { cx: 0, cy: -1, faction: Faction.RIVAL_1 },
+    { cx: 0, cy: 1, faction: Faction.RIVAL_1 },
+  ];
+  const neutralRing = [
+    { cx: 2, cy: 0, faction: Faction.NEUTRAL },
+    { cx: -2, cy: 0, faction: Faction.NEUTRAL },
+    { cx: 0, cy: 2, faction: Faction.NEUTRAL },
+    { cx: 0, cy: -2, faction: Faction.NEUTRAL },
+  ];
+  const unit = npc({ x: 100, y: 100 });
+  withAiState({ world: defendWorld([interior, ...ring, ...neutralRing]) }, () => {
+    const target = chooseDefendChunk(unit);
+    assert(target, 'defend should find an owned border block');
+    assert(target !== interior, 'interior block should not be the border target');
+    assertEqual(target.faction, Faction.RIVAL_1);
+  });
+});
+
+test('ai: defend returns null when the faction owns no turf', () => {
+  const unit = npc({ x: 100, y: 100 });
+  withAiState({ world: defendWorld([{ cx: 1, cy: 0, faction: Faction.NEUTRAL }]) }, () => {
+    assertEqual(chooseDefendChunk(unit), null);
+  });
+});
+
+test('ai: global Defend applies outside the aura and is ignored inside it', () => {
+  const owned = { cx: 0, cy: 0, faction: Faction.RIVAL_1 };
+  const neutral = { cx: 1, cy: 0, faction: Faction.NEUTRAL };
+  const unit = npc({ x: 100, y: 100, aiTimer: 0 });
+  const farPlayer = {
+    id: 0,
+    faction: Faction.PLAYER,
+    alive: true,
+    x: 5000,
+    y: 5000,
+    hp: 400,
+    maxHp: 400,
+  };
+  withAiState(
+    {
+      world: defendWorld([owned, neutral]),
+      player: farPlayer,
+      npcs: [unit],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [unit]]]),
+    },
+    () => {
+      state.factionTactics[Faction.RIVAL_1].globalStance = GLOBAL_STANCE.DEFEND;
+      unit.inBossAura = false;
+      unit.goalX = CHUNK_PX * 1.5;
+      unit.goalY = CHUNK_PX * 0.5;
+      updateNpcAi(unit, 0.016);
+      assert(
+        Math.floor(unit.goalX / CHUNK_PX) === 0,
+        `defend goal should stay owned, got ${unit.goalX}`
+      );
+
+      unit.aiTimer = 0;
+      unit.inBossAura = true;
+      updateNpcAi(unit, 0.016);
+      assertEqual(
+        Math.floor(unit.goalX / CHUNK_PX),
+        1,
+        'inside the aura the local Attack behavior keeps expanding'
+      );
     }
   );
 });

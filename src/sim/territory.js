@@ -19,15 +19,16 @@ export function getCapturePerTick(rank) {
   return CAPTURE_PER_TICK[rank] ?? CAPTURE_PER_TICK[UnitRank.SOLDIER];
 }
 
-/** Any living unit of another faction standing on the chunk? */
-export function hasLivingEnemyOnChunk(chunk, faction) {
+/** Count living units of another faction standing on the chunk. */
+export function countLivingEnemiesOnChunk(chunk, faction) {
+  let count = 0;
   const buckets = state.spatialBuckets;
   if (buckets && typeof buckets.get === 'function') {
     // Production path: the per-step spatial hash is authoritative, including empty chunks.
     const bucket = buckets.get(packChunkKey(chunk.cx, chunk.cy));
     if (bucket) {
       for (const unit of bucket) {
-        if (unit.hp > 0 && unit.faction !== faction) return true;
+        if (unit.hp > 0 && unit.faction !== faction) count++;
       }
     }
   } else {
@@ -37,7 +38,7 @@ export function hasLivingEnemyOnChunk(chunk, faction) {
         Math.floor(unit.x / CHUNK_PX) === chunk.cx &&
         Math.floor(unit.y / CHUNK_PX) === chunk.cy
       ) {
-        return true;
+        count++;
       }
     }
   }
@@ -48,10 +49,15 @@ export function hasLivingEnemyOnChunk(chunk, faction) {
       Math.floor(player.x / CHUNK_PX) === chunk.cx &&
       Math.floor(player.y / CHUNK_PX) === chunk.cy
     ) {
-      return true;
+      count++;
     }
   }
-  return false;
+  return count;
+}
+
+/** Any living unit of another faction standing on the chunk? */
+export function hasLivingEnemyOnChunk(chunk, faction) {
+  return countLivingEnemiesOnChunk(chunk, faction) > 0;
 }
 
 /**

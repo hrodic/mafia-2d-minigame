@@ -9,9 +9,11 @@ import {
   MAX_BOSS_ARMOR,
 } from '../src/config/balance.js';
 import { ALL_FACTION_SLOTS } from '../src/config/organizations.js';
+import { CHUNK_PX } from '../src/config/constants.js';
+import { GLOBAL_STANCE, createFactionTactics } from '../src/config/tactics.js';
 import { state } from '../src/core/state.js';
 import { on } from '../src/core/events.js';
-import { CityMap } from '../src/world/city.js';
+import { CityMap, packChunkKey } from '../src/world/city.js';
 import { onUnitRecruited } from '../src/render/recruitFx.js';
 import {
   getUnitCaps,
@@ -35,6 +37,7 @@ const STATE_KEYS = [
   'currentGridSize',
   'floatingTexts',
   'spatialBuckets',
+  'factionTactics',
 ];
 
 function withUnitsState(opts, fn) {
@@ -57,6 +60,8 @@ function withUnitsState(opts, fn) {
   state.currentGridSize = opts.currentGridSize ?? 15;
   state.floatingTexts = [];
   state.spatialBuckets = new Map();
+  state.factionTactics = {};
+  for (const faction of ALL_FACTION_SLOTS) state.factionTactics[faction] = createFactionTactics();
 
   const events = [];
   const unsubscribers = [
@@ -81,6 +86,23 @@ function ownedChunk(map, faction = Faction.PLAYER, cx = 0, cy = 0) {
 
 function eventsOf(events, type) {
   return events.filter((entry) => entry.type === type);
+}
+
+function enemyAt(id, x, y) {
+  return {
+    id,
+    faction: Faction.RIVAL_1,
+    rank: UnitRank.SOLDIER,
+    hp: 10,
+    maxHp: 10,
+    x,
+    y,
+  };
+}
+
+function spawnedChunk(map, unit) {
+  const tile = map.worldToTile(unit.x, unit.y);
+  return { cx: tile.cx, cy: tile.cy };
 }
 
 test('units: caps scale with the number of neighborhoods', () => {
@@ -297,6 +319,59 @@ test('units: recruiting charges the treasury and spawns a unit', () => {
   });
 });
 
+test('units: defend reinforcements spawn near the threat and avoid 3+ enemy blocks', () => {
+  withUnitsState({ treasuries: { [Faction.PLAYER]: 10000 } }, ({ map }) => {
+    const threatened = ownedChunk(map, Faction.PLAYER, 0, 0);
+    const safeNear = ownedChunk(map, Faction.PLAYER, 1, 0);
+    ownedChunk(map, Faction.PLAYER, 10, 10);
+    const enemies = [enemyAt(101, 100, 100), enemyAt(102, 120, 100), enemyAt(103, 140, 100)];
+    state.npcs.push(...enemies);
+    state.spatialBuckets.set(packChunkKey(0, 0), enemies);
+
+    const record = state.factionTactics[Faction.PLAYER];
+    record.globalStance = GLOBAL_STANCE.DEFEND;
+    record.threatenedChunks = [threatened];
+
+    assertEqual(recruitUnit(Faction.PLAYER, UnitRank.SOLDIER), true);
+    const unit = state.npcs[state.npcs.length - 1];
+    const spawn = spawnedChunk(map, unit);
+    assertEqual(spawn.cx, safeNear.cx);
+    assertEqual(spawn.cy, safeNear.cy);
+  });
+});
+
+test('units: defend reinforcements spawn on a safe threatened block', () => {
+  withUnitsState({ treasuries: { [Faction.PLAYER]: 10000 } }, ({ map }) => {
+    const threatened = ownedChunk(map, Faction.PLAYER, 0, 0);
+    ownedChunk(map, Faction.PLAYER, 10, 10);
+
+    const record = state.factionTactics[Faction.PLAYER];
+    record.globalStance = GLOBAL_STANCE.DEFEND;
+    record.threatenedChunks = [threatened];
+
+    assertEqual(recruitUnit(Faction.PLAYER, UnitRank.SOLDIER), true);
+    const spawn = spawnedChunk(map, state.npcs[state.npcs.length - 1]);
+    assertEqual(spawn.cx, 0);
+    assertEqual(spawn.cy, 0);
+  });
+});
+
+test('units: defend reinforcements without a threat spawn on the nearest owned border', () => {
+  withUnitsState({ treasuries: { [Faction.PLAYER]: 10000 } }, ({ map }) => {
+    const near = ownedChunk(map, Faction.PLAYER, 0, 0);
+    ownedChunk(map, Faction.PLAYER, 10, 10);
+
+    const record = state.factionTactics[Faction.PLAYER];
+    record.globalStance = GLOBAL_STANCE.DEFEND;
+    record.bossX = near.cx * CHUNK_PX + CHUNK_PX / 2;
+    record.bossY = near.cy * CHUNK_PX + CHUNK_PX / 2;
+
+    assertEqual(recruitUnit(Faction.PLAYER, UnitRank.SOLDIER), true);
+    const spawn = spawnedChunk(map, state.npcs[state.npcs.length - 1]);
+    assertEqual(spawn.cx, 0);
+    assertEqual(spawn.cy, 0);
+  });
+});
 test('units: captain and underboss recruitment costs match the balance table', () => {
   withUnitsState({ treasuries: { [Faction.PLAYER]: 10000 } }, ({ map }) => {
     ownedChunk(map, Faction.PLAYER);

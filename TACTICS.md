@@ -51,9 +51,10 @@ Controls:
 - Orders are host-authoritative commands and are mirrored to guests in snapshots.
 
 **Implementation status:** the command layer, UI, commands and snapshot sync are live.
-Defaults **Expand + Attack** preserve the pre-command behavior. The AI currently stores and
-publishes these facts but does not yet branch on Defend or Guard; those behavior steps come
-next and will be documented here first.
+Defaults **Expand + Attack** preserve the pre-command behavior. **Global Defend is wired**:
+outside the aura, non-boss allies choose only owned turf and reinforcements prefer safe turf
+near the threat. **Local Guard is not wired yet**; crews inside the aura keep the current
+Attack behavior until the next step.
 
 ## Operational directives
 
@@ -80,7 +81,29 @@ There is no preference for:
 - blocks adjacent to the current front,
 - or any strategic objective.
 
-### 2. Engage — nearest enemy only
+### 2. Defend — owned turf only
+
+Global **Defend** changes destination selection for **non-boss allies outside the boss aura**.
+It does not change combat, pathing, retreat or capture.
+
+When no enemy is in aggro range:
+
+- if owned blocks are threatened, the nearest threatened owned block is the destination,
+- otherwise the nearest **owned border block** (an owned block with a non-owned neighbor),
+- otherwise the nearest owned block,
+- if the faction owns no turf, the unit holds position.
+
+Defend units **never choose neutral or enemy turf as a patrol destination**.
+
+Borders are destination-only: pathing, backoff, flanking, retreat and pursuit may still cross
+into non-owned turf. Automatic capture is untouched, so a Defend unit that chases an enemy
+across a border or happens to stand on neutral turf still captures it. **Defend prevents
+deliberate expansion, not accidental capture.**
+
+Inside the boss aura the local order still wins, so a **Defend + Attack** faction keeps
+expanding around the boss while distant crews hold turf.
+
+### 3. Engage — nearest enemy only
 
 A unit engages when an enemy is inside its aggro range:
 
@@ -97,7 +120,7 @@ It always targets the **nearest** enemy. It does not prioritize:
 
 There is no focus fire between allies.
 
-### 3. Capture — stand on the block
+### 4. Capture — stand on the block
 
 Capture progress advances while a non-retreating unit stands on a non-owned chunk.
 
@@ -108,7 +131,7 @@ Capture progress advances while a non-retreating unit stands on a non-owned chun
 - A retreating boss does not capture.
 - Units can keep capturing while fighting on the same chunk if the capture rule allows it.
 
-### 4. Survive — boss only
+### 5. Survive — boss only
 
 Only the boss has a survival directive.
 
@@ -133,7 +156,7 @@ When healthy and not outnumbered:
 
 Underbosses, captains and soldiers have no survival retreat. They fight until dead.
 
-### 5. Buy — boss only
+### 6. Buy — boss only
 
 Only boss-rank units shop. Shopping requires friendly turf.
 
@@ -147,19 +170,26 @@ Armor is a separate purchase: **Kevlar** when missing/low, affordable and off co
 
 Underbosses, captains and soldiers never shop.
 
-### 6. Reinforce — random owned block
+### 7. Reinforce — safe owned block
 
-AI reinforcements spawn in a **random owned chunk**, then immediately follow the same
-independent patrol/engage directive.
+Under **Expand**, AI reinforcements spawn in a **random owned chunk**; player reinforcements
+prefer the boss's chunk when the boss is on owned turf.
 
-Player reinforcements prefer the boss's chunk when the boss is on owned turf; otherwise
-they also spawn in a random owned chunk.
+Under **Global Defend**, reinforcements are placed on safe friendly turf near the threat:
+
+1. the threatened owned block itself, if it holds fewer than **3** enemies,
+2. otherwise the nearest safe owned block to that threat,
+3. with no threat, the nearest owned border block to the boss.
+
+A block holding **3+** enemies is avoided whenever a safe alternative exists. After spawning,
+the unit immediately follows the same independent patrol/engage directive.
 
 There is no “send reinforcements to the front” or “defend this block” order.
 
-### 7. Defend — incidental only
+### 8. Garrison defense — incidental only
 
-There is no explicit defense directive.
+Global Defend changes **where distant allies go and where reinforcements spawn**, but there is
+still no reactive defense system.
 
 Units do not:
 
@@ -182,9 +212,14 @@ Defense happens only when an enemy happens to enter a unit's local aggro range.
 | **Local human Boss** | Player-controlled | Player aim and fire; point-blank allowed | Player decides | Manual shop |
 | **Remote human Boss** | Player-controlled over the network | Guest input; AI takes over on disconnect | Player decides | Manual shop |
 
+The non-boss rows describe **Expand** outside the aura and **Attack** inside it. Under Global
+Defend, patrol destinations outside the aura are restricted to owned turf as described in
+directive 2; combat behavior is unchanged.
+
 ## Rules of engagement
 
 - **Target selection:** nearest enemy only.
+- **Defend destinations:** owned turf only (threatened, then border, then nearest owned); capture stays automatic.
 - **Ranged fire band:** melee reach → weapon range. There is no 110 px minimum.
 - **Underboss close range:** below 110 px, fire while backing off (80 px step, 0.6 s).
 - **Boss close range:** healthy and not outnumbered → commit to melee inside 110 px.
@@ -201,7 +236,7 @@ Defense happens only when an enemy happens to enter a unit's local aggro range.
 These are not implemented today and are the natural next iteration points:
 
 - AI stance director (AI factions do not choose Defend or Guard on their own),
-- Defend / Guard behavior wiring (the command state exists, the AI branches do not),
+- Local Guard behavior wiring (the command exists, the AI branch does not),
 - squad formation and cohesion,
 - escort/bodyguard behavior around the boss,
 - focus fire and target priority,

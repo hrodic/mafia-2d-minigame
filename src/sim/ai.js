@@ -4,6 +4,7 @@
 import { Faction, UnitRank } from '../config/enums.js';
 import { CHUNK_SIZE, CHUNK_PX, TILE_SIZE } from '../config/constants.js';
 import { SLASH, AI_TACTICS } from '../config/balance.js';
+import { GLOBAL_STANCE } from '../config/tactics.js';
 import { FACTION_META } from '../config/organizations.js';
 import { state } from '../core/state.js';
 import { emit } from '../core/events.js';
@@ -65,8 +66,7 @@ export function scanNearby(u) {
 }
 
 /** Pick the nearest non-owned chunk in a 7x7 neighborhood, with a global fallback. */
-export function choosePatrolChunk(u, uCx, uCy) {
-  let targetChunk = null;
+export function choosePatrolChunk(u, uCx, uCy) {  let targetChunk = null;
   let bestChunkDist = Infinity;
   for (let cy = uCy - 3; cy <= uCy + 3; cy++) {
     for (let cx = uCx - 3; cx <= uCx + 3; cx++) {
@@ -88,6 +88,77 @@ export function choosePatrolChunk(u, uCx, uCy) {
     }
   }
   return targetChunk;
+}
+
+const CHUNK_NEIGHBOR_OFFSETS = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+];
+
+function chunkCenterDistance(unit, chunk) {
+  return Math.hypot(
+    (chunk.cx + 0.5) * CHUNK_PX - unit.x,
+    (chunk.cy + 0.5) * CHUNK_PX - unit.y
+  );
+}
+
+function isOwnedBorderChunk(chunk, faction) {
+  for (const [dx, dy] of CHUNK_NEIGHBOR_OFFSETS) {
+    const neighbor = state.world.getChunk(chunk.cx + dx, chunk.cy + dy);
+    if (neighbor && neighbor.faction !== faction) return true;
+  }
+  return false;
+}
+
+/**
+ * Global Defend destination: threatened owned turf first, then the nearest owned
+ * border block, then the nearest owned block. Never returns non-owned turf.
+ */
+export function chooseDefendChunk(u) {
+  const record = state.factionTactics && state.factionTactics[u.faction];
+  if (!record || !state.world || !state.world.chunks) return null;
+
+  const threatened = record.threatenedChunks || [];
+  if (threatened.length > 0) {
+    let best = null;
+    let bestDist = Infinity;
+    for (const chunk of threatened) {
+      if (chunk.faction !== u.faction) continue;
+      const d = chunkCenterDistance(u, chunk);
+      if (d < bestDist) {
+        bestDist = d;
+        best = chunk;
+      }
+    }
+    if (best) return best;
+  }
+
+  let border = null;
+  let borderDist = Infinity;
+  let owned = null;
+  let ownedDist = Infinity;
+  for (const chunk of state.world.chunks.values()) {
+    if (chunk.faction !== u.faction) continue;
+    const d = chunkCenterDistance(u, chunk);
+    if (d < ownedDist) {
+      ownedDist = d;
+      owned = chunk;
+    }
+    if (isOwnedBorderChunk(chunk, u.faction) && d < borderDist) {
+      borderDist = d;
+      border = chunk;
+    }
+  }
+  return border || owned;
+}
+
+/** Global stance applies to non-boss allies outside the boss aura. */
+function usesDefendStance(u) {
+  if (u.rank === UnitRank.BOSS || u.inBossAura) return false;
+  const record = state.factionTactics && state.factionTactics[u.faction];
+  return Boolean(record) && record.globalStance === GLOBAL_STANCE.DEFEND;
 }
 
 /** Pick a point away from the threat, preferring own turf when possible. */
@@ -301,7 +372,8 @@ export function updateNpcAi(u, dt) {
     }
   } else if (u.aiTimer <= 0) {
     u.aiTimer = 1.6 + Math.random() * 1.8;
-    const targetChunk = choosePatrolChunk(u, uCx, uCy);
+    const defending = usesDefendStance(u);
+    const targetChunk = defending ? chooseDefendChunk(u) : choosePatrolChunk(u, uCx, uCy);
     if (targetChunk) {
       const gx =
         targetChunk.cx * CHUNK_PX +
@@ -314,6 +386,10 @@ export function updateNpcAi(u, dt) {
         u.goalX = snapped.x;
         u.goalY = snapped.y;
       }
+    } else if (defending) {
+      // No owned turf to defend: hold position instead of marching to old turf.
+      u.goalX = u.x;
+      u.goalY = u.y;
     }
   }
 

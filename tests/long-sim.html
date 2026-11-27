@@ -115,6 +115,11 @@
       <div class="controls">
         <label for="seed">World seed</label>
         <input id="seed" value="4242" inputmode="numeric" />
+        <label for="stance">Global stance</label>
+        <select id="stance">
+          <option value="2" selected>Expand</option>
+          <option value="1">Defend</option>
+        </select>
         <button id="run" type="button">Run 120s</button>
         <button id="random" type="button" class="secondary">Random seed</button>
         <span id="badge" class="badge pending">NOT RUN</span>
@@ -122,7 +127,8 @@
       <p class="hint">
         Runs 14,400 fixed steps (120 simulated seconds). The player boss patrols between
         chunk centers and auto-buys the Glock, ammo and Kevlar, then attempts the MP9 after
-        90 simulated seconds. No rendering or real-time frame loop is involved.
+        90 simulated seconds. <b>Global stance</b> applies Defend or Expand to every faction.
+        No rendering or real-time frame loop is involved.
         <b>Recommended before every MINOR version bump and push.</b>
       </p>
       <div id="meta" class="meta"></div>
@@ -149,6 +155,7 @@
   <script type="module">
     import { Faction, UnitRank } from '../src/config/enums.js';
     import { SIM_DT, CHUNK_PX } from '../src/config/constants.js';
+    import { GLOBAL_STANCE } from '../src/config/tactics.js';
     import { state } from '../src/core/state.js';
     import { CityMap } from '../src/world/city.js';
     import { initWorld } from '../src/sim/match.js';
@@ -184,7 +191,7 @@
       );
     }
 
-    function setup(seed) {
+    function setup(seed, globalStance = GLOBAL_STANCE.EXPAND) {
       state.world = new CityMap();
       state.npcs = [];
       state.floatingTexts = [];
@@ -198,6 +205,9 @@
       playerPurchases = [];
       initWorld(10, true, 10, 'HIGH', 4, ORGS, seed);
       state.net = null;
+      for (const faction of state.activeFactions) {
+        state.factionTactics[faction].globalStance = globalStance;
+      }
     }
 
     function recordPurchase(step, item) {
@@ -317,6 +327,7 @@
         tickTimer: Math.round(state.tickTimer * 1000) / 1000,
         invalid,
         invalidTreasury,
+        globalStance: state.factionTactics[state.activeFactions[0]].globalStance,
         factions,
         bosses,
         playerPurchases,
@@ -330,6 +341,7 @@
 
       const stats = [
         ['Seed', result.seed],
+        ['Stance', result.globalStance === GLOBAL_STANCE.DEFEND ? 'Defend' : 'Expand'],
         ['Wall time', `${result.elapsedMs} ms`],
         ['Simulated', `${result.simSeconds}s`],
         ['Steps', result.steps.toLocaleString()],
@@ -384,6 +396,7 @@
 
     function run() {
       const seed = Number($('seed').value) || 4242;
+      const globalStance = Number($('stance').value) || GLOBAL_STANCE.EXPAND;
       runButton.disabled = true;
       badge.className = 'badge pending';
       badge.textContent = 'RUNNING…';
@@ -391,7 +404,7 @@
 
       setTimeout(() => {
         try {
-          setup(seed);
+          setup(seed, globalStance);
           tryPlayerShopping(0);
           const started = performance.now();
           let maxUnits = 1;
