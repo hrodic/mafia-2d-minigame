@@ -21,8 +21,8 @@ architecture description here.
 - **Phase 4 — DONE (`0.4.19`):** netcode hardening; step 1 split complete; snapshot apply
   is O(n); hidden-host fallback added. Chunk deltas and NAT/TURN work moved to the future
   ideas section.
-- **Phase 5 — IN PROGRESS (`0.4.20`):** quality gates and docs; targeted net/protocol tests
-  added and one duplicate balance check removed.
+- **Phase 5 — IN PROGRESS (`0.4.21`):** quality gates and docs; targeted net/protocol tests
+  added, duplicate balance check removed, editor type-check config/JSDoc added.
 
 Phase 3 is complete on `refactor/phase-3-unified-entity`. Phase 4 is complete on
 `refactor/phase-4-netcode`. Phase 5 is in progress on `refactor/phase-5-quality`; use the
@@ -85,9 +85,12 @@ These are intentionally outside Phase 4 and are not scheduled.
    payloads, unknown-chunk generation, duplicate host HELLO and remote command routing.
    Removed the duplicate balance assertions from `config.test.js`; capture rates,
    caps/clamps, elimination/victory and malformed commands were already covered.
-2. **NEXT:** JSDoc public APIs + `// @ts-check` where clean; add `jsconfig.json` (`checkJs`,
-   strict null checks where feasible). No npm.
-3. Refresh README/architecture docs, deploy steps, how to add content via balance tables.
+2. **DONE (`0.4.21`):** `jsconfig.json` for editor checking (`checkJs` opt-in via
+   `// @ts-check`), JSDoc on `fixedStep`, `hiddenSim`, `events`, `protocol` and `lobby`.
+   `tools/typecheck.ps1` downloads the ignored native `tsc.exe` and passes. No npm or
+   transpilation.
+3. **NEXT:** refresh README/architecture docs, deploy steps, how to add content via balance
+   tables.
 4. Validate the deployed GitHub Pages URL (module MIME, relative paths, CDNs, invites).
 
 ## Pitfalls / known bugs

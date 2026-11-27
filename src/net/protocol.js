@@ -1,8 +1,17 @@
+// @ts-check
 // Multiplayer wire protocol: message types, versioned envelopes, and the
 // snapshot shape shared by host and guests. Keep this module free of state
 // mutation and presentation; it only describes what goes on the wire.
 
 import { GAME_VERSION } from '../config/version.js';
+
+/**
+ * @typedef {Object} MessageEnvelope
+ * @property {string} v
+ * @property {string} type
+ * @property {number} seq
+ * @property {any} payload
+ */
 
 export const MSG = Object.freeze({
   HELLO: 'HELLO',
@@ -19,15 +28,30 @@ export const EVENT_KIND = Object.freeze({
   SHOT: 'SHOT',
 });
 
+/**
+ * @param {string} type
+ * @param {number} seq
+ * @param {any} payload
+ * @returns {MessageEnvelope}
+ */
 export function envelope(type, seq, payload) {
   return { v: GAME_VERSION, type, seq, payload };
 }
 
+/**
+ * @param {{ v?: string } | null | undefined} env
+ * @returns {boolean}
+ */
 export function isVersionCompatible(env) {
-  return Boolean(env) && env.v === GAME_VERSION;
+  if (!env) return false;
+  return env.v === GAME_VERSION;
 }
 
-// Host -> guest snapshot. Reads state but never mutates it.
+/**
+ * Host -> guest snapshot. Reads state but never mutates it.
+ * @param {any} state
+ * @returns {any}
+ */
 export function encodeSnapshot(state) {
   const chunkStates = [];
   for (const c of state.world.chunks.values()) {
@@ -73,7 +97,11 @@ export function encodeSnapshot(state) {
   };
 }
 
-// Guest -> apply boundary. Accepts the plain object/array payload from the wire.
+/**
+ * Guest -> apply boundary. Accepts the plain object/array payload from the wire.
+ * @param {any} payload
+ * @returns {any | null}
+ */
 export function decodeSnapshot(payload) {
   if (!payload || typeof payload !== 'object') return null;
   return payload;

@@ -88,7 +88,12 @@ DOM ids):
 
 ```sh
 powershell -ExecutionPolicy Bypass -File tools/check.ps1
+powershell -ExecutionPolicy Bypass -File tools/typecheck.ps1
 ```
+
+`tools/typecheck.ps1` downloads the native TypeScript compiler into the ignored
+`tools/typescript/` directory on first use, then checks the `jsconfig.json` program. No npm
+install or TypeScript build step is added.
 
 Manual checklist: `tests/SMOKE.md`. Deterministic two-tab multiplayer testing (local bus,
 no external relays): `tests/mp-harness.html`.

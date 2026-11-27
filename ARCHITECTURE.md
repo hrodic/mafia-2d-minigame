@@ -94,8 +94,10 @@ docs/                      generated GitHub Pages artifact (never hand-edit)
 tools/
   serve.ps1                dependency-free PowerShell static server for local dev
   check.ps1                static health check (imports, test registry, duplicate ids)
+  typecheck.ps1            native tsc.exe check via jsconfig.json; compiler is ignored
   build-pages.ps1          minify src -> docs with esbuild (no bundling); binary is ignored
 .editorconfig              editor whitespace/line-ending rules
+jsconfig.json              editor type-check config (checkJs opt-in via // @ts-check)
 .nojekyll                  GitHub Pages: serve files untouched
 EVENTS.md                  event-bus contract (implemented)
 ARCHITECTURE.md            this document
@@ -411,11 +413,14 @@ distance from the camera.
   `.opencode/skills/<id>/SKILL.md` has valid frontmatter and existing references, the
   `sim/` headless ratchet, and that modules using `canvas.*` import the canvas singleton.
   `tests/runner.js` is the manifest — a new suite that is not imported there silently
-  does not run.
+  does not run. `tools/typecheck.ps1` downloads an ignored native TypeScript compiler and
+  checks the `jsconfig.json` program; only `// @ts-check` modules are type-checked.
 
 ## Conventions
 
 - Native ESM, relative `.js` imports, no bare specifiers, no npm.
+- Editor type checking uses `jsconfig.json`; clean modules opt in with `// @ts-check` and
+  JSDoc. There is no TypeScript build step or transpilation.
 - **SemVer:** `GAME_VERSION` in `config/version.js` is the single source. Every
   commit-sized step bumps PATCH (fix/refactor/docs/tests/perf) or MINOR (new capability);
   `1.0.0` is the first stable release. The same value gates multiplayer.

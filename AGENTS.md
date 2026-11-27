@@ -42,6 +42,7 @@ command, number or test result; read the file or run the check.
 | Task | Command / URL |
 |---|---|
 | Static check | `powershell -ExecutionPolicy Bypass -File tools/check.ps1` → `OK: ...` |
+| Type check | `powershell -ExecutionPolicy Bypass -File tools/typecheck.ps1` → `Type check OK` |
 | Build Pages artifact | `powershell -ExecutionPolicy Bypass -File tools/build-pages.ps1` → `Built docs/: ...` |
 | Dev server | `powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123` |
 | Tests | `http://localhost:8123/tests/tests.html` → title `PASS` |
@@ -53,15 +54,16 @@ command, number or test result; read the file or run the check.
 ## Verification (after every change)
 
 1. `tools/check.ps1` prints `OK: ...` (imports, runner manifest, DOM ids, skill
-   frontmatter, and the `sim/` layering ratchet).
-2. Tests page title is `PASS`; check the browser console, not just the summary.
-3. Game loads over http, starts, moves, slashes/shoots; no console errors.
-4. If `src/`, `index.html` or `styles.css` changed: run `tools/build-pages.ps1`, confirm
+   frontmatter, generated `docs/` shape and the `sim/` layering ratchet).
+2. `tools/typecheck.ps1` prints `Type check OK` (downloads the ignored native `tsc.exe`).
+3. Tests page title is `PASS`; check the browser console, not just the summary.
+4. Game loads over http, starts, moves, slashes/shoots; no console errors.
+5. If `src/`, `index.html` or `styles.css` changed: run `tools/build-pages.ps1`, confirm
    `Built docs/`, smoke `http://localhost:8123/docs/`, and verify `docs/` contains no tests.
-5. If `sim/`, `net/` or shared state changed: two-tab MP check (lobby, launch, guest
+6. If `sim/`, `net/` or shared state changed: two-tab MP check (lobby, launch, guest
    movement/commands, snapshots).
-6. Added a test file? Register it in `tests/runner.js`; the check script enforces this.
-7. Golden test failed after a refactor? Generation broke. Fix the code; update
+7. Added a test file? Register it in `tests/runner.js`; the check script enforces this.
+8. Golden test failed after a refactor? Generation broke. Fix the code; update
    `tests/world-golden.test.js` hashes only for an intentional generation change.
 
 ## Where to change what
