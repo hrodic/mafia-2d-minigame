@@ -67,8 +67,8 @@
 
     <div id="hud-zone-right" class="hud-zone hud-zone-right">
       <button id="btn-toggle-music" class="hud-util-btn hud-util-music"
-              title="Cycle Dark Noir Mafia Music Tracks (Track 1 / Track 2 / OFF)">
-        🎷 Noir I: ON
+              title="Cycle Dark Noir Mafia Music Tracks (OFF by default; click for Track 1 / Track 2)">
+        🎷 Music: OFF
       </button>
       <button id="btn-toggle-sound" class="hud-util-btn" title="Toggle Sound Effects">
         🔊 SFX: ON
@@ -280,14 +280,14 @@
       <div id="buy-menu" class="hidden absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 glass-panel rounded-xl p-2 space-y-1">
         <div class="buy-menu-title">Buy · Boss only</div>
         <div id="buy-menu-lock" class="buy-menu-lock hidden">Shop only on friendly turf</div>
-        <button id="btn-buy-armor" type="button" class="buy-item" data-tip="Kevlar armor — +300 armor, once per hour" aria-label="Buy kevlar armor ($2,000)">
+        <button id="btn-buy-armor" type="button" class="buy-item" data-tip="Kevlar armor — +300 armor, once per hour [Q]" aria-label="Buy kevlar armor ($2,000) [Q]">
           <kbd class="buy-key">1</kbd>
           <span class="buy-icon">🛡️</span>
           <span class="buy-label">Armor<span class="buy-sub">+300 Kevlar</span></span>
           <span id="action-status-armor" class="buy-status">$2,000</span>
           <span id="cooldown-armor" class="buy-cooldown" aria-hidden="true"></span>
         </button>
-        <button id="btn-buy-ammo" type="button" class="buy-item" data-tip="9mm ammo — 20 rounds for the active weapon" aria-label="Buy 9mm ammo (20 rounds, $20)">
+        <button id="btn-buy-ammo" type="button" class="buy-item" data-tip="9mm ammo — 20 rounds for the active weapon [T]" aria-label="Buy 9mm ammo (20 rounds, $20) [T]">
           <kbd class="buy-key">2</kbd>
           <span class="buy-icon">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 3h6v4l2 3v11H7V10l2-3z" /></svg>
@@ -737,7 +737,7 @@
               <!-- Combat & Controls: controls table + weapon stat cards -->
               <div class="manual-section-head">
                 <div class="manual-kicker">Combat & Controls</div>
-                <span class="manual-section-hint">INPUTS · WEAPONS · TIMING</span>
+                <span class="manual-section-hint">SHORTCUTS · WEAPONS · TIMING</span>
               </div>
 
               <div class="manual-table-wrap mb-2">
@@ -745,14 +745,14 @@
                   <thead>
                     <tr>
                       <th scope="col">Action</th>
-                      <th scope="col">Input</th>
+                      <th scope="col">Shortcut</th>
                       <th scope="col">What it does</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
                       <th scope="row"><span class="manual-action">Move</span></th>
-                      <td><span class="manual-key">WASD</span><span class="manual-key">Arrows</span></td>
+                      <td><span class="manual-key">WASD</span> <span class="manual-or">or</span> <span class="manual-key">Arrows</span></td>
                       <td>Left-click a street or the City Radar to path there.</td>
                     </tr>
                     <tr>
@@ -761,19 +761,24 @@
                       <td>Facing sets the knife cone and the gun line.</td>
                     </tr>
                     <tr>
-                      <th scope="row"><span class="manual-action action-rose">Slash</span></th>
-                      <td><span class="manual-key">Space</span><span class="manual-key">F</span></td>
+                      <th scope="row"><span class="manual-action action-rose">Knife</span></th>
+                      <td><span class="manual-key">Space</span> <span class="manual-or">or</span> <span class="manual-key">F</span></td>
                       <td>Frontal cleave; reaches 46–52px and hits 1–3 targets by rank.</td>
                     </tr>
                     <tr>
                       <th scope="row"><span class="manual-action action-amber">Glock 19</span></th>
-                      <td><span class="manual-key">RMB</span><span class="manual-key">R</span></td>
-                      <td>$1,000 one-time · 600px · 10 rounds · 0.2s cadence · 4s reload · R reloads early. Bosses buy it first; rounds can hit allies.</td>
+                      <td><span class="manual-key">RMB</span></td>
+                      <td>Fire the Glock: 600px · 10 rounds · 0.2s cadence · 4s reload. Bosses buy it first; rounds can hit allies.</td>
                     </tr>
                     <tr>
                       <th scope="row"><span class="manual-action action-violet">MP9</span></th>
-                      <td><span class="manual-key">RMB</span><span class="manual-key">R</span></td>
-                      <td>Boss only · requires Glock · buy under B → 4 for $4,000 · 20 rounds · hold RMB for 0.1s automatic fire · 700px (600–700 = 30% hit) · same damage as Glock · 4s reload.</td>
+                      <td><span class="manual-key">RMB</span><span class="manual-subkey">hold</span></td>
+                      <td>Boss only · requires Glock · 20 rounds · 0.1s automatic fire · 700px (600–700 = 30% hit) · same damage as Glock · 4s reload.</td>
+                    </tr>
+                    <tr>
+                      <th scope="row"><span class="manual-action">Reload</span></th>
+                      <td><span class="manual-key">R</span></td>
+                      <td>Refill the active gun from a spare magazine; the current magazine is discarded.</td>
                     </tr>
                     <tr>
                       <th scope="row"><span class="manual-action">Switch gun</span></th>
@@ -781,14 +786,29 @@
                       <td>Swap between Glock 19 and MP9 once both are owned; the action-bar weapon badge also switches.</td>
                     </tr>
                     <tr>
-                      <th scope="row"><span class="manual-action action-violet">Buy menu</span></th>
+                      <th scope="row"><span class="manual-action action-violet">Shop</span></th>
                       <td><span class="manual-key">B</span></td>
-                      <td>Boss-only shop, friendly turf only. Open with B: <b>1</b> armor ($2,000) · <b>2</b> 9mm ammo (20 rounds, $20) · <b>3</b> Glock 19 ($1,000) · <b>4</b> MP9 ($4,000). Purchases keep the menu open; B or any other key closes it.</td>
+                      <td>Boss-only shop, friendly turf only. Purchases keep it open; B or any other key closes it.</td>
                     </tr>
                     <tr>
-                      <th scope="row"><span class="manual-action action-sky">Armor</span></th>
-                      <td><span class="manual-key">Q</span><span class="manual-key">B</span><span class="manual-key">1</span></td>
-                      <td>+300 armor for $2,000; once per hour. Q is the quick buy; the B menu lists it too.</td>
+                      <th scope="row"><span class="manual-action action-sky">Buy armor</span></th>
+                      <td><span class="manual-key">Q</span> <span class="manual-or">or</span> <span class="manual-key">B</span> <span class="manual-arrow">→</span> <span class="manual-key">1</span></td>
+                      <td>+300 armor for $2,000; once per hour.</td>
+                    </tr>
+                    <tr>
+                      <th scope="row"><span class="manual-action action-sky">Buy ammo</span></th>
+                      <td><span class="manual-key">T</span> <span class="manual-or">or</span> <span class="manual-key">B</span> <span class="manual-arrow">→</span> <span class="manual-key">2</span></td>
+                      <td>20 rounds for the active gun ($20): 2 Glock mags or 1 MP9 mag; caps 20 Glock / 10 MP9.</td>
+                    </tr>
+                    <tr>
+                      <th scope="row"><span class="manual-action action-amber">Buy Glock 19</span></th>
+                      <td><span class="manual-key">B</span> <span class="manual-arrow">→</span> <span class="manual-key">3</span></td>
+                      <td>$1,000 one-time; sold empty, ammo is bought separately.</td>
+                    </tr>
+                    <tr>
+                      <th scope="row"><span class="manual-action action-violet">Buy MP9</span></th>
+                      <td><span class="manual-key">B</span> <span class="manual-arrow">→</span> <span class="manual-key">4</span></td>
+                      <td>$4,000 one-time after the Glock; sold empty, ammo is bought separately.</td>
                     </tr>
                     <tr>
                       <th scope="row"><span class="manual-action action-emerald">Sprint</span></th>
@@ -807,7 +827,7 @@
                       <div class="manual-card-title">Switchblade</div>
                       <div class="manual-card-sub">frontal cone · per-rank stats</div>
                     </div>
-                    <span class="manual-card-tag">SPACE / F</span>
+                    <span class="manual-card-tag">MELEE</span>
                   </div>
                   <div class="manual-table-wrap manual-table-wrap-flat">
                     <table class="manual-table manual-table-compact manual-weapon-table">
@@ -842,14 +862,22 @@
                   </p>
                 </div>
 
-                <div class="manual-card manual-card-amber">
+                <div class="manual-card manual-card-gun">
                   <div class="manual-card-head">
-                    <span class="manual-card-icon manual-card-icon-symbol">⌖</span>
+                    <span class="manual-card-icon manual-card-icon-svg manual-card-icon-glock">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="4" y="7" width="13" height="4" rx="1" fill="currentColor" />
+                        <rect x="17" y="8" width="3" height="2" fill="currentColor" />
+                        <rect x="5" y="11" width="8" height="2" fill="currentColor" />
+                        <path d="M7 13h4l-1 7H6z" fill="currentColor" />
+                        <rect x="8" y="9" width="6" height="1" fill="#18181b" opacity="0.55" />
+                      </svg>
+                    </span>
                     <div class="min-w-0">
                       <div class="manual-card-title">Glock 19 9mm</div>
                       <div class="manual-card-sub">50–80 dmg · 600px · $1,000</div>
                     </div>
-                    <span class="manual-card-tag">RMB</span>
+                    <span class="manual-card-tag">9MM</span>
                   </div>
                   <div class="manual-stats">
                     <span class="manual-stat"><b>$1,000</b> one-time</span>
@@ -881,14 +909,20 @@
                   </p>
                 </div>
 
-                <div class="manual-card manual-card-violet">
+                <div class="manual-card manual-card-gun">
                   <div class="manual-card-head">
-                    <span class="manual-card-icon manual-card-icon-symbol">MP9</span>
+                    <span class="manual-card-icon manual-card-icon-svg manual-card-icon-mp9">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill="currentColor" d="M2 8h4l1-2h6l2 2h6v2h-3l-1 1h-6l-2 3H6l2-4H2z" />
+                        <rect x="7" y="11" width="3" height="5" fill="currentColor" />
+                        <rect x="15" y="9" width="2" height="4" fill="currentColor" />
+                      </svg>
+                    </span>
                     <div class="min-w-0">
                       <div class="manual-card-title">MP9 SMG</div>
                       <div class="manual-card-sub">boss-only upgrade · 50–80 dmg</div>
                     </div>
-                    <span class="manual-card-tag">HOLD RMB</span>
+                    <span class="manual-card-tag">AUTO</span>
                   </div>
                   <div class="manual-stats">
                     <span class="manual-stat"><b>$4,000</b> one-time</span>

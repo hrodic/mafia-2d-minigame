@@ -53,8 +53,8 @@ test('effects: reset clears every effect collection', () => {
 test('effects: blood splash spawns droplets and ground decals', () => {
   fresh();
   spawnBloodSplash(100, 100, 1, false);
-  assertEqual(bloodParticles.length, 12);
-  assert(bloodDecals.length >= 2);
+  assertEqual(bloodParticles.length, 7);
+  assert(bloodDecals.length >= 3);
   for (const p of bloodParticles) {
     assert(p.life > 0 && p.radius > 0);
     assert(Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z));
@@ -64,15 +64,15 @@ test('effects: blood splash spawns droplets and ground decals', () => {
 test('effects: kill splashes are bigger than normal hits', () => {
   fresh();
   spawnBloodSplash(100, 100, 1, true);
-  assertEqual(bloodParticles.length, 26);
-  assertEqual(bloodDecals.length, 4);
+  assertEqual(bloodParticles.length, 16);
+  assertEqual(bloodDecals.length, 6);
 });
 
 test('effects: blood decals are capped', () => {
   fresh();
   for (let i = 0; i < 80; i++) spawnBloodSplash(0, 0, 1, true);
   assertEqual(bloodDecals.length, MAX_BLOOD_DECALS);
-  assertEqual(bloodDecals[0].life, 40);
+  assertEqual(bloodDecals[0].life, 80);
   assert(bloodParticles.length > 0);
 });
 
@@ -83,7 +83,7 @@ test('effects: dead bodies are capped', () => {
   }
   assertEqual(deadBodies.length, MAX_DEAD_BODIES);
   const body = deadBodies[deadBodies.length - 1];
-  assertEqual(body.life, 30);
+  assertEqual(body.life, 60);
   assert(body.maxPoolRadius > body.poolRadius);
 });
 
@@ -131,13 +131,13 @@ test('effects: short-lived effects expire after updates', () => {
 test('effects: blood particles and decals expire at different rates', () => {
   fresh();
   spawnBloodSplash(0, 0, 1, false);
-  assertEqual(bloodDecals.length, 2);
+  assertEqual(bloodDecals.length, 3);
 
   updateVisualParticles(2.0);
   assertEqual(bloodParticles.length, 0);
   assert(bloodDecals.length > 0, 'decals should outlive droplets');
 
-  updateVisualParticles(40);
+  updateVisualParticles(50);
   assertEqual(bloodDecals.length, 0);
 });
 
@@ -148,6 +148,8 @@ test('effects: dead bodies fade and their pool grows over time', () => {
   updateVisualParticles(0.5);
   const after = deadBodies[0].poolRadius;
   assert(after > before, `pool should grow: ${before} -> ${after}`);
+  updateVisualParticles(30);
+  assert(deadBodies.length === 1, 'dead bodies should last longer than 30 s');
   updateVisualParticles(30);
   assertEqual(deadBodies.length, 0);
 });

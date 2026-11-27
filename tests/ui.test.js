@@ -186,8 +186,13 @@ test('ui: hierarchy manual is a scannable rank table', async () => {
   assert(table.textContent.includes('Sottocapo · Avtoritet'), 'underboss titles missing');
   assert(panel.textContent.includes('Critical hits'), 'critical-hit explanation missing');
   assert(panel.textContent.includes('20%'), 'back-hit critical chance missing');
-  const pistolIcon = panel.querySelector('.manual-card-amber .manual-card-icon');
-  assertEqual(pistolIcon.textContent.trim(), '⌖', 'pistol card should use the crosshair icon');
+  const glockIcon = panel.querySelector('.manual-card-gun .manual-card-icon-glock svg');
+  const mp9Icon = panel.querySelector('.manual-card-gun .manual-card-icon-mp9 svg');
+  assert(glockIcon, 'Glock card should use the button icon');
+  assert(mp9Icon, 'MP9 card should use the button icon');
+  const normalizeSvg = (el) => el.innerHTML.replace(/\s+/g, '');
+  assertEqual(normalizeSvg(glockIcon), normalizeSvg(doc.getElementById('weapon-icon-pistol')));
+  assertEqual(normalizeSvg(mp9Icon), normalizeSvg(doc.getElementById('weapon-icon-mp9')));
   assertEqual(table.querySelectorAll('tbody tr').length, 4);
 
   const headers = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim().toLowerCase());
@@ -200,10 +205,21 @@ test('ui: hierarchy manual is a scannable rank table', async () => {
     assert(text.includes(value), `rank table should show ${value}`);
   }
 
+  const controls = panel.querySelector('table.manual-controls');
+  assert(controls, 'field manual needs the controls shortcut table');
+  const controlHeaders = [...controls.querySelectorAll('thead th')].map((th) => th.textContent.trim().toLowerCase());
+  assert(controlHeaders.includes('shortcut'), 'controls table needs a Shortcut column');
+  const shortcutCells = [...controls.querySelectorAll('tbody tr')].map((row) =>
+    row.children[1].textContent.replace(/\s+/g, ' ').trim()
+  );
+  assert(shortcutCells.includes('T or B → 2'), `ammo shortcut should read T or B → 2; got ${shortcutCells.join(' | ')}`);
+  assert(shortcutCells.includes('Q or B → 1'), 'armor shortcut should read Q or B → 1');
+  assert(!panel.querySelector('.manual-shortcuts'), 'no duplicate shortcut strip above the table');
+
   const css = await (await fetch('../styles.css', { cache: 'no-store' })).text();
   assert(/\.manual-table\s*\{[^}]*border-collapse/s.test(css), 'rank table styling missing');
   assert(/\.manual-table-wrap\s*\{[^}]*overflow-x:\s*auto/s.test(css), 'rank table needs horizontal fallback');
-  for (const value of ['Mobility & Capture', 'Attack Timing', '1 capture point/tick', '0.8s cooldown', '1.6× for 2.0s', 'MP9 SMG', 'hold RMB for 0.1s automatic fire', '601–700']) {
+  for (const value of ['Mobility & Capture', 'Attack Timing', '1 capture point/tick', '0.8s cooldown', '1.6× for 2.0s', 'MP9 SMG', '0.1s automatic fire', '601–700']) {
     assert(panel.textContent.includes(value), `manual should expose ${value}`);
   }
 });

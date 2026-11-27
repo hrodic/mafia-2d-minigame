@@ -159,7 +159,8 @@ line. Buying it auto-equips the MP9 and cancels an in-progress reload.
 The action-bar weapon badge shows **rounds left** and the **spare-magazine count**
 (`×3`) for the active weapon. Reloading subtracts one. Buying ammo always fills the
 **currently active** gun: pistol gets 2 magazines, MP9 gets 1. If its current magazine is
-empty, the purchase also starts the 4 s reload.
+empty, the purchase also starts the 4 s reload. Quick keys: **Q** buys armor, **T** buys
+ammo; the B menu exposes the same purchases as 1-4.
 
 ### Critical hits
 

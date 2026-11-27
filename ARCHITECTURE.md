@@ -386,7 +386,9 @@ and characters into a depth-sorted list, and draws layers: a subtle world-space 
 backdrop (outside the playable chunks), ground + faction tint, capture bars, turf income
 labels, blood decals/corpses, waypoint and muzzle-accurate aim/reticle UI, characters (with
 HP/armor bars and rank labels), then effects (slash arcs, muzzle flashes, tracers, blood,
-sparks, casings, floating text). Character walk animation is distance-driven: `moveUnit`
+sparks, casings, floating text). Blood droplets are reduced per hit, while larger and
+longer-lived floor pools keep the scene readable; kill pools and corpses last twice as long
+as before. Character walk animation is distance-driven: `moveUnit`
 and guest interpolation advance `walkPhase`/`isMoving`, and `drawCharacter` uses one sine
 per visible moving unit for foot swing and a small body bob (no new timers or per-unit
 render state). Static ground is cached per visible chunk in an LRU of
@@ -407,7 +409,8 @@ default and expands to 336px.
 ## Audio
 
 `audio/engine.js` owns the AudioContext, master/music gains and a procedural noir music
-scheduler (two tracks; per-context noise buffer cache). `audio/sfx.js` synthesizes all
+scheduler (two tracks; per-context noise buffer cache). SFX start enabled at **100%**
+master volume; music starts **off** and uses **50%** volume when the player enables it. `audio/sfx.js` synthesizes all
 SFX (slash, gunshot, ricochet, armor, death, elimination, victory) and attenuates by
 distance from the camera.
 

@@ -80,6 +80,7 @@ powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123
 - [ ] MP9 shows a longer SMG sprite, 700px ring, 20-round badge and 30% label in the tail.
 - [ ] Weapon badge shows rounds left and spare magazines; reload subtracts one magazine.
 - [ ] Armor: Q or B → 1 buys 300 armor ($2,000), absorbs damage, once per tick, HUD shows.
+- [ ] Ammo quick key: T buys 20 rounds for the active weapon, same as B → 2.
 - [ ] Rival AI bosses buy Glock first then ammo/MP9, buy armor, use gun/slash, capture blocks, recruit crew; shooters
   hold fire when a building or ally blocks the bullet path.
 - [ ] Wounded/unarmored bosses buy armor or sprint away; blocked shooters sidestep allies
@@ -101,7 +102,7 @@ powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123
 - [ ] Leaderboard shows Turf / Crew / Kills with a readable rank order.
 - [ ] Kill a rival boss → toast + turf neutral; kill all → victory banner + summary.
 - [ ] Die → defeat banner → Spectate pans camera → spectator banner "Leave/New Game".
-- [ ] Music: Noir I → Noir II → OFF; SFX toggle mutes/unmutes.
+- [ ] Music starts OFF; clicking cycles Noir I → Noir II → OFF. SFX is ON by default.
 - [ ] New Game returns to setup and next match starts clean (no stale units/turf/timers).
 
 ### Multiplayer (two tabs, same origin → local bus)

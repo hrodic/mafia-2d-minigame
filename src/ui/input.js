@@ -125,6 +125,7 @@ window.addEventListener('keydown', (e) => {
   }
   if (k === ' ' || k === 'f') requestSlash();
   if (k === 'q') requestBuyArmor();
+  if (k === 't' && !wasDown) requestBuyAmmo();
   if (k === 'r' && !wasDown) requestReload();
   if (k === 'e' && !wasDown) requestSwitchWeapon();
   if (k === 'b' && !wasDown) {

@@ -34,7 +34,8 @@ source module with esbuild (no bundling).
 - Boss/economy HUD, crew management, bottom combat bar with cooldowns and a faction
   leaderboard (turf, kills, deaths).
 - City radar minimap with a 168px default view and a 336px expanded view.
-- Synthesized Web Audio SFX and two procedural dark-noir music tracks.
+- Synthesized Web Audio SFX (on by default, 100% master) and two procedural dark-noir music
+  tracks (off by default; 50% volume when enabled).
 - Host-authoritative P2P multiplayer with lobby, short invite codes/links, human/AI
   seats, snapshot interpolation and AI takeover on disconnect.
 
@@ -52,7 +53,8 @@ Full tuning surface: [`BALANCE.md`](BALANCE.md).
 | E or weapon button | Switch Glock 19 ↔ MP9 once both are owned |
 | B or Buy button | Open the shop (1 armor · 2 ammo · 3 Glock 19 · 4 MP9) |
 | 1 / 2 / 3 / 4 (shop open) | Buy armor / 20 rounds for the active gun / Glock 19 / MP9 |
-| Q | Quick-buy kevlar armor |
+| Q or B → 1 | Quick-buy kevlar armor |
+| T or B → 2 | Quick-buy 20 rounds of 9mm ammo for the active weapon |
 | Crew Management panel | Recruit toggles/caps |
 | Utility buttons | Music, SFX, Tip me (Ko-fi), New Game |
 

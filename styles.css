@@ -1024,19 +1024,39 @@
     }
     .manual-key {
       display: inline-block;
-      padding: 0 4px;
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      border-radius: 3px;
-      background: rgba(39, 39, 42, 0.95);
+      padding: 1px 5px;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 4px;
+      background: rgba(39, 39, 42, 0.98);
       color: #f4f4f5;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 8.5px;
+      font-size: 9.5px;
       font-weight: 800;
-      line-height: 1.5;
+      line-height: 1.55;
       white-space: nowrap;
     }
     .manual-key + .manual-key {
       margin-left: 3px;
+    }
+    .manual-or {
+      margin: 0 2px;
+      color: #71717a;
+      font-size: 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .manual-arrow {
+      margin: 0 2px;
+      color: #71717a;
+      font-size: 9px;
+      font-weight: 800;
+    }
+    .manual-subkey {
+      margin-left: 3px;
+      color: #a1a1aa;
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
     }
     .manual-action {
       font-weight: 800;
@@ -1050,8 +1070,12 @@
       background: linear-gradient(180deg, rgba(24, 24, 27, 0.92), rgba(9, 9, 11, 0.62));
     }
     .manual-card-rose { border-color: rgba(244, 63, 94, 0.32); }
-    .manual-card-amber { border-color: rgba(251, 191, 36, 0.32); }
-    .manual-card-violet { border-color: rgba(168, 85, 247, 0.32); }
+    .manual-card-gun { border-color: rgba(161, 161, 170, 0.32); }
+    .manual-card-gun .manual-card-tag {
+      border-color: rgba(161, 161, 170, 0.35);
+      background: rgba(161, 161, 170, 0.08);
+      color: #d4d4d8;
+    }
     .manual-card-head {
       display: flex;
       align-items: center;
@@ -1061,6 +1085,24 @@
     .manual-card-icon {
       font-size: 15px;
       line-height: 1;
+    }
+    .manual-card-icon-svg {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .manual-card-icon-svg svg {
+      display: block;
+      width: 24px;
+      height: 24px;
+    }
+    .manual-card-icon-glock {
+      color: #d4d4d8;
+      filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.9));
+    }
+    .manual-card-icon-mp9 {
+      color: #d4d4d8;
+      filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.9));
     }
     .manual-card-title {
       font-size: 11px;
