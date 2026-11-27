@@ -6,6 +6,7 @@ import { CHUNK_PX, SPRINT_MAX_DURATION, SPRINT_COOLDOWN_DURATION, SPRINT_SPEED_M
 import { RANK_STATS, getPushMass, PUSH_SPEED_FACTOR } from '../config/balance.js';
 import { state } from '../core/state.js';
 import { perf } from '../core/perf.js';
+import { COLLISION_CELL_PX, packCollisionCell } from '../core/spatial.js';
 import { packChunkKey } from '../world/city.js';
 import { progressCapture, getCapturePerTick } from './territory.js';
 import { computeTilePath } from '../world/pathfinding.js';
@@ -27,7 +28,9 @@ function isHumanBossEntity(unit) {
 
 /** Full spacing around human bosses; half spacing between friendly NPCs. */
 function friendlySeparation(radiusA, radiusB, entityA, entityB) {
-  if (isHumanBossEntity(entityA) || isHumanBossEntity(entityB)) {
+  const aHuman = entityA === state.player || Boolean(entityA && entityA.humanPeerId);
+  const bHuman = entityB === state.player || Boolean(entityB && entityB.humanPeerId);
+  if (aHuman || bHuman) {
     return radiusA + radiusB - UNIT_SEPARATION_SKIN;
   }
   return (radiusA + radiusB) * 0.5;
@@ -40,8 +43,29 @@ const moveAlliesScratch = [];
  * Fill `out` with units from the 3x3 chunk neighbourhood around a point.
  * `moveUnit` builds this once per step and reuses it for push + axis checks.
  */
-export function gatherNearbyUnits(wx, wy, out = moveNearbyScratch) {
+export function gatherNearbyUnits(wx, wy, out = moveNearbyScratch, unit = null) {
   out.length = 0;
+  const collisionBuckets = state.collisionBuckets;
+  if (collisionBuckets && collisionBuckets.size > 0) {
+    const cx = Math.floor(wx / COLLISION_CELL_PX);
+    const cy = Math.floor(wy / COLLISION_CELL_PX);
+    let useGrid = unit === state.player || !unit;
+    if (unit && unit !== state.player) {
+      const ownBucket = collisionBuckets.get(packCollisionCell(cx, cy));
+      useGrid = Boolean(ownBucket && ownBucket.includes(unit));
+    }
+    if (useGrid) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const bucket = collisionBuckets.get(packCollisionCell(cx + dx, cy + dy));
+          if (!bucket) continue;
+          for (let i = 0; i < bucket.length; i++) out.push(bucket[i]);
+        }
+      }
+      return out;
+    }
+  }
+
   if (state.spatialBuckets.size === 0) return out;
   const cx = Math.floor(wx / CHUNK_PX);
   const cy = Math.floor(wy / CHUNK_PX);
@@ -524,7 +548,9 @@ export function moveUnit(unit, input = {}, dt = 0) {
   const ignorePlayer = input.ignorePlayer ?? isPlayer;
   const ignoreNpcId = input.ignoreNpcId ?? (isPlayer ? -1 : unit.id);
 
-  const nearby = hasInput ? gatherNearbyUnits(unit.x, unit.y, moveNearbyScratch) : null;
+  const nearby = hasInput
+    ? gatherNearbyUnits(unit.x, unit.y, moveNearbyScratch, unit)
+    : null;
   const allies = hasInput
     ? gatherFactionAllies(nearby, faction, ignoreNpcId, moveAlliesScratch)
     : null;

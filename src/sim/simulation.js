@@ -3,7 +3,7 @@
 import { Faction, UnitRank } from '../config/enums.js';
 import { MP9 } from '../config/balance.js';
 import { state } from '../core/state.js';
-import { rebuildSpatialBuckets } from '../core/spatial.js';
+import { rebuildSpatialBuckets, rebuildCollisionBuckets } from '../core/spatial.js';
 import {
   moveUnit,
   updateHumanControlledRivalBoss,
@@ -23,6 +23,7 @@ export function update(dt) {
 
   state.astarBudgetThisFrame = 0;
   rebuildSpatialBuckets();
+  rebuildCollisionBuckets();
   updateFactionTactics(dt);
 
   if (state.player.attackCooldown > 0) state.player.attackCooldown = Math.max(0, state.player.attackCooldown - dt);

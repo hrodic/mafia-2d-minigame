@@ -42,7 +42,9 @@ architecture description here.
   rollback if any link is blocked. Friendly NPC separation is halved for tighter
   alleys, and AI units try a diagonal/pure side-step before pushing. Push speed is
   30%; bosses have 1.25 push mass and resist pushes. Low-frequency depenetration
-  cleans stale overlaps. The push model is complete.
+  cleans stale overlaps. The push model is complete. The collision broad-phase now
+  uses a 64 px unit grid, cutting dense-fight candidate scans dramatically; the next
+  measured targets are `scanNearby` and `canMoveTo`.
   Version stays `0.8.0` for the whole branch by owner decision.
 
 Phases 3, 4 and 5 are complete. `refactor/phase-5-quality` has merged into `master`. `0.8.0`

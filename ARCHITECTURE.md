@@ -34,7 +34,7 @@ src/
     fixedStep.js           accumulator: fixed sim steps + catch-up guard
     hiddenSim.js           hidden-tab host simulation fallback (no rendering)
     events.js              synchronous, isolated event bus (sim -> presentation facts)
-    spatial.js             per-chunk spatial buckets for neighbour queries
+    spatial.js             chunk buckets for perception + 64 px collision grid for movement
     perf.js                optional zero-cost-when-disabled performance counters
   world/
     chunk.js               DistrictChunk: seeded 15×15 blocks, solid mask + car rect cache
@@ -243,8 +243,10 @@ labels, seed display and HUD.
   and enabled by the long-sim harness to report LOS hits, A* searches, explored nodes and
   collision volume. It is used by the NPC AI and by waypoint movement (local player and
   remote bosses).
-- **Spatial index** (`core/spatial.js`) buckets entities by chunk; neighbors are scanned
-  in a 3×3 chunk neighborhood.
+- **Spatial index** (`core/spatial.js`) keeps two structures:
+  - chunk buckets for AI perception (3×3 chunk queries),
+  - a 64 px collision grid (`collisionBuckets`) rebuilt each step for movement
+    broad-phase, so collision no longer scans whole 990 px chunks.
 - **Prop geometry** (`world/geometry.js`) is the single source for car/dumpster footprints,
   used by collision (`CityMap.canMoveTo`), bullet raycast (`sim/combat.js`) and drawing
   (`render/world.js`), so the three cannot drift.

@@ -71,6 +71,8 @@ export function createGameState(config = {}) {
     floatingTexts: [],
     spatialBuckets: new Map(),
     bucketPool: [],
+    collisionBuckets: new Map(),
+    collisionBucketPool: [],
     nextNpcId: 1,
     astarBudgetThisFrame: 0,
 

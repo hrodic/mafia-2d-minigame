@@ -7,6 +7,7 @@ import { GLOBAL_STANCE } from '../config/tactics.js';
 import { ALL_FACTION_SLOTS } from '../config/organizations.js';
 import { state } from '../core/state.js';
 import { emit } from '../core/events.js';
+import { addUnitToCollisionBucket } from '../core/spatial.js';
 import { packChunkKey } from '../world/city.js';
 import { canOccupyPosition } from './movement.js';
 import { countLivingEnemiesOnChunk } from './territory.js';
@@ -168,6 +169,7 @@ export function spawnUnitInChunk(faction, chunk, rank = UnitRank.SOLDIER) {
         state.spatialBuckets.set(bucketKey, bucket);
       }
       bucket.push(unit);
+      addUnitToCollisionBucket(unit);
       return unit;
     }
   }

@@ -14,6 +14,10 @@ import { GLOBAL_STANCE, createFactionTactics } from '../src/config/tactics.js';
 import { state } from '../src/core/state.js';
 import { on } from '../src/core/events.js';
 import { CityMap, packChunkKey } from '../src/world/city.js';
+import {
+  COLLISION_CELL_PX,
+  packCollisionCell,
+} from '../src/core/spatial.js';
 import { onUnitRecruited } from '../src/render/recruitFx.js';
 import {
   getUnitCaps,
@@ -37,6 +41,8 @@ const STATE_KEYS = [
   'currentGridSize',
   'floatingTexts',
   'spatialBuckets',
+  'collisionBuckets',
+  'collisionBucketPool',
   'factionTactics',
 ];
 
@@ -60,6 +66,8 @@ function withUnitsState(opts, fn) {
   state.currentGridSize = opts.currentGridSize ?? 15;
   state.floatingTexts = [];
   state.spatialBuckets = new Map();
+  state.collisionBuckets = new Map();
+  state.collisionBucketPool = [];
   state.factionTactics = {};
   for (const faction of ALL_FACTION_SLOTS) state.factionTactics[faction] = createFactionTactics();
 
@@ -379,6 +387,13 @@ test('units: spawning immediately indexes the new unit in spatial buckets', () =
     assert(unit, 'unit should spawn');
     const bucket = state.spatialBuckets.get(packChunkKey(0, 0));
     assert(bucket && bucket.includes(unit), 'new unit should be visible to same-step collision');
+    const cellBucket = state.collisionBuckets.get(
+      packCollisionCell(
+        Math.floor(unit.x / COLLISION_CELL_PX),
+        Math.floor(unit.y / COLLISION_CELL_PX)
+      )
+    );
+    assert(cellBucket && cellBucket.includes(unit), 'new unit should enter the fine collision grid');
   });
 });
 
