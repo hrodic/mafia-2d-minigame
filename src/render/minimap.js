@@ -3,7 +3,7 @@
 import { Faction, UnitRank } from '../config/enums.js';
 import { CHUNK_PX } from '../config/constants.js';
 import { FACTION_META } from '../config/organizations.js';
-import { state, getLocalBoss } from '../core/state.js';
+import { state, getLocalBoss, getLocalFaction } from '../core/state.js';
 import { canvas, minimapCanvas, minimapCtx } from './canvas.js';
 import {
   getMinimapLayout,
@@ -52,6 +52,22 @@ export function setMinimapHover(cell) {
     : null;
 }
 
+
+// Shared boss marker: every boss (player, AI or remote human) uses the same
+// white-glowing circle filled with its faction accent.
+function drawBossDot(x, y, accent) {
+  minimapCtx.save();
+  minimapCtx.shadowColor = '#ffffff';
+  minimapCtx.shadowBlur = 10;
+  minimapCtx.fillStyle = accent;
+  minimapCtx.beginPath();
+  minimapCtx.arc(x, y, 3.2, 0, Math.PI * 2);
+  minimapCtx.fill();
+  minimapCtx.strokeStyle = '#ffffff';
+  minimapCtx.lineWidth = 1.2;
+  minimapCtx.stroke();
+  minimapCtx.restore();
+}
 
 export function renderMinimap(dt = 1 / 60) {
   if (state.world.chunks.size === 0) return;
@@ -114,32 +130,23 @@ export function renderMinimap(dt = 1 / 60) {
     minimapCtx.restore();
   }
 
-  // Draw unit & boss dots
+  // Draw unit dots; every boss is the same glowing faction-colored circle.
   for (let i = 0; i < state.npcs.length; i++) {
     const u = state.npcs[i];
     const pos = worldToMinimap(layout, u.x, u.y);
-    const mx = pos.x;
-    const my = pos.y;
-    minimapCtx.fillStyle = u.rank === UnitRank.BOSS ? '#ffffff' : (FACTION_META[u.faction]?.accent || '#a1a1aa');
-    const r = u.rank === UnitRank.BOSS ? 3.0 : 1.5;
-    minimapCtx.fillRect(mx - r, my - r, r * 2, r * 2);
+    const accent = FACTION_META[u.faction]?.accent || '#a1a1aa';
+    if (u.rank === UnitRank.BOSS) {
+      drawBossDot(pos.x, pos.y, accent);
+    } else {
+      minimapCtx.fillStyle = accent;
+      minimapCtx.fillRect(pos.x - 1.5, pos.y - 1.5, 3, 3);
+    }
   }
 
   if (state.player.alive) {
     const pos = worldToMinimap(layout, state.player.x, state.player.y);
-    const px = pos.x;
-    const py = pos.y;
-    minimapCtx.save();
-    minimapCtx.shadowColor = '#fbbf24';
-    minimapCtx.shadowBlur = 10;
-    minimapCtx.fillStyle = '#fff7d6';
-    minimapCtx.beginPath();
-    minimapCtx.arc(px, py, 3.2, 0, Math.PI * 2);
-    minimapCtx.fill();
-    minimapCtx.strokeStyle = '#fbbf24';
-    minimapCtx.lineWidth = 1.5;
-    minimapCtx.stroke();
-    minimapCtx.restore();
+    const localMeta = FACTION_META[getLocalFaction()] || FACTION_META[Faction.PLAYER];
+    drawBossDot(pos.x, pos.y, localMeta.accent);
   }
 
   // Camera viewport reticle: white core over a warm glow.

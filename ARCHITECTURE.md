@@ -389,8 +389,10 @@ space whenever the day/night schedule says rain. Rain is re-decided only when th
 day/night period flips (25% day, 50% night). The same continuous hour drives the lamp
 intensity (off 08–21, on 22–07, one-hour dusk/dawn fades) and a screen-space ambient tint:
 warm sunny light by day, cool blue by night.
-`render/minimap.js` caches the faction territory layer and overlays units, the boss, the
-camera rect and chunk coordinates; `render/minimapLayout.js` owns the shared bounds/cell/
+`render/minimap.js` caches the faction territory layer and overlays units (every boss —
+player, AI or remote human — is the same white-glowing circle filled with its faction
+accent; crew stay small squares), the camera rect and chunk coordinates;
+`render/minimapLayout.js` owns the shared bounds/cell/
 offset and world<->map mapping (also used by radar clicks). The radar canvas is 168px by
 default and expands to 336px.
 
