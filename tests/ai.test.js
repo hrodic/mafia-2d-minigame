@@ -236,7 +236,7 @@ function madeBoss(overrides = {}) {
     maxArmor: 300,
     armorCooldown: 0,
     bodyRadius: 13.5,
-    speed: 140,
+    speed: 130,
     facing: 0,
     sprintTimer: 0,
     sprintCooldown: 0,
@@ -338,7 +338,7 @@ test('ai: shooters hold fire when an ally is in the bullet path', () => {
 });
 
 test('ai: wounded unarmored bosses sprint away instead of suiciding', () => {
-  const boss = madeBoss({ hp: 100, armor: 0, armorCooldown: 0, speed: 140 });
+  const boss = madeBoss({ hp: 100, armor: 0, armorCooldown: 0, speed: 130 });
   withAiState(
     {
       world: pistolTestWorld(),
@@ -404,7 +404,7 @@ test('ai: bosses buy armor before retreating when they can afford it', () => {
 
 test('ai: pistol shooters sidestep when an ally blocks the line of fire', () => {
   const shooter = remoteUnit(UnitRank.UNDERBOSS, 90);
-  shooter.speed = 150;
+  shooter.speed = 135;
   shooter.facing = 0;
   const ally = remoteUnit(UnitRank.SOLDIER, 91);
   ally.x = 100;
@@ -432,7 +432,7 @@ test('ai: pistol shooters sidestep when an ally blocks the line of fire', () => 
 
 test('ai: close-range knife attacks ignore intervening allies', () => {
   const shooter = remoteUnit(UnitRank.UNDERBOSS, 92);
-  shooter.speed = 150;
+  shooter.speed = 135;
   shooter.minDmg = 25;
   shooter.maxDmg = 35;
   const ally = remoteUnit(UnitRank.SOLDIER, 93);

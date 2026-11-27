@@ -66,7 +66,8 @@ powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123
 - [ ] Boss HP/armor/cash/sprint/hour HUD values update correctly.
 - [ ] Movement: WASD, arrows, click street, minimap click; waypoint marker shows.
 - [ ] Collision: cannot walk through buildings/cars/dumpsters; doors/alley paths work.
-- [ ] Sprint: 1.6× burst 2 s, cooldown 4 s, HUD bar reflects state.
+- [ ] Boss sprint: 1.6× burst 2 s, cooldown 4 s, HUD bar reflects state; non-boss ranks
+  never sprint even if the input flag is set.
 - [ ] Slash hits up to 3 enemies with knockback + blood + floating damage text.
 - [ ] Pistol: range ring, accuracy label, tracers, casings, ricochets, misses ("MISS!").
 - [ ] Armor: Q/button buys 300 armor ($3,500), absorbs damage, once per tick, HUD shows.
@@ -76,6 +77,7 @@ powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123
   in the firing lane and knife at close range.
 - [ ] Pistol rounds can damage allied units; knives never hit allies.
 - [ ] HP regens on friendly turf only, pauses while taking damage, and clamps at max.
+- [ ] Units visibly step/bob while walking on host and guest, and stand still when idle.
 - [ ] Territory: capture bar fills (per tick), block tint updates, minimap updates.
 - [ ] Contested turf: no capture progress while an enemy unit stands on enemy turf; neutral
   turf captures freely.

@@ -32,10 +32,10 @@ Boss armor is bought separately; Underboss starts with armor.
 
 | Rank | HP | Armor | Blade dmg | Speed | Capture/tick | Regen/s | Radius | Hire | Upkeep/hr | Cap |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Boss | 800 | 0 → 300 | 30–40 | 140 | 1 | 5 | 13.5 | — | — | 1 |
-| Underboss | 800 | 120 | 25–35 | 150 | 1 | 4 | 12.8 | $4,000 | $600 | ×1 grid side |
-| Captain | 600 | 0 | 20–30 | 160 | 0.5 | 2 | 12 | $2,500 | $300 | ×2 grid side |
-| Soldier | 300 | 0 | 15–25 | 170 | 0.2 | 1 | 11 | $1,000 | $100 | ×10 grid side |
+| Boss | 800 | 0 → 300 | 30–40 | 130 | 1 | 5 | 13.5 | — | — | 1 |
+| Underboss | 800 | 120 | 25–35 | 135 | 1 | 4 | 12.8 | $4,000 | $600 | ×1 grid side |
+| Captain | 600 | 0 | 20–30 | 140 | 0.5 | 2 | 12 | $2,500 | $300 | ×2 grid side |
+| Soldier | 300 | 0 | 15–25 | 150 | 0.2 | 1 | 11 | $1,000 | $100 | ×10 grid side |
 
 Regen only runs while a unit is standing on its own faction's turf, is below max HP,
 and is not in the hit-flash window after taking damage. It is integrated into the existing
@@ -150,6 +150,7 @@ lane, then fire as soon as it is clear.
 | Sprint multiplier | 1.6× |
 | Sprint duration | 2.0 s |
 | Sprint cooldown | 4.0 s |
+| Sprint access | Boss only (player, AI boss, remote-human boss) |
 
 ## Economy
 

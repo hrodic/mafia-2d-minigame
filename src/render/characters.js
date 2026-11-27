@@ -88,6 +88,8 @@ export function drawCharacter(x, y, config) {
     isAttacking = false,
     slashProgress = 0,
     slashArc = 150 / 360,
+    isMoving = false,
+    walkPhase = 0,
     isShooting = false,
     hitFlash = false,
   } = config;
@@ -106,10 +108,19 @@ export function drawCharacter(x, y, config) {
   ctx.ellipse(0, 2, isBoss ? 13 : 11, 5.5, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Legs
+  const walking = isMoving && !isAttacking;
+  const step = walking ? Math.sin(walkPhase) : 0;
+  const bob = walking ? Math.abs(step) * 1.2 : 0;
+  ctx.save();
+  ctx.translate(0, -bob);
+
+  // Legs: alternate a small forward swing and foot lift while walking.
+  const legSwing = walking ? step * 2.2 : 0;
+  const liftL = walking ? Math.max(0, step) * 1.4 : 0;
+  const liftR = walking ? Math.max(0, -step) * 1.4 : 0;
   ctx.fillStyle = '#09090b';
-  ctx.fillRect(-5.5, -10, 4.5, 11);
-  ctx.fillRect(1, -10, 4.5, 11);
+  ctx.fillRect(-5.5 + legSwing, -10 - liftL, 4.5, 11);
+  ctx.fillRect(1 - legSwing, -10 - liftR, 4.5, 11);
 
   // Suit coat torso
   ctx.fillStyle = hitFlash ? '#ffffff' : coatColor;
@@ -262,6 +273,7 @@ export function drawCharacter(x, y, config) {
     ctx.restore();
   }
 
+  ctx.restore();
   ctx.restore();
 
   // Overhead Rank/Boss Label, Armor Bar & HP Bar (anchored cleanly at state.world x, y)

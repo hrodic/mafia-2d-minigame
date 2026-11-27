@@ -7,6 +7,7 @@
 //    swings, muzzle flashes and hit flashes actually finish instead of freezing.
 
 import { state } from '../core/state.js';
+import { WALK_PHASE_PER_PX } from '../config/constants.js';
 
 const POSITION_SMOOTHING_PER_SECOND = 14;
 const TIMER_FIELDS = ['slashAnimTimer', 'muzzleFlashTimer', 'hitFlashTimer'];
@@ -22,9 +23,18 @@ export function stepGuestPresentation(dt) {
 
 function applyEntity(entity, smooth, dt) {
   if (!entity) return;
+  const startX = entity.x;
+  const startY = entity.y;
   if (typeof entity.netX === 'number' && typeof entity.netY === 'number') {
     entity.x += (entity.netX - entity.x) * smooth;
     entity.y += (entity.netY - entity.y) * smooth;
+  }
+  const stepSq = (entity.x - startX) ** 2 + (entity.y - startY) ** 2;
+  if (stepSq > 0.0025) {
+    entity.isMoving = true;
+    entity.walkPhase = ((entity.walkPhase || 0) + Math.sqrt(stepSq) * WALK_PHASE_PER_PX) % (Math.PI * 2);
+  } else {
+    entity.isMoving = false;
   }
   for (let i = 0; i < TIMER_FIELDS.length; i++) {
     const field = TIMER_FIELDS[i];

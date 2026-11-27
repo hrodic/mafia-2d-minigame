@@ -31,8 +31,8 @@ const EXPECTED_RANKS = {
     maxArmor: 300,
     minDmg: 30,
     maxDmg: 40,
-    speedAi: 140,
-    speedHuman: 140,
+    speedAi: 130,
+    speedHuman: 130,
     speedJitter: 0,
     radius: 13.5,
     capturePerTick: 1,
@@ -46,8 +46,8 @@ const EXPECTED_RANKS = {
     maxArmor: 120,
     minDmg: 25,
     maxDmg: 35,
-    speedAi: 150,
-    speedHuman: 150,
+    speedAi: 135,
+    speedHuman: 135,
     speedJitter: 0,
     radius: 12.8,
     capturePerTick: 1,
@@ -61,8 +61,8 @@ const EXPECTED_RANKS = {
     maxArmor: 0,
     minDmg: 20,
     maxDmg: 30,
-    speedAi: 160,
-    speedHuman: 160,
+    speedAi: 140,
+    speedHuman: 140,
     speedJitter: 0,
     radius: 12,
     capturePerTick: 0.5,
@@ -76,8 +76,8 @@ const EXPECTED_RANKS = {
     maxArmor: 0,
     minDmg: 15,
     maxDmg: 25,
-    speedAi: 170,
-    speedHuman: 170,
+    speedAi: 150,
+    speedHuman: 150,
     speedJitter: 0,
     radius: 11,
     capturePerTick: 0.2,
@@ -153,12 +153,12 @@ test('balance: unit caps scale by grid side and tier minimums are locked', () =>
   });
 });
 
-test('balance: non-boss AI ranks use their rank speed, bosses use 140 for sprint headroom', () => {
+test('balance: non-boss AI ranks use their rank speed, bosses use 130 for sprint headroom', () => {
   const speedByRank = {
-    [UnitRank.BOSS]: 140,
-    [UnitRank.UNDERBOSS]: 150,
-    [UnitRank.CAPTAIN]: 160,
-    [UnitRank.SOLDIER]: 170,
+    [UnitRank.BOSS]: 130,
+    [UnitRank.UNDERBOSS]: 135,
+    [UnitRank.CAPTAIN]: 140,
+    [UnitRank.SOLDIER]: 150,
   };
   for (const rank of Object.values(UnitRank)) {
     const expected = speedByRank[rank];

@@ -272,8 +272,8 @@ carries that choice into the match and multiplayer host/guest init. Caps clamp p
 remote-human preferences to the configured range; every faction (human or AI) starts at the
 full quota until the player lowers a slider. It emits `unit:recruited`;
 `render/recruitFx.js` draws the `+RANK ($cost)` text. Rival bosses controlled by a human
-peer have `humanPeerId`; all bosses use speed `140` (AI and human), while non-boss AI ranks
-use their per-rank speeds (`150` Underboss, `160` Captain, `170` Soldier). Same-faction units may push through each other (boss included); other factions
+peer have `humanPeerId`; all bosses use speed `130` (AI and human), while non-boss AI ranks
+use their per-rank speeds (`135` Underboss, `140` Captain, `150` Soldier). Same-faction units may push through each other (boss included); other factions
 always collide.
 
 ### Combat
@@ -310,7 +310,7 @@ AI/human speed, radius, capture points per tick, regen per second, cost/upkeep),
 profiles, and
 `PISTOL` stats + accuracy bands. `config/constants.js` owns world/map defaults, sprint,
 pistol range, hit flash, the fixed sim step and catch-up limits. Non-boss AI ranks use
-their rank speed (Underboss `150`, Captain `160`, Soldier `170`); bosses use `140` for both AI and human control, so sprint is the boss
+their rank speed (Underboss `135`, Captain `140`, Soldier `150`); bosses use `130` for both AI and human control, so sprint is the boss
 mobility advantage. Local and remote humans and AI bosses share one `SLASH.humanBoss`/`SLASH.aiBoss`
 rule set; crew melee reads `SLASH.aiMeleeByRank` for per-rank reach, arc and cooldown. The local player's HP, damage, speed and
 radius derive from `RANK_STATS.BOSS`. Systems read the tables at spawn/attack time and copy
@@ -378,7 +378,10 @@ and characters into a depth-sorted list, and draws layers: a subtle world-space 
 backdrop (outside the playable chunks), ground + faction tint, capture bars, turf income
 labels, blood decals/corpses, waypoint and muzzle-accurate aim/reticle UI, characters (with
 HP/armor bars and rank labels), then effects (slash arcs, muzzle flashes, tracers, blood,
-sparks, casings, floating text). Static ground is cached per visible chunk in an LRU of
+sparks, casings, floating text). Character walk animation is distance-driven: `moveUnit`
+and guest interpolation advance `walkPhase`/`isMoving`, and `drawCharacter` uses one sine
+per visible moving unit for foot swing and a small body bob (no new timers or per-unit
+render state). Static ground is cached per visible chunk in an LRU of
 offscreen canvases (asphalt grain, curbs, markings); building walls/roofs/roof props are
 cached per building sprite and drawn in the same depth order, with dynamically lit facade
 windows layered on top. `render/weather.js` draws the capped diagonal rain pass in screen
@@ -405,7 +408,8 @@ distance from the camera.
   (turf, kills, deaths).
 - `ui/actionBar.js`: bottom-center combat bar. Slash/pistol/armor/sprint show ready/cooling
   states, cooldown overlays, costs and shortcuts; the pistol badge shows rounds left and
-  switches to a 4s reload fill at 0 (R reloads early); sprint is hold-to-run and guest input includes the held state.
+  switches to a 4s reload fill at 0 (R reloads early); sprint is boss-only, hold-to-run,
+  and guest input includes the held state.
 - `ui/hudCadence.js`: 4 Hz HUD refresh from the main loop.
 - `ui/menus.js`: setup modal tabs (Field Manual first, then Single/Host/Join), grid-derived
   crew-limit sliders, lobby buttons, start-game flow, `openSetupMenu`, banners and

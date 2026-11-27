@@ -259,7 +259,7 @@ test('units: bosses spawn at 140 whether AI or human-controlled', () => {
     assertEqual(boss.hp, BOSS_MAX_HP);
     assertEqual(boss.maxArmor, MAX_BOSS_ARMOR);
     assertEqual(boss.bodyRadius, 13.5);
-    assertEqual(boss.speed, 140);
+    assertEqual(boss.speed, 130);
     assertEqual(boss.humanPeerId, null);
     assertEqual(boss.ammo, 10);
     assertEqual(boss.reloadTimer, 0);
@@ -267,7 +267,7 @@ test('units: bosses spawn at 140 whether AI or human-controlled', () => {
   withUnitsState({ net: { getPeerForFaction: () => 'peer-x' } }, ({ map }) => {
     const chunk = map.generateChunk(14, 0);
     const boss = spawnUnitInChunk(Faction.RIVAL_1, chunk, UnitRank.BOSS);
-    assertEqual(boss.speed, 140);
+    assertEqual(boss.speed, 130);
     assertEqual(boss.humanPeerId, 'peer-x');
   });
 });

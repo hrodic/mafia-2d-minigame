@@ -19,10 +19,11 @@ source module with esbuild (no bundling).
   auto-recruitment and treasury.
 - Combat: knife slash (arc, up to 3 targets), 9 mm pistol for bosses/underbosses with
   distance-based accuracy, a 10-round magazine, 4s reload (R to reload early), pistol
-  friendly fire, plus critical hits (5% base, 20% from behind, 2× damage)
+  friendly fire, distance falloff, kevlar armor, plus critical hits (5% base, 20% from
+  behind, 2× damage).
 - Friendly-turf HP regeneration (Boss 5, Underboss 4, Captain 2, Soldier 1 per second)
-  while not taking damage
-  and damage falloff, kevlar armor, sprint.
+  while not taking damage.
+- Boss-only sprint (1.6× for 2 s, 4 s cooldown).
 - Territory capture block by block; boss death eliminates a syndicate; victory/defeat
   with spectator mode.
 - Boss/economy HUD, crew management, bottom combat bar with cooldowns and a faction
@@ -40,7 +41,7 @@ Full tuning surface: [`BALANCE.md`](BALANCE.md).
 |---|---|
 | WASD / Arrows | Move boss |
 | Left-click street / minimap | Move to waypoint (A* pathfinding) |
-| Shift or hold Sprint button | Sprint |
+| Shift or hold Sprint button | Sprint (boss only) |
 | Space / F or Slash button | Knife slash |
 | Right-click or Pistol button | Pistol shot at cursor |
 | Q or Armor button | Buy kevlar armor |
