@@ -648,6 +648,24 @@
       --accent-glow: rgba(245, 158, 11, 0.28);
       border-color: rgba(245, 158, 11, 0.5);
     }
+    .action-violet {
+      --accent: #c084fc;
+      --accent-glow: rgba(168, 85, 247, 0.28);
+      border-color: rgba(168, 85, 247, 0.5);
+    }
+    .action-icon-svg {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .action-icon-svg svg {
+      width: 19px;
+      height: 19px;
+      display: block;
+    }
+    .action-icon-svg svg.hidden {
+      display: none;
+    }
     .action-sky {
       --accent: #38bdf8;
       --accent-glow: rgba(56, 189, 248, 0.28);
@@ -770,6 +788,153 @@
       border-color: rgba(244, 63, 94, 0.7);
       background: rgba(76, 5, 25, 0.85);
     }
+    .action-mags {
+      position: absolute;
+      top: 3px;
+      left: 4px;
+      z-index: 2;
+      min-width: 17px;
+      padding: 0 4px;
+      border: 1px solid rgba(161, 161, 170, 0.55);
+      border-radius: 999px;
+      background: rgba(9, 9, 11, 0.92);
+      color: #d4d4d8;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 9px;
+      font-weight: 800;
+      line-height: 1.4;
+      text-align: center;
+    }
+    .action-mags.is-low {
+      color: #fb923c;
+      border-color: rgba(251, 146, 60, 0.7);
+      background: rgba(67, 20, 7, 0.85);
+    }
+    .action-mags.is-empty {
+      color: #f43f5e;
+      border-color: rgba(244, 63, 94, 0.7);
+      background: rgba(76, 5, 25, 0.85);
+    }
+    .buy-menu-title {
+      padding: 0 4px 4px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #a1a1aa;
+    }
+    .buy-menu-lock {
+      padding: 4px 8px 2px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #fbbf24;
+    }
+    .buy-menu-lock.hidden {
+      display: none;
+    }
+    .buy-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(63, 63, 70, 0.9);
+      background: rgba(18, 18, 22, 0.94);
+      color: #e4e4e7;
+      cursor: pointer;
+      overflow: hidden;
+      transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+    }
+    .buy-item:hover:not(.is-disabled) {
+      border-color: rgba(192, 132, 252, 0.7);
+      background: rgba(39, 24, 51, 0.95);
+    }
+    .buy-item.is-disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .buy-key {
+      position: relative;
+      z-index: 1;
+      flex: 0 0 auto;
+      min-width: 18px;
+      padding: 1px 4px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 4px;
+      background: rgba(9, 9, 11, 0.95);
+      color: #f4f4f5;
+      font-size: 9px;
+      font-weight: 800;
+      text-align: center;
+    }
+    .buy-icon {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      color: #d4d4d8;
+      font-size: 15px;
+      line-height: 1;
+    }
+    .buy-icon svg {
+      width: 22px;
+      height: 22px;
+      display: block;
+    }
+    .buy-label {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      text-align: left;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .buy-sub {
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: none;
+      color: #a1a1aa;
+    }
+    .buy-status {
+      position: relative;
+      z-index: 1;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 9px;
+      font-weight: 800;
+      color: #fbbf24;
+      white-space: nowrap;
+    }
+    .buy-item[data-state='affordable'] .buy-status,
+    .buy-item[data-state='full'] .buy-status {
+      color: #4ade80;
+    }
+    .buy-item[data-state='unaffordable'] .buy-status,
+    .buy-item[data-state='disabled'] .buy-status {
+      color: #f87171;
+    }
+    .buy-cooldown {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background: rgba(56, 189, 248, 0.12);
+      pointer-events: none;
+      transform: scaleX(var(--progress, 0));
+      transform-origin: left;
+      transition: transform 0.08s linear;
+    }
     .action-cooldown {
       position: absolute;
       inset: 0;
@@ -886,6 +1051,7 @@
     }
     .manual-card-rose { border-color: rgba(244, 63, 94, 0.32); }
     .manual-card-amber { border-color: rgba(251, 191, 36, 0.32); }
+    .manual-card-violet { border-color: rgba(168, 85, 247, 0.32); }
     .manual-card-head {
       display: flex;
       align-items: center;
@@ -1236,6 +1402,6 @@
       }
     }
     @media (max-width: 640px) {
-      .action-btn { width: 68px; min-height: 68px; }
+      .action-btn { width: 60px; min-height: 68px; }
     }
   

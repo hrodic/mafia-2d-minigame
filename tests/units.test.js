@@ -252,7 +252,7 @@ test('units: underbosses spawn with armor and higher damage', () => {
   });
 });
 
-test('units: bosses spawn at 140 whether AI or human-controlled', () => {
+test('units: bosses spawn unarmed at 130 whether AI or human-controlled', () => {
   withUnitsState({}, ({ map }) => {
     const chunk = map.generateChunk(14, 0);
     const boss = spawnUnitInChunk(Faction.RIVAL_1, chunk, UnitRank.BOSS);
@@ -261,7 +261,9 @@ test('units: bosses spawn at 140 whether AI or human-controlled', () => {
     assertEqual(boss.bodyRadius, 13.5);
     assertEqual(boss.speed, 130);
     assertEqual(boss.humanPeerId, null);
-    assertEqual(boss.ammo, 10);
+    assertEqual(boss.weapon, 'none');
+    assertEqual(boss.pistolOwned, false);
+    assertEqual(boss.ammo, 0);
     assertEqual(boss.reloadTimer, 0);
   });
   withUnitsState({ net: { getPeerForFaction: () => 'peer-x' } }, ({ map }) => {

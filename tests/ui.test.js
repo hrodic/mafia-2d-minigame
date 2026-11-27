@@ -115,7 +115,8 @@ test('ui: action dock uses bottom keybinds and transform cooldown fills', async 
   const html = await fetchIndexHtml();
   const doc = new DOMParser().parseFromString(html, 'text/html');
   assertEqual(doc.querySelectorAll('#action-bar .action-key').length, 4);
-  assertEqual(doc.querySelectorAll('#action-bar .action-cooldown').length, 4);
+  assertEqual(doc.querySelectorAll('#action-bar .action-cooldown').length, 3);
+  assertEqual(doc.querySelectorAll('#action-bar .buy-cooldown').length, 1);
 
   const cssResponse = await fetch('../styles.css', { cache: 'no-store' });
   const css = await cssResponse.text();
@@ -195,14 +196,14 @@ test('ui: hierarchy manual is a scannable rank table', async () => {
   }
 
   const text = table.textContent;
-  for (const value of ['$4,000', '$2,500', '$1,000', '800', '600', '300', '5/s', '4/s', '2/s', '1/s', '×1', '×2', '×10']) {
+  for (const value of ['$2,000', '$1,250', '$500', '800', '600', '300', '5/s', '4/s', '2/s', '1/s', '×1', '×2', '×10']) {
     assert(text.includes(value), `rank table should show ${value}`);
   }
 
   const css = await (await fetch('../styles.css', { cache: 'no-store' })).text();
   assert(/\.manual-table\s*\{[^}]*border-collapse/s.test(css), 'rank table styling missing');
   assert(/\.manual-table-wrap\s*\{[^}]*overflow-x:\s*auto/s.test(css), 'rank table needs horizontal fallback');
-  for (const value of ['Mobility & Capture', 'Attack Timing', '1 capture point/tick', '0.8s cooldown', '1.6× for 2.0s']) {
+  for (const value of ['Mobility & Capture', 'Attack Timing', '1 capture point/tick', '0.8s cooldown', '1.6× for 2.0s', 'MP9 SMG', 'hold RMB for 0.1s automatic fire', '601–700']) {
     assert(panel.textContent.includes(value), `manual should expose ${value}`);
   }
 });
@@ -368,8 +369,15 @@ test('ui: critical HUD values are tabular and bars are transform-driven', async 
 
 test('ui: action bar uses the position indicator, compact icons, larger keys and no Free text', async () => {
   const html = await fetchIndexHtml();
-  assert(html.includes('<span class="action-icon">⌖</span>'), 'pistol should use U+2316 position indicator');
+  assert(html.includes('id="weapon-icon-pistol"'), 'weapon button needs a Glock icon');
+  assert(html.includes('id="weapon-icon-mp9"'), 'weapon button needs the MP9 icon');
   assert(html.includes('id="ammo-pistol"'), 'pistol should show bullets left');
+  assert(html.includes('id="btn-buy-mp9"'), 'action bar needs an MP9 purchase button');
+  assert(html.includes('id="action-status-mp9"'), 'MP9 button needs a cost/owned status');
+  assert(html.includes('id="btn-buy-menu"'), 'action bar needs a Buy menu button');
+  assert(html.includes('id="buy-menu"'), 'buy menu container missing');
+  assert(html.includes('id="btn-buy-ammo"'), 'buy menu needs a 9mm ammo item');
+  assert(html.includes('id="mags-pistol"'), 'weapon button must show spare magazines');
   assert(!html.includes('>Free</span>'), 'Free action-bar labels should be removed');
 
   const cssResponse = await fetch('../styles.css', { cache: 'no-store' });

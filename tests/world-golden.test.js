@@ -49,13 +49,14 @@ function chunkHash(seed, cx, cy) {
 
 test('golden: seeded chunks keep their exact generated output', () => {
   // [seed, cx, cy, expected FNV-1a hash of all tile/prop/income/faction data]
+  // Updated for the intentional income-tier rebalance (High 1000-1500).
   const cases = [
-    [123456789, 0, 0, '14569071'],
-    [123456789, 3, 7, '0ad29730'],
-    [123456789, -2, 5, 'ff02b534'],
-    [42, 14, 14, 'dfd76f93'],
-    [987654321, 7, 3, '1c23e7ae'],
-    [1, 0, 0, 'ad35a5a9'],
+    [123456789, 0, 0, '4585485d'],
+    [123456789, 3, 7, 'a2a54c54'],
+    [123456789, -2, 5, '375e4490'],
+    [42, 14, 14, 'd384c387'],
+    [987654321, 7, 3, '3eb4ceea'],
+    [1, 0, 0, '4430b34d'],
   ];
   for (const [seed, cx, cy, expected] of cases) {
     assertEqual(chunkHash(seed, cx, cy), expected, `seed ${seed} chunk ${cx},${cy}`);

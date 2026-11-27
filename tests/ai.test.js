@@ -168,7 +168,7 @@ test('ai: melee soldier attacks an adjacent player with accent color and full co
   }
 });
 
-function pistolTestWorld() {
+function pistolTestWorld(chunkFaction = Faction.NEUTRAL) {
   return {
     chunks: new Map(),
     isWalkable: () => true,
@@ -176,7 +176,7 @@ function pistolTestWorld() {
     canMoveTo: () => true,
     worldToTile: () => ({ cx: 0, cy: 0, lx: 0, ly: 0 }),
     getChunk: () => ({
-      faction: Faction.NEUTRAL,
+      faction: chunkFaction,
       props: [[0]],
       propVertical: [[0]],
       propCurbSide: [[0]],
@@ -248,6 +248,17 @@ function madeBoss(overrides = {}) {
 test('ai: only bosses and underbosses fire the pistol', () => {
   for (const rank of [UnitRank.BOSS, UnitRank.UNDERBOSS]) {
     const unit = remoteUnit(rank);
+    if (rank === UnitRank.BOSS) {
+      Object.assign(unit, {
+        weapon: 'pistol',
+        pistolOwned: true,
+        ammo: 10,
+        spareMags: 0,
+        pistolMags: 0,
+        mp9Owned: false,
+        shopTimer: 10,
+      });
+    }
     withAiState(
       {
         world: pistolTestWorld(),
@@ -388,7 +399,7 @@ test('ai: bosses buy armor before retreating when they can afford it', () => {
   const boss = madeBoss({ hp: 100, armor: 0, armorCooldown: 0 });
   withAiState(
     {
-      world: pistolTestWorld(),
+      world: pistolTestWorld(Faction.RIVAL_1),
       player: pistolTestPlayer({ x: 600, y: 500 }),
       npcs: [boss],
       spatialBuckets: new Map([[packChunkKey(0, 0), [boss]]]),

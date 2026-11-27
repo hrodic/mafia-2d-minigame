@@ -5,10 +5,17 @@ import { Faction, UnitRank } from '../config/enums.js';
 import { state } from '../core/state.js';
 import {
   buyBossArmor,
+  buyBossAmmo,
+  buyBossGlock,
+  buyBossMp9,
   executeBossSlashForFaction,
   executeBuyArmorForFaction,
+  executeBuyAmmoForFaction,
+  executeBuyGlockForFaction,
+  executeBuyMp9ForFaction,
   performBossPistolShot,
   startReload,
+  switchBossWeapon,
 } from './combat.js';
 import { clampUnitCap } from './units.js';
 
@@ -94,6 +101,30 @@ export function dispatchCommand(faction, payload) {
         return true;
       }
       return executeBuyArmorForFaction(faction);
+    case 'BUY_MP9':
+      if (faction === Faction.PLAYER) {
+        buyBossMp9();
+        return true;
+      }
+      return executeBuyMp9ForFaction(faction);
+    case 'BUY_GLOCK':
+      if (faction === Faction.PLAYER) {
+        buyBossGlock();
+        return true;
+      }
+      return executeBuyGlockForFaction(faction);
+    case 'BUY_AMMO':
+      if (faction === Faction.PLAYER) {
+        buyBossAmmo();
+        return true;
+      }
+      return executeBuyAmmoForFaction(faction);
+    case 'SWITCH_WEAPON': {
+      const boss = getBossForFaction(faction);
+      if (!boss) return false;
+      if (faction === Faction.PLAYER && !state.player.alive) return false;
+      return switchBossWeapon(boss, payload.weapon);
+    }
     case 'RECRUIT_PREF':
       return applyRecruitPrefs(faction, payload);
     default:

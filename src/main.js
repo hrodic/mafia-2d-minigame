@@ -139,6 +139,7 @@ function gameLoop(now) {
     simAccumulator = 0;
     updateGuest(frameDt);
   } else {
+    updateLocalAim();
     const advanced = advanceFixedStep(
       simAccumulator,
       frameDt,
@@ -147,7 +148,6 @@ function gameLoop(now) {
       update
     );
     simAccumulator = advanced.accumulator;
-    updateLocalAim();
     updatePresentation(frameDt);
   }
 

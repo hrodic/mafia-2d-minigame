@@ -1,7 +1,8 @@
-// Gameplay input: keyboard, mouse, minimap and HUD action buttons.
+﻿// Gameplay input: keyboard, mouse, minimap and HUD action buttons.
 
 import { UnitRank } from '../config/enums.js';
 import { state, getLocalBoss, isLocalBossAlive } from '../core/state.js';
+import { on } from '../core/events.js';
 import {
   getAudioCtx,
   ensureAudioContext,
@@ -47,6 +48,68 @@ function requestReload() {
   sendOrDispatchCommand({ cmd: 'RELOAD' });
 }
 
+function requestBuyMp9() {
+  if (!state.gameStarted) return;
+  if (state.net && state.net.isGuest() && !isLocalBossAlive()) {
+    showToast('Your Boss must be alive to buy the MP9!');
+    return;
+  }
+  sendOrDispatchCommand({ cmd: 'BUY_MP9' });
+}
+
+function requestBuyGlock() {
+  if (!state.gameStarted) return;
+  if (state.net && state.net.isGuest() && !isLocalBossAlive()) {
+    showToast('Your Boss must be alive to buy the Glock 19!');
+    return;
+  }
+  sendOrDispatchCommand({ cmd: 'BUY_GLOCK' });
+}
+
+function requestBuyAmmo() {
+  if (!state.gameStarted) return;
+  if (state.net && state.net.isGuest() && !isLocalBossAlive()) {
+    showToast('Your Boss must be alive to buy ammo!');
+    return;
+  }
+  sendOrDispatchCommand({ cmd: 'BUY_AMMO' });
+}
+
+function requestSwitchWeapon() {
+  if (!state.gameStarted || !isLocalBossAlive()) return;
+  const boss = getLocalBoss();
+  if (!boss || !boss.pistolOwned) {
+    showToast('Buy the Glock 19 first (B).');
+    return;
+  }
+  if (!boss.mp9Owned) {
+    showToast('Buy the MP9 first (B).');
+    return;
+  }
+  sendOrDispatchCommand({
+    cmd: 'SWITCH_WEAPON',
+    weapon: boss.weapon === 'mp9' ? 'pistol' : 'mp9',
+  });
+}
+
+function setBuyMenuOpen(open) {
+  const next = Boolean(open && state.gameStarted);
+  state.buyMenuOpen = next;
+  const menu = document.getElementById('buy-menu');
+  const button = document.getElementById('btn-buy-menu');
+  if (menu) menu.classList.toggle('hidden', !next);
+  if (button) button.setAttribute('aria-expanded', next ? 'true' : 'false');
+}
+
+function toggleBuyMenu() {
+  if (!state.gameStarted) return;
+  setBuyMenuOpen(!state.buyMenuOpen);
+}
+
+function buyFromMenu(action) {
+  action();
+}
+
 window.addEventListener('keydown', (e) => {
   getAudioCtx();
   const k = e.key.toLowerCase();
@@ -63,6 +126,16 @@ window.addEventListener('keydown', (e) => {
   if (k === ' ' || k === 'f') requestSlash();
   if (k === 'q') requestBuyArmor();
   if (k === 'r' && !wasDown) requestReload();
+  if (k === 'e' && !wasDown) requestSwitchWeapon();
+  if (k === 'b' && !wasDown) {
+    toggleBuyMenu();
+  } else if (state.buyMenuOpen && !wasDown) {
+    if (e.key === '1') buyFromMenu(requestBuyArmor);
+    else if (e.key === '2') buyFromMenu(requestBuyAmmo);
+    else if (e.key === '3') buyFromMenu(requestBuyGlock);
+    else if (e.key === '4') buyFromMenu(requestBuyMp9);
+    else setBuyMenuOpen(false);
+  }
 });
 window.addEventListener('keyup', (e) => {
   const k = e.key.toLowerCase();
@@ -77,9 +150,10 @@ window.addEventListener('keyup', (e) => {
 // Losing focus can swallow keyup events; clear held keys and send a stop so the
 // guest boss never keeps walking into a wall after alt-tab/HUD clicks.
 function releaseAllKeys() {
-  const hadInput = state.keys.size > 0 || state.sprintButtonHeld;
+  const hadInput = state.keys.size > 0 || state.sprintButtonHeld || state.mouseFiring;
   state.keys.clear();
   state.sprintButtonHeld = false;
+  state.mouseFiring = false;
   if (hadInput && state.net && state.net.isGuest()) {
     state.net.flushGuestInput();
   }
@@ -100,6 +174,12 @@ canvas.addEventListener('mouseleave', () => {
   state.mouse.inside = false;
 });
 
+window.addEventListener('mouseup', (e) => {
+  if (e.button !== 2 || !state.mouseFiring) return;
+  state.mouseFiring = false;
+  if (state.net && state.net.isGuest()) state.net.flushGuestInput();
+});
+
 canvas.addEventListener('contextmenu', (e) => {
   e.preventDefault();
 });
@@ -117,9 +197,14 @@ function screenToWorld(clientX, clientY) {
 canvas.addEventListener('mousedown', (e) => {
   getAudioCtx();
   if (!state.gameStarted) return;
+  const rect = canvas.getBoundingClientRect();
+  state.mouse.screenX = e.clientX - rect.left;
+  state.mouse.screenY = e.clientY - rect.top;
+  state.mouse.inside = true;
   const { wx, wy } = screenToWorld(e.clientX, e.clientY);
 
   if (e.button === 2) {
+    state.mouseFiring = true;
     requestShoot(wx, wy);
     return;
   }
@@ -236,7 +321,7 @@ document.getElementById('btn-radar-expand')?.addEventListener('click', (e) => {
   const expanded = toggleMinimapExpanded();
   const panel = document.getElementById('radar-panel');
   if (panel) panel.classList.toggle('is-expanded', expanded);
-  e.currentTarget.textContent = expanded ? '⤡' : '⤢';
+  e.currentTarget.textContent = expanded ? 'â¤¡' : 'â¤¢';
   e.currentTarget.setAttribute('aria-expanded', expanded ? 'true' : 'false');
   e.currentTarget.setAttribute('aria-label', expanded ? 'Shrink radar' : 'Expand radar');
   e.currentTarget.title = expanded ? 'Shrink radar' : 'Expand radar';
@@ -291,16 +376,33 @@ document.getElementById('btn-cap-underboss-inc').addEventListener('click', () =>
 
 document.getElementById('btn-buy-armor').addEventListener('click', () => {
   getAudioCtx();
-  requestBuyArmor();
+  buyFromMenu(requestBuyArmor);
+});
+document.getElementById('btn-buy-ammo')?.addEventListener('click', () => {
+  getAudioCtx();
+  buyFromMenu(requestBuyAmmo);
+});
+document.getElementById('btn-buy-glock')?.addEventListener('click', () => {
+  getAudioCtx();
+  buyFromMenu(requestBuyGlock);
+});
+document.getElementById('btn-buy-mp9')?.addEventListener('click', () => {
+  getAudioCtx();
+  buyFromMenu(requestBuyMp9);
+});
+document.getElementById('btn-buy-menu')?.addEventListener('click', () => {
+  getAudioCtx();
+  toggleBuyMenu();
 });
 document.getElementById('btn-slash').addEventListener('click', () => requestSlash());
 document.getElementById('btn-pistol').addEventListener('click', () => {
   getAudioCtx();
-  const myBoss = getLocalBoss();
-  if (!myBoss || !isLocalBossAlive()) return;
-  const tx = myBoss.x + Math.cos(myBoss.facing) * 260;
-  const ty = myBoss.y + Math.sin(myBoss.facing) * 260;
-  requestShoot(tx, ty);
+  const boss = getLocalBoss();
+  if (!boss || !boss.pistolOwned) {
+    setBuyMenuOpen(true);
+    return;
+  }
+  requestSwitchWeapon();
 });
 
 const sprintButton = document.getElementById('btn-sprint');
@@ -326,15 +428,18 @@ document.getElementById('btn-toggle-music').addEventListener('click', (e) => {
   ensureAudioContext();
   const music = cycleMusicTrack();
   e.target.textContent = !music.enabled
-    ? '🎷 Music: OFF'
+    ? 'ðŸŽ· Music: OFF'
     : music.track === 0
-    ? '🎷 Noir I: ON'
-    : '🎷 Noir II: ON';
+    ? 'ðŸŽ· Noir I: ON'
+    : 'ðŸŽ· Noir II: ON';
 });
 
 document.getElementById('btn-toggle-sound').addEventListener('click', (e) => {
   const enabled = setSoundEnabled(!isSoundEnabled());
-  e.target.textContent = '🔊 SFX: ' + (enabled ? 'ON' : 'OFF');
+  e.target.textContent = 'ðŸ”Š SFX: ' + (enabled ? 'ON' : 'OFF');
 });
+
+on('match:initialized', () => setBuyMenuOpen(false));
 }
+
 

@@ -1,10 +1,11 @@
-// Command dispatch tests: local and remote actions share one sim entry point.
+﻿// Command dispatch tests: local and remote actions share one sim entry point.
 import { test, assert, assertEqual } from './harness.js';
 import { Faction, UnitRank, PropType } from '../src/config/enums.js';
 import { CHUNK_SIZE } from '../src/config/constants.js';
-import { PISTOL } from '../src/config/balance.js';
+import { PISTOL, MP9, COST_BOSS_ARMOR, COST_BOSS_GLOCK, COST_BOSS_MP9, COST_BOSS_AMMO } from '../src/config/balance.js';
 import { state } from '../src/core/state.js';
 import { dispatchCommand } from '../src/sim/commands.js';
+import { tickWeapon } from '../src/sim/combat.js';
 import { sendOrDispatchCommand } from '../src/ui/commandBridge.js';
 
 function withFixedRandom(value, fn) {
@@ -38,12 +39,12 @@ const STATE_KEYS = [
   'matchUnitCaps',
 ];
 
-function makeWorld() {
+function makeWorld(options = {}) {
   const props = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill(PropType.NONE));
   const chunk = {
     cx: 0,
     cy: 0,
-    faction: Faction.NEUTRAL,
+    faction: options.chunkFaction || Faction.NEUTRAL,
     income: 0,
     captureProgress: 0,
     capturingFaction: null,
@@ -89,6 +90,16 @@ function makePlayer(overrides = {}) {
     isSprinting: false,
     targetX: null,
     targetY: null,
+    weapon: 'pistol',
+    pistolOwned: true,
+    ammo: PISTOL.magazine,
+    spareMags: 3,
+    pistolAmmo: PISTOL.magazine,
+    pistolMags: 3,
+    mp9Ammo: 0,
+    mp9Mags: 0,
+    mp9Owned: false,
+    reloadTimer: 0,
     ...overrides,
   };
 }
@@ -120,6 +131,16 @@ function makeBoss(overrides = {}) {
     isSprinting: false,
     targetX: null,
     targetY: null,
+    weapon: 'pistol',
+    pistolOwned: true,
+    ammo: PISTOL.magazine,
+    spareMags: 3,
+    pistolAmmo: PISTOL.magazine,
+    pistolMags: 3,
+    mp9Ammo: 0,
+    mp9Mags: 0,
+    mp9Owned: false,
+    reloadTimer: 0,
     ...overrides,
   };
 }
@@ -128,7 +149,7 @@ function withCommandState(opts, fn) {
   const saved = {};
   for (const key of STATE_KEYS) saved[key] = state[key];
 
-  state.world = opts.world || makeWorld();
+  state.world = opts.world || makeWorld({ chunkFaction: Faction.PLAYER });
   state.player = opts.player || makePlayer();
   state.npcs = opts.npcs || [];
   state.spatialBuckets = new Map();
@@ -239,18 +260,156 @@ test('commands: RELOAD starts a 4s reload for local and remote bosses', () => {
   });
 });
 
+test('commands: BUY_MP9 equips the boss and charges the treasury once', () => {
+  withCommandState({ treasuries: { [Faction.PLAYER]: COST_BOSS_MP9 } }, () => {
+    assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'BUY_MP9' }), true);
+    assertEqual(state.player.weapon, 'mp9');
+    assertEqual(state.player.ammo, 0);
+    assertEqual(state.treasuries[Faction.PLAYER], 0);
+    assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'BUY_MP9' }), true, 'handled as a no-op');
+    assertEqual(state.treasuries[Faction.PLAYER], 0);
+  });
+
+  withCommandState(
+    {
+      world: makeWorld({ chunkFaction: Faction.RIVAL_1 }),
+      treasuries: { [Faction.RIVAL_1]: COST_BOSS_MP9 },
+      npcs: [makeBoss()],
+    },
+    () => {
+      assertEqual(dispatchCommand(Faction.RIVAL_1, { cmd: 'BUY_MP9' }), true);
+      assertEqual(state.npcs[0].weapon, 'mp9');
+      assertEqual(state.npcs[0].ammo, 0);
+      assertEqual(state.treasuries[Faction.RIVAL_1], 0);
+    }
+  );
+});
+
+test('commands: BUY_AMMO fills only the active weapon; SWITCH_WEAPON swaps explicitly', () => {
+  withCommandState({ treasuries: { [Faction.PLAYER]: 1000 } }, () => {
+    assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'BUY_AMMO' }), true);
+    assertEqual(state.player.pistolMags, 5, 'pistol gets 2 mags when active');
+    assertEqual(state.player.spareMags, 5);
+    assertEqual(state.player.mp9Mags, 0);
+    assertEqual(state.treasuries[Faction.PLAYER], 1000 - COST_BOSS_AMMO);
+  });
+
+  withCommandState({ treasuries: { [Faction.PLAYER]: 10000 } }, () => {
+    assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'BUY_MP9' }), true);
+    assertEqual(state.player.weapon, 'mp9');
+    assertEqual(state.player.spareMags, 0);
+
+    assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'BUY_AMMO' }), true);
+    assertEqual(state.player.ammo, 0);
+    assertEqual(state.player.mp9Mags, 0, 'the auto reload consumes the purchased magazine');
+    assertEqual(state.player.pistolMags, 3, 'pistol reserve untouched');
+    assertEqual(state.player.reloadTimer > 0, true);
+    tickWeapon(state.player, 4);
+    assertEqual(state.player.ammo, MP9.magazine);
+    assertEqual(state.player.spareMags, 0);
+
+    assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'SWITCH_WEAPON', weapon: 'pistol' }), true);
+    assertEqual(state.player.weapon, 'pistol');
+    assertEqual(state.player.ammo, PISTOL.magazine);
+    assertEqual(state.player.spareMags, 3);
+    assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'BUY_AMMO' }), true);
+    assertEqual(state.player.pistolMags, 5, 'pistol gets 2 mags while active');
+    assertEqual(state.player.mp9Mags, 0, 'MP9 reserve untouched');
+
+    assertEqual(
+      dispatchCommand(Faction.PLAYER, { cmd: 'SWITCH_WEAPON', weapon: 'pistol' }),
+      true,
+      'explicit target is idempotent'
+    );
+    assertEqual(state.player.weapon, 'pistol');
+    assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'SWITCH_WEAPON', weapon: 'mp9' }), true);
+    assertEqual(state.player.weapon, 'mp9');
+    assertEqual(state.player.ammo, MP9.magazine);
+    assertEqual(state.player.spareMags, 0);
+  });
+});
+
+test('commands: ammo reserves cap at 20 pistol and 10 MP9 magazines', () => {
+  withCommandState({ treasuries: { [Faction.PLAYER]: 10000 } }, () => {
+    assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'BUY_MP9' }), true);
+    state.player.mp9Mags = 9;
+    state.player.ammo = MP9.magazine;
+    state.player.pistolMags = 19;
+    assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'BUY_AMMO' }), true);
+    assertEqual(state.player.mp9Mags, 10);
+    const cashAfterMp9 = state.treasuries[Faction.PLAYER];
+    dispatchCommand(Faction.PLAYER, { cmd: 'BUY_AMMO' });
+    assertEqual(state.player.mp9Mags, 10, 'MP9 stays capped');
+    assertEqual(state.treasuries[Faction.PLAYER], cashAfterMp9, 'no charge when the active reserve is full');
+
+    assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'SWITCH_WEAPON', weapon: 'pistol' }), true);
+    state.player.ammo = PISTOL.magazine;
+    assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'BUY_AMMO' }), true);
+    assertEqual(state.player.pistolMags, 20);
+    const cashAfterPistol = state.treasuries[Faction.PLAYER];
+    dispatchCommand(Faction.PLAYER, { cmd: 'BUY_AMMO' });
+    assertEqual(state.player.pistolMags, 20, 'pistol stays capped');
+    assertEqual(state.treasuries[Faction.PLAYER], cashAfterPistol, 'no charge when the active reserve is full');
+  });
+});
+
+test('commands: BUY_GLOCK arms an unarmed boss before MP9', () => {
+  withCommandState(
+    {
+      treasuries: { [Faction.PLAYER]: COST_BOSS_GLOCK },
+      player: makePlayer({ weapon: 'none', pistolOwned: false, ammo: 0, spareMags: 0, pistolMags: 0 }),
+    },
+    () => {
+      assertEqual(state.player.pistolOwned, false);
+      assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'BUY_MP9' }), true, 'handled as a no-op');
+      assertEqual(state.player.pistolOwned, false, 'MP9 requires the Glock');
+      assertEqual(state.player.weapon, 'none');
+      assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'BUY_GLOCK' }), true);
+      assertEqual(state.player.weapon, 'pistol');
+      assertEqual(state.player.pistolOwned, true);
+      assertEqual(state.player.ammo, 0);
+      assertEqual(state.treasuries[Faction.PLAYER], 0);
+    }
+  );
+});
+
+test('commands: only boss-rank units can buy', () => {
+  withCommandState(
+    {
+      npcs: [makeBoss({ rank: UnitRank.UNDERBOSS })],
+      treasuries: { [Faction.RIVAL_1]: 10000 },
+      factionAlive: { [Faction.RIVAL_1]: true },
+    },
+    () => {
+      for (const cmd of ['BUY_ARMOR', 'BUY_GLOCK', 'BUY_AMMO', 'BUY_MP9']) {
+        assertEqual(dispatchCommand(Faction.RIVAL_1, { cmd }), false, `${cmd} must reject an underboss`);
+      }
+      assertEqual(state.npcs[0].weapon, 'pistol');
+      assertEqual(state.npcs[0].mp9Owned, false);
+      assertEqual(state.npcs[0].armor, 0);
+    }
+  );
+});
+
 test('commands: BUY_ARMOR charges the player and remote factions', () => {
-  withCommandState({ treasuries: { [Faction.PLAYER]: 3500 } }, () => {
+  withCommandState({ treasuries: { [Faction.PLAYER]: COST_BOSS_ARMOR } }, () => {
     assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'BUY_ARMOR' }), true);
     assertEqual(state.player.armor, 300);
     assertEqual(state.treasuries[Faction.PLAYER], 0);
   });
 
-  withCommandState({ treasuries: { [Faction.RIVAL_1]: 3500 }, npcs: [makeBoss()] }, () => {
-    assertEqual(dispatchCommand(Faction.RIVAL_1, { cmd: 'BUY_ARMOR' }), true);
-    assertEqual(state.npcs[0].armor, 300);
-    assertEqual(state.treasuries[Faction.RIVAL_1], 0);
-  });
+  withCommandState(
+    {
+      world: makeWorld({ chunkFaction: Faction.RIVAL_1 }),
+      treasuries: { [Faction.RIVAL_1]: COST_BOSS_ARMOR },
+      npcs: [makeBoss()],
+    },
+    () => {
+      assertEqual(dispatchCommand(Faction.RIVAL_1, { cmd: 'BUY_ARMOR' }), true);
+      assertEqual(state.npcs[0].armor, 300);
+      assertEqual(state.treasuries[Faction.RIVAL_1], 0);
+    }
+  );
 });
 
 test('commands: RECRUIT_PREF updates the player caps and remote faction prefs', () => {
@@ -382,12 +541,16 @@ test('commands: local and remote human commands produce equivalent outcomes', ()
   assertEqual(local.cooldown, 0.2);
   assertEqual(remote.cooldown, 0.2);
 
-  withCommandState({ treasuries: { [Faction.PLAYER]: 3500 } }, () => {
+  withCommandState({ treasuries: { [Faction.PLAYER]: COST_BOSS_ARMOR } }, () => {
     dispatchCommand(Faction.PLAYER, { cmd: 'BUY_ARMOR' });
     local = { armor: state.player.armor, treasury: state.treasuries[Faction.PLAYER] };
   });
   withCommandState(
-    { treasuries: { [Faction.RIVAL_1]: 3500 }, npcs: [makeBoss()] },
+    {
+      world: makeWorld({ chunkFaction: Faction.RIVAL_1 }),
+      treasuries: { [Faction.RIVAL_1]: COST_BOSS_ARMOR },
+      npcs: [makeBoss()],
+    },
     () => {
       dispatchCommand(Faction.RIVAL_1, { cmd: 'BUY_ARMOR' });
       remote = { armor: state.npcs[0].armor, treasury: state.treasuries[Faction.RIVAL_1] };
@@ -444,3 +607,5 @@ test('commands: guests stream commands while local play dispatches them', () => 
     assertEqual(state.player.targetY, 44);
   });
 });
+
+

@@ -1,8 +1,26 @@
 // Combat: shared damage/armor pipeline, melee slashes, pistol raycast and armor purchases.
 
 import { Faction, UnitRank, PropType } from '../config/enums.js';
-import { CHUNK_SIZE, TILE_SIZE, MAX_PISTOL_RANGE, HIT_FLASH_DURATION } from '../config/constants.js';
-import { COST_BOSS_ARMOR, MAX_BOSS_ARMOR, PISTOL, CRITICAL, SLASH } from '../config/balance.js';
+import { CHUNK_SIZE, TILE_SIZE, HIT_FLASH_DURATION } from '../config/constants.js';
+import {
+  COST_BOSS_ARMOR,
+  COST_BOSS_GLOCK,
+  COST_BOSS_MP9,
+  COST_BOSS_AMMO,
+  AMMO_ROUNDS_PER_PURCHASE,
+  PISTOL_MAG_CAP,
+  MP9_MAG_CAP,
+  START_PISTOL_MAGS,
+  MP9_INCLUDED_MAGS,
+  AI_MP9_MIN_CREW,
+  AI_MP9_MIN_TURFS,
+  MAX_BOSS_ARMOR,
+  PISTOL,
+  MP9,
+  WEAPONS,
+  CRITICAL,
+  SLASH,
+} from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
 import { getPropFootprint, rectContains } from '../world/geometry.js';
 import { state, forEachUnit } from '../core/state.js';
@@ -263,12 +281,29 @@ export function traceBulletRay(x0, y0, angle, maxDist) {
   return { blocked: false, dist: maxDist, x: x0 + cos * maxDist, y: y0 + sin * maxDist };
 }
 
-export function getPistolAccuracyInfo(dist) {
-  if (dist > MAX_PISTOL_RANGE) return PISTOL.outOfRange;
-  for (const band of PISTOL.accuracyBands) {
+export function getWeaponStats(unitOrWeapon) {
+  if (!unitOrWeapon) return PISTOL;
+  const key = typeof unitOrWeapon === 'string' ? unitOrWeapon : unitOrWeapon.weapon;
+  if (key === 'none') return null;
+  return WEAPONS[key] || PISTOL;
+}
+
+function activeMagsField(unit) {
+  return unit && unit.weapon === 'mp9' ? 'mp9Mags' : 'pistolMags';
+}
+
+export function getWeaponAccuracyInfo(dist, weapon = PISTOL) {
+  if (!weapon) return PISTOL.outOfRange;
+  if (dist > weapon.range) return weapon.outOfRange;
+  for (const band of weapon.accuracyBands) {
     if (band.inclusive ? dist <= band.maxDist : dist < band.maxDist) return band;
   }
-  return PISTOL.outOfRange;
+  return weapon.outOfRange;
+}
+
+/** Pistol-specific accuracy lookup kept for callers/tests that predate the MP9. */
+export function getPistolAccuracyInfo(dist) {
+  return getWeaponAccuracyInfo(dist, PISTOL);
 }
 
 export function getPistolAim(shooterX, shooterY, targetX, targetY) {
@@ -295,10 +330,20 @@ export function hasClearShot(shooter, targetX, targetY) {
 /** Start a reload if the magazine is not full. Manual and auto reload share this. */
 export function startReload(unit) {
   if (!unit || (unit.reloadTimer || 0) > 0) return false;
-  if (unit.ammo == null) unit.ammo = PISTOL.magazine;
-  if (unit.ammo >= PISTOL.magazine) return false;
+  const weapon = getWeaponStats(unit);
+  if (!weapon) return false;
+  if (unit.ammo == null) unit.ammo = weapon.magazine;
+  if (unit.ammo >= weapon.magazine) return false;
+  // Finite bosses spend one spare magazine; AI/crew without the field reload freely.
+  if (unit.spareMags != null) {
+    const field = activeMagsField(unit);
+    if (!Number.isFinite(unit[field])) unit[field] = unit.spareMags;
+    if (unit[field] <= 0) return false;
+    unit[field] -= 1;
+    unit.spareMags = unit[field];
+  }
   unit.ammo = 0;
-  unit.reloadTimer = PISTOL.reloadTime;
+  unit.reloadTimer = weapon.reloadTime;
   return true;
 }
 
@@ -339,7 +384,8 @@ export function tickWeapon(unit, dt) {
   const remaining = unit.reloadTimer - dt;
   if (remaining <= 1e-6) {
     unit.reloadTimer = 0;
-    unit.ammo = PISTOL.magazine;
+    const weapon = getWeaponStats(unit);
+    unit.ammo = weapon ? weapon.magazine : 0;
     return;
   }
   unit.reloadTimer = remaining;
@@ -347,12 +393,14 @@ export function tickWeapon(unit, dt) {
 
 export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY) {
   if (!shooter || shooter.attackCooldown > 0) return false;
-  if (shooter.ammo == null) shooter.ammo = PISTOL.magazine;
+  const weapon = getWeaponStats(shooter);
+  if (!weapon) return false;
+  if (shooter.ammo == null) shooter.ammo = weapon.magazine;
   if (shooter.ammo <= 0 || (shooter.reloadTimer || 0) > 0) return false;
 
   const { angle, muzzleX, muzzleY } = getPistolAim(shooter.x, shooter.y, targetX, targetY);
   shooter.facing = angle;
-  shooter.attackCooldown = PISTOL.fireCooldown;
+  shooter.attackCooldown = weapon.fireCooldown;
   shooter.ammo -= 1;
   if (shooter.ammo <= 0) startReload(shooter);
   shooter.muzzleFlashTimer = 0.09;
@@ -369,7 +417,7 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
     isPlayerShooter,
   });
 
-  const envHit = traceBulletRay(muzzleX, muzzleY, angle, MAX_PISTOL_RANGE);
+  const envHit = traceBulletRay(muzzleX, muzzleY, angle, weapon.range);
   const maxRayDist = envHit.dist;
 
   let bestTarget = null;
@@ -412,7 +460,7 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
 
   let shotMissed = false;
   if (bestTarget) {
-    const { failChance } = getPistolAccuracyInfo(bestProjDist);
+    const { failChance } = getWeaponAccuracyInfo(bestProjDist, weapon);
     if (failChance > 0 && Math.random() < failChance) {
       shotMissed = true;
     }
@@ -427,7 +475,7 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
   if (bestTarget && shotMissed) {
     const missDir = Math.random() < 0.5 ? 1 : -1;
     const deflectAngle = angle + missDir * (0.045 + Math.random() * 0.035);
-    const missRay = traceBulletRay(muzzleX, muzzleY, deflectAngle, MAX_PISTOL_RANGE);
+    const missRay = traceBulletRay(muzzleX, muzzleY, deflectAngle, weapon.range);
     endX = missRay.x;
     endY = missRay.y;
     missTargetX = bestTarget.x;
@@ -455,8 +503,8 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
   });
 
   if (bestTarget && !shotMissed) {
-    let dmg = rollDamage(PISTOL.minDmg, PISTOL.maxDmg);
-    const { dmgMult } = getPistolAccuracyInfo(bestProjDist);
+    let dmg = rollDamage(weapon.minDmg, weapon.maxDmg);
+    const { dmgMult } = getWeaponAccuracyInfo(bestProjDist, weapon);
     if (dmgMult < 1) {
       dmg = Math.max(1, Math.round(dmg * dmgMult));
     }
@@ -466,7 +514,7 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
       damagePlayerBoss(dmg, `${FACTION_META[shooterFaction].accent}`, '🔫', angle, shooterFaction, isCrit);
     } else {
       const knockback =
-        PISTOL.knockbackMin + Math.random() * (PISTOL.knockbackMax - PISTOL.knockbackMin);
+        weapon.knockbackMin + Math.random() * (weapon.knockbackMax - weapon.knockbackMin);
       const knockX = bestTarget.x + cos * knockback;
       const knockY = bestTarget.y + sin * knockback;
       const nRad = getEntityCollisionRadius(bestTarget.rank);
@@ -493,8 +541,230 @@ export function damagePlayerBoss(dmg, textColor = '#f43f5e', suffix = '', hitAng
   return applyDamageToNpc(state.player, dmg, textColor, suffix, hitAngle, killerFaction, isCrit);
 }
 
+/** Set the boss's active ranged weapon. Explicit targets make the command idempotent. */
+export function switchBossWeapon(unit, targetWeapon = null) {
+  if (!unit || !unit.mp9Owned) return false;
+  const next =
+    targetWeapon === 'mp9' || targetWeapon === 'pistol'
+      ? targetWeapon
+      : unit.weapon === 'mp9'
+        ? 'pistol'
+        : 'mp9';
+  if (next === unit.weapon) return true;
+
+  if (next === 'pistol') {
+    unit.mp9Ammo = unit.ammo;
+    unit.mp9Mags = unit.spareMags;
+    unit.weapon = 'pistol';
+    unit.ammo = unit.pistolAmmo ?? PISTOL.magazine;
+    unit.spareMags = unit.pistolMags ?? START_PISTOL_MAGS;
+  } else {
+    unit.pistolAmmo = unit.ammo;
+    unit.pistolMags = unit.spareMags;
+    unit.weapon = 'mp9';
+    unit.ammo = unit.mp9Ammo ?? MP9.magazine;
+    unit.spareMags = unit.mp9Mags ?? MP9_INCLUDED_MAGS;
+  }
+  unit.reloadTimer = 0;
+  return true;
+}
+
+function getBossForFaction(faction) {
+  if (faction === Faction.PLAYER) return state.player.alive ? state.player : null;
+  return state.npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS) || null;
+}
+
+/** Shops are only available while the boss stands on its own faction's turf. */
+export function isOnFriendlyTurf(unit) {
+  if (!unit || !state.world || !state.world.worldToTile || !state.world.getChunk) return false;
+  const tile = state.world.worldToTile(unit.x, unit.y);
+  const chunk = state.world.getChunk(tile.cx, tile.cy);
+  return Boolean(chunk && chunk.faction === unit.faction);
+}
+
+/** One-time boss-only Glock 19 purchase. Starts unloaded; ammo is bought separately. */
+export function executeBuyGlockForFaction(faction) {
+  if (!state.factionAlive[faction]) return false;
+  const boss = getBossForFaction(faction);
+  if (!boss || boss.pistolOwned) return false;
+  if (!isOnFriendlyTurf(boss)) return false;
+  if (state.treasuries[faction] < COST_BOSS_GLOCK) return false;
+
+  state.treasuries[faction] -= COST_BOSS_GLOCK;
+  boss.pistolOwned = true;
+  boss.weapon = 'pistol';
+  boss.ammo = 0;
+  boss.spareMags = boss.pistolMags || 0;
+  boss.reloadTimer = 0;
+  return true;
+}
+
+export function buyBossGlock() {
+  if (!state.gameStarted) return;
+  if (!state.player.alive || !state.factionAlive[Faction.PLAYER]) {
+    emit('ui:toast', { message: 'Your Boss must be alive to buy the Glock 19!' });
+    return;
+  }
+  if (!isOnFriendlyTurf(state.player)) {
+    emit('ui:toast', { message: 'You can only buy on friendly turf!' });
+    return;
+  }
+  if (state.player.pistolOwned) {
+    emit('ui:toast', { message: 'Glock 19 is already owned.' });
+    return;
+  }
+  if (state.treasuries[Faction.PLAYER] < COST_BOSS_GLOCK) {
+    emit('ui:toast', { message: `Need $${COST_BOSS_GLOCK.toLocaleString()} for the Glock 19!` });
+    return;
+  }
+  if (executeBuyGlockForFaction(Faction.PLAYER)) {
+    emit('ui:toast', { message: 'Glock 19 equipped! Buy 9mm ammo (B → 2), then reload.' });
+  }
+}
+
+/** One-time boss-only MP9 purchase. Requires the Glock 19 first. */
+export function executeBuyMp9ForFaction(faction) {
+  if (!state.factionAlive[faction]) return false;
+  const boss = getBossForFaction(faction);
+  if (!boss || !boss.pistolOwned || boss.mp9Owned) return false;
+  if (!isOnFriendlyTurf(boss)) return false;
+  if (state.treasuries[faction] < COST_BOSS_MP9) return false;
+
+  state.treasuries[faction] -= COST_BOSS_MP9;
+  boss.mp9Owned = true;
+  boss.mp9Ammo = 0;
+  boss.mp9Mags = 0;
+  switchBossWeapon(boss, 'mp9');
+  return true;
+}
+
+export function buyBossMp9() {
+  if (!state.gameStarted) return;
+  if (!state.player.alive || !state.factionAlive[Faction.PLAYER]) {
+    emit('ui:toast', { message: 'Your Boss must be alive to buy the MP9!' });
+    return;
+  }
+  if (!isOnFriendlyTurf(state.player)) {
+    emit('ui:toast', { message: 'You can only buy on friendly turf!' });
+    return;
+  }
+  if (!state.player.pistolOwned) {
+    emit('ui:toast', { message: 'Buy the Glock 19 first (B → 3).' });
+    return;
+  }
+  if (state.player.mp9Owned) {
+    emit('ui:toast', { message: 'MP9 is already owned. Press E to switch weapons.' });
+    return;
+  }
+  if (state.treasuries[Faction.PLAYER] < COST_BOSS_MP9) {
+    emit('ui:toast', { message: `Need $${COST_BOSS_MP9.toLocaleString()} for the MP9!` });
+    return;
+  }
+
+  if (executeBuyMp9ForFaction(Faction.PLAYER)) {
+    emit('ui:toast', { message: 'MP9 equipped! Press E to switch weapons.' });
+  }
+}
+
+/** Buy one 20-round bundle for the active weapon: 2 pistol mags or 1 MP9 mag. */
+export function executeBuyAmmoForFaction(faction) {
+  if (!state.factionAlive[faction]) return false;
+  const boss = getBossForFaction(faction);
+  if (!boss || boss.spareMags == null) return false;
+  const weapon = getWeaponStats(boss);
+  if (!weapon) return false;
+  if (!isOnFriendlyTurf(boss)) return false;
+  if (state.treasuries[faction] < COST_BOSS_AMMO) return false;
+
+  const isMp9 = boss.weapon === 'mp9';
+  const field = isMp9 ? 'mp9Mags' : 'pistolMags';
+  const cap = isMp9 ? MP9_MAG_CAP : PISTOL_MAG_CAP;
+  const current = Number.isFinite(boss[field]) ? boss[field] : boss.spareMags;
+  if (current >= cap) return false;
+
+  state.treasuries[faction] -= COST_BOSS_AMMO;
+  boss[field] = Math.min(cap, current + (isMp9 ? 1 : 2));
+  boss.spareMags = boss[field];
+  if (boss.ammo <= 0 && (boss.reloadTimer || 0) <= 0) startReload(boss);
+  return true;
+}
+
+export function buyBossAmmo() {
+  if (!state.gameStarted) return;
+  if (!state.player.alive || !state.factionAlive[Faction.PLAYER]) {
+    emit('ui:toast', { message: 'Your Boss must be alive to buy ammo!' });
+    return;
+  }
+  if (!isOnFriendlyTurf(state.player)) {
+    emit('ui:toast', { message: 'You can only buy on friendly turf!' });
+    return;
+  }
+  if (!getWeaponStats(state.player)) {
+    emit('ui:toast', { message: 'Buy the Glock 19 first (B → 3).' });
+    return;
+  }
+  if (state.treasuries[Faction.PLAYER] < COST_BOSS_AMMO) {
+    emit('ui:toast', { message: `Need $${COST_BOSS_AMMO.toLocaleString()} for 9mm ammo!` });
+    return;
+  }
+  if (executeBuyAmmoForFaction(Faction.PLAYER)) {
+    emit('ui:toast', { message: `+${AMMO_ROUNDS_PER_PURCHASE} rounds of 9mm added to the reserve.` });
+  }
+}
+
+function countFactionTurf(faction) {
+  let count = 0;
+  if (!state.world || !state.world.chunks) return 0;
+  for (const chunk of state.world.chunks.values()) {
+    if (chunk.faction === faction) count++;
+  }
+  return count;
+}
+
+function shouldBuyMp9(bossNpc) {
+  if (state.treasuries[bossNpc.faction] < COST_BOSS_MP9) return false;
+  let crew = 0;
+  for (const unit of state.npcs) {
+    if (unit && unit.faction === bossNpc.faction) crew++;
+  }
+  if (crew < AI_MP9_MIN_CREW) return false;
+  return countFactionTurf(bossNpc.faction) >= AI_MP9_MIN_TURFS;
+}
+
+/**
+ * AI boss shop: Glock first, then its first ammo, then the MP9 once the
+ * syndicate has some crew and turf. Runs on a one-second cadence.
+ */
+export function tryBuyNpcBossEquipment(bossNpc) {
+  if (!bossNpc || bossNpc.rank !== UnitRank.BOSS || bossNpc.humanPeerId) return false;
+  if (!isOnFriendlyTurf(bossNpc)) return false;
+  const faction = bossNpc.faction;
+  if (!state.factionAlive[faction]) return false;
+
+  let bought = false;
+  if (!bossNpc.pistolOwned) {
+    if (!executeBuyGlockForFaction(faction)) return false;
+    bought = true;
+  }
+
+  const weapon = getWeaponStats(bossNpc);
+  const field = activeMagsField(bossNpc);
+  const mags = Number.isFinite(bossNpc[field]) ? bossNpc[field] : 0;
+  if (weapon && bossNpc.ammo <= 0 && (bossNpc.reloadTimer || 0) <= 0 && mags <= 0) {
+    if (executeBuyAmmoForFaction(faction)) bought = true;
+  }
+
+  if (!bossNpc.mp9Owned && shouldBuyMp9(bossNpc)) {
+    if (executeBuyMp9ForFaction(faction)) bought = true;
+  }
+  return bought;
+}
+
+
 export function executeBuyArmorForFaction(faction) {
   if (!state.factionAlive[faction]) return false;
+  const boss = getBossForFaction(faction);
+  if (!boss || !isOnFriendlyTurf(boss)) return false;
   if (faction === Faction.PLAYER) {
     if (!state.player.alive || state.player.armorCooldown > 0 || state.player.armor >= MAX_BOSS_ARMOR) return false;
     if (state.treasuries[Faction.PLAYER] < COST_BOSS_ARMOR) return false;
@@ -533,6 +803,10 @@ export function buyBossArmor() {
     emit('ui:toast', { message: 'Your Boss must be alive to equip armor!' });
     return;
   }
+  if (!isOnFriendlyTurf(state.player)) {
+    emit('ui:toast', { message: 'You can only buy on friendly turf!' });
+    return;
+  }
   if (state.player.armorCooldown > 0) {
     emit('ui:toast', {
       message: `Armor restock on cooldown (${state.player.armorCooldown.toFixed(1)}s until next tick)!`,
@@ -561,6 +835,7 @@ export function buyBossArmor() {
 
 export function tryBuyNpcBossArmor(bossNpc, nearbyEnemies = 0, nearbyAllies = 0) {
   if (!bossNpc || bossNpc.rank !== UnitRank.BOSS || bossNpc.humanPeerId) return false;
+  if (!isOnFriendlyTurf(bossNpc)) return false;
   const faction = bossNpc.faction;
   if (!state.factionAlive[faction]) return false;
   if ((bossNpc.armorCooldown || 0) > 0) return false;

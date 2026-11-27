@@ -90,6 +90,7 @@ export function drawCharacter(x, y, config) {
     slashArc = 150 / 360,
     isMoving = false,
     walkPhase = 0,
+    weapon = 'pistol',
     isShooting = false,
     hitFlash = false,
   } = config;
@@ -210,10 +211,8 @@ export function drawCharacter(x, y, config) {
     ctx.fillRect(isBoss ? -6.5 : -5.5, -38.2, isBoss ? 13 : 11, 1.8);
   }
 
-  // Weapon Rendering:
-  // Bosses and underbosses have 9mm Pistol as main weapon, stow it to swing a Machete during slash,
-  // and re-equip the pistol immediately after the slash completes.
-  const hasPistolMain = isBoss || isUnderboss;
+  // Weapons: bosses carry their purchased gun; underbosses keep the 9mm pistol.
+  const hasPistolMain = (isBoss && weapon !== 'none') || isUnderboss;
   if (isAttacking) {
     // Sweep the machete across the attacker's exact hit arc (facing ± halfArc).
     const halfArc = Math.PI * slashArc;
@@ -248,18 +247,48 @@ export function drawCharacter(x, y, config) {
     ctx.fill();
     ctx.restore();
   } else if (hasPistolMain) {
-    // 9mm Pistol equipped in hand
     ctx.save();
     ctx.translate(0, -17);
     ctx.rotate(facing);
-    ctx.fillStyle = '#27272a';
-    ctx.fillRect(7, -1.8, 10, 3.4);
-    ctx.fillStyle = '#71717a';
-    ctx.fillRect(8, -1.3, 8, 1.2);
+    if (weapon === 'mp9') {
+      // MP9 sprite: compact receiver, barrel, magazine and folded stock.
+      ctx.fillStyle = '#18181b';
+      ctx.fillRect(4, -1.6, 5, 3.2); // stock
+      ctx.fillRect(9, -2.8, 8, 5); // receiver
+      ctx.fillRect(17, -1.2, 6, 2.4); // barrel
+      ctx.fillStyle = '#3f3f46';
+      ctx.fillRect(10, -2.1, 6, 1.1); // top rail
+      ctx.fillRect(11.5, 2.2, 2.8, 4.2); // magazine
+      ctx.fillRect(17.2, 1.2, 1.8, 2.8); // foregrip
+      ctx.fillStyle = '#a1a1aa';
+      ctx.fillRect(18, -0.9, 4.8, 0.9); // barrel highlight
+      ctx.fillStyle = '#27272a';
+      ctx.fillRect(9, 1.8, 2.4, 2.6); // pistol grip
+    } else {
+      // Glock 19: slide, frame, grip and muzzle.
+      ctx.fillStyle = '#27272a';
+      ctx.fillRect(6, -2.2, 10, 3.2); // slide
+      ctx.fillStyle = '#3f3f46';
+      ctx.fillRect(7, -0.6, 6, 1.6); // frame
+      ctx.fillStyle = '#18181b';
+      ctx.beginPath(); // grip, angled back like a Glock
+      ctx.moveTo(7, 1);
+      ctx.lineTo(9.8, 1);
+      ctx.lineTo(8.8, 6.2);
+      ctx.lineTo(5.8, 6.2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#71717a';
+      ctx.fillRect(13.4, -1.7, 0.9, 2.2); // rear serration
+      ctx.fillRect(15.1, -1.7, 0.9, 2.2);
+      ctx.fillRect(7.2, -1.3, 4.2, 0.8); // slide highlight
+      ctx.fillStyle = '#18181b';
+      ctx.fillRect(16, -1.3, 2.4, 1.4); // muzzle
+    }
     if (isShooting) {
       ctx.fillStyle = '#fef08a';
       ctx.beginPath();
-      ctx.arc(19, 0, 4.2, 0, Math.PI * 2);
+      ctx.arc(weapon === 'mp9' ? 24 : 19, 0, 4.2, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();

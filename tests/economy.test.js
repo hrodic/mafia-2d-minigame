@@ -1,7 +1,7 @@
 // Economy tests: faction upkeep, neighborhood income and the hourly tick.
 import { test, assert, assertEqual } from './harness.js';
 import { Faction, UnitRank } from '../src/config/enums.js';
-import { UPKEEP_SOLDIER, UPKEEP_CAPTAIN, UPKEEP_UNDERBOSS, COST_SOLDIER } from '../src/config/balance.js';
+import { UPKEEP_SOLDIER, UPKEEP_CAPTAIN, UPKEEP_UNDERBOSS } from '../src/config/balance.js';
 import { ALL_FACTION_SLOTS } from '../src/config/organizations.js';
 import { state } from '../src/core/state.js';
 import { on } from '../src/core/events.js';
@@ -178,7 +178,8 @@ test('economy: the hourly tick advances the clock and pays net income', () => {
       processHourlyTick();
       assertEqual(state.gameHour, 13);
       assertEqual(state.treasuries[Faction.PLAYER], 400 + 1000 - UPKEEP_SOLDIER);
-      assertEqual(state.treasuries[Faction.RIVAL_1], 400 + 500 - UPKEEP_CAPTAIN);
+      // Rival AI also auto-recruits a $500 soldier after the payout.
+      assertEqual(state.treasuries[Faction.RIVAL_1], 250);
       assertEqual(state.treasuries[Faction.RIVAL_2], 0);
       assertEqual(state.minimapCacheTimer, 1.0);
 
@@ -234,10 +235,10 @@ test('economy: auto-recruit hires with tick income until funds run out', () => {
     },
     ({ events }) => {
       processHourlyTick();
-      assertEqual(state.npcs.length, 1);
+      assertEqual(state.npcs.length, 3);
       assertEqual(state.npcs[0].rank, UnitRank.SOLDIER);
-      assertEqual(state.treasuries[Faction.PLAYER], 500 + 1000 - COST_SOLDIER);
-      assertEqual(state.floatingTexts.length, 1);
+      assertEqual(state.treasuries[Faction.PLAYER], 0);
+      assertEqual(state.floatingTexts.length, 3);
       assertEqual(eventsOf(events, 'hour:tick').length, 1);
     }
   );

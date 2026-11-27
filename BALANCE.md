@@ -33,9 +33,9 @@ Boss armor is bought separately; Underboss starts with armor.
 | Rank | HP | Armor | Blade dmg | Speed | Capture/tick | Regen/s | Radius | Hire | Upkeep/hr | Cap |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | Boss | 800 | 0 → 300 | 30–40 | 130 | 1 | 5 | 13.5 | — | — | 1 |
-| Underboss | 800 | 120 | 25–35 | 135 | 1 | 4 | 12.8 | $4,000 | $600 | ×1 grid side |
-| Captain | 600 | 0 | 20–30 | 140 | 0.5 | 2 | 12 | $2,500 | $300 | ×2 grid side |
-| Soldier | 300 | 0 | 15–25 | 150 | 0.2 | 1 | 11 | $1,000 | $100 | ×10 grid side |
+| Underboss | 800 | 120 | 25–35 | 135 | 1 | 4 | 12.8 | $2,000 | $300 | ×1 grid side |
+| Captain | 600 | 0 | 20–30 | 140 | 0.5 | 2 | 12 | $1,250 | $150 | ×2 grid side |
+| Soldier | 300 | 0 | 15–25 | 150 | 0.2 | 1 | 11 | $500 | $50 | ×10 grid side |
 
 Regen only runs while a unit is standing on its own faction's turf, is below max HP,
 and is not in the hit-flash window after taking damage. It is integrated into the existing
@@ -47,7 +47,7 @@ Derived notes:
   default tick that is 15 / 15 / 30 / 75 seconds.
 - Enemy turf cannot be captured while any living enemy unit stands on it; neutral turf
   (including a defeated faction's former turf) never resists.
-- HP per $1,000 hire: Soldier 300 · Captain 240 · Underboss 200.
+- HP per $1,000 hire: Soldier 600 · Captain 480 · Underboss 400.
 - Upkeep as % of hire per hour: Soldier 10% · Captain 12% · Underboss 15%.
 
 ## Rank caps
@@ -91,14 +91,19 @@ drawn on screen uses the same per-rank value, so the visible sweep matches the h
 Targets are sorted nearest-first and only the first `maxTargets` are damaged, so bosses and
 underbosses cleave up to 3, captains up to 2, and soldiers hit 1.
 
-### 9 mm pistol
+### Glock 19 9mm
 
 Base damage **50–80**, knockback **10–15**, max range **600 px**.
-**Bosses and underbosses** (human and AI) fire on a **0.2 s** cadence from a
-**10-round** magazine. Reloading takes **4 s**; pressing **R** reloads early and discards
-the remaining rounds. Captains and soldiers are knife-only and carry no ammo at all.
-Pistol rounds can hit **same-faction units**; AI shooters hold fire when a building, prop
-or ally is in the bullet path. Knives never hit allies.
+**Underbosses** carry it by default. **Bosses start unarmed and must buy it for $1,000**
+(buy menu **B** → **3**). Fire on a **0.2 s** cadence from a **10-round** magazine.
+Reloading takes **4 s**; pressing **R** reloads early and discards the remaining rounds.
+Captains and soldiers are knife-only and carry no ammo at all. Rounds can hit
+**same-faction units**; AI shooters hold fire when a building, prop or ally is in the
+bullet path. Knives never hit allies.
+
+Human bosses spend one **spare magazine** from a reserve on every reload (cap **10**).
+Bosses start with **0** spare magazines, so the first ammo purchase is required before the
+gun can reload. Underbosses keep unlimited reloads.
 
 | Distance | Damage | Hit chance |
 |---|---:|---:|
@@ -110,6 +115,52 @@ or ally is in the bullet path. Knives never hit allies.
 | ≤ 600 px | 100% | 40% |
 | > 600 px | 0% | 0% |
 
+### MP9 submachine gun
+
+**Boss-only** one-time upgrade bought from the action bar for **$4,000** after the Glock 19.
+It is a second weapon slot: underbosses, captains and soldiers can never equip it, and
+**E** switches the boss between Glock and MP9 once owned.
+
+| Value | Current |
+|---|---|
+| Damage | **50–80** (same as pistol) |
+| Knockback | **10–15** (same as pistol) |
+| Magazine | **20 rounds** |
+| Fire cadence | **0.1 s automatic** while RMB is held |
+| Reload | **4 s** (R reloads early and discards the magazine) |
+| Range | **700 px** |
+| Accuracy 0–600 px | same bands as the pistol |
+| Accuracy 600–700 px | **30% hit**, no damage falloff |
+| > 700 px | 0% |
+| Spare-magazine cap | **5** |
+| Included on purchase | **0 rounds**, 0 spare (bought empty) |
+
+Hold right mouse to keep firing at the 0.1 s cadence; a single click still fires one round.
+Pistol friendly fire applies unchanged, but AI shooters hold fire when an ally blocks the
+line. Buying it auto-equips the MP9 and cancels an in-progress reload.
+
+| Value | Current |
+|---|---|
+| Pistol (Glock 19) price | **$1,000** |
+| MP9 price | **$4,000** (requires Glock) |
+| Kevlar armor | **$2,000** for +300, once per hour |
+| 9mm ammo | **$20 for 20 rounds** |
+| Pistol reserve cap | **20 magazines** |
+| MP9 reserve cap | **10 magazines** |
+| Starting pistol reserve | **0 magazines** |
+| Reload cost | **1 spare magazine** |
+| Ammo purchase | **active weapon only** |
+| Shop access | **boss rank only**, standing on **friendly turf** |
+| Shop menu | **B** toggles; purchases keep it open, any other key closes it |
+| Pistol ammo bundle | **+2 magazines** (20 rounds) |
+| MP9 ammo bundle | **+1 magazine** (20 rounds) |
+| Full reserve | purchase disabled; no cash is spent |
+
+The action-bar weapon badge shows **rounds left** and the **spare-magazine count**
+(`×3`) for the active weapon. Reloading subtracts one. Buying ammo always fills the
+**currently active** gun: pistol gets 2 magazines, MP9 gets 1. If its current magazine is
+empty, the purchase also starts the 4 s reload.
+
 ### Critical hits
 
 | Value | Current |
@@ -118,9 +169,9 @@ or ally is in the bullet path. Knives never hit allies.
 | Back-hit bonus | **+15%** (20% total) |
 | Back cone | rear **120°** of the victim's facing |
 | Multiplier | **2×** damage |
-| Applies to | every melee and pistol hit, rolled per victim |
+| Applies to | every melee and gun hit, rolled per victim |
 
-Roll order: hit chance (pistol) → base damage roll → distance falloff (pistol) → critical
+Roll order: hit chance (pistol/MP9) → base damage roll → distance falloff → critical
 roll → armor → HP. A miss can never crit. Each target of a cleave rolls separately. The
 back check uses the victim's facing against the incoming strike direction and costs one
 cosine per hit; it adds no raycast or allocation.
@@ -135,6 +186,10 @@ cosine per hit; it adds no raycast or allocation.
 | Pistol flank | **90 px** lateral sidestep, committed for **0.9 s** |
 | Flank fallback | back off 72 px when both sides are blocked |
 | Close range | knife takes priority; knives never hit allies |
+| AI shop cadence | once per second |
+| AI Glock | **first purchase** whenever affordable ($1,000) |
+| AI first ammo | buys 20 rounds when the Glock is dry, then reloads to 10 |
+| AI MP9 | after **5 living units** and **3 owned blocks**, if $4,000 is available |
 | Armor | boss buys armor when it is missing/low and affordable; retreat is the fallback |
 
 Pistol shooters hold fire while any ally is in the bullet path. They sidestep to re-open the
@@ -144,7 +199,7 @@ lane, then fire as soon as it is clear.
 
 | Value | Current |
 |---|---|
-| Boss armor purchase | $3,500 |
+| Boss armor purchase | $2,000 |
 | Boss armor amount | 300 |
 | Armor cooldown | one hour |
 | Sprint multiplier | 1.6× |
@@ -158,9 +213,9 @@ lane, then fire as soon as it is clear.
 
 | Tier | Income per neighborhood per hour |
 |---|---:|
-| Low | $500–$1,000 |
-| Mid | $1,000–$1,500 |
-| High | $1,500–$2,000 |
+| Low | $250-$500 |
+| Mid | $500-$1,000 |
+| High | $1,000-$1,500 |
 
 Income is paid every tick/hour; upkeep is charged at the same time. Net can push the
 treasury **negative**. Negative cash does not block movement, but all purchases and

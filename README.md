@@ -17,10 +17,15 @@ source module with esbuild (no bundling).
   costs, upkeep, caps and weapons.
 - Hourly economy: neighborhood income, crew upkeep, corruption penalties, negative cash,
   auto-recruitment and treasury.
-- Combat: knife slash (arc, up to 3 targets), 9 mm pistol for bosses/underbosses with
-  distance-based accuracy, a 10-round magazine, 4s reload (R to reload early), pistol
+- Combat: knife slash (arc, up to 3 targets), a purchasable Glock 19 9mm for bosses
+  (underbosses carry it), distance-based accuracy, a 10-round magazine, 4s reload,
   friendly fire, distance falloff, kevlar armor, plus critical hits (5% base, 20% from
   behind, 2× damage).
+- Boss-only MP9 SMG upgrade ($4,000, after the Glock): 20 rounds, 0.1s automatic fire
+  while right mouse is held, 700px reach (30% hit in the last 100px), same damage.
+- Buy menu (**B**): $2,000 armor, $20 for 20 rounds of active-weapon ammo, $1,000 Glock 19
+  and $4,000 MP9. Boss-only shop, friendly turf only; purchases keep the menu open. Finite
+  boss magazine reserves (20 pistol / 10 MP9); **E** switches Glock ↔ MP9.
 - Friendly-turf HP regeneration (Boss 5, Underboss 4, Captain 2, Soldier 1 per second)
   while not taking damage.
 - Boss-only sprint (1.6× for 2 s, 4 s cooldown).
@@ -43,8 +48,11 @@ Full tuning surface: [`BALANCE.md`](BALANCE.md).
 | Left-click street / minimap | Move to waypoint (A* pathfinding) |
 | Shift or hold Sprint button | Sprint (boss only) |
 | Space / F or Slash button | Knife slash |
-| Right-click or Pistol button | Pistol shot at cursor |
-| Q or Armor button | Buy kevlar armor |
+| Right-click | Fire the active weapon; hold with the MP9 for 0.1s automatic fire |
+| E or weapon button | Switch Glock 19 ↔ MP9 once both are owned |
+| B or Buy button | Open the shop (1 armor · 2 ammo · 3 Glock 19 · 4 MP9) |
+| 1 / 2 / 3 / 4 (shop open) | Buy armor / 20 rounds for the active gun / Glock 19 / MP9 |
+| Q | Quick-buy kevlar armor |
 | Crew Management panel | Recruit toggles/caps |
 | Utility buttons | Music, SFX, Tip me (Ko-fi), New Game |
 

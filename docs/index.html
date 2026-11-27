@@ -126,8 +126,8 @@
           </div>
           <div class="mgmt-tier-meta">
             <div class="mgmt-tier-economy">
-              <span id="mgmt-price-soldier" class="mgmt-price">$1,000</span>
-              <span id="mgmt-upkeep-soldier" class="mgmt-upkeep-cost">-$100/hr upkeep</span>
+              <span id="mgmt-price-soldier" class="mgmt-price">$500</span>
+              <span id="mgmt-upkeep-soldier" class="mgmt-upkeep-cost">-$50/hr upkeep</span>
             </div>
             <div class="mgmt-caps" title="Target Soldier spawn cap">
               <button id="btn-cap-soldier-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Soldier cap to minimum">MIN</button>
@@ -154,8 +154,8 @@
           </div>
           <div class="mgmt-tier-meta">
             <div class="mgmt-tier-economy">
-              <span id="mgmt-price-captain" class="mgmt-price">$2,500</span>
-              <span id="mgmt-upkeep-captain" class="mgmt-upkeep-cost">-$300/hr upkeep</span>
+              <span id="mgmt-price-captain" class="mgmt-price">$1,250</span>
+              <span id="mgmt-upkeep-captain" class="mgmt-upkeep-cost">-$150/hr upkeep</span>
             </div>
             <div class="mgmt-caps" title="Target Captain spawn cap">
               <button id="btn-cap-captain-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Captain cap to minimum">MIN</button>
@@ -182,8 +182,8 @@
           </div>
           <div class="mgmt-tier-meta">
             <div class="mgmt-tier-economy">
-              <span id="mgmt-price-underboss" class="mgmt-price">$4,000</span>
-              <span id="mgmt-upkeep-underboss" class="mgmt-upkeep-cost">-$600/hr upkeep</span>
+              <span id="mgmt-price-underboss" class="mgmt-price">$2,000</span>
+              <span id="mgmt-upkeep-underboss" class="mgmt-upkeep-cost">-$300/hr upkeep</span>
             </div>
             <div class="mgmt-caps" title="Target Underboss spawn cap">
               <button id="btn-cap-underboss-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Underboss cap to minimum">MIN</button>
@@ -231,28 +231,33 @@
     <div id="action-bar" class="hud-interactive absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-stretch gap-1.5 p-1.5 rounded-2xl glass-panel max-w-[calc(100vw-1rem)]">
       <button id="btn-slash" type="button" class="action-btn action-rose" data-tip="Knife slash — up to 3 targets in front (Space / F)" aria-label="Slash (F)">
         <span class="action-icon">🔪</span>
-        <span class="action-label">Slash</span>
+        <span class="action-label">Knife</span>
         <kbd class="action-key">F</kbd>
         <span id="action-status-slash" class="action-status">READY</span>
         <span id="cooldown-slash" class="action-cooldown" aria-hidden="true"></span>
       </button>
 
-      <button id="btn-pistol" type="button" class="action-btn action-amber" data-tip="9mm pistol — 10 rounds, 0.2s cadence, 4s reload (RMB / R reload)" aria-label="Pistol (right click, R reload)">
-        <span class="action-icon">⌖</span>
-        <span id="action-label-pistol" class="action-label">Pistol</span>
-        <kbd class="action-key">RMB</kbd>
-        <span id="action-status-pistol" class="action-status">READY</span>
-        <span id="ammo-pistol" class="action-ammo">10</span>
+      <button id="btn-pistol" type="button" class="action-btn action-amber" data-tip="Active ranged weapon — click or E to switch, right mouse fires" aria-label="Active ranged weapon (E switches, right click fires)">
+        <span class="action-icon action-icon-svg">
+          <svg id="weapon-icon-pistol" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="4" y="7" width="13" height="4" rx="1" fill="currentColor" />
+            <rect x="17" y="8" width="3" height="2" fill="currentColor" />
+            <rect x="5" y="11" width="8" height="2" fill="currentColor" />
+            <path d="M7 13h4l-1 7H6z" fill="currentColor" />
+            <rect x="8" y="9" width="6" height="1" fill="#18181b" opacity="0.55" />
+          </svg>
+          <svg id="weapon-icon-mp9" class="hidden" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M2 8h4l1-2h6l2 2h6v2h-3l-1 1h-6l-2 3H6l2-4H2z" />
+            <rect x="7" y="11" width="3" height="5" fill="currentColor" />
+            <rect x="15" y="9" width="2" height="4" fill="currentColor" />
+          </svg>
+        </span>
+        <span id="action-label-pistol" class="action-label">No gun</span>
+        <kbd class="action-key">E</kbd>
+        <span id="action-status-pistol" class="action-status">NO GUN</span>
+        <span id="mags-pistol" class="action-mags">×0</span>
+        <span id="ammo-pistol" class="action-ammo">0</span>
         <span id="cooldown-pistol" class="action-cooldown" aria-hidden="true"></span>
-      </button>
-
-      <button id="btn-buy-armor" type="button" class="action-btn action-sky" data-tip="Kevlar armor — +300 armor, once per hour ($3,500) [Q]" aria-label="Buy armor (Q)">
-        <span class="action-icon">🛡️</span>
-        <span class="action-label">Armor</span>
-        <kbd class="action-key">Q</kbd>
-        <span class="action-sub">Kevlar</span>
-        <span id="action-status-armor" class="action-status">$3,500</span>
-        <span id="cooldown-armor" class="action-cooldown" aria-hidden="true"></span>
       </button>
 
       <button id="btn-sprint" type="button" class="action-btn action-emerald" data-tip="Hold to sprint — 2s burst, 4s cooldown [Shift]" aria-label="Hold to sprint (Shift)">
@@ -264,6 +269,59 @@
         <div class="action-sprint-bar"><div id="sprint-bar-fill" style="transform: scaleX(1)"></div></div>
         <span id="cooldown-sprint" class="action-cooldown" aria-hidden="true"></span>
       </button>
+
+      <button id="btn-buy-menu" type="button" class="action-btn action-violet" data-tip="Buy — armor, 9mm ammo, Glock 19 or MP9 [B]" aria-label="Open buy menu (B)" aria-expanded="false" aria-controls="buy-menu">
+        <span class="action-icon">🛒</span>
+        <span class="action-label">Buy</span>
+        <kbd class="action-key">B</kbd>
+        <span id="action-status-buy" class="action-status">BUY</span>
+      </button>
+
+      <div id="buy-menu" class="hidden absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 glass-panel rounded-xl p-2 space-y-1">
+        <div class="buy-menu-title">Buy · Boss only</div>
+        <div id="buy-menu-lock" class="buy-menu-lock hidden">Shop only on friendly turf</div>
+        <button id="btn-buy-armor" type="button" class="buy-item" data-tip="Kevlar armor — +300 armor, once per hour" aria-label="Buy kevlar armor ($2,000)">
+          <kbd class="buy-key">1</kbd>
+          <span class="buy-icon">🛡️</span>
+          <span class="buy-label">Armor<span class="buy-sub">+300 Kevlar</span></span>
+          <span id="action-status-armor" class="buy-status">$2,000</span>
+          <span id="cooldown-armor" class="buy-cooldown" aria-hidden="true"></span>
+        </button>
+        <button id="btn-buy-ammo" type="button" class="buy-item" data-tip="9mm ammo — 20 rounds for the active weapon" aria-label="Buy 9mm ammo (20 rounds, $20)">
+          <kbd class="buy-key">2</kbd>
+          <span class="buy-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 3h6v4l2 3v11H7V10l2-3z" /></svg>
+          </span>
+          <span class="buy-label">9mm ammo<span class="buy-sub">20 rounds</span></span>
+          <span id="action-status-ammo" class="buy-status">$20</span>
+        </button>
+        <button id="btn-buy-glock" type="button" class="buy-item" data-tip="Glock 19 — 9mm pistol, 10-round magazine, $1,000" aria-label="Buy Glock 19 ($1,000)">
+          <kbd class="buy-key">3</kbd>
+          <span class="buy-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="4" y="7" width="13" height="4" rx="1" fill="currentColor" />
+              <rect x="17" y="8" width="3" height="2" fill="currentColor" />
+              <rect x="5" y="11" width="8" height="2" fill="currentColor" />
+              <path d="M7 13h4l-1 7H6z" fill="currentColor" />
+              <rect x="8" y="9" width="6" height="1" fill="#18181b" opacity="0.55" />
+            </svg>
+          </span>
+          <span class="buy-label">Glock 19<span class="buy-sub">9mm pistol</span></span>
+          <span id="action-status-glock" class="buy-status">$1,000</span>
+        </button>
+        <button id="btn-buy-mp9" type="button" class="buy-item" data-tip="MP9 SMG — boss-only upgrade: 20 rounds, 0.1s automatic, 700px, $4,000" aria-label="Buy MP9 SMG (one-time, $4,000)">
+          <kbd class="buy-key">4</kbd>
+          <span class="buy-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M2 8h4l1-2h6l2 2h6v2h-3l-1 1h-6l-2 3H6l2-4H2z" />
+              <rect x="7" y="11" width="3" height="5" fill="currentColor" />
+              <rect x="15" y="9" width="2" height="4" fill="currentColor" />
+            </svg>
+          </span>
+          <span class="buy-label">MP9<span class="buy-sub">SMG · 20 rounds</span></span>
+          <span id="action-status-mp9" class="buy-status">LOCKED</span>
+        </button>
+      </div>
     </div>
 
     <!-- Spectator Mode Pill (Shown when spectating after defeat) -->
@@ -483,7 +541,7 @@
             <div id="match-settings-wrapper" class="grid grid-cols-1 xl:grid-cols-2 gap-3">
               <div id="match-impact-summary" class="match-impact hud-num xl:col-span-2">
                 <span class="match-impact-label">YOUR SETUP</span>
-                <span id="match-impact-text">225 neighborhoods · 150 Soldiers · 30 Captains · 15 Underbosses · 15s ticks · $1,000–$1,500/tick</span>
+                <span id="match-impact-text">225 neighborhoods · 150 Soldiers · 30 Captains · 15 Underbosses · 15s ticks · $500–$1,000/tick</span>
                 <div class="match-presets" role="group" aria-label="Match presets">
                   <button type="button" class="match-preset" data-preset="turbo" aria-pressed="false" title="10×10 · 10s tick · High income">Turbo</button>
                   <button type="button" class="match-preset" data-preset="normal" aria-pressed="true" title="15×15 · 15s tick · Mid income">Normal</button>
@@ -612,21 +670,21 @@
                   <span class="text-xs font-bold uppercase tracking-wider text-zinc-300">
                     Neighborhood Income
                   </span>
-                  <span id="income-tier-display" class="font-mono text-xs font-bold text-emerald-400">$1,000–$1,500 / tick</span>
+                  <span id="income-tier-display" class="font-mono text-xs font-bold text-emerald-400">$500–$1,000 / tick</span>
                 </div>
 
                 <div class="grid grid-cols-3 gap-2">
                   <button type="button" data-income="LOW" class="income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition">
                     <div class="text-xs font-extrabold">Low</div>
-                    <div class="text-[10px] font-mono text-zinc-400">$500–$1,000</div>
+                    <div class="text-[10px] font-mono text-zinc-400">$250–$500</div>
                   </button>
                   <button type="button" data-income="MID" class="income-tier-btn bg-emerald-500/20 border border-emerald-500 text-emerald-300 py-2 px-2 rounded-lg text-center transition">
                     <div class="text-xs font-extrabold">Mid</div>
-                    <div class="text-[10px] font-mono text-emerald-200/80">$1,000–$1,500</div>
+                    <div class="text-[10px] font-mono text-emerald-200/80">$500–$1,000</div>
                   </button>
                   <button type="button" data-income="HIGH" class="income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition">
                     <div class="text-xs font-extrabold">High</div>
-                    <div class="text-[10px] font-mono text-zinc-400">$1,500–$2,000</div>
+                    <div class="text-[10px] font-mono text-zinc-400">$1,000–$1,500</div>
                   </button>
                 </div>
               </div>
@@ -700,7 +758,7 @@
                     <tr>
                       <th scope="row"><span class="manual-action">Aim</span></th>
                       <td><span class="manual-key">Mouse</span></td>
-                      <td>Facing sets the knife cone and the pistol line.</td>
+                      <td>Facing sets the knife cone and the gun line.</td>
                     </tr>
                     <tr>
                       <th scope="row"><span class="manual-action action-rose">Slash</span></th>
@@ -708,14 +766,29 @@
                       <td>Frontal cleave; reaches 46–52px and hits 1–3 targets by rank.</td>
                     </tr>
                     <tr>
-                      <th scope="row"><span class="manual-action action-amber">Pistol</span></th>
+                      <th scope="row"><span class="manual-action action-amber">Glock 19</span></th>
                       <td><span class="manual-key">RMB</span><span class="manual-key">R</span></td>
-                      <td>600px · 10 rounds · 0.2s cadence · 4s reload · R reloads early. Bosses/Underbosses only; rounds can hit allies.</td>
+                      <td>$1,000 one-time · 600px · 10 rounds · 0.2s cadence · 4s reload · R reloads early. Bosses buy it first; rounds can hit allies.</td>
+                    </tr>
+                    <tr>
+                      <th scope="row"><span class="manual-action action-violet">MP9</span></th>
+                      <td><span class="manual-key">RMB</span><span class="manual-key">R</span></td>
+                      <td>Boss only · requires Glock · buy under B → 4 for $4,000 · 20 rounds · hold RMB for 0.1s automatic fire · 700px (600–700 = 30% hit) · same damage as Glock · 4s reload.</td>
+                    </tr>
+                    <tr>
+                      <th scope="row"><span class="manual-action">Switch gun</span></th>
+                      <td><span class="manual-key">E</span></td>
+                      <td>Swap between Glock 19 and MP9 once both are owned; the action-bar weapon badge also switches.</td>
+                    </tr>
+                    <tr>
+                      <th scope="row"><span class="manual-action action-violet">Buy menu</span></th>
+                      <td><span class="manual-key">B</span></td>
+                      <td>Boss-only shop, friendly turf only. Open with B: <b>1</b> armor ($2,000) · <b>2</b> 9mm ammo (20 rounds, $20) · <b>3</b> Glock 19 ($1,000) · <b>4</b> MP9 ($4,000). Purchases keep the menu open; B or any other key closes it.</td>
                     </tr>
                     <tr>
                       <th scope="row"><span class="manual-action action-sky">Armor</span></th>
-                      <td><span class="manual-key">Q</span></td>
-                      <td>+300 armor for $3,500; once per hour.</td>
+                      <td><span class="manual-key">Q</span><span class="manual-key">B</span><span class="manual-key">1</span></td>
+                      <td>+300 armor for $2,000; once per hour. Q is the quick buy; the B menu lists it too.</td>
                     </tr>
                     <tr>
                       <th scope="row"><span class="manual-action action-emerald">Sprint</span></th>
@@ -773,15 +846,15 @@
                   <div class="manual-card-head">
                     <span class="manual-card-icon manual-card-icon-symbol">⌖</span>
                     <div class="min-w-0">
-                      <div class="manual-card-title">9mm Pistol</div>
-                      <div class="manual-card-sub">50–80 dmg · 600px</div>
+                      <div class="manual-card-title">Glock 19 9mm</div>
+                      <div class="manual-card-sub">50–80 dmg · 600px · $1,000</div>
                     </div>
                     <span class="manual-card-tag">RMB</span>
                   </div>
                   <div class="manual-stats">
+                    <span class="manual-stat"><b>$1,000</b> one-time</span>
                     <span class="manual-stat"><b>10</b> rounds</span>
                     <span class="manual-stat"><b>0.2s</b> cadence</span>
-                    <span class="manual-stat"><b>4s</b> reload</span>
                   </div>
                   <div class="manual-table-wrap manual-table-wrap-flat">
                     <table class="manual-table manual-table-compact manual-weapon-table">
@@ -804,7 +877,47 @@
                     </table>
                   </div>
                   <p class="manual-note">
-                    Only bosses and underbosses carry it; R reloads early. Rounds can hit allies, while AI holds fire when a building or ally blocks the shot.
+                    Every boss starts without a gun. Buy the Glock 19 under <b>B</b> → <b>3</b>, then buy 9mm ammo under <b>B</b> → <b>2</b> and reload. Underbosses already carry it. R reloads early; rounds can hit allies, while AI holds fire when a building or ally blocks the shot.
+                  </p>
+                </div>
+
+                <div class="manual-card manual-card-violet">
+                  <div class="manual-card-head">
+                    <span class="manual-card-icon manual-card-icon-symbol">MP9</span>
+                    <div class="min-w-0">
+                      <div class="manual-card-title">MP9 SMG</div>
+                      <div class="manual-card-sub">boss-only upgrade · 50–80 dmg</div>
+                    </div>
+                    <span class="manual-card-tag">HOLD RMB</span>
+                  </div>
+                  <div class="manual-stats">
+                    <span class="manual-stat"><b>$4,000</b> one-time</span>
+                    <span class="manual-stat"><b>20</b> rounds</span>
+                    <span class="manual-stat"><b>0.1s</b> automatic</span>
+                  </div>
+                  <div class="manual-table-wrap manual-table-wrap-flat">
+                    <table class="manual-table manual-table-compact manual-weapon-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">Range</th>
+                          <th scope="col">Damage</th>
+                          <th scope="col">Hit chance</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr><th scope="row">≤100</th><td>80%</td><td class="hit-hi">90%</td></tr>
+                        <tr><th scope="row">≤200</th><td>90%</td><td class="hit-hi">80%</td></tr>
+                        <tr><th scope="row">≤300</th><td>100%</td><td class="hit-mid">70%</td></tr>
+                        <tr><th scope="row">≤400</th><td>100%</td><td class="hit-mid">60%</td></tr>
+                        <tr><th scope="row">≤500</th><td>100%</td><td class="hit-low">50%</td></tr>
+                        <tr><th scope="row">≤600</th><td>100%</td><td class="hit-low">40%</td></tr>
+                        <tr><th scope="row">601–700</th><td>100%</td><td class="hit-none">30%</td></tr>
+                        <tr><th scope="row">&gt;700</th><td>0%</td><td class="hit-none">0%</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <p class="manual-note">
+                    Buy it under <b>B</b> → <b>4</b> after the Glock 19; it adds a second weapon slot and is <b>sold empty</b>. Press <b>E</b> to switch between Glock and MP9. Buy <b>B</b> → <b>2</b> for 20 rounds of the active gun: 2 Glock mags or 1 MP9 mag (caps 20 Glock / 10 MP9). Reloads spend 1 spare mag. The first 600px keep Glock accuracy, then a low-chance 100px tail. R reloads early and discards the magazine.
                   </p>
                 </div>
               </div>
@@ -849,7 +962,7 @@
                       <td class="stat-cell"><span class="stat-main">800</span><span class="stat-sub">+300 armor</span></td>
                       <td class="stat-cell"><span class="stat-main">30–40</span><span class="stat-sub">blade</span></td>
                       <td class="stat-cell"><span class="stat-main">5/s</span><span class="stat-sub">own turf</span></td>
-                      <td class="stat-cell"><span class="stat-main text-zinc-500">—</span><span class="stat-sub">armor $3,500</span></td>
+                      <td class="stat-cell"><span class="stat-main text-zinc-500">—</span><span class="stat-sub">armor $2,000</span></td>
                       <td class="stat-cell"><span class="stat-main text-zinc-500">—</span></td>
                       <td class="stat-cell"><span class="cap-pill">1</span></td>
                     </tr>
@@ -864,8 +977,8 @@
                       <td class="stat-cell"><span class="stat-main">800</span><span class="stat-sub">+120 armor</span></td>
                       <td class="stat-cell"><span class="stat-main">25–35</span><span class="stat-sub">blade</span></td>
                       <td class="stat-cell"><span class="stat-main">4/s</span><span class="stat-sub">own turf</span></td>
-                      <td class="stat-cell"><span class="stat-main money">$4,000</span></td>
-                      <td class="stat-cell"><span class="stat-main">$600</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="stat-main money">$2,000</span></td>
+                      <td class="stat-cell"><span class="stat-main">$300</span><span class="stat-sub">/ hr</span></td>
                       <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×1">×1</span></td>
                     </tr>
                     <tr class="tier-silver">
@@ -879,8 +992,8 @@
                       <td class="stat-cell"><span class="stat-main">600</span></td>
                       <td class="stat-cell"><span class="stat-main">20–30</span><span class="stat-sub">blade</span></td>
                       <td class="stat-cell"><span class="stat-main">2/s</span><span class="stat-sub">own turf</span></td>
-                      <td class="stat-cell"><span class="stat-main money">$2,500</span></td>
-                      <td class="stat-cell"><span class="stat-main">$300</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="stat-main money">$1,250</span></td>
+                      <td class="stat-cell"><span class="stat-main">$150</span><span class="stat-sub">/ hr</span></td>
                       <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×2">×2</span></td>
                     </tr>
                     <tr class="tier-copper">
@@ -894,8 +1007,8 @@
                       <td class="stat-cell"><span class="stat-main">300</span></td>
                       <td class="stat-cell"><span class="stat-main">15–25</span><span class="stat-sub">blade</span></td>
                       <td class="stat-cell"><span class="stat-main">1/s</span><span class="stat-sub">own turf</span></td>
-                      <td class="stat-cell"><span class="stat-main money">$1,000</span></td>
-                      <td class="stat-cell"><span class="stat-main">$100</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="stat-main money">$500</span></td>
+                      <td class="stat-cell"><span class="stat-main">$50</span><span class="stat-sub">/ hr</span></td>
                       <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×10">×10</span></td>
                     </tr>
                   </tbody>
@@ -903,7 +1016,7 @@
               </div>
 
               <p class="text-[10px] text-zinc-500 leading-relaxed">
-                Hire is one-time; upkeep is paid every hour. Rank is the shared structure; each syndicate uses its own title in-game (Don, Pakhan, Sottocapo …). Caps scale with the city grid: Underbosses ×1, Captains ×2, Soldiers ×10 (15×15 allows 15 / 30 / 150). Minimums are 1 / 2 / 10. Lower each rank's ceiling in Crew Limits before launch, then set your own target in Crew Management with MIN / − / + / MAX. Corruption reduces income by 1% for every 10 neighborhoods and every 25 living units; the Crew Management totals show the Turf, Crew and total percentages. Armor absorbs damage before HP. Bosses and Underbosses carry the pistol (50-80 at up to 600px, 10-round magazine, 4s reload); Captains and Soldiers are knife-only. Capture points are per tick and stack: Boss/Underboss 1, Captain 0.5, Soldier 0.2. You cannot capture enemy turf while any enemy unit is on it; neutral turf never resists. HP regenerates only on your own turf while not taking damage: Boss 5, Underboss 4, Captain 2, Soldier 1 per second.
+                Hire is one-time; upkeep is paid every hour. Rank is the shared structure; each syndicate uses its own title in-game (Don, Pakhan, Sottocapo …). Caps scale with the city grid: Underbosses ×1, Captains ×2, Soldiers ×10 (15×15 allows 15 / 30 / 150). Minimums are 1 / 2 / 10. Lower each rank's ceiling in Crew Limits before launch, then set your own target in Crew Management with MIN / − / + / MAX. Corruption reduces income by 1% for every 10 neighborhoods and every 25 living units; the Crew Management totals show the Turf, Crew and total percentages. Armor absorbs damage before HP. Bosses and Underbosses carry the Glock 19 (50-80 at up to 600px, 10-round magazine, 4s reload), but bosses must buy it first; Captains and Soldiers are knife-only. Bosses can then buy the MP9. Capture points are per tick and stack: Boss/Underboss 1, Captain 0.5, Soldier 0.2. You cannot capture enemy turf while any enemy unit is on it; neutral turf never resists. HP regenerates only on your own turf while not taking damage: Boss 5, Underboss 4, Captain 2, Soldier 1 per second.
               </p>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2 border-t border-zinc-800/80">
@@ -921,9 +1034,10 @@
                   <div class="font-bold text-zinc-200 uppercase tracking-wider mb-1">Attack Timing</div>
                   <ul class="space-y-0.5">
                     <li>Boss slash: 0.8s cooldown · 3 targets · 52px reach · 150° arc</li>
-                    <li>Boss &amp; Underboss pistol: 0.2s cadence · 10 rounds · 4s reload · 50-80 dmg · 600px range · R reload</li>
+                    <li>Glock 19 9mm: $1,000 · 0.2s cadence · 10 rounds · 4s reload · 50-80 dmg · 600px range · R reload</li>
+                    <li>Boss MP9: $4,000 · 0.1s automatic cadence · 20 rounds · 4s reload · 50-80 dmg · 600px + 600-700px at 30% · hold RMB</li>
                     <li>Crew knife: Underboss 3 / 120° / 1.0s / 50px · Captain 2 / 100° / 1.2s / 48px · Soldier 1 / 90° / 1.5s / 46px</li>
-                    <li>Boss armor: $3,500 for +300 · once per hour</li>
+                    <li>Boss armor: $2,000 for +300 · once per hour</li>
                     <li>Sprint (Boss only): 1.6× for 2.0s · 4.0s cooldown</li>
                   </ul>
                 </div>

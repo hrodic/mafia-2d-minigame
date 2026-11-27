@@ -74,6 +74,12 @@ export function encodeSnapshot(state) {
     u.humanPeerId || '',
     u.ammo ?? 0,
     Math.round((u.reloadTimer || 0) * 10) / 10,
+    u.weapon === 'mp9' ? 2 : u.weapon === 'pistol' ? 1 : 0,
+    u.pistolOwned ? 1 : 0,
+    u.mp9Owned ? 1 : 0,
+    u.spareMags == null ? -1 : u.spareMags,
+    u.pistolMags == null ? -1 : u.pistolMags,
+    u.mp9Mags == null ? -1 : u.mp9Mags,
   ]);
 
   return {
@@ -96,6 +102,12 @@ export function encodeSnapshot(state) {
       shoot: state.player.muzzleFlashTimer > 0 ? 1 : 0,
       ammo: state.player.ammo,
       reload: Math.round((state.player.reloadTimer || 0) * 10) / 10,
+      weapon: state.player.weapon === 'mp9' ? 2 : state.player.weapon === 'pistol' ? 1 : 0,
+      pistol: state.player.pistolOwned ? 1 : 0,
+      mp9: state.player.mp9Owned ? 1 : 0,
+      mags: state.player.spareMags == null ? -1 : state.player.spareMags,
+      pistolMags: state.player.pistolMags == null ? -1 : state.player.pistolMags,
+      mp9Mags: state.player.mp9Mags == null ? -1 : state.player.mp9Mags,
     },
     chunks: chunkStates,
     npcs: npcStates,

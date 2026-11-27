@@ -22,10 +22,10 @@ styles.css                 custom CSS (Tailwind remains on its CDN)
 src/
   main.js                  thin composition root: net bridge, event wiring, loop, bootstrap
   config/
-    constants.js           tile/chunk sizes, tick/sprint/pistol tuning
+    constants.js           tile/chunk sizes, tick/sprint/pistol/MP9 tuning
     version.js             GAME_VERSION single source (title/labels/net handshake)
     enums.js               TileType, PropType, Faction, UnitRank
-    balance.js             RANK_STATS, UNIT_CAPS, SLASH, PISTOL, income/cost tables
+    balance.js             RANK_STATS, UNIT_CAPS, SLASH, PISTOL, MP9, income/cost tables
     organizations.js       6 organizations, FACTION_META, slot helpers, ensureUniqueOrgs
   core/
     rng.js                 mulberry32, chunk seed hashing, explicit per-chunk RNG
@@ -45,7 +45,7 @@ src/
     ai.js                  NPC perception, attacks, patrol goals, A* steering, capture
     movement.js            moveUnit/sprint, collision, remote-human boss, waypoint steering
     units.js               caps, spawning, recruitment
-    combat.js              damage/armor, slashes, pistol raycast, armor purchases
+    combat.js              damage/armor, slashes, Glock/MP9 raycast, weapon purchases
     regen.js               friendly-turf HP regeneration, suppressed by hit flash
     territory.js           capture progress, elimination, victory
     economy.js             upkeep, income, hourly tick and auto-recruitment
@@ -251,12 +251,15 @@ transitions only, never positions, timers or per-NPC updates.
 
 ### AI
 `sim/ai.js`: `scanNearby` (nearest enemy + ally/enemy counts in the 3×3 spatial buckets),
-boss armor purchase, melee for every rank and pistol fire for bosses/underbosses when the
-bullet path is clear (`hasClearShot`) and no ally is in the way (`hasFriendlyInShotPath`),
+a one-second boss equipment shop (Glock first, first ammo/reload, then MP9 once the
+syndicate has 5 living units and 3 blocks), boss armor purchase, melee for every rank and
+weapon fire for bosses/underbosses when the bullet path is clear (`hasClearShot`) and no
+ally is in the way (`hasFriendlyInShotPath`);
+an MP9-equipped boss keeps its 0.1 s automatic cadence through the shared weapon cooldown,
 `choosePatrolChunk` (nearest non-owned chunk with
 a global fallback), A* path following/steering, obstacle dodge and capture. Wounded or
 outnumbered unarmored bosses buy armor when possible, otherwise sprint to a retreat point;
-blocked pistol shooters sidestep their firing lane, back off when both flanks are blocked,
+blocked gun shooters sidestep their firing lane, back off when both flanks are blocked,
 and always knife at close range (knives have no friendly-fire restriction). `updateNpcAi(u,
 dt)` is headless; remote-human bosses bypass it. `simulation.js` remains the fixed-step
 orchestration loop; presentation is separate.
@@ -280,13 +283,16 @@ always collide.
 `sim/combat.js`: one armor→HP damage pipeline for units and the player
 (`damagePlayerBoss` delegates to `applyDamageToNpc`), death/elimination, one
 `performSlash` pipeline with player/rival/AI wrappers that share one knockback while
-keeping per-rank reach, arc and cooldowns, a pistol raycast with distance accuracy/damage
-bands, magazine reload (auto at 0 or manual with R, 4 s), pistol friendly fire and
-ally-aware AI hold-fire, a per-hit critical roll (5% base, +15% from the rear cone, 2×
-damage), and
-point-blank damage falloff, and armor purchases (player, rival AI). It emits facts only;
-`render/combatFx.js` draws blood/corpses/text/arcs/tracers and `audio/combatSfx.js` plays
-the combat SFX. The host's `shot:fired` subscriber broadcasts ephemeral tracers to guests.
+keeping per-rank reach, arc and cooldowns, one weapon-aware gun raycast (Glock 19 and the
+boss-only MP9) with distance accuracy/damage bands, weapon-specific magazines/reloads
+(auto at 0 or manual with R, 4 s) backed by finite spare-magazine reserves for bosses
+(pistol cap 20, MP9 cap 10; reload spends one), active-weapon 20-round ammo purchases,
+Glock/MP9 switching, friendly fire and ally-aware AI hold-fire, a per-hit critical roll
+(5% base, +15% from the rear cone, 2× damage), and point-blank damage falloff, armor
+purchases, the one-time Glock/MP9 upgrades and the AI boss equipment shop. It emits facts
+only; `render/combatFx.js` draws blood/corpses/text/arcs/tracers and `audio/combatSfx.js`
+plays the combat SFX. The host's `shot:fired` subscriber broadcasts ephemeral tracers to
+guests.
 
 ### Economy
 `sim/economy.js`: income totals from owned chunks, corruption penalties (1% per 10
@@ -308,8 +314,8 @@ subscribe in `main.js`.
 `config/balance.js` is the gameplay tuning surface: `RANK_STATS` (HP, armor, damage,
 AI/human speed, radius, capture points per tick, regen per second, cost/upkeep), `UNIT_CAPS`, `CORRUPTION`, `SLASH`
 profiles, and
-`PISTOL` stats + accuracy bands. `config/constants.js` owns world/map defaults, sprint,
-pistol range, hit flash, the fixed sim step and catch-up limits. Non-boss AI ranks use
+`PISTOL`/`MP9` stats + accuracy bands. `config/constants.js` owns world/map defaults, sprint,
+pistol/MP9 ranges, hit flash, the fixed sim step and catch-up limits. Non-boss AI ranks use
 their rank speed (Underboss `135`, Captain `140`, Soldier `150`); bosses use `130` for both AI and human control, so sprint is the boss
 mobility advantage. Local and remote humans and AI bosses share one `SLASH.humanBoss`/`SLASH.aiBoss`
 rule set; crew melee reads `SLASH.aiMeleeByRank` for per-rank reach, arc and cooldown. The local player's HP, damage, speed and
@@ -408,21 +414,26 @@ distance from the camera.
 - `ui/hud.js`: primary boss/economy status, collapsible crew management panel (per-rank
   living counts, caps, recruit costs, turf/crew/gross/upkeep/net totals), collapsible faction leaderboard
   (turf, kills, deaths).
-- `ui/actionBar.js`: bottom-center combat bar. Slash/pistol/armor/sprint show ready/cooling
-  states, cooldown overlays, costs and shortcuts; the pistol badge shows rounds left and
-  switches to a 4s reload fill at 0 (R reloads early); sprint is boss-only, hold-to-run,
-  and guest input includes the held state.
+- `ui/actionBar.js`: bottom-center combat bar. Slash/weapon/sprint/buy show ready/cooling
+  states, cooldown overlays, costs and shortcuts; the separate **B** shop lists armor,
+  20-round active-weapon ammo, the Glock 19 and the MP9 with owned/locked/max states. The
+  weapon badge shows rounds left and the active spare-magazine count, swaps between Glock
+  and MP9 icons, and fills with the 4s reload; the shop stays open across purchases and is
+  locked off friendly turf; sprint is boss-only, hold-to-run, and guest input includes the
+  held state and held-fire flag.
 - `ui/hudCadence.js`: 4 Hz HUD refresh from the main loop.
 - `ui/menus.js`: setup modal tabs (Field Manual first, then Single/Host/Join), grid-derived
   crew-limit sliders, lobby buttons, start-game flow, `openSetupMenu`, banners and
   toasts; exports `initMenus`.
-- `ui/input.js`: keyboard/mouse/minimap handlers, HUD action buttons; releases held keys
-  on blur/visibility loss; exports `initInput`.
+- `ui/input.js`: keyboard/mouse/minimap handlers, HUD action buttons; tracks held RMB for
+  MP9 automatic fire, **B**/digits for the shop, **E** for weapon switching, and releases
+  held keys/fire on blur/visibility loss; exports `initInput`.
 - `ui/commandBridge.js`: the only guest/local branch for actions. Guests stream the command
   payload through `state.net.sendCommand`; host/single call `sim/commands.js` directly.
 - `ui/support.js`: the top-bar **Tip me** link opens the official Ko-fi popup; the floating
   launcher is hidden in CSS and the link falls back to ko-fi.com/hrodic.
-- `sim/commands.js`: `dispatchCommand(faction, payload)` for move, slash, shoot, reload, armor and
+- `sim/commands.js`: `dispatchCommand(faction, payload)` for move, slash, shoot, reload, armor,
+  ammo, Glock/MP9 purchases and weapon switching, plus recruitment preferences;
   recruit prefs. Local input and the host's remote-command receiver share it.
 
 ## Testing

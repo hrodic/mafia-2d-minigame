@@ -2,7 +2,7 @@
 // when a tuning change is intentional, update the expected values here in the same commit.
 import { test, assert, assertEqual, assertDeepEqual } from './harness.js';
 import { UnitRank } from '../src/config/enums.js';
-import { MAX_PISTOL_RANGE } from '../src/config/constants.js';
+import { MAX_PISTOL_RANGE, MAX_MP9_RANGE } from '../src/config/constants.js';
 import {
   RANK_STATS,
   UNIT_CAPS,
@@ -10,10 +10,18 @@ import {
   INCOME_TIERS,
   SLASH,
   PISTOL,
+  MP9,
   COST_SOLDIER,
   COST_CAPTAIN,
   COST_UNDERBOSS,
   COST_BOSS_ARMOR,
+  COST_BOSS_GLOCK,
+  COST_BOSS_MP9,
+  COST_BOSS_AMMO,
+  AI_MP9_MIN_CREW,
+  AI_MP9_MIN_TURFS,
+  PISTOL_MAG_CAP,
+  MP9_MAG_CAP,
   UPKEEP_SOLDIER,
   UPKEEP_CAPTAIN,
   UPKEEP_UNDERBOSS,
@@ -52,8 +60,8 @@ const EXPECTED_RANKS = {
     radius: 12.8,
     capturePerTick: 1,
     regenPerSecond: 4,
-    cost: 4000,
-    upkeep: 600,
+    cost: 2000,
+    upkeep: 300,
   },
   [UnitRank.CAPTAIN]: {
     hp: 600,
@@ -67,8 +75,8 @@ const EXPECTED_RANKS = {
     radius: 12,
     capturePerTick: 0.5,
     regenPerSecond: 2,
-    cost: 2500,
-    upkeep: 300,
+    cost: 1250,
+    upkeep: 150,
   },
   [UnitRank.SOLDIER]: {
     hp: 300,
@@ -82,8 +90,8 @@ const EXPECTED_RANKS = {
     radius: 11,
     capturePerTick: 0.2,
     regenPerSecond: 1,
-    cost: 1000,
-    upkeep: 100,
+    cost: 500,
+    upkeep: 50,
   },
 };
 
@@ -104,7 +112,7 @@ test('balance: cost/upkeep/HP aliases derive from rank stats', () => {
   assertEqual(UPKEEP_UNDERBOSS, RANK_STATS[UnitRank.UNDERBOSS].upkeep);
   assertEqual(BOSS_MAX_HP, RANK_STATS[UnitRank.BOSS].hp);
   assertEqual(MAX_BOSS_ARMOR, RANK_STATS[UnitRank.BOSS].maxArmor);
-  assertEqual(COST_BOSS_ARMOR, 3500);
+  assertEqual(COST_BOSS_ARMOR, 2000);
 });
 
 test('balance: unit caps scale by grid side and tier minimums are locked', () => {
@@ -170,9 +178,9 @@ test('balance: non-boss AI ranks use their rank speed, bosses use 130 for sprint
 
 test('balance: income tiers and corruption steps are locked', () => {
   assertDeepEqual(INCOME_TIERS, {
-    LOW: { label: 'Low', min: 500, max: 1000 },
-    MID: { label: 'Mid', min: 1000, max: 1500 },
-    HIGH: { label: 'High', min: 1500, max: 2000 },
+    LOW: { label: 'Low', min: 250, max: 500 },
+    MID: { label: 'Mid', min: 500, max: 1000 },
+    HIGH: { label: 'High', min: 1000, max: 1500 },
   });
   assertDeepEqual(CORRUPTION, {
     neighborhoodsPerStep: 10,
@@ -230,4 +238,32 @@ test('balance: pistol stats, magazine and accuracy bands are locked', () => {
     assertEqual(band.label, `${Math.round((1 - band.failChance) * 100)}% chance`, `band ${i} label`);
     assertEqual(band.inclusive, true, `band ${i} must include its maxDist`);
   }
+});
+
+test('balance: MP9 boss upgrade stats and tail accuracy are locked', () => {
+  assertEqual(COST_BOSS_GLOCK, 1000);
+  assertEqual(COST_BOSS_MP9, 4000);
+  assertEqual(COST_BOSS_AMMO, 20);
+  assertEqual(PISTOL_MAG_CAP, 20);
+  assertEqual(MP9_MAG_CAP, 10);
+  assertEqual(AI_MP9_MIN_CREW, 5);
+  assertEqual(AI_MP9_MIN_TURFS, 3);
+  assertEqual(MAX_MP9_RANGE, 700);
+  assertEqual(MP9.minDmg, PISTOL.minDmg);
+  assertEqual(MP9.maxDmg, PISTOL.maxDmg);
+  assertEqual(MP9.knockbackMin, PISTOL.knockbackMin);
+  assertEqual(MP9.knockbackMax, PISTOL.knockbackMax);
+  assertEqual(MP9.magazine, 20);
+  assertEqual(MP9.fireCooldown, 0.1);
+  assertEqual(MP9.reloadTime, 4);
+  assertEqual(MP9.range, 700);
+  assertEqual(MP9.accuracyBands.length, PISTOL.accuracyBands.length + 1);
+  for (let i = 0; i < PISTOL.accuracyBands.length; i++) {
+    assertEqual(MP9.accuracyBands[i].maxDist, PISTOL.accuracyBands[i].maxDist);
+    assertEqual(MP9.accuracyBands[i].failChance, PISTOL.accuracyBands[i].failChance);
+  }
+  const tail = MP9.accuracyBands[MP9.accuracyBands.length - 1];
+  assertEqual(tail.maxDist, 700);
+  assertEqual(tail.failChance, 0.7);
+  assertEqual(tail.label, '30% chance');
 });

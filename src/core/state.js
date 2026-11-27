@@ -12,7 +12,6 @@ import {
   BOSS_MAX_HP,
   INCOME_TIERS,
   MAX_BOSS_ARMOR,
-  PISTOL,
   RANK_STATS,
   UNIT_CAPS,
   clampMatchUnitCaps,
@@ -108,7 +107,15 @@ export function createGameState(config = {}) {
       slashAnimTimer: 0,
       muzzleFlashTimer: 0,
       hitFlashTimer: 0,
-      ammo: PISTOL.magazine,
+      weapon: 'none',
+      pistolOwned: false,
+      ammo: 0,
+      spareMags: 0,
+      pistolAmmo: 0,
+      pistolMags: 0,
+      mp9Owned: false,
+      mp9Ammo: 0,
+      mp9Mags: 0,
       reloadTimer: 0,
     },
     camera: {
@@ -120,6 +127,11 @@ export function createGameState(config = {}) {
       screenY: null,
       inside: false,
     },
+    mouseFiring: false,
+    aimWorldX: 0,
+    aimWorldY: 0,
+    aimInside: false,
+    buyMenuOpen: false,
     keys: new Set(),
     sprintButtonHeld: false,
 
@@ -209,6 +221,9 @@ const deadLocalBoss = {
   isSprinting: false,
   targetX: null,
   targetY: null,
+  weapon: 'none',
+  pistolOwned: false,
+  mp9Owned: false,
 };
 
 export function getLocalFaction() {

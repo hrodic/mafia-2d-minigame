@@ -2,7 +2,7 @@
 
 import { Faction, UnitRank } from '../config/enums.js';
 import { CHUNK_SIZE, CHUNK_PX, TILE_SIZE } from '../config/constants.js';
-import { RANK_STATS, PISTOL, UNIT_CAPS, clampMatchUnitCaps, defaultSpawnCaps } from '../config/balance.js';
+import { RANK_STATS, PISTOL, START_PISTOL_MAGS, UNIT_CAPS, clampMatchUnitCaps, defaultSpawnCaps } from '../config/balance.js';
 import { ALL_FACTION_SLOTS } from '../config/organizations.js';
 import { state } from '../core/state.js';
 import { emit } from '../core/events.js';
@@ -127,8 +127,23 @@ export function spawnUnitInChunk(faction, chunk, rank = UnitRank.SOLDIER) {
         slashAnimTimer: 0,
         muzzleFlashTimer: 0,
         hitFlashTimer: 0,
-        ...(rank === UnitRank.BOSS || rank === UnitRank.UNDERBOSS
-          ? { ammo: PISTOL.magazine, reloadTimer: 0 }
+        ...(rank === UnitRank.UNDERBOSS
+          ? { weapon: 'pistol', ammo: PISTOL.magazine, reloadTimer: 0, mp9Owned: false }
+          : {}),
+        ...(rank === UnitRank.BOSS
+          ? {
+              weapon: 'none',
+              pistolOwned: false,
+              mp9Owned: false,
+              ammo: 0,
+              spareMags: START_PISTOL_MAGS,
+              pistolAmmo: 0,
+              pistolMags: START_PISTOL_MAGS,
+              mp9Ammo: 0,
+              mp9Mags: 0,
+              reloadTimer: 0,
+              shopTimer: 0,
+            }
           : {}),
         dodgeDir: Math.random() > 0.5 ? 1 : -1,
         lastCheckX: wx,

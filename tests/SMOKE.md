@@ -28,7 +28,14 @@ powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123
 - [ ] Move: WASD + click-to-move + minimap click.
 - [ ] While moving, click a new street point: the boss immediately switches to the new target.
 - [ ] Slash (Space/F) works.
-- [ ] Right-click pistol fires (tracer + accuracy label); R reloads early.
+- [ ] Right-click gun fires (tracer + accuracy label); R reloads early.
+- [ ] Glock: bosses start unarmed; B → 3 buys it for $1,000, then B → 2 buys 20 rounds
+  and starts a reload. Underbosses already carry it.
+- [ ] MP9: B → 4 after the Glock ($4,000), auto-equips, E switches Glock/MP9, holding RMB
+  auto-fires at 0.1s, 600-700px shows 30% chance, reloads in 4s, non-boss ranks cannot buy it.
+- [ ] Ammo: B → 2 fills only the active gun (2 Glock mags or 1 MP9 mag); caps 20/10 and
+  no cash is spent when full.
+- [ ] Shop opens only on friendly turf; purchases keep it open, B or any other key closes.
 - [ ] Capture one block (progress bar → tint change).
 - [ ] One economy tick fires (hour advances, income/upkeep applied).
 - [ ] `http://localhost:8123/tests/tests.html` → all tests green, title says `PASS`.
@@ -70,8 +77,10 @@ powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123
   never sprint even if the input flag is set.
 - [ ] Slash hits up to 3 enemies with knockback + blood + floating damage text.
 - [ ] Pistol: range ring, accuracy label, tracers, casings, ricochets, misses ("MISS!").
-- [ ] Armor: Q/button buys 300 armor ($3,500), absorbs damage, once per tick, HUD shows.
-- [ ] Rival AI bosses buy armor, use pistol/slash, capture blocks, recruit crew; shooters
+- [ ] MP9 shows a longer SMG sprite, 700px ring, 20-round badge and 30% label in the tail.
+- [ ] Weapon badge shows rounds left and spare magazines; reload subtracts one magazine.
+- [ ] Armor: Q or B → 1 buys 300 armor ($2,000), absorbs damage, once per tick, HUD shows.
+- [ ] Rival AI bosses buy Glock first then ammo/MP9, buy armor, use gun/slash, capture blocks, recruit crew; shooters
   hold fire when a building or ally blocks the bullet path.
 - [ ] Wounded/unarmored bosses buy armor or sprint away; blocked shooters sidestep allies
   in the firing lane and knife at close range.
@@ -86,9 +95,9 @@ powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123
 - [ ] Build/border controls are gone (no Expand Ring, Click-Build or Borders buttons).
 - [ ] Outside the generated map, a subtle dark city backdrop is visible (not flat black).
 - [ ] City Radar is larger/readable and still shows player/boss/unit markers.
-- [ ] Bottom action bar: slash/pistol/armor/sprint cooldowns, costs, shortcuts and tooltips;
-  the pistol badge counts rounds down, R reloads early, and the fill shows the 4s reload; armor shows a
-  cooldown overlay; sprint works while holding the button.
+- [ ] Bottom action bar: slash/weapon/sprint/Buy; B opens the shop and 1/2/3/4 buy; the
+  weapon badge counts rounds down and spare mags, swaps Glock/MP9 icons with E, R reloads early,
+  and the fill shows the 4s reload; armor shows a cooldown overlay; sprint works while holding.
 - [ ] Leaderboard shows Turf / Crew / Kills with a readable rank order.
 - [ ] Kill a rival boss → toast + turf neutral; kill all → victory banner + summary.
 - [ ] Die → defeat banner → Spectate pans camera → spectator banner "Leave/New Game".
@@ -102,7 +111,7 @@ powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123
 - [ ] Version mismatch rejection works (simulate by editing `GAME_VERSION` in
   `src/config/version.js` in one tab).
 - [ ] Launch: world identical on both peers (same seed); guest cannot choose the seed, sees the host's seed badge, and sees all factions.
-- [ ] Guest input: movement, sprint, facing/aim, slash, shoot, armor, recruit prefs,
+- [ ] Guest input: movement, sprint, facing/aim, slash, shoot, held MP9 fire, armor, recruit prefs,
       capture, recruit, slash/shoot and armor all take effect on host simulation.
 - [ ] Snapshots smooth (interpolation) and combat animations show on guest.
 - [ ] Host/guest HP, armor, cash, hour and standings match; guest leaderboard reflects host kills.

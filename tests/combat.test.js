@@ -1,12 +1,13 @@
 // Combat tests: damage/armor, slash/pistol, accuracy, raycast and armor purchases.
 import { test, assert, assertEqual, assertClose } from './harness.js';
 import { Faction, UnitRank, PropType } from '../src/config/enums.js';
-import { CHUNK_SIZE, TILE_SIZE, MAX_PISTOL_RANGE, HIT_FLASH_DURATION } from '../src/config/constants.js';
+import { CHUNK_SIZE, TILE_SIZE, MAX_PISTOL_RANGE, MAX_MP9_RANGE, HIT_FLASH_DURATION } from '../src/config/constants.js';
 import {
   BOSS_MAX_HP,
   MAX_BOSS_ARMOR,
   COST_BOSS_ARMOR,
   PISTOL,
+  MP9,
   CRITICAL,
   SLASH,
 } from '../src/config/balance.js';
@@ -37,6 +38,7 @@ import {
   performSlash,
   traceBulletRay,
   getPistolAccuracyInfo,
+  getWeaponAccuracyInfo,
   getPistolAim,
   performBossPistolShot,
   tickWeapon,
@@ -46,8 +48,12 @@ import {
   rollCriticalHit,
   damagePlayerBoss,
   executeBuyArmorForFaction,
+  executeBuyAmmoForFaction,
+  executeBuyGlockForFaction,
+  executeBuyMp9ForFaction,
   buyBossArmor,
   tryBuyNpcBossArmor,
+  tryBuyNpcBossEquipment,
   rollDamage,
 } from '../src/sim/combat.js';
 
@@ -79,7 +85,7 @@ function makeWorld(options = {}) {
   const chunk = {
     cx: 0,
     cy: 0,
-    faction: Faction.NEUTRAL,
+    faction: options.chunkFaction || Faction.NEUTRAL,
     income: 0,
     captureProgress: 0,
     capturingFaction: null,
@@ -131,6 +137,8 @@ function makePlayer(overrides = {}) {
     hitFlashTimer: 0,
     ammo: PISTOL.magazine,
     reloadTimer: 0,
+    weapon: 'pistol',
+    pistolOwned: true,
     armorCooldown: 0,
     sprintTimer: 0,
     sprintCooldown: 0,
@@ -167,6 +175,8 @@ function makeNpc(overrides = {}) {
     hitFlashTimer: 0,
     ammo: PISTOL.magazine,
     reloadTimer: 0,
+    weapon: 'pistol',
+    pistolOwned: true,
     ...overrides,
   };
 }
@@ -213,7 +223,7 @@ function withCombatState(opts, fn) {
   const saved = {};
   for (const key of STATE_KEYS) saved[key] = state[key];
 
-  state.world = opts.world || makeWorld();
+  state.world = opts.world || makeWorld({ chunkFaction: Faction.PLAYER });
   state.player = opts.player || makePlayer();
   state.npcs = opts.npcs || [];
   state.treasuries = { ...saved.treasuries, ...(opts.treasuries || {}) };
@@ -651,6 +661,7 @@ test('combat: buying armor charges once and starts a cooldown', () => {
 test('combat: rival bosses can buy armor from their treasury', () => {
   withCombatState(
     {
+      world: makeWorld({ chunkFaction: Faction.RIVAL_1 }),
       npcs: [makeNpc({ rank: UnitRank.BOSS, faction: Faction.RIVAL_1, x: 0, y: 0 })],
       treasuries: { [Faction.RIVAL_1]: COST_BOSS_ARMOR },
     },
@@ -674,7 +685,7 @@ test('combat: armor purchase failures explain themselves', () => {
   withCombatState({ treasuries: { [Faction.PLAYER]: 100 } }, ({ events }) => {
     buyBossArmor();
     const toasts = eventsOf(events, 'ui:toast').map((entry) => entry.payload.message);
-    assert(toasts.some((msg) => msg.includes('Need $3,500')), toasts.join(' | '));
+    assert(toasts.some((msg) => msg.includes('Need $2,000')), toasts.join(' | '));
   });
   withCombatState({ treasuries: { [Faction.PLAYER]: COST_BOSS_ARMOR }, player: makePlayer({ armor: 300, maxArmor: 300 }) }, ({ events }) => {
     buyBossArmor();
@@ -690,7 +701,7 @@ test('combat: armor purchase failures explain themselves', () => {
 });
 
 test('combat: NPC boss armor logic reacts to wounds, threats and cooldowns', () => {
-  withCombatState({ treasuries: { [Faction.RIVAL_1]: COST_BOSS_ARMOR } }, ({ events }) => {
+  withCombatState({ world: makeWorld({ chunkFaction: Faction.RIVAL_1 }), treasuries: { [Faction.RIVAL_1]: COST_BOSS_ARMOR } }, ({ events }) => {
     const boss = makeNpc({ rank: UnitRank.BOSS, armor: 0, hp: 480, maxHp: 480 });
     state.npcs = [boss];
     assertEqual(tryBuyNpcBossArmor(boss, 0, 0), true);
@@ -700,13 +711,13 @@ test('combat: NPC boss armor logic reacts to wounds, threats and cooldowns', () 
     assertEqual(equipped[0].payload.textOffset, 36);
     assertEqual(equipped[0].payload.isPlayer, false);
   });
-  withCombatState({ treasuries: { [Faction.RIVAL_1]: COST_BOSS_ARMOR } }, () => {
+  withCombatState({ world: makeWorld({ chunkFaction: Faction.RIVAL_1 }), treasuries: { [Faction.RIVAL_1]: COST_BOSS_ARMOR } }, () => {
     const boss = makeNpc({ rank: UnitRank.BOSS, armor: 50, hp: 480, maxHp: 480 });
     state.npcs = [boss];
     assertEqual(tryBuyNpcBossArmor(boss, 0, 0), false);
     assertEqual(tryBuyNpcBossArmor(boss, 1, 0), true);
   });
-  withCombatState({ treasuries: { [Faction.RIVAL_1]: COST_BOSS_ARMOR } }, () => {
+  withCombatState({ world: makeWorld({ chunkFaction: Faction.RIVAL_1 }), treasuries: { [Faction.RIVAL_1]: COST_BOSS_ARMOR } }, () => {
     const boss = makeNpc({ rank: UnitRank.BOSS, armor: 0, humanPeerId: 'peer' });
     state.npcs = [boss];
     assertEqual(tryBuyNpcBossArmor(boss, 1, 0), false);
@@ -922,6 +933,163 @@ test('combat: pistol fires 10 rounds on a 0.2s cadence then reloads for 4s', () 
     p.attackCooldown = 0;
     assertEqual(fire(), true, 'can fire again after reloading');
   });
+});
+
+test('combat: MP9 keeps pistol accuracy to 600px then drops to 30% out to 700px', () => {
+  assertEqual(MAX_MP9_RANGE, 700);
+  assertEqual(getWeaponAccuracyInfo(600, MP9).failChance, 0.6);
+  assertEqual(getWeaponAccuracyInfo(601, MP9).failChance, 0.7);
+  assertEqual(getWeaponAccuracyInfo(650, MP9).label, '30% chance');
+  assertEqual(getWeaponAccuracyInfo(700, MP9).failChance, 0.7);
+  assertEqual(getWeaponAccuracyInfo(701, MP9).failChance, 1);
+  assertEqual(getWeaponAccuracyInfo(650, PISTOL).failChance, 1, 'pistol must stay at 600px');
+});
+
+test('combat: MP9 fires 20 rounds on a 0.1s cadence and reloads for 4s', () => {
+  withCombatState({ player: makePlayer({ weapon: 'mp9', ammo: MP9.magazine }) }, () => {
+    const p = state.player;
+    const fire = () => performBossPistolShot(p, true, p.x + 300, p.y);
+    assertEqual(p.ammo, MP9.magazine);
+
+    p.attackCooldown = 0;
+    assertEqual(fire(), true);
+    assertEqual(p.attackCooldown, MP9.fireCooldown);
+    assertEqual(p.ammo, MP9.magazine - 1);
+
+    for (let i = 0; i < MP9.magazine - 1; i++) {
+      p.attackCooldown = 0;
+      assertEqual(fire(), true, `MP9 shot ${i + 2} should fire`);
+    }
+    assertEqual(p.ammo, 0);
+    assertEqual(p.reloadTimer, MP9.reloadTime);
+
+    tickWeapon(p, MP9.reloadTime);
+    assertEqual(p.ammo, MP9.magazine);
+  });
+});
+
+test('combat: reloading consumes one spare magazine and blocks when empty', () => {
+  withCombatState({ player: makePlayer({ ammo: 4, spareMags: 2 }) }, () => {
+    const p = state.player;
+    assertEqual(startReload(p), true);
+    assertEqual(p.spareMags, 1);
+    assertEqual(p.ammo, 0);
+    tickWeapon(p, PISTOL.reloadTime);
+    assertEqual(p.ammo, PISTOL.magazine);
+
+    p.spareMags = 0;
+    p.pistolMags = 0;
+    p.ammo = 1;
+    assertEqual(startReload(p), false, 'no spare magazines left');
+    assertEqual(p.ammo, 1);
+  });
+});
+
+test('combat: Glock then MP9 are one-time boss-only purchases', () => {
+  withCombatState(
+    {
+      player: makePlayer({ weapon: 'none', pistolOwned: false, ammo: 0 }),
+      treasuries: { [Faction.PLAYER]: 6000 },
+    },
+    () => {
+      assertEqual(executeBuyMp9ForFaction(Faction.PLAYER), false, 'MP9 requires the Glock first');
+      assertEqual(executeBuyGlockForFaction(Faction.PLAYER), true);
+      assertEqual(state.player.pistolOwned, true);
+      assertEqual(state.player.weapon, 'pistol');
+      assertEqual(state.player.ammo, 0, 'Glock starts unloaded');
+      assertEqual(state.player.spareMags, 0);
+      assertEqual(state.treasuries[Faction.PLAYER], 5000);
+      assertEqual(executeBuyGlockForFaction(Faction.PLAYER), false, 'cannot buy twice');
+
+      assertEqual(executeBuyMp9ForFaction(Faction.PLAYER), true);
+      assertEqual(state.player.weapon, 'mp9');
+      assertEqual(state.player.ammo, 0, 'weapons are bought empty');
+      assertEqual(state.player.spareMags, 0);
+      assertEqual(state.treasuries[Faction.PLAYER], 1000);
+      assertEqual(executeBuyMp9ForFaction(Faction.PLAYER), false, 'cannot buy twice');
+    }
+  );
+
+  withCombatState(
+    {
+      player: makePlayer({ weapon: 'none', pistolOwned: false, ammo: 0 }),
+      npcs: [
+        makeNpc({ rank: UnitRank.UNDERBOSS, faction: Faction.RIVAL_1 }),
+        makeNpc({ rank: UnitRank.BOSS, faction: Faction.RIVAL_2, weapon: 'none', pistolOwned: false }),
+      ],
+      treasuries: { [Faction.RIVAL_1]: 5000, [Faction.RIVAL_2]: 100 },
+      factionAlive: { [Faction.RIVAL_1]: true, [Faction.RIVAL_2]: true },
+    },
+    () => {
+      assertEqual(executeBuyGlockForFaction(Faction.RIVAL_1), false, 'underbosses cannot buy');
+      assertEqual(executeBuyMp9ForFaction(Faction.RIVAL_1), false, 'underbosses cannot buy');
+      assertEqual(state.npcs[0].weapon, 'pistol');
+      assertEqual(executeBuyGlockForFaction(Faction.RIVAL_2), false, 'needs $1,000');
+    }
+  );
+});
+
+test('combat: shops require the boss to stand on friendly turf', () => {
+  withCombatState(
+    {
+      world: makeWorld({ chunkFaction: Faction.RIVAL_1 }),
+      player: makePlayer({ x: 0, y: 0, weapon: 'none', pistolOwned: false, ammo: 0 }),
+      treasuries: { [Faction.PLAYER]: 10000 },
+    },
+    () => {
+      assertEqual(executeBuyArmorForFaction(Faction.PLAYER), false);
+      assertEqual(executeBuyGlockForFaction(Faction.PLAYER), false);
+      assertEqual(executeBuyAmmoForFaction(Faction.PLAYER), false);
+      assertEqual(executeBuyMp9ForFaction(Faction.PLAYER), false);
+    }
+  );
+  withCombatState(
+    {
+      player: makePlayer({ x: 0, y: 0, weapon: 'none', pistolOwned: false, ammo: 0 }),
+      treasuries: { [Faction.PLAYER]: 10000 },
+    },
+    () => {
+      assertEqual(executeBuyGlockForFaction(Faction.PLAYER), true, 'friendly turf allows shopping');
+      assertEqual(executeBuyArmorForFaction(Faction.PLAYER), true);
+    }
+  );
+});
+
+test('combat: AI boss buys Glock/ammo on home turf and MP9 after crew/turf growth', () => {
+  const world = makeWorld({ chunkFaction: Faction.RIVAL_1 });
+  world.chunks.set('1,0', { faction: Faction.RIVAL_1 });
+  world.chunks.set('2,0', { faction: Faction.RIVAL_1 });
+  const boss = makeNpc({
+    rank: UnitRank.BOSS,
+    faction: Faction.RIVAL_1,
+    weapon: 'none',
+    pistolOwned: false,
+    ammo: 0,
+    spareMags: 0,
+    pistolMags: 0,
+  });
+  withCombatState(
+    {
+      world,
+      npcs: [
+        boss,
+        makeNpc({ faction: Faction.RIVAL_1 }),
+        makeNpc({ faction: Faction.RIVAL_1 }),
+        makeNpc({ faction: Faction.RIVAL_1 }),
+        makeNpc({ faction: Faction.RIVAL_1 }),
+      ],
+      treasuries: { [Faction.RIVAL_1]: 10000 },
+      factionAlive: { [Faction.RIVAL_1]: true },
+    },
+    () => {
+      assertEqual(tryBuyNpcBossEquipment(boss), true);
+      assertEqual(boss.pistolOwned, true);
+      assertEqual(boss.pistolMags, 1, 'first 20 rounds leave one spare after the auto reload');
+      assertEqual(boss.mp9Owned, true, '5 crew and 3 blocks unlock the MP9 purchase');
+      assertEqual(boss.weapon, 'mp9');
+      assertEqual(boss.ammo, 0, 'MP9 is bought empty');
+    }
+  );
 });
 
 test('combat: faction slash delegates to boss melee and triggers the player path', () => {

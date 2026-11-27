@@ -3,6 +3,7 @@
 import { test, assert, assertEqual, assertClose } from './harness.js';
 import { Faction, UnitRank, PropType } from '../src/config/enums.js';
 import { CHUNK_SIZE, TILE_SIZE, SIM_DT, MAX_FRAME_DELTA, MAX_SIM_STEPS } from '../src/config/constants.js';
+import { MP9 } from '../src/config/balance.js';
 import { state } from '../src/core/state.js';
 import { on } from '../src/core/events.js';
 import { isSoundEnabled, setSoundEnabled } from '../src/audio/engine.js';
@@ -35,6 +36,10 @@ const STATE_KEYS = [
   'autoRecruitUnderboss',
   'playerSpawnCaps',
   'factionRecruitmentPrefs',
+  'mouseFiring',
+  'aimInside',
+  'aimWorldX',
+  'aimWorldY',
 ];
 
 function makeWorld(options = {}) {
@@ -151,6 +156,10 @@ function withSimState(opts, fn) {
   state.factionAlive = { ...saved.factionAlive, ...(opts.factionAlive || {}) };
   state.activeFactions = [...(opts.activeFactions || [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3])];
   state.keys = new Set(opts.keys || []);
+  state.mouseFiring = opts.mouseFiring ?? false;
+  state.aimInside = opts.aimInside ?? false;
+  state.aimWorldX = opts.aimWorldX ?? 0;
+  state.aimWorldY = opts.aimWorldY ?? 0;
   state.camera = { x: 0, y: 0 };
   state.gameStarted = opts.gameStarted ?? true;
   state.gameOver = false;
@@ -197,6 +206,39 @@ test('simulation: host movement, timers and HUD cadence', () => {
     updatePresentation(1 / 60);
     assert(state.camera.x > 0, 'camera should follow the boss during presentation');
   });
+});
+
+test('simulation: holding fire auto-fires only an equipped MP9', () => {
+  withSimState(
+    {
+      player: makePlayer({ weapon: 'mp9', ammo: MP9.magazine }),
+      mouseFiring: true,
+      aimInside: true,
+      aimWorldX: 400,
+      aimWorldY: 100,
+    },
+    () => {
+      update(SIM_DT);
+      assertEqual(state.player.ammo, MP9.magazine - 1, 'first held-fire step shoots');
+      assertEqual(state.player.attackCooldown, MP9.fireCooldown);
+      for (let i = 0; i < 13; i++) update(SIM_DT);
+      assertEqual(state.player.ammo, MP9.magazine - 2, 'next shot waits for the 0.1s cadence');
+    }
+  );
+
+  withSimState(
+    {
+      player: makePlayer({ weapon: 'pistol', ammo: 10 }),
+      mouseFiring: true,
+      aimInside: true,
+      aimWorldX: 400,
+      aimWorldY: 100,
+    },
+    () => {
+      for (let i = 0; i < 24; i++) update(SIM_DT);
+      assertEqual(state.player.ammo, 10, 'the pistol never auto-fires while held');
+    }
+  );
 });
 
 test('simulation: friendly turf regenerates the local boss', () => {

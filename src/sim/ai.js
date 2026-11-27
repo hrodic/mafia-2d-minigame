@@ -2,7 +2,7 @@
 // Headless gameplay logic; presentation goes through events.
 
 import { Faction, UnitRank } from '../config/enums.js';
-import { CHUNK_SIZE, CHUNK_PX, TILE_SIZE, MAX_PISTOL_RANGE } from '../config/constants.js';
+import { CHUNK_SIZE, CHUNK_PX, TILE_SIZE } from '../config/constants.js';
 import { SLASH, AI_TACTICS } from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
 import { state } from '../core/state.js';
@@ -14,10 +14,12 @@ import { progressCapture, getCapturePerTick } from './territory.js';
 import {
   hasClearShot,
   hasFriendlyInShotPath,
+  getWeaponStats,
   performBossKnifeSlash,
   performBossPistolShot,
   performSlash,
   tryBuyNpcBossArmor,
+  tryBuyNpcBossEquipment,
 } from './combat.js';
 
 /** Scan the 3x3 chunk neighbourhood for the nearest enemy and nearby counts. */
@@ -149,6 +151,12 @@ export function updateNpcAi(u, dt) {
   u.pathTimer -= dt;
   u.retreatTimer = Math.max(0, (u.retreatTimer || 0) - dt);
   u.flankTimer = Math.max(0, (u.flankTimer || 0) - dt);
+  u.shopTimer = Math.max(0, (u.shopTimer || 0) - dt);
+
+  if (u.rank === UnitRank.BOSS && !u.humanPeerId && u.shopTimer <= 0) {
+    u.shopTimer = 1;
+    tryBuyNpcBossEquipment(u);
+  }
 
   const { uCx, uCy, nearestEnemy, nearestEnemyDist, nearbyEnemyCount, nearbyAllyCount } =
     scanNearby(u);
@@ -157,8 +165,9 @@ export function updateNpcAi(u, dt) {
     tryBuyNpcBossArmor(u, nearbyEnemyCount, nearbyAllyCount);
   }
 
-  // Only bosses and underbosses carry a pistol; captains and soldiers are knife-only.
+  // Only bosses and underbosses carry a gun; captains and soldiers are knife-only.
   const isRangedShooter = u.rank === UnitRank.BOSS || u.rank === UnitRank.UNDERBOSS;
+  const rangedWeapon = isRangedShooter ? getWeaponStats(u) : null;
   const aggroRange = isRangedShooter ? 680 : 480;
   const melee = SLASH.aiMeleeByRank[u.rank] || SLASH.aiMelee;
 
@@ -209,8 +218,9 @@ export function updateNpcAi(u, dt) {
       }
     } else if (
       isRangedShooter &&
+      rangedWeapon &&
       nearestEnemyDist >= 110 &&
-      nearestEnemyDist <= MAX_PISTOL_RANGE &&
+      nearestEnemyDist <= rangedWeapon.range &&
       u.attackCooldown <= 0 &&
       (u.ammo ?? 1) > 0 &&
       !(u.reloadTimer > 0)

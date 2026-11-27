@@ -29,7 +29,7 @@ test('rng: unseeded worldgen still uses the global random source', () => {
   });
   try {
     const chunk = new DistrictChunk(0, 0, { seed: null, gridSize: 15, incomeTier: 'HIGH' });
-    assertEqual(chunk.income, 1750);
+    assertEqual(chunk.income, 1250);
   } finally {
     Object.defineProperty(Math, 'random', descriptor);
   }
