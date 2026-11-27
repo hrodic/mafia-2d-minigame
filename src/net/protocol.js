@@ -72,6 +72,8 @@ export function encodeSnapshot(state) {
     u.slashAnimTimer > 0 ? 1 : 0,
     u.muzzleFlashTimer > 0 ? 1 : 0,
     u.humanPeerId || '',
+    u.ammo ?? 0,
+    Math.round((u.reloadTimer || 0) * 10) / 10,
   ]);
 
   return {
@@ -92,6 +94,8 @@ export function encodeSnapshot(state) {
       alive: state.player.alive,
       slash: state.player.slashAnimTimer > 0 ? 1 : 0,
       shoot: state.player.muzzleFlashTimer > 0 ? 1 : 0,
+      ammo: state.player.ammo,
+      reload: Math.round((state.player.reloadTimer || 0) * 10) / 10,
     },
     chunks: chunkStates,
     npcs: npcStates,

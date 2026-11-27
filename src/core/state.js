@@ -12,6 +12,7 @@ import {
   BOSS_MAX_HP,
   INCOME_TIERS,
   MAX_BOSS_ARMOR,
+  PISTOL,
   RANK_STATS,
   UNIT_CAPS,
   clampMatchUnitCaps,
@@ -107,6 +108,8 @@ export function createGameState(config = {}) {
       slashAnimTimer: 0,
       muzzleFlashTimer: 0,
       hitFlashTimer: 0,
+      ammo: PISTOL.magazine,
+      reloadTimer: 0,
     },
     camera: {
       x: playerSpawnX,

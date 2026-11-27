@@ -127,8 +127,8 @@ test('match: active factions get starting cash, inactive slots are dead', () => 
 test('match: the player boss is reset and spawns at the top-left corner', () => {
   withMatchState(() => {
     initWorld(5, true, 10, 'HIGH', 4, ['COSA_NOSTRA', 'BRATVA', 'TRIADS', 'CARTEL'], 99);
-    assertEqual(state.player.hp, 400);
-    assertEqual(state.player.maxHp, 400);
+    assertEqual(state.player.hp, 800);
+    assertEqual(state.player.maxHp, 800);
     assertEqual(state.player.armor, 0);
     assertEqual(state.player.alive, true);
     assertEqual(state.player.attackCooldown, 0);
@@ -269,10 +269,10 @@ test('match: initWorld resets stale flags, timers, economy, caps and player stat
     assertEqual(state.factionAlive[Faction.RIVAL_1], false);
     assertEqual(state.factionKills[Faction.PLAYER], 0);
 
-    // 5x5 grid: 50 soldiers, 10 captains, 5 underbosses; human caps are 50%.
-    assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 25);
-    assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 5);
-    assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 3);
+    // 5x5 grid: 50 soldiers, 10 captains, 5 underbosses; humans start at the full ceiling too.
+    assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 50);
+    assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 10);
+    assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 5);
 
     assertEqual(state.player.x, 1.5 * TILE_SIZE);
     assertEqual(state.player.y, 1.5 * TILE_SIZE);
@@ -280,8 +280,8 @@ test('match: initWorld resets stale flags, timers, economy, caps and player stat
     assertEqual(state.player.targetY, null);
     assertEqual(state.player.path, null);
     assertEqual(state.player.pathTimer, 0);
-    assertEqual(state.player.hp, 400);
-    assertEqual(state.player.maxHp, 400);
+    assertEqual(state.player.hp, 800);
+    assertEqual(state.player.maxHp, 800);
     assertEqual(state.player.armor, 0);
     assertEqual(state.player.armorCooldown, 0);
     assertEqual(state.player.sprintTimer, 0);

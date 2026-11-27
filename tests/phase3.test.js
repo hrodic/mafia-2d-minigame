@@ -135,7 +135,7 @@ test('phase3: capture completes through the fixed update', () => {
     const chunk = state.world.getChunk(tile.cx, tile.cy);
     chunk.faction = Faction.NEUTRAL;
     chunk.capturingFaction = Faction.PLAYER;
-    chunk.captureProgress = 0.99;
+    chunk.captureProgress = 0.999;
 
     update(0.1);
 

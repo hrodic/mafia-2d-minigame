@@ -100,7 +100,7 @@ on('match:victory', ({ faction, blocks, totalBlocks, cash, crew }) => {
   sfx.playVictory();
   const meta = FACTION_META[faction];
   showVictoryBanner(
-    `All rival Supreme Leaders have been eliminated! ${meta.name} (${meta.ranks.BOSS}) rules ` +
+    `All rival Bosses have been eliminated! ${meta.name} (${meta.ranks.BOSS}) rules ` +
       `${blocks}/${totalBlocks} neighborhoods with $${cash.toLocaleString()} in cash and ` +
       `${crew} surviving crew.`
   );

@@ -184,7 +184,7 @@ test('units: clamp keeps player spawn caps within hard limits and above 1', () =
   );
 });
 
-test('units: default caps give humans half and AI the full quota', () => {
+test('units: default caps give every faction the full quota', () => {
   withUnitsState(
     {
       map: { chunks: { size: 100 } },
@@ -192,13 +192,13 @@ test('units: default caps give humans half and AI the full quota', () => {
     },
     () => {
       resetDefaultPlayerSpawnCaps();
-      assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 50);
-      assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 10);
-      assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 5);
+      assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 100);
+      assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 20);
+      assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 10);
 
       const prefs = state.factionRecruitmentPrefs;
-      assertEqual(prefs[Faction.PLAYER].caps[UnitRank.SOLDIER], 50);
-      assertEqual(prefs[Faction.RIVAL_1].caps[UnitRank.SOLDIER], 50);
+      assertEqual(prefs[Faction.PLAYER].caps[UnitRank.SOLDIER], 100);
+      assertEqual(prefs[Faction.RIVAL_1].caps[UnitRank.SOLDIER], 100);
       assertEqual(prefs[Faction.RIVAL_2].caps[UnitRank.SOLDIER], 100);
       assertEqual(prefs[Faction.RIVAL_2].caps[UnitRank.CAPTAIN], 20);
       assertEqual(prefs[Faction.RIVAL_2].caps[UnitRank.UNDERBOSS], 10);
@@ -214,22 +214,26 @@ test('units: soldiers and captains spawn with the correct stats', () => {
     assert(soldier, 'soldier should spawn on a road tile');
     assertEqual(soldier.faction, Faction.PLAYER);
     assertEqual(soldier.rank, UnitRank.SOLDIER);
-    assertEqual(soldier.hp, 180);
-    assertEqual(soldier.maxHp, 180);
-    assertEqual(soldier.minDmg, 10);
-    assertEqual(soldier.maxDmg, 18);
+    assertEqual(soldier.hp, 360);
+    assertEqual(soldier.maxHp, 360);
+    assertEqual(soldier.minDmg, 15);
+    assertEqual(soldier.maxDmg, 25);
     assertEqual(soldier.armor, 0);
     assertEqual(soldier.maxArmor, 0);
     assertEqual(soldier.bodyRadius, 11);
     assertEqual(soldier.id, 1);
+    assertEqual(soldier.ammo, undefined, 'soldiers do not carry pistol ammo');
+    assertEqual(soldier.reloadTimer, undefined, 'soldiers have no reload state');
     assertEqual(state.npcs.length, 1);
 
     const captain = spawnUnitInChunk(Faction.PLAYER, chunk, UnitRank.CAPTAIN);
-    assertEqual(captain.hp, 340);
-    assertEqual(captain.minDmg, 18);
-    assertEqual(captain.maxDmg, 28);
+    assertEqual(captain.hp, 680);
+    assertEqual(captain.minDmg, 20);
+    assertEqual(captain.maxDmg, 30);
     assertEqual(captain.bodyRadius, 12);
     assertEqual(captain.id, 2);
+    assertEqual(captain.ammo, undefined, 'captains do not carry pistol ammo');
+    assertEqual(captain.reloadTimer, undefined, 'captains have no reload state');
   });
 });
 
@@ -237,12 +241,14 @@ test('units: underbosses spawn with armor and higher damage', () => {
   withUnitsState({}, ({ map }) => {
     const chunk = map.generateChunk(0, 0);
     const underboss = spawnUnitInChunk(Faction.PLAYER, chunk, UnitRank.UNDERBOSS);
-    assertEqual(underboss.hp, 480);
+    assertEqual(underboss.hp, 960);
     assertEqual(underboss.armor, 120);
     assertEqual(underboss.maxArmor, 120);
-    assertEqual(underboss.minDmg, 26);
-    assertEqual(underboss.maxDmg, 38);
+    assertEqual(underboss.minDmg, 25);
+    assertEqual(underboss.maxDmg, 35);
     assertEqual(underboss.bodyRadius, 12.8);
+    assertEqual(underboss.ammo, 10);
+    assertEqual(underboss.reloadTimer, 0);
   });
 });
 
@@ -255,6 +261,8 @@ test('units: bosses spawn at 140 whether AI or human-controlled', () => {
     assertEqual(boss.bodyRadius, 13.5);
     assertEqual(boss.speed, 140);
     assertEqual(boss.humanPeerId, null);
+    assertEqual(boss.ammo, 10);
+    assertEqual(boss.reloadTimer, 0);
   });
   withUnitsState({ net: { getPeerForFaction: () => 'peer-x' } }, ({ map }) => {
     const chunk = map.generateChunk(14, 0);

@@ -6,6 +6,16 @@ import { state } from '../src/core/state.js';
 import { dispatchCommand } from '../src/sim/commands.js';
 import { sendOrDispatchCommand } from '../src/ui/commandBridge.js';
 
+function withFixedRandom(value, fn) {
+  const original = Math.random;
+  Math.random = () => value;
+  try {
+    return fn();
+  } finally {
+    Math.random = original;
+  }
+}
+
 const STATE_KEYS = [
   'world',
   'player',
@@ -188,18 +198,22 @@ test('commands: SHOOT routes the player and a remote faction boss', () => {
   withCommandState(
     { npcs: [makeBoss({ faction: Faction.RIVAL_2, x: 200, y: 0, hp: 100, maxHp: 100 })] },
     () => {
-      assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'SHOOT', tx: 200, ty: 0 }), true);
+      withFixedRandom(0.99, () => {
+        assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'SHOOT', tx: 200, ty: 0 }), true);
+      });
       assert(state.npcs[0].hp < 100, `target should be shot, hp=${state.npcs[0].hp}`);
-      assertEqual(state.player.attackCooldown, 0.65);
+      assertEqual(state.player.attackCooldown, 0.2);
     }
   );
 
   withCommandState(
     { player: makePlayer({ x: 200, y: 0 }), npcs: [makeBoss({ x: 0, y: 0, humanPeerId: 'peer' })] },
     () => {
-      assertEqual(dispatchCommand(Faction.RIVAL_1, { cmd: 'SHOOT', tx: 200, ty: 0 }), true);
+      withFixedRandom(0.99, () => {
+        assertEqual(dispatchCommand(Faction.RIVAL_1, { cmd: 'SHOOT', tx: 200, ty: 0 }), true);
+      });
       assert(state.player.hp < 400, `player should be shot, hp=${state.player.hp}`);
-      assertEqual(state.npcs[0].attackCooldown, 0.65);
+      assertEqual(state.npcs[0].attackCooldown, 0.2);
     }
   );
 });
@@ -320,7 +334,9 @@ test('commands: local and remote human commands produce equivalent outcomes', ()
     { npcs: [makeBoss({ faction: Faction.RIVAL_2, x: 200, y: 0, hp: 1000, maxHp: 1000 })] },
     () => {
       const target = state.npcs[0];
-      dispatchCommand(Faction.PLAYER, { cmd: 'SHOOT', tx: 200, ty: 0 });
+      withFixedRandom(0.99, () => {
+        dispatchCommand(Faction.PLAYER, { cmd: 'SHOOT', tx: 200, ty: 0 });
+      });
       local = { hit: target.hp < 1000, cooldown: state.player.attackCooldown };
     }
   );
@@ -330,14 +346,16 @@ test('commands: local and remote human commands produce equivalent outcomes', ()
       npcs: [makeBoss({ x: 0, y: 0, humanPeerId: 'peer' })],
     },
     () => {
-      dispatchCommand(Faction.RIVAL_1, { cmd: 'SHOOT', tx: 200, ty: 0 });
+      withFixedRandom(0.99, () => {
+        dispatchCommand(Faction.RIVAL_1, { cmd: 'SHOOT', tx: 200, ty: 0 });
+      });
       remote = { hit: state.player.hp < 1000, cooldown: state.npcs[0].attackCooldown };
     }
   );
   assertEqual(local.hit, true);
   assertEqual(remote.hit, true);
-  assertEqual(local.cooldown, 0.65);
-  assertEqual(remote.cooldown, 0.65);
+  assertEqual(local.cooldown, 0.2);
+  assertEqual(remote.cooldown, 0.2);
 
   withCommandState({ treasuries: { [Faction.PLAYER]: 3500 } }, () => {
     dispatchCommand(Faction.PLAYER, { cmd: 'BUY_ARMOR' });

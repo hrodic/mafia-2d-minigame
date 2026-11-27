@@ -184,7 +184,7 @@ export function drawCharacter(x, y, config) {
     ctx.fill();
   }
 
-  // Fedora Hat (Bosses & Lieutenants)
+  // Fedora Hat (Bosses & Underbosses)
   if (isBoss || isUnderboss || isCaptain) {
     ctx.fillStyle = isBoss ? '#09090b' : '#18181b';
     ctx.beginPath();
@@ -200,7 +200,7 @@ export function drawCharacter(x, y, config) {
   }
 
   // Weapon Rendering:
-  // Bosses & 2ICs have 9mm Pistol as main weapon, stow it to swing a Machete during slash,
+  // Bosses and underbosses have 9mm Pistol as main weapon, stow it to swing a Machete during slash,
   // and re-equip the pistol immediately after the slash completes.
   const hasPistolMain = isBoss || isUnderboss;
   if (isAttacking) {
@@ -253,7 +253,7 @@ export function drawCharacter(x, y, config) {
     }
     ctx.restore();
   } else {
-    // Switchblade / bat ready for Captains & Enforcers
+    // Switchblade / bat ready for Captains & Soldiers
     ctx.save();
     ctx.translate(0, -17);
     ctx.rotate(facing);

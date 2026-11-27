@@ -22,25 +22,31 @@ any intentional tuning change.
 | Max frame delta | 0.25 s |
 | Max catch-up steps | 8 |
 
-## Unit tiers
+## Unit ranks
 
-“Blade” is the per-hit melee damage range. “Capture” is chunk progress per second.
+The table uses canonical rank names. In-game, each syndicate uses its own titles (Boss →
+Don / Pakhan / Oyabun / Shan Chu / Capobastone / Patrón); the field manual lists them.
+“Blade” is the per-hit melee damage range. “Capture/tick” is chunk progress per game
+tick, scaled automatically by the configured tick length; points from multiple units stack.
 Boss armor is bought separately; Underboss starts with armor.
 
-| Rank | HP | Armor | Blade dmg | Speed | Capture/s | Radius | Hire | Upkeep/hr | Cap |
+| Rank | HP | Armor | Blade dmg | Speed | Capture/tick | Radius | Hire | Upkeep/hr | Cap |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Supreme Leader / Boss | 400 | 0 → 300 | 20–40 | 140 | 0.375 | 13.5 | — | — | 1 |
-| Second-in-Command / Underboss | 480 | 120 | 26–38 | 150 | 0.24 | 12.8 | $3,800 | $380 | ×1 grid side |
-| Middle Management / Captain | 340 | 0 | 18–28 | 150 | 0.18 | 12 | $2,200 | $220 | ×2 grid side |
-| Street Enforcers / Soldier | 180 | 0 | 10–18 | 150 | 0.12 | 11 | $1,200 | $120 | ×10 grid side |
+| Boss | 800 | 0 → 300 | 30–40 | 140 | 1 | 13.5 | — | — | 1 |
+| Underboss | 960 | 120 | 25–35 | 150 | 1 | 12.8 | $3,800 | $380 | ×1 grid side |
+| Captain | 680 | 0 | 20–30 | 150 | 0.5 | 12 | $2,200 | $220 | ×2 grid side |
+| Soldier | 360 | 0 | 15–25 | 150 | 0.2 | 11 | $1,200 | $120 | ×10 grid side |
 
 Derived notes:
 
-- Capture time alone: Boss ~2.7s · Underboss ~4.2s · Captain ~5.6s · Soldier ~8.3s.
-- HP per $1,000 hire: Soldier 150 · Captain 154.5 · Underboss 126.3.
+- Capture alone: Boss/Underboss 1 tick · Captain 2 ticks · Soldier 5 ticks. At a 15s
+  default tick that is 15 / 15 / 30 / 75 seconds.
+- Enemy turf cannot be captured while any living enemy unit stands on it; neutral turf
+  (including a defeated faction's former turf) never resists.
+- HP per $1,000 hire: Soldier 300 · Captain 309.1 · Underboss 252.6.
 - Upkeep as % of hire per hour: Soldier 10% · Captain 10% · Underboss 10%.
 
-## Tier caps
+## Rank caps
 
 Hard caps scale with the **grid side**, not the number of neighborhoods:
 
@@ -49,17 +55,17 @@ Hard caps scale with the **grid side**, not the number of neighborhoods:
 - Soldiers: `side × 10`, minimum **10**
 - Boss: always **1**
 
-| Grid | Underboss max | Captain max | Soldier max | Default slider (half) |
+| Grid | Underboss max | Captain max | Soldier max | Default slider (full) |
 |---|---:|---:|---:|---|
-| 5×5 | 5 | 10 | 50 | 3 / 5 / 25 |
-| 10×10 | 10 | 20 | 100 | 5 / 10 / 50 |
-| 15×15 | 15 | 30 | 150 | 8 / 15 / 75 |
-| 20×20 | 20 | 40 | 200 | 10 / 20 / 100 |
-| 25×25 | 25 | 50 | 250 | 13 / 25 / 125 |
+| 5×5 | 5 | 10 | 50 | 5 / 10 / 50 |
+| 10×10 | 10 | 20 | 100 | 10 / 20 / 100 |
+| 15×15 | 15 | 30 | 150 | 15 / 30 / 150 |
+| 20×20 | 20 | 40 | 200 | 20 / 40 / 200 |
+| 25×25 | 25 | 50 | 250 | 25 / 50 / 250 |
 
 Crew Limits let the player lower each maximum inside that range. Changing grid size
-resets the sliders to half of the new ceiling. Human factions start at that half quota;
-AI factions start at the full ceiling.
+resets the sliders to the full ceiling. Human and AI factions both start at the full
+ceiling; lowering the sliders is an explicit choice.
 
 ## Combat
 
@@ -68,34 +74,36 @@ AI factions start at the full ceiling.
 | Unit | Reach | Targets | Arc | Knockback | Cooldown |
 |---|---:|---:|---:|---:|---:|
 | Boss (human + AI) | 52 px | 3 | 150° | 10 | 0.8 s |
-| Tier 3 - Underboss | 50 px | 3 | 120° | 10 | 1.0 s |
-| Tier 2 - Captain | 48 px | 2 | 100° | 10 | 1.2 s |
-| Tier 1 - Soldier | 46 px | 1 | 90° | 10 | 1.5 s |
+| Underboss | 50 px | 3 | 120° | 10 | 1.0 s |
+| Captain | 48 px | 2 | 100° | 10 | 1.2 s |
+| Soldier | 46 px | 1 | 90° | 10 | 1.5 s |
 
 `arc` is stored as a fraction of 180° (a 150° cone is `150 / 360`). The cone is centered on
 facing and always applies at any distance inside reach: there is no point-blank
 forgiveness, so an enemy behind the attacker is never hit. Positioning and aim decide a
 melee fight. AI units turn to face their target before swinging. The residual slash arc
-drawn on screen uses the same per-tier value, so the visible sweep matches the hit cone.
+drawn on screen uses the same per-rank value, so the visible sweep matches the hit cone.
 
 Targets are sorted nearest-first and only the first `maxTargets` are damaged, so bosses and
 underbosses cleave up to 3, captains up to 2, and soldiers hit 1.
 
 ### 9 mm pistol
 
-Base damage **40–80**, knockback **16**, max range **1,000 px**.
-Human Boss cooldown **0.65 s**; AI pistol cooldown **1.0 s**.
+Base damage **50–80**, knockback **10–15**, max range **600 px**.
+**Bosses and underbosses** (human and AI) fire on a **0.2 s** cadence from a
+**10-round** magazine, then reload for **5 s**. Captains and soldiers are knife-only and
+carry no ammo at all. AI shooters require a clear bullet path to the target: a building or
+solid prop in the way means they hold fire instead of wasting rounds.
 
 | Distance | Damage | Hit chance |
 |---|---:|---:|
-| ≤ 50 px | 25% | 100% |
-| ≤ 100 px | 50% | 100% |
-| ≤ 250 px | 100% | 100% |
-| ≤ 500 px | 100% | 95% |
-| ≤ 750 px | 100% | 90% |
-| ≤ 900 px | 100% | 75% |
-| ≤ 1,000 px | 100% | 50% |
-| > 1,000 px | 0% | 0% |
+| ≤ 100 px | 80% | 90% |
+| ≤ 200 px | 90% | 80% |
+| ≤ 300 px | 100% | 70% |
+| ≤ 400 px | 100% | 60% |
+| ≤ 500 px | 100% | 50% |
+| ≤ 600 px | 100% | 40% |
+| > 600 px | 0% | 0% |
 
 ### Armor & sprint
 

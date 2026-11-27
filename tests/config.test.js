@@ -19,6 +19,7 @@ import {
   ALL_ORG_IDS,
   FACTION_META,
   ALL_FACTION_SLOTS,
+  RANK_LABELS,
   ensureUniqueOrgs,
   getActiveFactionSlots,
   clampFactionCount,
@@ -29,7 +30,7 @@ test('config: geometry constants are consistent', () => {
   assert(CHUNK_SIZE > 0 && TILE_SIZE > 0);
   assertEqual(DEFAULT_GRID_SIZE, 15);
   assertEqual(DEFAULT_TICK_DURATION, 10);
-  assertEqual(MAX_PISTOL_RANGE, 1000);
+  assertEqual(MAX_PISTOL_RANGE, 600);
   assertEqual(HIT_FLASH_DURATION, 0.16);
   assertEqual(SIM_DT, 1 / 120);
   assertEqual(MAX_FRAME_DELTA, 0.25);
@@ -73,6 +74,15 @@ test('config: income tiers are ordered and valid', () => {
 
 test('config: every organization is complete', () => {
   assertEqual(ALL_ORG_IDS.length, 6);
+  assertDeepEqual(RANK_LABELS, {
+    BOSS: 'Boss',
+    UNDERBOSS: 'Underboss',
+    CAPTAIN: 'Captain',
+    SOLDIER: 'Soldier',
+  });
+  assertEqual(ORGANIZATIONS.COSA_NOSTRA.ranks.BOSS, 'Don');
+  assertEqual(ORGANIZATIONS.BRATVA.ranks.BOSS, 'Pakhan');
+  assertEqual(ORGANIZATIONS.TRIADS.ranks.BOSS, 'Shan Chu');
   for (const id of ALL_ORG_IDS) {
     const org = ORGANIZATIONS[id];
     assert(org, `missing organization ${id}`);

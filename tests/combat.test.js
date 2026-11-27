@@ -6,7 +6,7 @@ import {
   BOSS_MAX_HP,
   MAX_BOSS_ARMOR,
   COST_BOSS_ARMOR,
-  UNIT_ATTACK_COOLDOWN,
+  PISTOL,
   SLASH,
 } from '../src/config/balance.js';
 import { FACTION_META } from '../src/config/organizations.js';
@@ -38,6 +38,7 @@ import {
   getPistolAccuracyInfo,
   getPistolAim,
   performBossPistolShot,
+  tickWeapon,
   damagePlayerBoss,
   executeBuyArmorForFaction,
   buyBossArmor,
@@ -46,6 +47,16 @@ import {
 } from '../src/sim/combat.js';
 
 let nextId = 1;
+
+function withFixedRandom(value, fn) {
+  const original = Math.random;
+  Math.random = () => value;
+  try {
+    return fn();
+  } finally {
+    Math.random = original;
+  }
+}
 
 function makeWorld(options = {}) {
   const walkable = options.walkable || (() => true);
@@ -103,6 +114,8 @@ function makePlayer(overrides = {}) {
     slashAnimTimer: 0,
     muzzleFlashTimer: 0,
     hitFlashTimer: 0,
+    ammo: PISTOL.magazine,
+    reloadTimer: 0,
     armorCooldown: 0,
     sprintTimer: 0,
     sprintCooldown: 0,
@@ -137,6 +150,8 @@ function makeNpc(overrides = {}) {
     slashAnimTimer: 0,
     muzzleFlashTimer: 0,
     hitFlashTimer: 0,
+    ammo: PISTOL.magazine,
+    reloadTimer: 0,
     ...overrides,
   };
 }
@@ -227,15 +242,17 @@ function withCombatState(opts, fn) {
 test('combat: accuracy bands follow distance falloff', () => {
   assertEqual(getPistolAccuracyInfo(MAX_PISTOL_RANGE + 1).failChance, 1);
   assertEqual(getPistolAccuracyInfo(MAX_PISTOL_RANGE + 1).dmgMult, 0);
-  assertEqual(getPistolAccuracyInfo(50).dmgMult, 0.25);
-  assertEqual(getPistolAccuracyInfo(99).dmgMult, 0.5);
+  assertEqual(getPistolAccuracyInfo(50).dmgMult, 0.8);
+  assertEqual(getPistolAccuracyInfo(100).dmgMult, 0.8);
+  assertEqual(getPistolAccuracyInfo(101).dmgMult, 0.9);
   const mid = getPistolAccuracyInfo(200);
-  assertEqual(mid.failChance, 0);
-  assertEqual(mid.dmgMult, 1);
-  assertEqual(getPistolAccuracyInfo(300).failChance, 0.05);
-  assertEqual(getPistolAccuracyInfo(600).failChance, 0.1);
-  assertEqual(getPistolAccuracyInfo(800).failChance, 0.25);
-  assertEqual(getPistolAccuracyInfo(950).failChance, 0.5);
+  assertEqual(mid.failChance, 0.2);
+  assertEqual(mid.dmgMult, 0.9);
+  assertEqual(getPistolAccuracyInfo(201).dmgMult, 1);
+  assertEqual(getPistolAccuracyInfo(300).failChance, 0.3);
+  assertEqual(getPistolAccuracyInfo(400).failChance, 0.4);
+  assertEqual(getPistolAccuracyInfo(500).failChance, 0.5);
+  assertEqual(getPistolAccuracyInfo(600).failChance, 0.6);
 });
 
 test('combat: damage rolls stay inside the requested range', () => {
@@ -362,7 +379,7 @@ test('combat: boss damage is absorbed by armor and death is a defeat', () => {
     assertEqual(hits[0].payload.absorbed, 40);
     assertEqual(hits[0].payload.remaining, 0);
 
-    damagePlayerBoss(500);
+    damagePlayerBoss(BOSS_MAX_HP + 100);
     assertEqual(state.player.alive, false);
     assertEqual(state.gameOver, true);
 
@@ -602,9 +619,11 @@ test('combat: rival pistol hits the player at mid range', () => {
     },
     ({ events }) => {
       const shooter = state.npcs[0];
-      assertEqual(performBossPistolShot(shooter, false, 200, 0), true);
+      withFixedRandom(0.99, () => {
+        assertEqual(performBossPistolShot(shooter, false, 200, 0), true);
+      });
       assert(state.player.hp < BOSS_MAX_HP);
-      assertEqual(shooter.attackCooldown, UNIT_ATTACK_COOLDOWN);
+      assertEqual(shooter.attackCooldown, 0.2);
       assertEqual(bulletTracers.length, 1);
       assertEqual(shellCasings.length, 1);
 
@@ -642,7 +661,9 @@ test('combat: pistol tracer starts at the muzzle and points at the aim target', 
     { npcs: [makeNpc({ faction: Faction.RIVAL_2, x: 200, y: 0, hp: 1000, maxHp: 1000 })] },
     ({ events }) => {
       const aim = getPistolAim(state.player.x, state.player.y, 200, 0);
-      performBossPistolShot(state.player, true, 200, 0);
+      withFixedRandom(0.99, () => {
+        performBossPistolShot(state.player, true, 200, 0);
+      });
       const shot = eventsOf(events, 'shot:fired')[0].payload;
       assertClose(shot.x1, aim.muzzleX);
       assertClose(shot.y1, aim.muzzleY);
@@ -677,15 +698,50 @@ test('combat: player pistol fires faster and damages rival units', () => {
     },
     ({ events }) => {
       const target = state.npcs[0];
-      assertEqual(performBossPistolShot(state.player, true, 200, 0), true);
+      withFixedRandom(0.99, () => {
+        assertEqual(performBossPistolShot(state.player, true, 200, 0), true);
+      });
       assert(target.hp < 100);
-      assertEqual(state.player.attackCooldown, 0.65);
+      assertEqual(state.player.attackCooldown, 0.2);
 
       assertEqual(eventsOf(events, 'shot:started').length, 1);
       assertEqual(eventsOf(events, 'shot:fired')[0].payload.isPlayerShooter, true);
       assertEqual(eventsOf(events, 'unit:damaged').length, 1);
     }
   );
+});
+
+test('combat: pistol fires 10 rounds on a 0.2s cadence then reloads for 5s', () => {
+  withCombatState({ player: makePlayer() }, () => {
+    const p = state.player;
+    const fire = () => performBossPistolShot(p, true, p.x + 300, p.y);
+    assertEqual(p.ammo, PISTOL.magazine);
+
+    p.attackCooldown = 0;
+    assertEqual(fire(), true);
+    assertEqual(p.attackCooldown, PISTOL.fireCooldown);
+    assertEqual(p.ammo, PISTOL.magazine - 1);
+    assertEqual(fire(), false, 'cadence must block an immediate refire');
+
+    for (let i = 0; i < PISTOL.magazine - 1; i++) {
+      p.attackCooldown = 0;
+      assertEqual(fire(), true, `shot ${i + 2} should fire`);
+    }
+    assertEqual(p.ammo, 0);
+    assertEqual(p.reloadTimer, PISTOL.reloadTime);
+    assertEqual(fire(), false, 'an empty magazine must not fire');
+
+    tickWeapon(p, PISTOL.reloadTime - 0.1);
+    assertClose(p.reloadTimer, 0.1, 1e-9);
+    assertEqual(p.ammo, 0, 'magazine refills only when the reload completes');
+
+    tickWeapon(p, 0.1);
+    assertEqual(p.reloadTimer, 0);
+    assertEqual(p.ammo, PISTOL.magazine);
+
+    p.attackCooldown = 0;
+    assertEqual(fire(), true, 'can fire again after reloading');
+  });
 });
 
 test('combat: faction slash delegates to boss melee and triggers the player path', () => {

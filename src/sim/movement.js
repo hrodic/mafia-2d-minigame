@@ -6,7 +6,7 @@ import { CHUNK_PX, SPRINT_MAX_DURATION, SPRINT_COOLDOWN_DURATION, SPRINT_SPEED_M
 import { RANK_STATS } from '../config/balance.js';
 import { state } from '../core/state.js';
 import { packChunkKey } from '../world/city.js';
-import { progressCapture, getCaptureRate } from './territory.js';
+import { progressCapture, getCapturePerTick } from './territory.js';
 import { computeTilePath } from '../world/pathfinding.js';
 
 
@@ -220,5 +220,5 @@ export function updateHumanControlledRivalBoss(bossNpc, dt) {
 
   const bTile = state.world.worldToTile(bossNpc.x, bossNpc.y);
   const currentChunk = state.world.getChunk(bTile.cx, bTile.cy);
-  progressCapture(currentChunk, bossNpc.faction, dt, getCaptureRate(bossNpc.rank));
+  progressCapture(currentChunk, bossNpc.faction, dt, getCapturePerTick(bossNpc.rank));
 }

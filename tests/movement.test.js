@@ -335,13 +335,17 @@ test('movement: a remote boss captures the chunk it stands on', () => {
   const boss = makeRemoteBoss({ x: 50, y: 50 });
   const world = makeBossWorld(Faction.NEUTRAL);
   withState(
-    basePatch({ world, player: { x: -1000, y: -1000, alive: false }, spatialBuckets: new Map() }),
+    basePatch({
+      world,
+      player: { x: -1000, y: -1000, alive: false },
+      spatialBuckets: new Map(),
+      tickDuration: 10,
+    }),
     () => {
-      updateHumanControlledRivalBoss(boss, 1);
+      updateHumanControlledRivalBoss(boss, 5);
       assertEqual(world.chunks.get('0,0').capturingFaction, Faction.RIVAL_1);
-      assertEqual(world.chunks.get('0,0').captureProgress, 0.375);
-      updateHumanControlledRivalBoss(boss, 1);
-      updateHumanControlledRivalBoss(boss, 1);
+      assertEqual(world.chunks.get('0,0').captureProgress, 0.5);
+      updateHumanControlledRivalBoss(boss, 5);
       assertEqual(world.chunks.get('0,0').faction, Faction.RIVAL_1);
     }
   );

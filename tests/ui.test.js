@@ -179,8 +179,10 @@ test('ui: hierarchy manual is a scannable rank table', async () => {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const panel = doc.getElementById('setup-panel-manual');
   assert(panel, 'field manual panel missing');
-  const table = panel.querySelector('table.manual-table');
+  const table = panel.querySelector('table.manual-rank-table');
   assert(table, 'hierarchy rank table missing');
+  assert(table.textContent.includes('Don · Pakhan'), 'rank table should keep per-syndicate titles');
+  assert(table.textContent.includes('Sottocapo · Avtoritet'), 'underboss titles missing');
   assertEqual(table.querySelectorAll('tbody tr').length, 4);
 
   const headers = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim().toLowerCase());
@@ -189,14 +191,14 @@ test('ui: hierarchy manual is a scannable rank table', async () => {
   }
 
   const text = table.textContent;
-  for (const value of ['$3,800', '$2,200', '$1,200', '480', '340', '180', '×1', '×2', '×10']) {
+  for (const value of ['$3,800', '$2,200', '$1,200', '960', '680', '360', '×1', '×2', '×10']) {
     assert(text.includes(value), `rank table should show ${value}`);
   }
 
   const css = await (await fetch('../styles.css', { cache: 'no-store' })).text();
   assert(/\.manual-table\s*\{[^}]*border-collapse/s.test(css), 'rank table styling missing');
   assert(/\.manual-table-wrap\s*\{[^}]*overflow-x:\s*auto/s.test(css), 'rank table needs horizontal fallback');
-  for (const value of ['Mobility & Capture', 'Attack Timing', '0.375 capture/s', '0.8s cooldown', '1.6× for 2.0s']) {
+  for (const value of ['Mobility & Capture', 'Attack Timing', '1 capture point/tick', '0.8s cooldown', '1.6× for 2.0s']) {
     assert(panel.textContent.includes(value), `manual should expose ${value}`);
   }
 });
@@ -233,13 +235,13 @@ test('ui: setup modal is top-aligned with a stable height', async () => {
 test('ui: hierarchy tiers use the same metals as the crew panel', async () => {
   const html = await fetchIndexHtml();
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  const table = doc.querySelector('#setup-panel-manual table.manual-table');
+  const table = doc.querySelector('#setup-panel-manual table.manual-rank-table');
   const rows = [...table.querySelectorAll('tbody tr')];
   assertEqual(rows.length, 4);
-  assert(rows[0].classList.contains('tier-diamond'), 'Supreme Leader should be diamond');
-  assert(rows[1].classList.contains('tier-gold'), 'Second-in-Command should be gold');
-  assert(rows[2].classList.contains('tier-silver'), 'Middle Management should be silver');
-  assert(rows[3].classList.contains('tier-copper'), 'Street Enforcers should be copper');
+  assert(rows[0].classList.contains('tier-diamond'), 'Boss should be diamond');
+  assert(rows[1].classList.contains('tier-gold'), 'Underboss should be gold');
+  assert(rows[2].classList.contains('tier-silver'), 'Captain should be silver');
+  assert(rows[3].classList.contains('tier-copper'), 'Soldier should be copper');
 
   const css = await (await fetch('../styles.css', { cache: 'no-store' })).text();
   const metal = (name) => css.match(new RegExp(`\\.${name}\\s*\\{([^}]*)\\}`))?.[1] || '';
@@ -259,9 +261,9 @@ test('ui: settings cards are grouped by priority with the seed last', async () =
   assertEqual(doc.getElementById('crew-limits-card').className.includes('xl:col-span-2'), true);
   const summary = doc.getElementById('match-impact-summary');
   assertEqual(summary.querySelector('.match-impact-label').textContent.trim(), 'YOUR SETUP');
-  assert(summary.querySelector('#match-impact-text').textContent.includes('Street Enforcers'));
-  assert(summary.querySelector('#match-impact-text').textContent.includes('Middle Management'));
-  assert(summary.querySelector('#match-impact-text').textContent.includes('Second-in-Command'));
+  assert(summary.querySelector('#match-impact-text').textContent.includes('Soldiers'));
+  assert(summary.querySelector('#match-impact-text').textContent.includes('Captains'));
+  assert(summary.querySelector('#match-impact-text').textContent.includes('Underbosses'));
 
   const presets = [...summary.querySelectorAll('.match-preset')];
   assertEqual(presets.length, 3);
@@ -356,6 +358,7 @@ test('ui: critical HUD values are tabular and bars are transform-driven', async 
 test('ui: action bar uses the position indicator, compact icons, larger keys and no Free text', async () => {
   const html = await fetchIndexHtml();
   assert(html.includes('<span class="action-icon">⌖</span>'), 'pistol should use U+2316 position indicator');
+  assert(html.includes('id="ammo-pistol"'), 'pistol should show bullets left');
   assert(!html.includes('>Free</span>'), 'Free action-bar labels should be removed');
 
   const cssResponse = await fetch('../styles.css', { cache: 'no-store' });

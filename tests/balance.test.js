@@ -19,7 +19,6 @@ import {
   UPKEEP_UNDERBOSS,
   BOSS_MAX_HP,
   MAX_BOSS_ARMOR,
-  UNIT_ATTACK_COOLDOWN,
   getGridUnitCaps,
   clampMatchUnitCaps,
   defaultMatchUnitCaps,
@@ -27,58 +26,58 @@ import {
 
 const EXPECTED_RANKS = {
   [UnitRank.BOSS]: {
-    hp: 400,
+    hp: 800,
     startArmor: 0,
     maxArmor: 300,
-    minDmg: 20,
+    minDmg: 30,
     maxDmg: 40,
     speedAi: 140,
     speedHuman: 140,
     speedJitter: 0,
     radius: 13.5,
-    captureRate: 0.375,
+    capturePerTick: 1,
     cost: 0,
     upkeep: 0,
   },
   [UnitRank.UNDERBOSS]: {
-    hp: 480,
+    hp: 960,
     startArmor: 120,
     maxArmor: 120,
-    minDmg: 26,
-    maxDmg: 38,
+    minDmg: 25,
+    maxDmg: 35,
     speedAi: 150,
     speedHuman: 150,
     speedJitter: 0,
     radius: 12.8,
-    captureRate: 0.24,
+    capturePerTick: 1,
     cost: 3800,
     upkeep: 380,
   },
   [UnitRank.CAPTAIN]: {
-    hp: 340,
+    hp: 680,
     startArmor: 0,
     maxArmor: 0,
-    minDmg: 18,
-    maxDmg: 28,
+    minDmg: 20,
+    maxDmg: 30,
     speedAi: 150,
     speedHuman: 150,
     speedJitter: 0,
     radius: 12,
-    captureRate: 0.18,
+    capturePerTick: 0.5,
     cost: 2200,
     upkeep: 220,
   },
   [UnitRank.SOLDIER]: {
-    hp: 180,
+    hp: 360,
     startArmor: 0,
     maxArmor: 0,
-    minDmg: 10,
-    maxDmg: 18,
+    minDmg: 15,
+    maxDmg: 25,
     speedAi: 150,
     speedHuman: 150,
     speedJitter: 0,
     radius: 11,
-    captureRate: 0.12,
+    capturePerTick: 0.2,
     cost: 1200,
     upkeep: 120,
   },
@@ -112,7 +111,7 @@ test('balance: unit caps scale by grid side and tier minimums are locked', () =>
     minUnderbosses: 1,
     minCaptains: 2,
     minSoldiers: 10,
-    humanCapFraction: 0.5,
+    humanCapFraction: 1,
   });
   assertDeepEqual(getGridUnitCaps(5), {
     maxUnderbosses: 5,
@@ -139,16 +138,15 @@ test('balance: unit caps scale by grid side and tier minimums are locked', () =>
     { maxUnderbosses: 1, maxCaptains: 2, maxSoldiers: 150 }
   );
   assertDeepEqual(defaultMatchUnitCaps(10), {
-    maxSoldiers: 50,
-    maxCaptains: 10,
-    maxUnderbosses: 5,
+    maxSoldiers: 100,
+    maxCaptains: 20,
+    maxUnderbosses: 10,
   });
   assertDeepEqual(defaultMatchUnitCaps(15), {
-    maxSoldiers: 75,
-    maxCaptains: 15,
-    maxUnderbosses: 8,
+    maxSoldiers: 150,
+    maxCaptains: 30,
+    maxUnderbosses: 15,
   });
-  assertEqual(UNIT_ATTACK_COOLDOWN, 1.0);
 });
 
 test('balance: non-boss AI ranks use 150, bosses use 140 for sprint headroom', () => {
@@ -187,25 +185,27 @@ test('balance: knife rules tier reach, targets, arcs and cooldowns', () => {
   assertEqual(SLASH.rivalBoss, undefined);
 });
 
-test('balance: pistol stats and accuracy bands are ordered and covered', () => {
-  assertEqual(PISTOL.minDmg, 40);
+test('balance: pistol stats, magazine and accuracy bands are locked', () => {
+  assertEqual(PISTOL.minDmg, 50);
   assertEqual(PISTOL.maxDmg, 80);
-  assertEqual(PISTOL.knockback, 16);
-  assertEqual(PISTOL.cooldownAi, UNIT_ATTACK_COOLDOWN);
-  assertEqual(PISTOL.cooldownHuman, 0.65);
+  assertEqual(PISTOL.knockbackMin, 10);
+  assertEqual(PISTOL.knockbackMax, 15);
+  assertEqual(PISTOL.magazine, 10);
+  assertEqual(PISTOL.fireCooldown, 0.2);
+  assertEqual(PISTOL.reloadTime, 5);
   assertEqual(PISTOL.outOfRange.failChance, 1);
   assertEqual(PISTOL.outOfRange.dmgMult, 0);
   assertEqual(PISTOL.outOfRange.label, '0% chance');
 
   const expected = [
-    [50, 0, 0.25],
-    [100, 0, 0.5],
-    [MAX_PISTOL_RANGE * 0.25, 0, 1],
-    [MAX_PISTOL_RANGE * 0.5, 0.05, 1],
-    [MAX_PISTOL_RANGE * 0.75, 0.1, 1],
-    [MAX_PISTOL_RANGE * 0.9, 0.25, 1],
-    [Infinity, 0.5, 1],
+    [100, 0.1, 0.8],
+    [200, 0.2, 0.9],
+    [300, 0.3, 1],
+    [400, 0.4, 1],
+    [500, 0.5, 1],
+    [MAX_PISTOL_RANGE, 0.6, 1],
   ];
+  assertEqual(MAX_PISTOL_RANGE, 600);
   assertEqual(PISTOL.accuracyBands.length, expected.length);
   let previous = -Infinity;
   for (let i = 0; i < expected.length; i++) {
@@ -218,9 +218,6 @@ test('balance: pistol stats and accuracy bands are ordered and covered', () => {
     previous = band.maxDist;
     assert(band.label && band.color, `band ${i} display metadata`);
     assertEqual(band.label, `${Math.round((1 - band.failChance) * 100)}% chance`, `band ${i} label`);
-  }
-  assertEqual(PISTOL.accuracyBands[0].inclusive, true);
-  for (let i = 1; i < PISTOL.accuracyBands.length; i++) {
-    assert(!PISTOL.accuracyBands[i].inclusive, `band ${i} must be exclusive`);
+    assertEqual(band.inclusive, true, `band ${i} must include its maxDist`);
   }
 });

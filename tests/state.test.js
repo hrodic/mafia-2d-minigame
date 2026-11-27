@@ -42,7 +42,7 @@ test('state: player boss starts at full health with correct base stats', () => {
   assertEqual(state.player.armor, 0);
   assertEqual(state.player.maxArmor, MAX_BOSS_ARMOR);
   assertEqual(state.player.speed, 140);
-  assertEqual(state.player.minDmg, 20);
+  assertEqual(state.player.minDmg, 30);
   assertEqual(state.player.maxDmg, 40);
   assertEqual(state.player.alive, true);
 });
@@ -83,15 +83,15 @@ test('state: match unit caps are clamped between tier minimums and the grid ceil
     maxCaptains: 20,
     maxUnderbosses: 4,
   });
-  assertEqual(fresh.playerSpawnCaps[UnitRank.SOLDIER], 40);
-  assertEqual(fresh.playerSpawnCaps[UnitRank.CAPTAIN], 10);
-  assertEqual(fresh.playerSpawnCaps[UnitRank.UNDERBOSS], 2);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.SOLDIER], 80);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.CAPTAIN], 20);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.UNDERBOSS], 4);
 });
 
 test('state: spawn caps and recruitment prefs are initialized', () => {
-  assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 75);
-  assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 15);
-  assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 8);
+  assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 150);
+  assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 30);
+  assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 15);
   for (const faction of [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3]) {
     assert(state.factionRecruitmentPrefs[faction], `missing prefs for ${faction}`);
   }
@@ -353,9 +353,9 @@ test('state factory: active factions get cash and inactive slots are zeroed', ()
 
 test('state factory: caps and recruitment preferences reset to defaults', () => {
   const fresh = createGameState();
-  assertEqual(fresh.playerSpawnCaps[UnitRank.SOLDIER], 75);
-  assertEqual(fresh.playerSpawnCaps[UnitRank.CAPTAIN], 15);
-  assertEqual(fresh.playerSpawnCaps[UnitRank.UNDERBOSS], 8);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.SOLDIER], 150);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.CAPTAIN], 30);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.UNDERBOSS], 15);
   for (const faction of [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3]) {
     const prefs = fresh.factionRecruitmentPrefs[faction];
     assert(prefs, `missing prefs for ${faction}`);

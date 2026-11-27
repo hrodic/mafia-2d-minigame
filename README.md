@@ -12,11 +12,13 @@ source module with esbuild (no bundling).
 ## Features
 
 - Procedural city of 5×5–25×25 district blocks (seeded, so multiplayer peers match).
-- 6 syndicate organizations, 2–4 per match, 4-tier hierarchy (Boss / Underboss /
-  Captain / Soldier) with per-rank costs, upkeep, caps and weapons.
+- 6 syndicate organizations, 2-4 per match, 4-rank hierarchy (Boss / Underboss /
+  Captain / Soldier) with per-syndicate titles (Don, Pakhan, Sottocapo …) and per-rank
+  costs, upkeep, caps and weapons.
 - Hourly economy: neighborhood income, crew upkeep, corruption penalties, negative cash,
   auto-recruitment and treasury.
-- Combat: knife slash (arc, up to 3 targets), 9 mm pistol with distance-based accuracy
+- Combat: knife slash (arc, up to 3 targets), 9 mm pistol for bosses/underbosses with
+  distance-based accuracy, a 10-round magazine and a 5s reload
   and damage falloff, kevlar armor, sprint.
 - Territory capture block by block; boss death eliminates a syndicate; victory/defeat
   with spectator mode.
@@ -124,8 +126,8 @@ no external relays): `tests/mp-harness.html`.
 Gameplay and feel tuning is split by concern:
 
 - **`src/config/balance.js`** — `RANK_STATS` (HP, armor, damage, AI/human speed, radius,
-  capture rate, cost/upkeep), `UNIT_CAPS`, `SLASH` (`humanBoss`/`aiBoss`/`aiMelee`/`aiMeleeByRank`),
-  `PISTOL` (damage, cooldown, knockback, accuracy bands) and `INCOME_TIERS`.
+  capture points per tick, cost/upkeep), `UNIT_CAPS`, `SLASH` (`humanBoss`/`aiBoss`/`aiMelee`/`aiMeleeByRank`),
+  `PISTOL` (damage, knockback, magazine/reload, accuracy bands) and `INCOME_TIERS`.
 - **`src/config/constants.js`** — world/map defaults, sprint tuning, pistol range, hit-flash
   duration, fixed simulation step and catch-up limits.
 - **`src/config/organizations.js`** — syndicate names, colors and rank labels.

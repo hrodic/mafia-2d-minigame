@@ -262,13 +262,34 @@ export function getPistolAim(shooterX, shooterY, targetX, targetY) {
   return { angle, centerAngle, muzzleX, muzzleY };
 }
 
+/**
+ * True when a pistol shot from `shooter` reaches the target without hitting
+ * geometry. Uses the same ray as bullets, so AI never wastes rounds on walls.
+ */
+export function hasClearShot(shooter, targetX, targetY) {
+  const dist = Math.hypot(targetX - shooter.x, targetY - shooter.y);
+  if (dist <= 0.01) return true;
+  const { angle, muzzleX, muzzleY } = getPistolAim(shooter.x, shooter.y, targetX, targetY);
+  return !traceBulletRay(muzzleX, muzzleY, angle, Math.max(1, dist - 4)).blocked;
+}
+
+/** Advance reload state; refills the magazine when the reload completes. */
+export function tickWeapon(unit, dt) {
+  if (!unit || !(unit.reloadTimer > 0)) return;
+  unit.reloadTimer = Math.max(0, unit.reloadTimer - dt);
+  if (unit.reloadTimer === 0) unit.ammo = PISTOL.magazine;
+}
+
 export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY) {
-  if (shooter.attackCooldown > 0) return false;
+  if (!shooter || shooter.attackCooldown > 0) return false;
+  if (shooter.ammo == null) shooter.ammo = PISTOL.magazine;
+  if (shooter.ammo <= 0 || (shooter.reloadTimer || 0) > 0) return false;
 
   const { angle, muzzleX, muzzleY } = getPistolAim(shooter.x, shooter.y, targetX, targetY);
   shooter.facing = angle;
-  const isHumanShooter = isPlayerShooter || Boolean(shooter.humanPeerId);
-  shooter.attackCooldown = isHumanShooter ? PISTOL.cooldownHuman : PISTOL.cooldownAi;
+  shooter.attackCooldown = PISTOL.fireCooldown;
+  shooter.ammo -= 1;
+  if (shooter.ammo <= 0) shooter.reloadTimer = PISTOL.reloadTime;
   shooter.muzzleFlashTimer = 0.09;
 
   const shooterFaction = isPlayerShooter ? Faction.PLAYER : shooter.faction;
@@ -377,8 +398,10 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
     if (bestTargetIsPlayer) {
       damagePlayerBoss(dmg, `${FACTION_META[shooterFaction].accent}`, '🔫', angle, shooterFaction);
     } else {
-      const knockX = bestTarget.x + cos * PISTOL.knockback;
-      const knockY = bestTarget.y + sin * PISTOL.knockback;
+      const knockback =
+        PISTOL.knockbackMin + Math.random() * (PISTOL.knockbackMax - PISTOL.knockbackMin);
+      const knockX = bestTarget.x + cos * knockback;
+      const knockY = bestTarget.y + sin * knockback;
       const nRad = getEntityCollisionRadius(bestTarget.rank);
       if (canOccupyPosition(knockX, knockY, nRad, bestTarget.id, false)) {
         bestTarget.x = knockX;

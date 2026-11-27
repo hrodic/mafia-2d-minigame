@@ -2,7 +2,7 @@
 
 import { UnitRank } from '../config/enums.js';
 import { INCOME_TIERS, UNIT_CAPS, clampMatchUnitCaps, defaultMatchUnitCaps, getGridUnitCaps } from '../config/balance.js';
-import { ORGANIZATIONS, ALL_ORG_IDS, ensureUniqueOrgs } from '../config/organizations.js';
+import { ORGANIZATIONS, ALL_ORG_IDS, RANK_LABELS, ensureUniqueOrgs } from '../config/organizations.js';
 import { state } from '../core/state.js';
 import { parseWorldSeed, randomWorldSeed } from '../core/rng.js';
 import { getAudioCtx } from '../audio/engine.js';
@@ -130,9 +130,29 @@ export function renderFactionSlotsUI() {
       }
     });
   });
+  renderSetupRankLabels();
 }
 
-const CAP_TIERS = [
+/** Crew-limit labels follow the host syndicate's in-world titles. */
+function renderSetupRankLabels() {
+  const org = ORGANIZATIONS[state.selectedFactionOrgs[0]] || ORGANIZATIONS.COSA_NOSTRA;
+  const rows = [
+    ['soldier', 'SOLDIER'],
+    ['captain', 'CAPTAIN'],
+    ['underboss', 'UNDERBOSS'],
+  ];
+  for (const [key, rank] of rows) {
+    const label = document.getElementById(`setup-rank-${key}`);
+    if (label) {
+      label.textContent = org.ranks[rank] || RANK_LABELS[rank];
+      label.title = `${org.name} title · ${RANK_LABELS[rank]} rank`;
+    }
+    const input = document.getElementById(`setup-cap-${key}`);
+    if (input) input.setAttribute('aria-label', `Maximum ${org.ranks[rank] || RANK_LABELS[rank]}`);
+  }
+}
+
+const CAP_RANKS = [
   { key: 'soldier', maxKey: 'maxSoldiers', min: UNIT_CAPS.minSoldiers },
   { key: 'captain', maxKey: 'maxCaptains', min: UNIT_CAPS.minCaptains },
   { key: 'underboss', maxKey: 'maxUnderbosses', min: UNIT_CAPS.minUnderbosses },
@@ -149,10 +169,10 @@ function tickSpeedLabel(seconds) {
 }
 
 function renderIncomeTier() {
-  const tier = INCOME_TIERS[state.currentIncomeTier];
-  if (!tier) return;
+  const income = INCOME_TIERS[state.currentIncomeTier];
+  if (!income) return;
   const display = document.getElementById('income-tier-display');
-  if (display) display.textContent = `$${tier.min.toLocaleString()}–$${tier.max.toLocaleString()} / tick`;
+  if (display) display.textContent = `$${income.min.toLocaleString()}–$${income.max.toLocaleString()} / tick`;
   document.querySelectorAll('.income-tier-btn').forEach((btn) => {
     const active = btn.getAttribute('data-income') === state.currentIncomeTier;
     btn.className = active
@@ -199,30 +219,30 @@ function renderSetupCapControls() {
   const n = Math.max(5, Math.min(25, Number(sizeSlider ? sizeSlider.value : 15) || 15));
   const hard = getGridUnitCaps(n);
   state.matchUnitCaps = clampMatchUnitCaps(n, state.matchUnitCaps || {});
-  for (const tier of CAP_TIERS) {
-    const input = document.getElementById(`setup-cap-${tier.key}`);
+  for (const rank of CAP_RANKS) {
+    const input = document.getElementById(`setup-cap-${rank.key}`);
     if (!input) continue;
-    const max = hard[tier.maxKey];
-    input.min = String(tier.min);
+    const max = hard[rank.maxKey];
+    input.min = String(rank.min);
     input.max = String(max);
-    input.value = String(state.matchUnitCaps[tier.maxKey]);
-    const valueEl = document.getElementById(`setup-cap-${tier.key}-value`);
-    if (valueEl) valueEl.textContent = String(state.matchUnitCaps[tier.maxKey]);
-    const maxEl = document.getElementById(`setup-cap-${tier.key}-max`);
+    input.value = String(state.matchUnitCaps[rank.maxKey]);
+    const valueEl = document.getElementById(`setup-cap-${rank.key}-value`);
+    if (valueEl) valueEl.textContent = String(state.matchUnitCaps[rank.maxKey]);
+    const maxEl = document.getElementById(`setup-cap-${rank.key}-max`);
     if (maxEl) maxEl.textContent = ` / ${max}`;
-    const ceilingEl = document.getElementById(`setup-cap-${tier.key}-ceiling`);
+    const ceilingEl = document.getElementById(`setup-cap-${rank.key}-ceiling`);
     if (ceilingEl) ceilingEl.textContent = `grid max ${max}`;
   }
   updateMatchImpactSummary();
 }
 
-/** Set one tier maximum from the setup slider, clamped to the grid ceiling. */
+/** Set one rank maximum from the setup slider, clamped to the grid ceiling. */
 export function setSetupUnitCap(key, value) {
-  const tier = CAP_TIERS.find((entry) => entry.key === key);
-  if (!tier) return;
+  const rank = CAP_RANKS.find((entry) => entry.key === key);
+  if (!rank) return;
   state.matchUnitCaps = {
     ...state.matchUnitCaps,
-    [tier.maxKey]: Number(value),
+    [rank.maxKey]: Number(value),
   };
   renderSetupCapControls();
 }
@@ -237,14 +257,14 @@ export function updateMatchImpactSummary() {
   const caps = clampMatchUnitCaps(n, state.matchUnitCaps || {});
   const tickSlider = document.getElementById('tick-speed-slider');
   const tick = Math.max(10, Math.min(30, Number(tickSlider ? tickSlider.value : 10) || 10));
-  const tier = INCOME_TIERS[state.currentIncomeTier] || INCOME_TIERS.HIGH;
+  const income = INCOME_TIERS[state.currentIncomeTier] || INCOME_TIERS.HIGH;
   const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
   const textEl = document.getElementById('match-impact-text') || el;
   textEl.textContent =
-    `${total} neighborhoods · ${plural(caps.maxSoldiers, 'Street Enforcer', 'Street Enforcers')} · ` +
-    `${plural(caps.maxCaptains, 'Middle Management', 'Middle Management')} · ` +
-    `${plural(caps.maxUnderbosses, 'Second-in-Command', 'Second-in-Command')} · ` +
-    `${tick}s ticks · $${tier.min.toLocaleString()}–$${tier.max.toLocaleString()}/tick`;
+    `${total} neighborhoods · ${plural(caps.maxSoldiers, 'Soldier', 'Soldiers')} · ` +
+    `${plural(caps.maxCaptains, 'Captain', 'Captains')} · ` +
+    `${plural(caps.maxUnderbosses, 'Underboss', 'Underbosses')} · ` +
+    `${tick}s ticks · $${income.min.toLocaleString()}–$${income.max.toLocaleString()}/tick`;
   syncPresetButtons();
 }
 
@@ -294,9 +314,9 @@ export function updateMapSizePreview(val) {
   const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
   document.getElementById('map-cap-preview').innerHTML =
     `<span>${total} neighborhoods</span>` +
-    `<span class="font-mono text-emerald-400">Max: ${plural(caps.maxSoldiers, 'Street Enforcer', 'Street Enforcers')} · ` +
-    `${plural(caps.maxCaptains, 'Middle Management', 'Middle Management')} · ` +
-    `${plural(caps.maxUnderbosses, 'Second-in-Command', 'Second-in-Command')}</span>`;
+    `<span class="font-mono text-emerald-400">Max: ${plural(caps.maxSoldiers, 'Soldier', 'Soldiers')} · ` +
+    `${plural(caps.maxCaptains, 'Captain', 'Captains')} · ` +
+    `${plural(caps.maxUnderbosses, 'Underboss', 'Underbosses')}</span>`;
 
   document.querySelectorAll('.size-preset-btn').forEach((btn) => {
     const active = Number(btn.getAttribute('data-size')) === n;
@@ -390,11 +410,11 @@ document.querySelectorAll('.size-preset-btn').forEach((btn) => {
   });
 });
 
-for (const tier of CAP_TIERS) {
-  const input = document.getElementById(`setup-cap-${tier.key}`);
+for (const rank of CAP_RANKS) {
+  const input = document.getElementById(`setup-cap-${rank.key}`);
   if (!input) continue;
   input.addEventListener('input', () => {
-    setSetupUnitCap(tier.key, input.value);
+    setSetupUnitCap(rank.key, input.value);
     if (state.net && state.net.mode === 'HOST') state.net.broadcastHostLobbyState();
   });
 }

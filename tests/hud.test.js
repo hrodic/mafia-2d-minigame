@@ -101,8 +101,8 @@ test('hud: updateHUD writes HP, armor, cash, clock and territory stats', () => {
     },
     () => {
       updateHUD();
-      assertEqual(document.getElementById('hp-text').textContent, '200/400');
-      assertEqual(document.getElementById('hp-bar-fill').style.transform, 'scaleX(0.5)');
+      assertEqual(document.getElementById('hp-text').textContent, '200/800');
+      assertEqual(document.getElementById('hp-bar-fill').style.transform, 'scaleX(0.25)');
       assertEqual(document.getElementById('hp-bar-fill').style.width, '');
       assertEqual(document.getElementById('armor-text').textContent, '100');
       assert(!document.getElementById('armor-hud-box').classList.contains('hidden'));
@@ -236,7 +236,7 @@ test('hud: armor hides when depleted and sprint states are labelled', () => {
 test('hud: a dead local boss shows zero HP and no armor', () => {
   withHudState({ player: makePlayer({ alive: false, hp: 0, armor: 100 }) }, () => {
     updateHUD();
-    assertEqual(document.getElementById('hp-text').textContent, '0/400');
+    assertEqual(document.getElementById('hp-text').textContent, '0/800');
     assert(document.getElementById('armor-hud-box').classList.contains('hidden'));
   });
 });

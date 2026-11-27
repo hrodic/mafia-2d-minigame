@@ -31,6 +31,8 @@ function npc(overrides = {}) {
     faction: Faction.RIVAL_1,
     rank: UnitRank.SOLDIER,
     bodyRadius: 11,
+    ammo: 10,
+    reloadTimer: 0,
     ...overrides,
   };
 }
@@ -160,6 +162,115 @@ test('ai: melee soldier attacks an adjacent player with accent color and full co
     unsubscribe();
     unsubscribeHit();
   }
+});
+
+function pistolTestWorld() {
+  return {
+    chunks: new Map(),
+    isWalkable: () => true,
+    isTileNavigable: () => true,
+    canMoveTo: () => true,
+    worldToTile: () => ({ cx: 0, cy: 0, lx: 0, ly: 0 }),
+    getChunk: () => ({
+      faction: Faction.NEUTRAL,
+      props: [[0]],
+      propVertical: [[0]],
+      propCurbSide: [[0]],
+    }),
+    findNearestWalkablePoint: (x, y) => ({ x, y }),
+  };
+}
+
+function walledPistolTestWorld() {
+  return { ...pistolTestWorld(), isWalkable: (x) => x >= 100 };
+}
+
+function pistolTestPlayer() {
+  return {
+    id: 0,
+    faction: Faction.PLAYER,
+    rank: UnitRank.BOSS,
+    control: 'local',
+    bodyRadius: 13.5,
+    x: 200,
+    y: 0,
+    hp: 400,
+    maxHp: 400,
+    armor: 0,
+    alive: true,
+    facing: 0,
+    hitFlashTimer: 0,
+  };
+}
+
+function remoteUnit(rank, id = 42) {
+  return npc({
+    id,
+    rank,
+    x: 0,
+    y: 0,
+    hp: 180,
+    maxHp: 180,
+    attackCooldown: 0,
+    aiTimer: 1,
+    pathTimer: 1,
+    goalX: 0,
+    goalY: 0,
+    dodgeDir: 1,
+  });
+}
+
+test('ai: only bosses and underbosses fire the pistol', () => {
+  for (const rank of [UnitRank.BOSS, UnitRank.UNDERBOSS]) {
+    const unit = remoteUnit(rank);
+    withAiState(
+      {
+        world: pistolTestWorld(),
+        player: pistolTestPlayer(),
+        npcs: [unit],
+        spatialBuckets: new Map([[packChunkKey(0, 0), [unit]]]),
+      },
+      () => {
+        updateNpcAi(unit, 0.016);
+        assertEqual(unit.ammo, 9, `${rank} should spend one round`);
+        assertEqual(unit.attackCooldown, 0.2, `${rank} should start the fire cadence`);
+      }
+    );
+  }
+
+  for (const rank of [UnitRank.CAPTAIN, UnitRank.SOLDIER]) {
+    const unit = remoteUnit(rank);
+    withAiState(
+      {
+        world: pistolTestWorld(),
+        player: pistolTestPlayer(),
+        npcs: [unit],
+        spatialBuckets: new Map([[packChunkKey(0, 0), [unit]]]),
+      },
+      () => {
+        updateNpcAi(unit, 0.016);
+        assertEqual(unit.ammo, 10, `${rank} must not fire`);
+        assertEqual(unit.attackCooldown, 0, `${rank} must not start a shot cooldown`);
+        assertEqual(state.player.hp, 400, `${rank} must not damage the player at range`);
+      }
+    );
+  }
+
+  const blocked = remoteUnit(UnitRank.UNDERBOSS, 44);
+  withAiState(
+    {
+      world: walledPistolTestWorld(),
+      player: pistolTestPlayer(),
+      npcs: [blocked],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [blocked]]]),
+    },
+    () => {
+      updateNpcAi(blocked, 0.016);
+      assertEqual(blocked.ammo, 10, 'a building between shooter and target must block the shot');
+      assertEqual(blocked.attackCooldown, 0, 'blocked line of sight must not start a cooldown');
+      assertEqual(state.player.hp, 400, 'blocked line of sight must not damage the player');
+    }
+  );
 });
 
 test('ai: patrol falls back to any non-owned chunk', () => {

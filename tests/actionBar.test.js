@@ -25,6 +25,8 @@ function withActionState(opts, fn) {
     sprintCooldown: opts.sprintCooldown ?? 0,
     sprintTimer: opts.sprintTimer ?? 0,
     isSprinting: opts.isSprinting ?? false,
+    ammo: opts.ammo ?? 10,
+    reloadTimer: opts.reloadTimer ?? 0,
   };
   try {
     return fn();
@@ -73,6 +75,34 @@ test('action bar: ready abilities clear progress, expose costs and affordable ar
     assert(!$('btn-sprint').classList.contains('is-disabled'), 'sprint ready');
     assertEqual(progress('cooldown-sprint'), 0);
     assertEqual($('btn-sprint').dataset.state, 'ready');
+  });
+});
+
+test('action bar: pistol shows bullets left and the reload state', () => {
+  withActionState({ ammo: 7 }, () => {
+    updateActionBar();
+    assertEqual($('ammo-pistol').textContent, '7');
+    assertEqual($('action-status-pistol').textContent, 'READY');
+    assert(!$('btn-pistol').classList.contains('is-disabled'), 'pistol ready with ammo');
+  });
+  withActionState({ ammo: 2 }, () => {
+    updateActionBar();
+    assertEqual($('ammo-pistol').textContent, '2');
+    assert($('ammo-pistol').classList.contains('is-low'), 'low ammo should be highlighted');
+  });
+  withActionState({ ammo: 0, reloadTimer: 3 }, () => {
+    updateActionBar();
+    assertEqual($('ammo-pistol').textContent, '0');
+    assert($('ammo-pistol').classList.contains('is-reloading'));
+    assertEqual($('action-label-pistol').textContent, 'RELOADING');
+    assertEqual($('action-status-pistol').textContent, '3.0s');
+    assert(progress('cooldown-pistol') > 0, 'reload progress should fill the button');
+    assertEqual($('btn-pistol').dataset.state, 'cooldown');
+    assert($('btn-pistol').classList.contains('is-disabled'), 'reloading disables the pistol');
+  });
+  withActionState({ ammo: 10 }, () => {
+    updateActionBar();
+    assertEqual($('action-label-pistol').textContent, 'Pistol');
   });
 });
 
