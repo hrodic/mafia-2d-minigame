@@ -125,6 +125,11 @@ install or TypeScript build step is added.
 Manual checklist: `tests/SMOKE.md`. Deterministic two-tab multiplayer testing (local bus,
 no external relays): `tests/mp-harness.html`.
 
+Longer standalone check (not part of the PASS suite): `tests/long-sim.html` runs 120
+simulated seconds in Turbo mode with a patrolling, auto-shopping player (Glock, ammo,
+Kevlar, MP9 after 90s) and reports world/faction/boss sanity. **Run it at least once before
+pushing every MINOR version bump** and confirm `PASS`.
+
 ## Tech
 
 - Vanilla JavaScript ES modules, Canvas 2D rendering, Tailwind CSS via CDN.
@@ -178,3 +183,4 @@ Multiplayer requires both peers to run the same version.
 
 The in-game **☕ Tip me** button in the top bar opens the Ko-fi popup. If the widget is
 unavailable it falls back to [ko-fi.com/hrodic](https://ko-fi.com/hrodic).
+

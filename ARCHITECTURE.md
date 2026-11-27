@@ -91,7 +91,9 @@ tests/
   tests.html               zero-dependency test runner page
   harness.js               test/assert helpers + results UI
   *.test.js                suites (config, state, world, sim, render, UI, net-adjacent)
+  simulation-integration.test.js  real-map fixed-step integration suites
   mp-harness.html          iframe harness that forces the same-origin local bus
+  long-sim.html            standalone 120s turbo simulation (not in the PASS suite)
   SMOKE.md                 manual smoke checklist (per commit / per phase)
 docs/                      generated GitHub Pages artifact (never hand-edit)
 tools/
@@ -445,6 +447,11 @@ distance from the camera.
   so render/HUD/menu tests can run headlessly. State is saved/restored per test.
 - `tests/mp-harness.html` embeds the game in an iframe to force the local bus; open it in
   two tabs for deterministic host/guest testing without external relays.
+- `tests/long-sim.html` is a standalone, slower sanity page: it runs 120 simulated seconds
+  in Turbo mode (10×10, 10 s ticks, High income, 14,400 fixed steps) with a patrolling,
+  auto-shopping player (Glock, ammo, Kevlar, MP9 after 90 s), and reports unit/faction/boss
+  and world sanity. It is not part of `tests.html`; open it directly to run a longer
+  headless game. Run it at least once before pushing each MINOR version bump.
 - Coverage includes config/RNG, transport API normalization (Trystero 0.27 vs local bus),
   protocol envelope/version/snapshot encoding, lobby seats/capacity/rosters, lobby DOM
   rendering/safe names, guest handshake/init routing, snapshot apply reuse/create/remove,
@@ -501,3 +508,4 @@ distance from the camera.
   FUTURE in `PLAN.md`.
 
 See `PLAN.md` for phase history and future ideas; `AGENTS.md` for the workflow contract.
+

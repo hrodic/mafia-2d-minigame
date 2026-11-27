@@ -62,6 +62,9 @@ Run these before every commit:
 - `1.0.0` is the first stable release; while `0.x`, breaking changes may still land in a
   MINOR.
 - Peers must run the same `GAME_VERSION`: it gates the multiplayer handshake.
+- **Before pushing a MINOR version bump**, run the standalone 120s Turbo simulation in
+  `tests/long-sim.html` at least once and confirm `PASS`. It is recommended as the release
+  sanity check for each MINOR bump.
 
 ## Commands (Windows/PowerShell; `python`/`node` not assumed)
 
@@ -76,6 +79,7 @@ Run these before every commit:
 | Single-player smoke | `http://localhost:8123/` |
 | Built artifact smoke | `http://localhost:8123/docs/` |
 | Multiplayer smoke | `tests/mp-harness.html` in two tabs |
+| 120s turbo simulation | `http://localhost:8123/tests/long-sim.html` (standalone) |
 | Manual checklist | `tests/SMOKE.md` |
 
 ## Verification (after every change)
@@ -92,6 +96,8 @@ Run these before every commit:
 7. Added a test file? Register it in `tests/runner.js`; the check script enforces this.
 8. Golden test failed after a refactor? Generation broke. Fix the code; update
    `tests/world-golden.test.js` hashes only for an intentional generation change.
+9. Before pushing a MINOR version bump, run `tests/long-sim.html` (120s Turbo) once and
+   confirm `PASS` alongside the normal gates.
 
 ## Where to change what
 
@@ -166,3 +172,4 @@ Run these before every commit:
 
 Static check OK, tests `PASS`, smoke clean, docs updated if structure changed, version
 bumped per policy. Report changed files and verification results. Do not commit.
+

@@ -1,10 +1,11 @@
-// Phase 3 integration smoke: fixed-step headless simulation, tick/capture math,
-// boss elimination and the no-allocation local-boss fallback.
+﻿// Simulation integration tests: long fixed-step run, unit/tick sanity, capture and
+// boss elimination. These use a real CityMap and initWorld rather than the focused
+// per-module fixtures in simulation.test.js.
 import { test, assert, assertEqual } from './harness.js';
 import { Faction, UnitRank } from '../src/config/enums.js';
 import { SIM_DT } from '../src/config/constants.js';
 import { FACTION_META } from '../src/config/organizations.js';
-import { state, getLocalBoss } from '../src/core/state.js';
+import { state } from '../src/core/state.js';
 import { CityMap } from '../src/world/city.js';
 import { initWorld } from '../src/sim/match.js';
 import { update } from '../src/sim/simulation.js';
@@ -51,7 +52,7 @@ const STATE_KEYS = [
 
 const ORGS = ['COSA_NOSTRA', 'BRATVA', 'TRIADS', 'CARTEL'];
 
-function withPhase3State(fn) {
+function withIntegrationState(fn) {
   const saved = {};
   for (const key of STATE_KEYS) saved[key] = state[key];
   const savedMeta = {};
@@ -75,7 +76,7 @@ function withPhase3State(fn) {
   }
 }
 
-function startMatch(seed, factionCount = 4) {
+function startIntegrationMatch(seed, factionCount = 4) {
   initWorld(5, true, 10, 'HIGH', factionCount, ORGS, seed);
   state.net = null;
   state.autoRecruitSoldier = false;
@@ -93,9 +94,9 @@ function assertFiniteUnit(unit) {
   assert(Number.isFinite(unit.sprintCooldown), `unit ${unit.id} has non-finite sprint cooldown`);
 }
 
-test('phase3: 600 fixed steps stay finite, walkable and tick-correct', () => {
-  withPhase3State(() => {
-    startMatch(4242, 4);
+test('integration: 600 fixed steps keep units valid, walkable and shop-active', () => {
+  withIntegrationState(() => {
+    startIntegrationMatch(4242, 4);
 
     for (let i = 0; i < 600; i++) update(SIM_DT);
 
@@ -107,6 +108,23 @@ test('phase3: 600 fixed steps stay finite, walkable and tick-correct', () => {
         `unit ${unit.id} left the walkable map at ${unit.x.toFixed(1)},${unit.y.toFixed(1)}`
       );
     }
+
+    const rivalBosses = state.npcs.filter((unit) => unit.rank === UnitRank.BOSS);
+    assert(rivalBosses.length > 0, 'expected at least one rival boss');
+    for (const boss of rivalBosses) {
+      assertEqual(boss.weapon, 'pistol', `${boss.faction} boss should buy the Glock`);
+      assertEqual(boss.pistolOwned, true, `${boss.faction} boss Glock ownership`);
+      assert(
+        boss.ammo > 0 || (boss.reloadTimer || 0) > 0,
+        `${boss.faction} boss should buy ammo and reload`
+      );
+    }
+
+    for (const faction of state.activeFactions) {
+      assert(Number.isFinite(state.treasuries[faction]), `${faction} treasury is not finite`);
+    }
+    assertEqual(state.player.weapon, 'none', 'idle player buys nothing automatically');
+    assertEqual(state.player.pistolOwned, false);
     assert(Number.isFinite(state.tickTimer));
     assert(Math.abs(state.tickTimer - 5) < 0.05, `tickTimer=${state.tickTimer}`);
     assertEqual(state.gameHour, 19);
@@ -114,23 +132,9 @@ test('phase3: 600 fixed steps stay finite, walkable and tick-correct', () => {
   });
 });
 
-test('phase3: tick timer wraps and fires the hourly tick', () => {
-  withPhase3State(() => {
-    startMatch(5150, 4);
-    state.tickTimer = 9.99;
-    state.gameHour = 12;
-
-    update(0.02);
-
-    assertEqual(state.gameHour, 13);
-    assert(state.tickTimer < state.tickDuration, `tickTimer=${state.tickTimer}`);
-    assert(state.tickTimer >= 0);
-  });
-});
-
-test('phase3: capture completes through the fixed update', () => {
-  withPhase3State(() => {
-    startMatch(777, 2);
+test('integration: capture completes through the fixed update', () => {
+  withIntegrationState(() => {
+    startIntegrationMatch(777, 2);
     const tile = state.world.worldToTile(state.player.x, state.player.y);
     const chunk = state.world.getChunk(tile.cx, tile.cy);
     chunk.faction = Faction.NEUTRAL;
@@ -145,9 +149,9 @@ test('phase3: capture completes through the fixed update', () => {
   });
 });
 
-test('phase3: killing a rival boss eliminates its faction', () => {
-  withPhase3State(() => {
-    startMatch(999, 4);
+test('integration: killing a rival boss eliminates its faction', () => {
+  withIntegrationState(() => {
+    startIntegrationMatch(999, 4);
     const boss = state.npcs.find((n) => n.rank === UnitRank.BOSS);
     assert(boss, 'expected a rival boss');
     const faction = boss.faction;
@@ -160,3 +164,4 @@ test('phase3: killing a rival boss eliminates its faction', () => {
     assert(!state.npcs.includes(boss), 'dead boss should leave the roster');
   });
 });
+
