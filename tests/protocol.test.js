@@ -29,6 +29,8 @@ function makeState() {
       alive: true,
       slashAnimTimer: 0.1,
       muzzleFlashTimer: 0,
+      ammo: 7,
+      reloadTimer: 2.34,
     },
     world: {
       chunks: new Map([
@@ -51,6 +53,8 @@ function makeState() {
         slashAnimTimer: 0,
         muzzleFlashTimer: 0.05,
         humanPeerId: 'peer1',
+        ammo: 3,
+        reloadTimer: 4.06,
       },
       {
         id: 'u2',
@@ -66,6 +70,8 @@ function makeState() {
         slashAnimTimer: 0.2,
         muzzleFlashTimer: 0,
         humanPeerId: null,
+        ammo: 10,
+        reloadTimer: 0,
       },
     ],
   };
@@ -121,6 +127,8 @@ test('protocol: encodeSnapshot rounds and preserves the wire arrays', () => {
     alive: true,
     slash: 1,
     shoot: 0,
+    ammo: 7,
+    reload: 2.3,
   });
 
   assertDeepEqual(snap.chunks, [
@@ -128,8 +136,8 @@ test('protocol: encodeSnapshot rounds and preserves the wire arrays', () => {
     [2, 3, 'NEUTRAL', 0, ''],
   ]);
   assertDeepEqual(snap.npcs, [
-    ['u1', 'RIVAL_1', 'BOSS', 1.3, 2.3, -0.5, 49, 50, 0, 100, 0, 1, 'peer1'],
-    ['u2', 'PLAYER', 'SOLDIER', 3, 4, 0, 10, 10, 5, 5, 1, 0, ''],
+    ['u1', 'RIVAL_1', 'BOSS', 1.3, 2.3, -0.5, 49, 50, 0, 100, 0, 1, 'peer1', 3, 4.1],
+    ['u2', 'PLAYER', 'SOLDIER', 3, 4, 0, 10, 10, 5, 5, 1, 0, '', 10, 0],
   ]);
 });
 

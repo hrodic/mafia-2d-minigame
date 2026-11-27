@@ -51,6 +51,7 @@ src/
     commands.js            dispatchCommand: local + remote action entry point
   net/
     transport.js           Trystero 0.27 loader + curated Nostr relays + local bus
+    invite.js              short invite code formatting/parsing + fragment links
     protocol.js            message types, versioned envelope, snapshot encode/decode
     lobby.js               UI-agnostic seats, capacity and roster snapshots
     guest.js               guest join/lobby/snapshot/input controller
@@ -139,7 +140,8 @@ inside functions called after module evaluation (never at top level).
    timer without rendering; rAF resumes and the accumulator resets when visible. Guests
    never simulate. Browsers may still throttle background timers.
 6. Boots UI/input (`applyVersionLabels`, `initMenus`, `initInput`) and setup renderers.
-7. Detects `?room=&secret=` invite URLs and pre-fills the join panel.
+7. Reads short invite codes from the URL fragment (`#code=...`) and legacy
+   `?room=&secret=` links, then pre-fills the join panel.
 
 ### Net bridge
 
@@ -185,7 +187,7 @@ exported singleton with `Object.assign` — importers keep the same identity, an
 The match state holds:
 
 - world/entities: `world`, `npcs`, `floatingTexts`, `spatialBuckets`, `nextNpcId`
-- factions/economy: `treasuries`, `factionAlive`, `factionKills`
+- factions/economy: `treasuries`, `factionAlive`, `factionKills`, `factionDeaths`
 - local boss: `player` (unit identity fields `id`/`faction`/`rank`/`control`/`bodyRadius`),
   `camera`, `mouse`, `keys`
 - match config: `activeFactions`, `selectedFactionOrgs`, `activeFactionCount`,
@@ -246,7 +248,8 @@ transitions only, never positions, timers or per-NPC updates.
 
 ### AI
 `sim/ai.js`: `scanNearby` (nearest enemy + ally/enemy counts in the 3×3 spatial buckets),
-boss armor purchase, melee/pistol attacks, `choosePatrolChunk` (nearest non-owned chunk with
+boss armor purchase, melee for every rank and pistol fire for bosses/underbosses when the
+bullet path is clear (`hasClearShot`), `choosePatrolChunk` (nearest non-owned chunk with
 a global fallback), A* path following/steering, obstacle dodge and capture. `updateNpcAi(u,
 dt)` is headless; remote-human bosses bypass it. `simulation.js` remains the fixed-step
 orchestration loop; presentation is separate.
@@ -257,44 +260,51 @@ orchestration loop; presentation is separate.
 `sim/units.js` owns per-rank caps scaled by the grid side (underbosses ×1, captains ×2,
 soldiers ×10; selectable minimums 1/2/10), unit stat tables (inline ternaries today),
 spawning near the boss/owned turf, and recruitment (cost, caps, treasury, cached counts).
-Setup lets the player lower each tier's maximum under the grid ceiling; `state.matchUnitCaps`
+Setup lets the player lower each rank's maximum under the grid ceiling; `state.matchUnitCaps`
 carries that choice into the match and multiplayer host/guest init. Caps clamp player and
-remote-human preferences to the configured range; defaults give human factions 50% and AI
-the full quota. It emits `unit:recruited`;
+remote-human preferences to the configured range; every faction (human or AI) starts at the
+full quota until the player lowers a slider. It emits `unit:recruited`;
 `render/recruitFx.js` draws the `+RANK ($cost)` text. Rival bosses controlled by a human
 peer have `humanPeerId`; all bosses use speed `140` (AI and human), while non-boss AI ranks
-use `150`. Same-faction units may push through each other (boss included); other factions
+use their per-rank speeds (`150` Underboss, `160` Captain, `170` Soldier). Same-faction units may push through each other (boss included); other factions
 always collide.
 
 ### Combat
 `sim/combat.js`: one armor→HP damage pipeline for units and the player
 (`damagePlayerBoss` delegates to `applyDamageToNpc`), death/elimination, one
-`performSlash` pipeline with player/rival/AI wrappers that preserve their
-arc/knockback/cooldown differences, a pistol raycast with distance accuracy bands and
+`performSlash` pipeline with player/rival/AI wrappers that share one knockback while
+keeping per-rank reach, arc and cooldowns, a pistol raycast with distance accuracy/damage
+bands and magazine reload, a per-hit critical roll (5% base, +15% from the rear cone, 2×
+damage), and
 point-blank damage falloff, and armor purchases (player, rival AI). It emits facts only;
 `render/combatFx.js` draws blood/corpses/text/arcs/tracers and `audio/combatSfx.js` plays
 the combat SFX. The host's `shot:fired` subscriber broadcasts ephemeral tracers to guests.
 
 ### Economy
-`sim/economy.js`: income totals from owned chunks, upkeep per unit, the hourly tick
-(pay net, auto-recruit underbosses/captains/soldiers within caps), skipping dead factions.
-It emits `hour:tick` with `{ hour, income, upkeep, treasuries }`; the HUD subscribes.
+`sim/economy.js`: income totals from owned chunks, corruption penalties (1% per 10
+neighborhoods and 1% per 25 living units), upkeep per unit, the hourly tick (pay effective
+income minus upkeep, auto-recruit underbosses/captains/soldiers within caps), skipping dead
+factions. It emits `hour:tick` with `{ hour, income, grossIncome, corruption, upkeep,
+treasuries }`; the HUD subscribes.
 
 ### Territory
-`sim/territory.js`: capture starts/resets/completes at rank-based rates
-(boss .375/s → soldier .12/s), neutralizes a dead faction's turf, and emits
-`chunk:captured`, `faction:eliminated`, `match:victory` or `match:defeat`.
+`sim/territory.js`: capture starts/resets/completes at rank-based points per tick
+(Boss/Underboss 1 → Captain .5 → Soldier .2, scaled by the configured tick length and
+stacked across units), blocks capture while living enemies stand on enemy turf, neutralizes
+a dead faction's turf, and emits `chunk:captured`, `faction:eliminated`, `match:victory` or
+`match:defeat`.
 `render/territoryFx.js` draws the turf label/radar refresh; HUD, banners, SFX and toasts
 subscribe in `main.js`.
 
 ### Balance data
 `config/balance.js` is the gameplay tuning surface: `RANK_STATS` (HP, armor, damage,
-AI/human speed, radius, capture rate, cost/upkeep), `UNIT_CAPS`, `SLASH` profiles, and
+AI/human speed, radius, capture points per tick, cost/upkeep), `UNIT_CAPS`, `CORRUPTION`, `SLASH`
+profiles, and
 `PISTOL` stats + accuracy bands. `config/constants.js` owns world/map defaults, sprint,
-pistol range, hit flash, the fixed sim step and catch-up limits. Non-boss AI ranks share a
-`150` base speed; bosses use `140` for both AI and human control, so sprint is the boss
-mobility advantage. Local and remote humans share one `SLASH.humanBoss` profile, while AI
-keeps its own no-arc/longer-cooldown profiles. The local player's HP, damage, speed and
+pistol range, hit flash, the fixed sim step and catch-up limits. Non-boss AI ranks use
+their rank speed (Underboss `150`, Captain `160`, Soldier `170`); bosses use `140` for both AI and human control, so sprint is the boss
+mobility advantage. Local and remote humans and AI bosses share one `SLASH.humanBoss`/`SLASH.aiBoss`
+rule set; crew melee reads `SLASH.aiMeleeByRank` for per-rank reach, arc and cooldown. The local player's HP, damage, speed and
 radius derive from `RANK_STATS.BOSS`. Systems read the tables at spawn/attack time and copy
 derived stats onto units (state is snapshotted). Presentation feel and AI decision
 thresholds are deliberately not here.
@@ -307,7 +317,9 @@ controllers live in their own modules):
 - **Transport (`net/transport.js`):** Trystero 0.27 (`@trystero-p2p/nostr`, or `mqtt` as a
   CDN fallback) for cross-machine WebRTC, plus a same-origin **BroadcastChannel +
   localStorage bus** for multi-tab play and embedded iframes. Trystero uses only public
-  Nostr relays for signaling; gameplay traffic stays peer-to-peer.
+  Nostr relays for signaling; gameplay traffic stays peer-to-peer. The app id is a stable
+  reverse-domain namespace (`io.github.hrodic.mafia2d`); short invite codes are parsed by
+  `net/invite.js` and secrets travel in the URL fragment, never the HTTP query.
 - **Protocol (`net/protocol.js`):** message type constants, the versioned envelope/version
   gate, and snapshot encode/decode. The wire shape is unchanged; the module has no state
   mutation or presentation imports.
@@ -380,12 +392,12 @@ distance from the camera.
 
 ## UI
 
-- `ui/hud.js`: primary boss/economy status, collapsible crew management panel (caps,
-  recruit costs, turf/crew/gross/upkeep/net totals), collapsible faction leaderboard
+- `ui/hud.js`: primary boss/economy status, collapsible crew management panel (per-rank
+  living counts, caps, recruit costs, turf/crew/gross/upkeep/net totals), collapsible faction leaderboard
   (turf, kills, deaths).
 - `ui/actionBar.js`: bottom-center combat bar. Slash/pistol/armor/sprint show ready/cooling
-  states, cooldown overlays, costs and shortcuts; sprint is hold-to-run and guest input
-  includes the held state.
+  states, cooldown overlays, costs and shortcuts; the pistol badge shows rounds left and
+  switches to a reload fill at 0; sprint is hold-to-run and guest input includes the held state.
 - `ui/hudCadence.js`: 4 Hz HUD refresh from the main loop.
 - `ui/menus.js`: setup modal tabs (Field Manual first, then Single/Host/Join), grid-derived
   crew-limit sliders, lobby buttons, start-game flow, `openSetupMenu`, banners and

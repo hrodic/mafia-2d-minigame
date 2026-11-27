@@ -14,8 +14,8 @@ export const sparks = [];
 export const slashArcs = [];
 export const muzzleFlashes = [];
 export const deadBodies = [];
-export const MAX_BLOOD_DECALS = 220;
-export const MAX_DEAD_BODIES = 65;
+export const MAX_BLOOD_DECALS = 300;
+export const MAX_DEAD_BODIES = 200;
 const MAX_FLOATING_TEXTS = 48;
 
 export function spawnBloodSplash(x, y, intensity = 1, isKill = false, dirAngle = null) {
@@ -51,8 +51,8 @@ export function spawnBloodSplash(x, y, intensity = 1, isKill = false, dirAngle =
       ry: (isKill ? 5 : 2.6) + Math.random() * (isKill ? 5.5 : 2.6),
       rot: Math.random() * Math.PI,
       color: Math.random() > 0.38 ? 'rgba(127, 29, 29, 0.78)' : 'rgba(69, 10, 10, 0.85)',
-      life: 16 + Math.random() * 6,
-      maxLife: 22,
+      life: 40,
+      maxLife: 40,
     });
   }
   if (bloodDecals.length > MAX_BLOOD_DECALS) {
@@ -75,20 +75,21 @@ export function spawnDeadBody(x, y, faction, rank, facing, fallAngle = facing) {
     tiltAngle: (Math.random() - 0.5) * 0.42,
     poolRadius: 4,
     maxPoolRadius: rank === UnitRank.BOSS ? 22 : 16,
-    life: 14.0,
-    maxLife: 14.0,
+    life: 30.0,
+    maxLife: 30.0,
   });
   if (deadBodies.length > MAX_DEAD_BODIES) {
     deadBodies.shift();
   }
 }
 
-export function spawnSlashArc(x, y, facing, color = '#f43f5e') {
+export function spawnSlashArc(x, y, facing, color = '#f43f5e', arc = 150 / 360) {
   slashArcs.push({
     x,
     y: y - 13,
     facing,
     color,
+    halfArc: Math.PI * arc,
     life: 0.22,
     maxLife: 0.22,
   });

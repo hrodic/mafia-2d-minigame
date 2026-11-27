@@ -70,15 +70,19 @@ powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123
 - [ ] Slash hits up to 3 enemies with knockback + blood + floating damage text.
 - [ ] Pistol: range ring, accuracy label, tracers, casings, ricochets, misses ("MISS!").
 - [ ] Armor: Q/button buys 300 armor ($3,500), absorbs damage, once per tick, HUD shows.
-- [ ] Rival AI bosses buy armor, use pistol/slash, capture blocks, recruit crew.
-- [ ] Territory: capture bar fills, block tint updates, minimap updates.
+- [ ] Rival AI bosses buy armor, use pistol/slash, capture blocks, recruit crew; shooters
+  hold fire when a building blocks the bullet path (no ammo wasted on walls).
+- [ ] Territory: capture bar fills (per tick), block tint updates, minimap updates.
+- [ ] Contested turf: no capture progress while an enemy unit stands on enemy turf; neutral
+  turf captures freely.
 - [ ] Economy: hourly tick adds income minus upkeep; treasury never negative.
 - [ ] Auto-recruit: toggles + caps work; units spawn near boss/owned turf; limits honored.
 - [ ] Build/border controls are gone (no Expand Ring, Click-Build or Borders buttons).
 - [ ] Outside the generated map, a subtle dark city backdrop is visible (not flat black).
 - [ ] City Radar is larger/readable and still shows player/boss/unit markers.
 - [ ] Bottom action bar: slash/pistol/armor/sprint cooldowns, costs, shortcuts and tooltips;
-  armor shows a cooldown overlay; sprint works while holding the button.
+  the pistol badge counts rounds down and shows a 5s reload fill at 0; armor shows a
+  cooldown overlay; sprint works while holding the button.
 - [ ] Leaderboard shows Turf / Crew / Kills with a readable rank order.
 - [ ] Kill a rival boss → toast + turf neutral; kill all → victory banner + summary.
 - [ ] Die → defeat banner → Spectate pans camera → spectator banner "Leave/New Game".

@@ -8,9 +8,10 @@ import {
   updateHumanControlledRivalBoss,
   computeSteeringPath,
 } from './movement.js';
-import { progressCapture, getCaptureRate } from './territory.js';
+import { progressCapture, getCapturePerTick } from './territory.js';
 import { processHourlyTick } from './economy.js';
 import { updateNpcAi } from './ai.js';
+import { tickWeapon } from './combat.js';
 
 /** One fixed host/single-player simulation step. No presentation work here. */
 export function update(dt) {
@@ -20,6 +21,7 @@ export function update(dt) {
   rebuildSpatialBuckets();
 
   if (state.player.attackCooldown > 0) state.player.attackCooldown = Math.max(0, state.player.attackCooldown - dt);
+  tickWeapon(state.player, dt);
   if (state.player.slashAnimTimer > 0) state.player.slashAnimTimer = Math.max(0, state.player.slashAnimTimer - dt);
   if (state.player.muzzleFlashTimer > 0) state.player.muzzleFlashTimer = Math.max(0, state.player.muzzleFlashTimer - dt);
   if (state.player.hitFlashTimer > 0) state.player.hitFlashTimer = Math.max(0, state.player.hitFlashTimer - dt);
@@ -73,7 +75,7 @@ export function update(dt) {
 
     const pTile = state.world.worldToTile(state.player.x, state.player.y);
     const pChunk = state.world.getChunk(pTile.cx, pTile.cy);
-    progressCapture(pChunk, Faction.PLAYER, dt, getCaptureRate(state.player.rank));
+    progressCapture(pChunk, Faction.PLAYER, dt, getCapturePerTick(state.player.rank));
   }
 
   // Update NPCs & Human-Controlled Rival Bosses
@@ -82,6 +84,7 @@ export function update(dt) {
     if (!u) continue;
 
     if (u.attackCooldown > 0) u.attackCooldown = Math.max(0, u.attackCooldown - dt);
+    tickWeapon(u, dt);
     if (u.slashAnimTimer > 0) u.slashAnimTimer = Math.max(0, u.slashAnimTimer - dt);
     if (u.muzzleFlashTimer > 0) u.muzzleFlashTimer = Math.max(0, u.muzzleFlashTimer - dt);
     if (u.hitFlashTimer > 0) u.hitFlashTimer = Math.max(0, u.hitFlashTimer - dt);

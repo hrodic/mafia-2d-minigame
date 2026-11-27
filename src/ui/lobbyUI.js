@@ -149,7 +149,7 @@ export function renderGuestLobby({ roster, settings, me }) {
   if (settingsEl && settings) {
     const caps = settings.unitCaps;
     const capText = caps
-      ? ` · Crew max: ${caps.maxSoldiers}S/${caps.maxCaptains}C/${caps.maxUnderbosses}U`
+      ? ` · Crew max: ${caps.maxSoldiers} Soldiers / ${caps.maxCaptains} Captains / ${caps.maxUnderbosses} Underbosses`
       : '';
     settingsEl.textContent = `Map: ${settings.gridSize}×${settings.gridSize} · Tick: ${settings.tickSeconds}s · Income: ${settings.incomeTier}${capText}`;
   }

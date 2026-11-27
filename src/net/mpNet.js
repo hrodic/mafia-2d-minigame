@@ -10,6 +10,7 @@ import { initWorld } from '../sim/match.js';
 import { showToast } from '../ui/menus.js';
 import { renderGuestLobby } from '../ui/lobbyUI.js';
 import { connectSignalingRoom, randomToken } from './transport.js';
+import { parseInviteInput, formatInviteCode } from './invite.js';
 import { findGuestSeat } from './lobby.js';
 import { createGuestController } from './guest.js';
 import { createHostController } from './host.js';
@@ -175,8 +176,8 @@ export const mpNet = (() => {
     try {
       cleanup(false);
       mode = 'HOST';
-      roomCode = randomToken(6);
-      roomSecret = randomToken(8);
+      roomCode = randomToken(4);
+      roomSecret = randomToken(6);
       const rawName = document.getElementById('mp-host-name')?.value?.trim();
       const hostName = rawName ? rawName.slice(0, 16) : 'Host Boss';
 
@@ -188,11 +189,11 @@ export const mpNet = (() => {
 
       setupChannels(activeRoom);
 
-      document.getElementById('mp-room-code-display').textContent = `${roomCode}:${roomSecret}`;
+      document.getElementById('mp-room-code-display').textContent = formatInviteCode(roomCode, roomSecret);
       document.getElementById('mp-host-room-details').classList.remove('hidden');
       statusEl.textContent = 'Room Open';
       updateHostLobbyUI();
-      showToast(`Room ${roomCode} created! Share the invitation link.`);
+      showToast(`Room ${roomCode} created! Share the invite code or link.`);
     } catch (err) {
       statusEl.textContent = 'Failed';
       errEl.textContent = `Signaling Error: ${err?.message || err}`;
@@ -207,22 +208,12 @@ export const mpNet = (() => {
     const rawInput = document.getElementById('mp-join-input')?.value?.trim() || '';
     errEl.classList.add('hidden');
 
-    let parsedCode = '';
-    let parsedSecret = '';
-    if (rawInput.includes('room=')) {
-      try {
-        const urlObj = new URL(rawInput.startsWith('http') ? rawInput : `${window.location.origin}/?${rawInput.replace(/^\?/, '')}`);
-        parsedCode = (urlObj.searchParams.get('room') || '').toUpperCase();
-        parsedSecret = (urlObj.searchParams.get('secret') || '').toUpperCase();
-      } catch (_) {}
-    } else if (rawInput.includes(':')) {
-      const parts = rawInput.split(':');
-      parsedCode = (parts[0] || '').trim().toUpperCase();
-      parsedSecret = (parts[1] || '').trim().toUpperCase();
-    }
+    const parsed = parseInviteInput(rawInput);
+    const parsedCode = parsed.roomCode;
+    const parsedSecret = parsed.secret;
 
     if (!parsedCode || !parsedSecret) {
-      errEl.textContent = 'Enter a valid invitation link or RoomCode:Secret.';
+      errEl.textContent = 'Enter a valid invite code or invitation link.';
       errEl.classList.remove('hidden');
       return;
     }

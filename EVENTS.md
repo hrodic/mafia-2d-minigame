@@ -36,17 +36,17 @@ Naming: `domain:pastTense` (`unit:damaged`, `chunk:captured`, `match:victory`).
 | Event | Payload | Emitted by |
 |---|---|---|
 | `match:initialized` | `{ tickDuration, worldSeed }` | match setup (new match built, even when autoStart is false) |
-| `unit:damaged` | `{ unit, amount, absorbed, remaining, isKill, isPlayer, hitAngle, textColor, suffix }` | combat |
+| `unit:damaged` | `{ unit, amount, absorbed, remaining, isKill, isPlayer, isCrit, hitAngle, textColor, suffix }` | combat |
 | `unit:died` | `{ unit, faction, rank, x, y, facing, fallAngle, isBoss, isPlayer }` | combat |
 | `faction:eliminated` | `{ faction }` | territory |
 | `chunk:captured` | `{ chunk, faction }` | territory |
-| `slash:performed` | `{ x, y, facing, color, hitCount, isPlayer }` | combat |
+| `slash:performed` | `{ x, y, facing, arc, color, hitCount, isPlayer }` | combat |
 | `shot:started` | `{ shooter, shooterX, shooterY, muzzleX, muzzleY, angle, shooterFaction, isPlayerShooter }` | combat |
 | `shot:fired` | `{ shooterFaction, isPlayerShooter, x1, y1, x2, y2, color, missed, targetX, targetY, impact: { blocked, x, y } }` | combat |
 | `armor:equipped` | `{ unit, amount, faction, isPlayer, textOffset }` | combat |
 | `armor:broken` | `{ unit, isPlayer }` | combat |
 | `unit:recruited` | `{ unit, faction, rank, cost }` (silent recruits do not emit) | units/economy |
-| `hour:tick` | `{ hour, income, upkeep, treasuries }` | economy |
+| `hour:tick` | `{ hour, income, grossIncome, corruption, upkeep, treasuries }` | economy |
 | `match:victory` | `{ faction, blocks, totalBlocks, cash, crew }` | territory |
 | `match:defeat` | `{ faction }` | territory |
 | `ui:toast` | `{ message }` | any sim system |

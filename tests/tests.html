@@ -134,6 +134,9 @@
       <button type="button" class="match-preset" data-preset="normal" aria-pressed="false"></button>
       <button type="button" class="match-preset" data-preset="long" aria-pressed="false"></button>
       <input id="setup-cap-soldier" type="range" min="10" max="150" value="150" />
+    <span id="setup-rank-soldier"></span>
+    <span id="setup-rank-captain"></span>
+    <span id="setup-rank-underboss"></span>
       <input id="setup-cap-captain" type="range" min="2" max="30" value="30" />
       <input id="setup-cap-underboss" type="range" min="1" max="15" value="15" />
       <span id="setup-cap-soldier-value"></span>
@@ -157,7 +160,7 @@
         <div id="faction-board-body"></div>
       </div>
       <button id="btn-slash"><span id="cooldown-slash"></span><span id="action-status-slash"></span></button>
-      <button id="btn-pistol"><span id="cooldown-pistol"></span><span id="action-status-pistol"></span></button>
+      <button id="btn-pistol"><span id="cooldown-pistol"></span><span id="action-status-pistol"></span><span id="ammo-pistol"></span><span id="action-label-pistol"></span></button>
       <button id="btn-buy-armor"><span id="cooldown-armor"></span><span id="action-status-armor"></span></button>
       <button id="btn-sprint"><span id="cooldown-sprint"></span><span id="action-status-sprint"></span><div id="sprint-bar-fill"></div><span id="sprint-text"></span></button>
       <section id="management-panel">
@@ -168,6 +171,7 @@
       <button id="btn-toggle-captain"></button>
       <button id="btn-toggle-underboss"></button>
       <span id="mgmt-rank-soldier"></span><span id="mgmt-rank-captain"></span><span id="mgmt-rank-underboss"></span>
+    <span id="mgmt-alive-soldier"></span><span id="mgmt-alive-captain"></span><span id="mgmt-alive-underboss"></span>
       <span id="mgmt-auto-soldier"></span><span id="mgmt-auto-captain"></span><span id="mgmt-auto-underboss"></span>
       <button id="btn-cap-soldier-min"></button><button id="btn-cap-soldier-dec"></button><button id="btn-cap-soldier-inc"></button><button id="btn-cap-soldier-max"></button>
       <button id="btn-cap-captain-min"></button><button id="btn-cap-captain-dec"></button><button id="btn-cap-captain-inc"></button><button id="btn-cap-captain-max"></button>
@@ -177,6 +181,8 @@
       <span id="mgmt-total-gross"></span>
       <span id="mgmt-total-turf"></span>
       <span id="mgmt-total-crew"></span>
+      <span id="mgmt-total-corruption"></span>
+      <span id="mgmt-corruption-breakdown"></span>
       <span id="mgmt-total-net"></span>
       <div id="toast"></div>
       <div id="defeat-banner" class="hidden"></div>

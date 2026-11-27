@@ -9,6 +9,8 @@ import { CityMap } from '../src/world/city.js';
 import { onUnitRecruited } from '../src/render/recruitFx.js';
 import {
   calculateFactionUpkeep,
+  calculateCorruption,
+  applyCorruption,
   recalculateHourlyIncome,
   processHourlyTick,
 } from '../src/sim/economy.js';
@@ -84,6 +86,29 @@ function withChunk(map, cx, cy, faction, income) {
 function eventsOf(events, type) {
   return events.filter((entry) => entry.type === type);
 }
+
+test('economy: corruption scales every 10 neighborhoods and 25 units', () => {
+  withEconomyState(
+    {
+      prepareMap: (map) => {
+        for (let i = 0; i < 10; i++) withChunk(map, i, 0, Faction.PLAYER, 100);
+      },
+      treasuries: { [Faction.PLAYER]: 5000 },
+      player: { alive: true, faction: Faction.PLAYER },
+      npcs: Array.from({ length: 24 }, () => ({ faction: Faction.PLAYER, rank: UnitRank.SOLDIER })),
+    },
+    () => {
+      const corruption = calculateCorruption()[Faction.PLAYER];
+      assertEqual(corruption.turf, 1);
+      assertEqual(corruption.crew, 1);
+      assertEqual(corruption.total, 2);
+      assertEqual(applyCorruption(1000, corruption.total), 980);
+
+      processHourlyTick();
+      assertEqual(state.treasuries[Faction.PLAYER], 5000 + 980 - UPKEEP_SOLDIER * 24);
+    }
+  );
+});
 
 test('economy: upkeep totals sum per rank and ignore bosses/unknown factions', () => {
   withEconomyState(
@@ -161,6 +186,8 @@ test('economy: the hourly tick advances the clock and pays net income', () => {
       assertEqual(ticks.length, 1);
       assertEqual(ticks[0].payload.hour, 13);
       assertEqual(ticks[0].payload.income[Faction.PLAYER], 1000);
+      assertEqual(ticks[0].payload.grossIncome[Faction.PLAYER], 1000);
+      assertEqual(ticks[0].payload.corruption[Faction.PLAYER].total, 0);
       assertEqual(ticks[0].payload.income[Faction.RIVAL_1], 500);
       assertEqual(ticks[0].payload.upkeep[Faction.PLAYER], UPKEEP_SOLDIER);
       assertEqual(ticks[0].payload.upkeep[Faction.RIVAL_1], UPKEEP_CAPTAIN);
@@ -189,7 +216,7 @@ test('economy: dead factions are skipped by payment and recruitment', () => {
     },
     () => {
       processHourlyTick();
-      assertEqual(state.treasuries[Faction.PLAYER], 3000 + 1000);
+      assertEqual(state.treasuries[Faction.PLAYER], 5000 + 1000);
       assertEqual(state.treasuries[Faction.RIVAL_2], 100);
       assertEqual(state.npcs.filter((u) => u.faction === Faction.RIVAL_2).length, 0);
     }

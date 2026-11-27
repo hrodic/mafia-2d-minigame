@@ -3,29 +3,80 @@
 
 import { Faction, UnitRank } from '../config/enums.js';
 import { RANK_STATS } from '../config/balance.js';
+import { CHUNK_PX } from '../config/constants.js';
+import { packChunkKey } from '../world/city.js';
 import { state, getLocalFaction } from '../core/state.js';
 import { emit } from '../core/events.js';
 
-export const CAPTURE_RATES = {
-  [UnitRank.BOSS]: RANK_STATS[UnitRank.BOSS].captureRate,
-  [UnitRank.UNDERBOSS]: RANK_STATS[UnitRank.UNDERBOSS].captureRate,
-  [UnitRank.CAPTAIN]: RANK_STATS[UnitRank.CAPTAIN].captureRate,
-  [UnitRank.SOLDIER]: RANK_STATS[UnitRank.SOLDIER].captureRate,
+export const CAPTURE_PER_TICK = {
+  [UnitRank.BOSS]: RANK_STATS[UnitRank.BOSS].capturePerTick,
+  [UnitRank.UNDERBOSS]: RANK_STATS[UnitRank.UNDERBOSS].capturePerTick,
+  [UnitRank.CAPTAIN]: RANK_STATS[UnitRank.CAPTAIN].capturePerTick,
+  [UnitRank.SOLDIER]: RANK_STATS[UnitRank.SOLDIER].capturePerTick,
 };
 
-export function getCaptureRate(rank) {
-  return CAPTURE_RATES[rank] ?? CAPTURE_RATES[UnitRank.SOLDIER];
+export function getCapturePerTick(rank) {
+  return CAPTURE_PER_TICK[rank] ?? CAPTURE_PER_TICK[UnitRank.SOLDIER];
 }
 
-/** Advance capture progress for a faction; returns true when the chunk flips. */
-export function progressCapture(chunk, faction, dt, rate) {
+/** Any living unit of another faction standing on the chunk? */
+function hasLivingEnemyOnChunk(chunk, faction) {
+  const buckets = state.spatialBuckets;
+  if (buckets && typeof buckets.get === 'function') {
+    // Production path: the per-step spatial hash is authoritative, including empty chunks.
+    const bucket = buckets.get(packChunkKey(chunk.cx, chunk.cy));
+    if (bucket) {
+      for (const unit of bucket) {
+        if (unit.hp > 0 && unit.faction !== faction) return true;
+      }
+    }
+  } else {
+    for (const unit of state.npcs) {
+      if (!unit || unit.hp <= 0 || unit.faction === faction) continue;
+      if (
+        Math.floor(unit.x / CHUNK_PX) === chunk.cx &&
+        Math.floor(unit.y / CHUNK_PX) === chunk.cy
+      ) {
+        return true;
+      }
+    }
+  }
+
+  const player = state.player;
+  if (player && player.alive && player.faction !== faction) {
+    if (
+      Math.floor(player.x / CHUNK_PX) === chunk.cx &&
+      Math.floor(player.y / CHUNK_PX) === chunk.cy
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Advance capture progress for a faction; returns true when the chunk flips.
+ * `pointsPerTick` is scaled by the current tick duration, so a unit worth 1
+ * captures a neighborhood in one tick regardless of how long a tick lasts.
+ * Capturing enemy turf requires the turf to be clear of enemy units; neutral
+ * turf (including defeated factions' former turf) never resists.
+ */
+export function progressCapture(chunk, faction, dt, pointsPerTick) {
   if (!chunk || chunk.faction === faction) return false;
   if (!state.factionAlive[faction]) return false;
+
+  if (chunk.faction !== Faction.NEUTRAL && hasLivingEnemyOnChunk(chunk, faction)) {
+    chunk.captureProgress = 0;
+    chunk.capturingFaction = null;
+    return false;
+  }
+
   if (chunk.capturingFaction !== faction) {
     chunk.capturingFaction = faction;
     chunk.captureProgress = 0;
   }
-  chunk.captureProgress += dt * rate;
+  const tickSeconds = Math.max(1, Number(state.tickDuration) || 1);
+  chunk.captureProgress += (pointsPerTick * dt) / tickSeconds;
   if (chunk.captureProgress >= 1) {
     chunk.faction = faction;
     chunk.captureProgress = 0;

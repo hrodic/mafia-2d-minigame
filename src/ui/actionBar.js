@@ -15,6 +15,8 @@ const els = {
   sprintCd: document.getElementById('cooldown-sprint'),
   slashStatus: document.getElementById('action-status-slash'),
   pistolStatus: document.getElementById('action-status-pistol'),
+  pistolAmmo: document.getElementById('ammo-pistol'),
+  pistolLabel: document.getElementById('action-label-pistol'),
   armorStatus: document.getElementById('action-status-armor'),
   sprintStatus: document.getElementById('sprint-text'),
 };
@@ -47,6 +49,8 @@ export function updateActionBar() {
   const cash = state.treasuries[getLocalFaction()] || 0;
 
   const attackCd = boss ? Math.max(0, boss.attackCooldown || 0) : 0;
+  const ammo = boss && Number.isFinite(boss.ammo) ? Math.max(0, Math.floor(boss.ammo)) : PISTOL.magazine;
+  const reloadCd = boss ? Math.max(0, boss.reloadTimer || 0) : 0;
   const armorCd = boss ? Math.max(0, boss.armorCooldown || 0) : 0;
   const sprintCd = boss ? Math.max(0, boss.sprintCooldown || 0) : 0;
   const armorVal = boss ? Math.max(0, boss.armor || 0) : 0;
@@ -58,10 +62,26 @@ export function updateActionBar() {
   setState(els.slash, attackState);
   setStatus(els.slashStatus, attackCd > 0 ? `${attackCd.toFixed(1)}s` : 'READY');
 
-  setDisabled(els.pistol, !alive || attackCd > 0);
-  setCooldown(els.pistolCd, attackCd, PISTOL.cooldownHuman);
-  setState(els.pistol, attackState);
-  setStatus(els.pistolStatus, attackCd > 0 ? `${attackCd.toFixed(1)}s` : 'READY');
+  const pistolState = !alive
+    ? 'disabled'
+    : reloadCd > 0 || ammo <= 0 || attackCd > 0
+      ? 'cooldown'
+      : 'ready';
+  setDisabled(els.pistol, !alive || attackCd > 0 || reloadCd > 0 || ammo <= 0);
+  setCooldown(
+    els.pistolCd,
+    reloadCd > 0 ? reloadCd : attackCd,
+    reloadCd > 0 ? PISTOL.reloadTime : PISTOL.fireCooldown
+  );
+  setState(els.pistol, pistolState);
+  setStatus(els.pistolStatus, reloadCd > 0 ? `${reloadCd.toFixed(1)}s` : attackCd > 0 ? `${attackCd.toFixed(1)}s` : 'READY');
+  if (els.pistolLabel) els.pistolLabel.textContent = reloadCd > 0 ? 'RELOADING' : 'Pistol';
+  if (els.pistolAmmo) {
+    els.pistolAmmo.textContent = String(ammo);
+    els.pistolAmmo.classList.toggle('is-low', reloadCd <= 0 && ammo > 0 && ammo <= 3);
+    els.pistolAmmo.classList.toggle('is-empty', ammo <= 0 && reloadCd <= 0);
+    els.pistolAmmo.classList.toggle('is-reloading', reloadCd > 0);
+  }
 
   const armorState = !alive
     ? 'disabled'

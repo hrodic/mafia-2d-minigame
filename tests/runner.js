@@ -36,6 +36,7 @@ import './actionBar.test.js';
 import './menus.test.js';
 import './transport.test.js';
 import './protocol.test.js';
+import './invite.test.js';
 import './lobby.test.js';
 import './lobbyUI.test.js';
 import './guest.test.js';

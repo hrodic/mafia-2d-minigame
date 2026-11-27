@@ -2,7 +2,7 @@
 // Headless gameplay logic; presentation goes through events.
 
 import { Faction, UnitRank } from '../config/enums.js';
-import { CHUNK_SIZE, CHUNK_PX, TILE_SIZE } from '../config/constants.js';
+import { CHUNK_SIZE, CHUNK_PX, TILE_SIZE, MAX_PISTOL_RANGE } from '../config/constants.js';
 import { SLASH } from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
 import { state } from '../core/state.js';
@@ -10,8 +10,9 @@ import { emit } from '../core/events.js';
 import { packChunkKey } from '../world/city.js';
 import { computeTilePath, MAX_ASTAR_PER_FRAME } from '../world/pathfinding.js';
 import { moveUnit } from './movement.js';
-import { progressCapture, getCaptureRate } from './territory.js';
+import { progressCapture, getCapturePerTick } from './territory.js';
 import {
+  hasClearShot,
   performBossKnifeSlash,
   performBossPistolShot,
   performSlash,
@@ -98,9 +99,10 @@ export function updateNpcAi(u, dt) {
     tryBuyNpcBossArmor(u, nearbyEnemyCount, nearbyAllyCount);
   }
 
+  // Only bosses and underbosses carry a pistol; captains and soldiers are knife-only.
   const isRangedShooter = u.rank === UnitRank.BOSS || u.rank === UnitRank.UNDERBOSS;
   const aggroRange = isRangedShooter ? 680 : 480;
-  const melee = SLASH.aiMelee;
+  const melee = SLASH.aiMeleeByRank[u.rank] || SLASH.aiMelee;
 
   if (nearestEnemy && nearestEnemyDist <= aggroRange) {
     u.goalX = nearestEnemy.x;
@@ -120,8 +122,11 @@ export function updateNpcAi(u, dt) {
     } else if (
       isRangedShooter &&
       nearestEnemyDist >= 110 &&
-      nearestEnemyDist <= 640 &&
-      u.attackCooldown <= 0
+      nearestEnemyDist <= MAX_PISTOL_RANGE &&
+      u.attackCooldown <= 0 &&
+      (u.ammo ?? 1) > 0 &&
+      !(u.reloadTimer > 0) &&
+      hasClearShot(u, nearestEnemy.x, nearestEnemy.y)
     ) {
       performBossPistolShot(u, false, nearestEnemy.x, nearestEnemy.y);
     }
@@ -194,5 +199,5 @@ export function updateNpcAi(u, dt) {
   // Territory capture by NPCs
   const uTile = state.world.worldToTile(u.x, u.y);
   const uChunk = state.world.getChunk(uTile.cx, uTile.cy);
-  progressCapture(uChunk, u.faction, dt, getCaptureRate(u.rank));
+  progressCapture(uChunk, u.faction, dt, getCapturePerTick(u.rank));
 }

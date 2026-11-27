@@ -4,7 +4,7 @@ import { ctx } from './canvas.js';
 
 
 export function drawDeadBody(body) {
-  const alpha = Math.min(1, body.life / 2.5);
+  const alpha = Math.min(1, body.life / 3);
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(body.x, body.y);
@@ -87,6 +87,7 @@ export function drawCharacter(x, y, config) {
     isCaptain = false,
     isAttacking = false,
     slashProgress = 0,
+    slashArc = 150 / 360,
     isShooting = false,
     hitFlash = false,
   } = config;
@@ -183,7 +184,7 @@ export function drawCharacter(x, y, config) {
     ctx.fill();
   }
 
-  // Fedora Hat (Bosses & Lieutenants)
+  // Fedora Hat (Bosses & Underbosses)
   if (isBoss || isUnderboss || isCaptain) {
     ctx.fillStyle = isBoss ? '#09090b' : '#18181b';
     ctx.beginPath();
@@ -199,12 +200,13 @@ export function drawCharacter(x, y, config) {
   }
 
   // Weapon Rendering:
-  // Bosses & 2ICs have 9mm Pistol as main weapon, stow it to swing a Machete during slash,
+  // Bosses and underbosses have 9mm Pistol as main weapon, stow it to swing a Machete during slash,
   // and re-equip the pistol immediately after the slash completes.
   const hasPistolMain = isBoss || isUnderboss;
   if (isAttacking) {
-    // Sweep machete coherently along the exact slash arc (facing - 0.95 -> facing + 0.95)
-    const swingAngle = facing - 0.95 + slashProgress * 1.9;
+    // Sweep the machete across the attacker's exact hit arc (facing ± halfArc).
+    const halfArc = Math.PI * slashArc;
+    const swingAngle = facing - halfArc + slashProgress * halfArc * 2;
     ctx.save();
     ctx.translate(0, -17);
     ctx.rotate(swingAngle);
@@ -251,7 +253,7 @@ export function drawCharacter(x, y, config) {
     }
     ctx.restore();
   } else {
-    // Switchblade / bat ready for Captains & Enforcers
+    // Switchblade / bat ready for Captains & Soldiers
     ctx.save();
     ctx.translate(0, -17);
     ctx.rotate(facing);

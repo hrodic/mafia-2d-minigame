@@ -162,15 +162,15 @@ test('menus: match impact summary follows grid, tick and income choices', () => 
     updateMapSizePreview(10);
     const summary = document.getElementById('match-impact-summary').textContent;
     assert(summary.includes('100 neighborhoods'), summary);
-    assert(summary.includes('50 Street Enforcers'), summary);
-    assert(summary.includes('10 Middle Management'), summary);
-    assert(summary.includes('5 Second-in-Command'), summary);
+    assert(summary.includes('100 Soldiers'), summary);
+    assert(summary.includes('20 Captains'), summary);
+    assert(summary.includes('10 Underbosses'), summary);
     assert(summary.includes('10s ticks'), summary);
-    assert(summary.includes('$1,000'), summary);
+    assert(summary.includes('$1,500'), summary);
 
     state.currentIncomeTier = 'LOW';
     updateMatchImpactSummary();
-    assert(document.getElementById('match-impact-summary').textContent.includes('$250'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('$500'));
   } finally {
     state.currentIncomeTier = savedTier;
     state.matchUnitCaps = savedCaps;
@@ -190,16 +190,16 @@ test('menus: crew limits follow the grid ceiling and can be lowered', () => {
     setSetupUnitCap('soldier', 140);
     assertEqual(state.matchUnitCaps.maxSoldiers, 140);
     assertEqual(document.getElementById('setup-cap-soldier-value').textContent, '140');
-    assert(document.getElementById('match-impact-summary').textContent.includes('140 Street Enforcers'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('140 Soldiers'));
 
     updateMapSizePreview(5);
     assertEqual(soldier.max, '50');
-    assertEqual(soldier.value, '25');
-    assertEqual(state.matchUnitCaps.maxSoldiers, 25);
+    assertEqual(soldier.value, '50');
+    assertEqual(state.matchUnitCaps.maxSoldiers, 50);
     assertEqual(document.getElementById('setup-cap-captain').max, '10');
-    assertEqual(document.getElementById('setup-cap-captain').value, '5');
+    assertEqual(document.getElementById('setup-cap-captain').value, '10');
     assertEqual(document.getElementById('setup-cap-underboss').max, '5');
-    assertEqual(document.getElementById('setup-cap-underboss').value, '3');
+    assertEqual(document.getElementById('setup-cap-underboss').value, '5');
   } finally {
     state.matchUnitCaps = saved;
     document.getElementById('setup-cap-soldier').value = String(saved.maxSoldiers);
@@ -218,12 +218,12 @@ test('menus: presets apply grid, tick and income together', () => {
     assertEqual(document.getElementById('map-size-slider').value, '10');
     assertEqual(document.getElementById('tick-speed-slider').value, '10');
     assertEqual(state.currentIncomeTier, 'HIGH');
-    assertDeepEqual(state.matchUnitCaps, { maxSoldiers: 50, maxCaptains: 10, maxUnderbosses: 5 });
-    assertEqual(document.getElementById('setup-cap-soldier').value, '50');
+    assertDeepEqual(state.matchUnitCaps, { maxSoldiers: 100, maxCaptains: 20, maxUnderbosses: 10 });
+    assertEqual(document.getElementById('setup-cap-soldier').value, '100');
     assert(document.getElementById('match-impact-summary').textContent.includes('100 neighborhoods'));
-    assert(document.getElementById('match-impact-summary').textContent.includes('50 Street Enforcers'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('100 Soldiers'));
     assert(document.getElementById('match-impact-summary').textContent.includes('10s ticks'));
-    assert(document.getElementById('match-impact-summary').textContent.includes('$1,000'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('$1,500'));
     assertEqual(
       document.querySelector('.match-preset[data-preset="turbo"]').getAttribute('aria-pressed'),
       'true'
@@ -233,22 +233,22 @@ test('menus: presets apply grid, tick and income together', () => {
     assertEqual(document.getElementById('map-size-slider').value, '15');
     assertEqual(document.getElementById('tick-speed-slider').value, '15');
     assertEqual(state.currentIncomeTier, 'MID');
-    assertDeepEqual(state.matchUnitCaps, { maxSoldiers: 75, maxCaptains: 15, maxUnderbosses: 8 });
+    assertDeepEqual(state.matchUnitCaps, { maxSoldiers: 150, maxCaptains: 30, maxUnderbosses: 15 });
     assert(document.getElementById('match-impact-summary').textContent.includes('225 neighborhoods'));
-    assert(document.getElementById('match-impact-summary').textContent.includes('75 Street Enforcers'));
-    assert(document.getElementById('match-impact-summary').textContent.includes('8 Second-in-Command'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('150 Soldiers'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('15 Underbosses'));
     assert(document.getElementById('match-impact-summary').textContent.includes('15s ticks'));
-    assert(document.getElementById('match-impact-summary').textContent.includes('$500'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('$1,000'));
 
     applyMatchPreset('long');
     assertEqual(document.getElementById('map-size-slider').value, '20');
     assertEqual(document.getElementById('tick-speed-slider').value, '25');
     assertEqual(state.currentIncomeTier, 'LOW');
-    assertDeepEqual(state.matchUnitCaps, { maxSoldiers: 100, maxCaptains: 20, maxUnderbosses: 10 });
+    assertDeepEqual(state.matchUnitCaps, { maxSoldiers: 200, maxCaptains: 40, maxUnderbosses: 20 });
     assert(document.getElementById('match-impact-summary').textContent.includes('400 neighborhoods'));
-    assert(document.getElementById('match-impact-summary').textContent.includes('100 Street Enforcers'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('200 Soldiers'));
     assert(document.getElementById('match-impact-summary').textContent.includes('25s ticks'));
-    assert(document.getElementById('match-impact-summary').textContent.includes('$250'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('$500'));
     assertEqual(
       document.querySelector('.match-preset[data-preset="long"]').getAttribute('aria-pressed'),
       'true'
@@ -266,7 +266,7 @@ test('menus: map size preview updates display and caps', () => {
   assertEqual(document.getElementById('map-size-display').textContent, '10×10');
   const preview = document.getElementById('map-cap-preview').textContent;
   assert(preview.includes('100 neighborhoods'), preview);
-  assert(preview.includes('100 Street Enforcers · 20 Middle Management · 10 Second-in-Command'), preview);
+  assert(preview.includes('100 Soldiers · 20 Captains · 10 Underbosses'), preview);
 
   updateMapSizePreview(15);
   assertEqual(document.getElementById('map-size-display').textContent, '15×15 (Default)');
@@ -286,6 +286,10 @@ test('menus: faction slots render the active seats and selected organizations', 
     assertEqual(selects[0].value, 'BRATVA');
     assertEqual(selects[1].value, 'CARTEL');
     assertEqual(selects[0].options.length, 6);
+    assert(selects[0].textContent.includes('Russian Bratva (Pakhan)'), 'org picker keeps syndicate titles');
+    assertEqual(document.getElementById('setup-rank-soldier').textContent, 'Boyevik');
+    assertEqual(document.getElementById('setup-rank-captain').textContent, 'Brigadier');
+    assertEqual(document.getElementById('setup-rank-underboss').textContent, 'Avtoritet');
   } finally {
     state.activeFactionCount = savedCount;
     state.selectedFactionOrgs = savedOrgs;

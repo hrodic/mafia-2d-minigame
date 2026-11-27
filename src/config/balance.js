@@ -6,72 +6,75 @@ import { UnitRank } from './enums.js';
 import { MAX_PISTOL_RANGE } from './constants.js';
 
 export const INCOME_TIERS = {
-  LOW: { label: 'Low', min: 250, max: 500 },
-  MID: { label: 'Mid', min: 500, max: 1000 },
-  HIGH: { label: 'High', min: 1000, max: 1500 },
+  LOW: { label: 'Low', min: 500, max: 1000 },
+  MID: { label: 'Mid', min: 1000, max: 1500 },
+  HIGH: { label: 'High', min: 1500, max: 2000 },
 };
 
-export const UNIT_ATTACK_COOLDOWN = 1.0;
-
-// All AI-controlled ranks share one 150 px/s base for now. Role/tier speed can
-// diverge later; human-controlled bosses still use speedHuman.
+// Non-boss AI ranks use per-rank speeds; human-controlled bosses still use speedHuman.
 export const RANK_STATS = {
   [UnitRank.BOSS]: {
-    hp: 400,
+    hp: 800,
     startArmor: 0,
     maxArmor: 300,
-    minDmg: 20,
+    minDmg: 30,
     maxDmg: 40,
     speedAi: 140,
     speedHuman: 140,
     speedJitter: 0,
     radius: 13.5,
-    captureRate: 0.375,
+    capturePerTick: 1,
     cost: 0,
     upkeep: 0,
   },
   [UnitRank.UNDERBOSS]: {
-    hp: 480,
+    hp: 800,
     startArmor: 120,
     maxArmor: 120,
-    minDmg: 26,
-    maxDmg: 38,
+    minDmg: 25,
+    maxDmg: 35,
     speedAi: 150,
     speedHuman: 150,
     speedJitter: 0,
     radius: 12.8,
-    captureRate: 0.24,
-    cost: 3800,
-    upkeep: 300,
+    capturePerTick: 1,
+    cost: 4000,
+    upkeep: 600,
   },
   [UnitRank.CAPTAIN]: {
-    hp: 340,
+    hp: 600,
     startArmor: 0,
     maxArmor: 0,
-    minDmg: 18,
-    maxDmg: 28,
-    speedAi: 150,
-    speedHuman: 150,
+    minDmg: 20,
+    maxDmg: 30,
+    speedAi: 160,
+    speedHuman: 160,
     speedJitter: 0,
     radius: 12,
-    captureRate: 0.18,
-    cost: 2200,
-    upkeep: 200,
+    capturePerTick: 0.5,
+    cost: 2500,
+    upkeep: 300,
   },
   [UnitRank.SOLDIER]: {
-    hp: 180,
+    hp: 300,
     startArmor: 0,
     maxArmor: 0,
-    minDmg: 10,
-    maxDmg: 18,
-    speedAi: 150,
-    speedHuman: 150,
+    minDmg: 15,
+    maxDmg: 25,
+    speedAi: 170,
+    speedHuman: 170,
     speedJitter: 0,
     radius: 11,
-    captureRate: 0.12,
-    cost: 1200,
+    capturePerTick: 0.2,
+    cost: 1000,
     upkeep: 100,
   },
+};
+
+export const CORRUPTION = {
+  neighborhoodsPerStep: 10,
+  unitsPerStep: 25,
+  percentPerStep: 1,
 };
 
 export const UNIT_CAPS = {
@@ -81,7 +84,8 @@ export const UNIT_CAPS = {
   minUnderbosses: 1,
   minCaptains: 2,
   minSoldiers: 10,
-  humanCapFraction: 0.5,
+  // Humans and AI both start at the full ceiling; lowering a slider is opt-in.
+  humanCapFraction: 1,
 };
 
 /** Hard caps for a square city grid: underbosses ×1, captains ×2, soldiers ×10 per side. */
@@ -94,7 +98,7 @@ export function getGridUnitCaps(gridSize) {
   };
 }
 
-/** Default spawn caps at a fraction of each tier's hard cap, never below its minimum. */
+/** Default spawn caps at a fraction of each rank's hard cap, never below its minimum. */
 export function defaultSpawnCaps(caps, fraction) {
   const scale = (max, min) => Math.min(max, Math.max(min, Math.round(max * fraction)));
   return {
@@ -104,7 +108,7 @@ export function defaultSpawnCaps(caps, fraction) {
   };
 }
 
-/** Clamp player-chosen match maxima between static tier minimums and the grid ceiling. */
+/** Clamp player-chosen match maxima between static rank minimums and the grid ceiling. */
 export function clampMatchUnitCaps(gridSize, requested = {}) {
   const hard = getGridUnitCaps(gridSize);
   const source = requested || {};
@@ -119,7 +123,7 @@ export function clampMatchUnitCaps(gridSize, requested = {}) {
   };
 }
 
-/** Grid-derived defaults for the setup sliders: half of each ceiling, never below its minimum. */
+/** Grid-derived defaults for the setup sliders: the full ceiling, never below its minimum. */
 export function defaultMatchUnitCaps(gridSize, fraction = UNIT_CAPS.humanCapFraction) {
   const hard = getGridUnitCaps(gridSize);
   const scale = (max, min) => Math.min(max, Math.max(min, Math.round(max * fraction)));
@@ -130,43 +134,51 @@ export function defaultMatchUnitCaps(gridSize, fraction = UNIT_CAPS.humanCapFrac
   };
 }
 
+// Every slash shares one knockback and one swing animation. Reach, target count,
+// frontal arc and cooldown differ by rank. `arc` is the cone's half-angle as a
+// fraction of 180 degrees, so the full cone is 2 x arc x 180 degrees.
+const SLASH_COMMON = {
+  knockback: 10,
+  anim: 0.18,
+};
+
 export const SLASH = {
-  // One rule set for every human-controlled boss (local player or remote guest).
   humanBoss: {
     reach: 52,
     maxTargets: 3,
-    arc: 0.42,
-    closeRange: 30,
-    knockback: 14,
-    cooldown: 0.34,
-    anim: 0.18,
+    arc: 150 / 360,
+    ...SLASH_COMMON,
+    cooldown: 0.8,
   },
   aiBoss: {
     reach: 52,
     maxTargets: 3,
-    arc: null,
-    closeRange: null,
-    knockback: 12,
-    cooldown: UNIT_ATTACK_COOLDOWN,
-    anim: 0.18,
+    arc: 150 / 360,
+    ...SLASH_COMMON,
+    cooldown: 0.8,
   },
   aiMelee: {
     reach: 46,
     maxTargets: 1,
-    arc: null,
-    closeRange: null,
-    knockback: 0,
-    cooldown: UNIT_ATTACK_COOLDOWN,
-    anim: 0.18,
+    arc: 90 / 360,
+    ...SLASH_COMMON,
+    cooldown: 1.5,
+  },
+  aiMeleeByRank: {
+    [UnitRank.UNDERBOSS]: { reach: 50, maxTargets: 3, arc: 120 / 360, ...SLASH_COMMON, cooldown: 1.0 },
+    [UnitRank.CAPTAIN]: { reach: 48, maxTargets: 2, arc: 100 / 360, ...SLASH_COMMON, cooldown: 1.2 },
+    [UnitRank.SOLDIER]: { reach: 46, maxTargets: 1, arc: 90 / 360, ...SLASH_COMMON, cooldown: 1.5 },
   },
 };
 
 export const PISTOL = {
-  minDmg: 40,
+  minDmg: 50,
   maxDmg: 80,
-  knockback: 16,
-  cooldownAi: UNIT_ATTACK_COOLDOWN,
-  cooldownHuman: 0.65,
+  knockbackMin: 10,
+  knockbackMax: 15,
+  magazine: 10,
+  fireCooldown: 0.2,
+  reloadTime: 5,
   outOfRange: {
     failChance: 1,
     dmgMult: 0,
@@ -174,51 +186,29 @@ export const PISTOL = {
     color: '#71717a',
   },
   accuracyBands: [
+    { maxDist: 100, inclusive: true, failChance: 0.1, dmgMult: 0.8, label: '90% chance', color: '#f97316' },
+    { maxDist: 200, inclusive: true, failChance: 0.2, dmgMult: 0.9, label: '80% chance', color: '#fb923c' },
+    { maxDist: 300, inclusive: true, failChance: 0.3, dmgMult: 1, label: '70% chance', color: '#a3e635' },
+    { maxDist: 400, inclusive: true, failChance: 0.4, dmgMult: 1, label: '60% chance', color: '#fbbf24' },
+    { maxDist: 500, inclusive: true, failChance: 0.5, dmgMult: 1, label: '50% chance', color: '#fb923c' },
     {
-      maxDist: 50,
+      maxDist: MAX_PISTOL_RANGE,
       inclusive: true,
-      failChance: 0,
-      dmgMult: 0.25,
-      label: '100% chance',
-      color: '#f97316',
-    },
-    { maxDist: 100, failChance: 0, dmgMult: 0.5, label: '100% chance', color: '#fb923c' },
-    {
-      maxDist: MAX_PISTOL_RANGE * 0.25,
-      failChance: 0,
+      failChance: 0.6,
       dmgMult: 1,
-      label: '100% chance',
-      color: '#34d399',
-    },
-    {
-      maxDist: MAX_PISTOL_RANGE * 0.5,
-      failChance: 0.05,
-      dmgMult: 1,
-      label: '95% chance',
-      color: '#a3e635',
-    },
-    {
-      maxDist: MAX_PISTOL_RANGE * 0.75,
-      failChance: 0.1,
-      dmgMult: 1,
-      label: '90% chance',
-      color: '#fbbf24',
-    },
-    {
-      maxDist: MAX_PISTOL_RANGE * 0.9,
-      failChance: 0.25,
-      dmgMult: 1,
-      label: '75% chance',
-      color: '#fb923c',
-    },
-    {
-      maxDist: Infinity,
-      failChance: 0.5,
-      dmgMult: 1,
-      label: '50% chance',
+      label: '40% chance',
       color: '#f43f5e',
     },
   ],
+};
+
+export const CRITICAL = {
+  // Base chance for every weapon. A hit from the target's rear 120° cone adds
+  // backBonus to the chance. Critical damage is multiplied before armor absorbs.
+  chance: 0.05,
+  backBonus: 0.15,
+  backArcCos: 0.5,
+  multiplier: 2,
 };
 
 export const COST_BOSS_ARMOR = 3500;

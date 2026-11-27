@@ -4,6 +4,15 @@
 
 import { Faction } from './enums.js';
 
+// Canonical structural rank names used where the concept matters (manual tables,
+// setup summaries). Each organization below keeps its own in-world titles.
+export const RANK_LABELS = Object.freeze({
+  BOSS: 'Boss',
+  UNDERBOSS: 'Underboss',
+  CAPTAIN: 'Captain',
+  SOLDIER: 'Soldier',
+});
+
 export const ORGANIZATIONS = {
   COSA_NOSTRA: {
     id: 'COSA_NOSTRA',
@@ -115,7 +124,7 @@ export const FACTION_META = {
   [Faction.NEUTRAL]: {
     name: 'Neutral',
     short: 'Neutral',
-    ranks: { BOSS: 'Boss', UNDERBOSS: '2IC', CAPTAIN: 'Captain', SOLDIER: 'Enforcer' },
+    ranks: RANK_LABELS,
     tint: 'rgba(113, 113, 122, 0.04)',
     border: 'rgba(113, 113, 122, 0.32)',
     badge: '#52525b',

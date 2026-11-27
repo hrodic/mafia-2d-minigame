@@ -29,6 +29,7 @@ import {
   showVictoryBanner,
   showDefeatBanner,
   setWorldSeedDisplay,
+  setSetupTab,
 } from './ui/menus.js';
 import { initInput } from './ui/input.js';
 import { initSupport } from './ui/support.js';
@@ -36,6 +37,7 @@ import { applyVersionLabels } from './ui/version.js';
 import { updateHudCadence } from './ui/hudCadence.js';
 import { updateActionBar } from './ui/actionBar.js';
 import { mpNet } from './net/mpNet.js';
+import { readInviteFromLocation, formatInviteCode } from './net/invite.js';
 import { sfx } from './audio/sfx.js';
 import * as combatSfx from './audio/combatSfx.js';
 import { update } from './sim/simulation.js';
@@ -98,7 +100,7 @@ on('match:victory', ({ faction, blocks, totalBlocks, cash, crew }) => {
   sfx.playVictory();
   const meta = FACTION_META[faction];
   showVictoryBanner(
-    `All rival Supreme Leaders have been eliminated! ${meta.name} (${meta.ranks.BOSS}) rules ` +
+    `All rival Bosses have been eliminated! ${meta.name} (${meta.ranks.BOSS}) rules ` +
       `${blocks}/${totalBlocks} neighborhoods with $${cash.toLocaleString()} in cash and ` +
       `${crew} surviving crew.`
   );
@@ -174,12 +176,10 @@ initSupport();
 renderFactionSlotsUI();
 updateMapSizePreview(DEFAULT_GRID_SIZE);
 
-const urlParams = new URLSearchParams(window.location.search);
-const inviteRoom = urlParams.get('room');
-const inviteSecret = urlParams.get('secret');
-if (inviteRoom && inviteSecret) {
-  mpNet.setMode('JOIN');
-  document.getElementById('mp-join-input').value = `${inviteRoom}:${inviteSecret}`;
+const invite = readInviteFromLocation(window.location);
+if (invite.roomCode && invite.secret) {
+  setSetupTab('join');
+  document.getElementById('mp-join-input').value = formatInviteCode(invite.roomCode, invite.secret);
 }
 
 window.addEventListener('load', () => {

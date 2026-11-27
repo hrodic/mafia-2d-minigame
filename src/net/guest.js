@@ -189,6 +189,8 @@ export function createGuestController(deps) {
       state.player.alive = pb.alive;
       if (pb.slash) state.player.slashAnimTimer = 0.18;
       if (pb.shoot) state.player.muzzleFlashTimer = 0.11;
+      if (typeof pb.ammo === 'number') state.player.ammo = pb.ammo;
+      state.player.reloadTimer = pb.reload || 0;
     }
 
     if (Array.isArray(snap.chunks)) {
@@ -216,7 +218,8 @@ export function createGuestController(deps) {
 
       const seenIds = new Set();
       for (let i = 0; i < snap.npcs.length; i++) {
-        const [id, fac, rank, x, y, facing, hp, maxHp, armor, maxArmor, slash, shoot, hPeer] = snap.npcs[i];
+        const [id, fac, rank, x, y, facing, hp, maxHp, armor, maxArmor, slash, shoot, hPeer, ammo, reload] =
+          snap.npcs[i];
         // The local player travels on playerBoss; never apply it twice from npcs.
         if (id === state.player.id) continue;
         seenIds.add(id);
@@ -257,6 +260,9 @@ export function createGuestController(deps) {
             slashAnimTimer: 0,
             muzzleFlashTimer: 0,
             hitFlashTimer: 0,
+            ...(rank === UnitRank.BOSS || rank === UnitRank.UNDERBOSS
+              ? { ammo: ammo ?? 0, reloadTimer: reload || 0 }
+              : {}),
             dodgeDir: 1,
             lastCheckX: x,
             lastCheckY: y,
@@ -274,6 +280,10 @@ export function createGuestController(deps) {
           unit.armor = armor;
           unit.maxArmor = maxArmor;
           unit.humanPeerId = hPeer || null;
+          if (rank === UnitRank.BOSS || rank === UnitRank.UNDERBOSS) {
+            if (typeof ammo === 'number') unit.ammo = ammo;
+            unit.reloadTimer = reload || 0;
+          }
           if (slash) unit.slashAnimTimer = 0.18;
           if (shoot) unit.muzzleFlashTimer = 0.11;
         }
