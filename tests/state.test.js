@@ -73,10 +73,25 @@ test('state: collections and match flags have the expected initial values', () =
   assertDeepEqual(state.activeFactions, [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3]);
 });
 
+test('state: match unit caps are clamped between tier minimums and the grid ceiling', () => {
+  const fresh = createGameState({
+    gridSize: 10,
+    unitCaps: { maxSoldiers: 80, maxCaptains: 99, maxUnderbosses: 4 },
+  });
+  assertDeepEqual(fresh.matchUnitCaps, {
+    maxSoldiers: 80,
+    maxCaptains: 20,
+    maxUnderbosses: 4,
+  });
+  assertEqual(fresh.playerSpawnCaps[UnitRank.SOLDIER], 40);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.CAPTAIN], 10);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.UNDERBOSS], 2);
+});
+
 test('state: spawn caps and recruitment prefs are initialized', () => {
-  assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 96);
-  assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 11);
-  assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 6);
+  assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 75);
+  assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 15);
+  assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 8);
   for (const faction of [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3]) {
     assert(state.factionRecruitmentPrefs[faction], `missing prefs for ${faction}`);
   }
@@ -337,9 +352,9 @@ test('state factory: active factions get cash and inactive slots are zeroed', ()
 
 test('state factory: caps and recruitment preferences reset to defaults', () => {
   const fresh = createGameState();
-  assertEqual(fresh.playerSpawnCaps[UnitRank.SOLDIER], 96);
-  assertEqual(fresh.playerSpawnCaps[UnitRank.CAPTAIN], 11);
-  assertEqual(fresh.playerSpawnCaps[UnitRank.UNDERBOSS], 6);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.SOLDIER], 75);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.CAPTAIN], 15);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.UNDERBOSS], 8);
   for (const faction of [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3]) {
     const prefs = fresh.factionRecruitmentPrefs[faction];
     assert(prefs, `missing prefs for ${faction}`);

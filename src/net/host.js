@@ -212,7 +212,7 @@ export function createHostController(deps) {
     }
   }
 
-  function launchMatch({ gridSize, tickSeconds, incomeTier, factionCount, orgRoster, seedOverride = null }) {
+  function launchMatch({ gridSize, tickSeconds, incomeTier, factionCount, orgRoster, unitCaps, seedOverride = null }) {
     if (getMode() !== 'HOST' || !isRoomActive()) return;
     reassignHostSeats({
       peers,
@@ -227,7 +227,7 @@ export function createHostController(deps) {
     snapshotSeq = 0;
     snapshotTimer = 0;
 
-    initializeWorld({ gridSize, tickSeconds, incomeTier, factionCount, orgRoster, worldSeed });
+    initializeWorld({ gridSize, tickSeconds, incomeTier, factionCount, orgRoster, unitCaps, worldSeed });
     onMatchLaunched();
 
     const assignments = {};
@@ -256,6 +256,7 @@ export function createHostController(deps) {
             incomeTier,
             factionCount,
             orgRoster,
+            unitCaps,
             worldSeed,
             assignments,
             snapshot: initialSnapshot,

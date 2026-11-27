@@ -253,9 +253,13 @@ orchestration loop; presentation is separate.
 ## Systems
 
 ### Units and recruitment
-`sim/units.js` owns per-rank caps (5% underbosses, 10% captains, rest soldiers, minimum
-25 blocks), unit stat tables (inline ternaries today), spawning near the boss/owned turf,
-and recruitment (cost, caps, treasury, cached counts). It emits `unit:recruited`;
+`sim/units.js` owns per-rank caps scaled by the grid side (underbosses ×1, captains ×2,
+soldiers ×10; selectable minimums 1/2/10), unit stat tables (inline ternaries today),
+spawning near the boss/owned turf, and recruitment (cost, caps, treasury, cached counts).
+Setup lets the player lower each tier's maximum under the grid ceiling; `state.matchUnitCaps`
+carries that choice into the match and multiplayer host/guest init. Caps clamp player and
+remote-human preferences to the configured range; defaults give human factions 50% and AI
+the full quota. It emits `unit:recruited`;
 `render/recruitFx.js` draws the `+RANK ($cost)` text. Rival bosses controlled by a human
 peer have `humanPeerId`; all bosses use speed `140` (AI and human), while non-boss AI ranks
 use `150`. Same-faction units may push through each other (boss included); other factions

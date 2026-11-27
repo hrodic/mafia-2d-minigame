@@ -263,7 +263,7 @@
 
     <!-- Pre-Game Setup, Multiplayer Lobby & Field Manual Modal -->
     <div id="setup-modal" class="fixed inset-0 bg-zinc-950/95 flex items-center justify-center z-40 p-3 sm:p-4">
-      <div class="bg-zinc-900 border border-amber-500/30 p-5 sm:p-6 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] max-w-4xl w-full max-h-[94vh] overflow-y-auto relative">
+      <div class="bg-zinc-900 border border-amber-500/30 p-5 sm:p-6 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] setup-modal-card max-h-[94vh] overflow-y-auto relative">
         <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-600"></div>
 
         <!-- Modal Header -->
@@ -293,11 +293,17 @@
           </button>
         </div>
 
+        <div id="setup-cta-bar" class="setup-cta-bar">
+          <button id="btn-start-game" class="w-full bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold py-3 rounded-xl shadow-lg border border-emerald-400/30 transition text-sm tracking-wide">
+            Launch Turf War
+          </button>
+        </div>
+
         <!-- Two-Column Layout: Match Settings / Lobby (Left) + Detailed Instructions (Right) -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-5">
 
           <!-- Left Column: Match Configuration & Multiplayer Panels -->
-          <div class="lg:col-span-5 flex flex-col gap-3">
+          <div class="lg:col-span-5 xl:col-span-4 flex flex-col gap-3">
 
             <!-- HOST MULTIPLAYER LOBBY PANEL -->
             <div id="mp-host-panel" class="hidden bg-zinc-950/90 border border-emerald-500/40 rounded-xl p-3.5 space-y-2.5">
@@ -389,6 +395,8 @@
 
             <!-- Match Settings Wrapper (Hidden for Guest Joiners) -->
             <div id="match-settings-wrapper" class="flex flex-col gap-3">
+              <div id="match-impact-summary" class="match-impact hud-num">225 Neighborhoods | Caps: 150S · 30C · 15U | 10s tick | $1,000–$1,500/tick</div>
+
               <!-- Syndicate Count & Organization Roster (2 to 4 Unique Factions) -->
               <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
                 <div class="flex items-center justify-between mb-2">
@@ -434,7 +442,47 @@
 
                 <div id="map-cap-preview" class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-zinc-800/90 pt-2">
                   <span>225 Neighborhoods</span>
-                  <span class="font-mono text-emerald-400">Cap: 192S · 22C · 11U</span>
+                  <span class="font-mono text-emerald-400">Max: 150S · 30C · 15U</span>
+                </div>
+              </div>
+
+              <!-- Crew Limits (player-configurable maxima under the grid ceiling) -->
+              <div id="crew-limits-card" class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-xs font-bold uppercase tracking-wider text-emerald-300">Crew Limits</span>
+                  <span class="text-[9px] font-mono text-zinc-500">MAX PER TIER</span>
+                </div>
+                <p class="text-[10px] text-zinc-500 leading-relaxed mb-2.5">
+                  Grid size sets the ceiling. Lower any tier to keep this match's crews smaller.
+                </p>
+
+                <div class="space-y-2">
+                  <div>
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-bold text-[#e6b07c]">Street Enforcers</span>
+                      <span class="text-[11px] font-mono font-extrabold text-zinc-100"><span id="setup-cap-soldier-value">150</span><span id="setup-cap-soldier-max" class="text-zinc-500"> / 150</span></span>
+                    </div>
+                    <input id="setup-cap-soldier" type="range" min="10" max="150" value="150" step="1" class="w-full accent-emerald-400 cursor-pointer" aria-label="Maximum Street Enforcers" />
+                    <div class="flex justify-between text-[9px] font-mono text-zinc-500"><span>min 10</span><span id="setup-cap-soldier-ceiling">grid max 150</span></div>
+                  </div>
+
+                  <div>
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-bold text-[#e5e7eb]">Middle Management</span>
+                      <span class="text-[11px] font-mono font-extrabold text-zinc-100"><span id="setup-cap-captain-value">30</span><span id="setup-cap-captain-max" class="text-zinc-500"> / 30</span></span>
+                    </div>
+                    <input id="setup-cap-captain" type="range" min="2" max="30" value="30" step="1" class="w-full accent-zinc-300 cursor-pointer" aria-label="Maximum Middle Management" />
+                    <div class="flex justify-between text-[9px] font-mono text-zinc-500"><span>min 2</span><span id="setup-cap-captain-ceiling">grid max 30</span></div>
+                  </div>
+
+                  <div>
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-bold text-[#fcd34d]">Second-in-Command</span>
+                      <span class="text-[11px] font-mono font-extrabold text-zinc-100"><span id="setup-cap-underboss-value">15</span><span id="setup-cap-underboss-max" class="text-zinc-500"> / 15</span></span>
+                    </div>
+                    <input id="setup-cap-underboss" type="range" min="1" max="15" value="15" step="1" class="w-full accent-amber-400 cursor-pointer" aria-label="Maximum Second-in-Command" />
+                    <div class="flex justify-between text-[9px] font-mono text-zinc-500"><span>min 1</span><span id="setup-cap-underboss-ceiling">grid max 15</span></div>
+                  </div>
                 </div>
               </div>
 
@@ -514,7 +562,7 @@
           </div>
 
           <!-- Right Column: Detailed Controls, Mechanics & HUD Buttons Manual -->
-          <div class="lg:col-span-7 bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5 flex flex-col gap-3 text-[11px] text-zinc-300">
+          <div id="manual-column" class="lg:col-span-7 xl:col-span-8 bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5 flex flex-col gap-3 text-[11px] text-zinc-300">
             <div class="flex items-center justify-between border-b border-zinc-800 pb-1.5">
               <span class="text-xs font-bold uppercase tracking-wider text-amber-400">
                 Syndicate Hierarchy & Combat Mechanics
@@ -522,6 +570,13 @@
               <span class="text-[10px] font-mono text-zinc-500">FIELD MANUAL</span>
             </div>
 
+            <div class="manual-tabs" role="tablist" aria-label="Field manual sections">
+              <button type="button" class="manual-tab" role="tab" data-manual-tab="controls" id="manual-tab-controls" aria-controls="manual-panel-controls" aria-selected="true">Controls</button>
+              <button type="button" class="manual-tab" role="tab" data-manual-tab="hierarchy" id="manual-tab-hierarchy" aria-controls="manual-panel-hierarchy" aria-selected="false">Hierarchy</button>
+              <button type="button" class="manual-tab" role="tab" data-manual-tab="multiplayer" id="manual-tab-multiplayer" aria-controls="manual-panel-multiplayer" aria-selected="false">Multiplayer</button>
+            </div>
+
+            <div id="manual-panel-controls" class="manual-panel flex flex-col gap-3" role="tabpanel" aria-labelledby="manual-tab-controls">
             <!-- Controls & Weapons Grid -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div class="bg-zinc-900/90 border border-zinc-800/90 rounded-lg p-2">
@@ -552,44 +607,144 @@
                 </p>
               </div>
             </div>
-
-            <!-- Syndicate Rules & 4-Tier Hierarchy -->
-            <div class="bg-zinc-900/70 border border-zinc-800/90 rounded-lg p-2.5 space-y-1.5">
-              <div class="font-bold text-emerald-400 uppercase tracking-wider text-[10px]">
-                4-Tier Crime Family Hierarchy, Upkeep & Recruitment Caps
-              </div>
-              <ul class="space-y-1 text-zinc-400 leading-relaxed">
-                <li>
-                  <span class="text-amber-300 font-semibold">• 1. Supreme Leader (Boss · 400 HP):</span> Don / Pakhan / Oyabun / Shan Chu / Capobastone / Patrón. Kevlar Armor (300 HP) costs <span class="text-sky-300 font-semibold">$3,500</span>.
-                </li>
-                <li>
-                  <span class="text-purple-300 font-semibold">• 2. Second-in-Command (Max 5%):</span> Sottocapo / Avtoritet / Wakagashira / Fu Shan Chu / Contabile / Lugarteniente (<span class="text-white">$3,800</span> · $150/hr upkeep · 480 HP + 120 Armor · <span class="text-amber-300">9mm Pistol + 26–38 Blade Slash</span>, 1.0s CD).
-                </li>
-                <li>
-                  <span class="text-indigo-300 font-semibold">• 3. Middle Management (Max 10%):</span> Caporegime / Brigadier / Shateigashira / Hung Kwan / Caposocietà / Jefe de Plaza (<span class="text-white">$2,200</span> · $100/hr upkeep · 340 HP · 18–28 dmg, 1.0s CD).
-                </li>
-                <li>
-                  <span class="text-emerald-300 font-semibold">• 4. Street Enforcers (Max 85%):</span> Soldato / Boyevik / Kobun / Sei Kau Tsai / Picciotto / Sicario (<span class="text-white">$1,200</span> · $50/hr upkeep · 180 HP · 10–18 dmg, 1.0s CD).
-                </li>
-              </ul>
             </div>
 
-            <!-- Multiplayer Architecture Note -->
-            <div class="bg-zinc-900/70 border border-zinc-800/90 rounded-lg p-2.5">
-              <div class="font-bold text-sky-300 uppercase tracking-wider text-[10px] mb-1">
-                Host-Authoritative P2P Multiplayer (2–4 Players)
+            <div id="manual-panel-hierarchy" class="manual-panel hidden" role="tabpanel" aria-labelledby="manual-tab-hierarchy">
+            <!-- Scannable rank table: cap, health, damage, hire and upkeep at a glance -->
+            <div class="bg-zinc-900/70 border border-zinc-800/90 rounded-lg p-2.5 space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <div class="font-bold text-emerald-400 uppercase tracking-wider text-[10px]">
+                  Crime Family Ranks
+                </div>
+                <span class="text-[9px] font-mono text-zinc-500">HIRE · UPKEEP · CAP</span>
+              </div>
+
+              <div class="manual-table-wrap">
+                <table class="manual-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Rank</th>
+                      <th scope="col" title="Health; armor absorbs damage first">HP</th>
+                      <th scope="col" title="Blade damage per hit">Dmg</th>
+                      <th scope="col" title="One-time recruitment cost">Hire</th>
+                      <th scope="col" title="Paid every hour">Upkeep</th>
+                      <th scope="col" title="Maximum share of your crew">Cap</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="tier-diamond">
+                      <th scope="row" class="rank-cell">
+                        <span class="rank-dot"></span>
+                        <span class="rank-names">
+                          <span class="rank-main">Supreme Leader</span>
+                          <span class="rank-alias">Don · Pakhan · Oyabun · Shan Chu · Capobastone · Patrón</span>
+                        </span>
+                      </th>
+                      <td class="stat-cell"><span class="stat-main">400</span><span class="stat-sub">+300 armor</span></td>
+                      <td class="stat-cell"><span class="stat-main">20–40</span><span class="stat-sub">blade</span></td>
+                      <td class="stat-cell"><span class="stat-main text-zinc-500">—</span><span class="stat-sub">armor $3,500</span></td>
+                      <td class="stat-cell"><span class="stat-main text-zinc-500">—</span></td>
+                      <td class="stat-cell"><span class="cap-pill">1</span></td>
+                    </tr>
+                    <tr class="tier-gold">
+                      <th scope="row" class="rank-cell">
+                        <span class="rank-dot"></span>
+                        <span class="rank-names">
+                          <span class="rank-main">Second-in-Command</span>
+                          <span class="rank-alias">Sottocapo · Avtoritet · Wakagashira · Fu Shan Chu · Contabile · Lugarteniente</span>
+                        </span>
+                      </th>
+                      <td class="stat-cell"><span class="stat-main">480</span><span class="stat-sub">+120 armor</span></td>
+                      <td class="stat-cell"><span class="stat-main">26–38</span><span class="stat-sub">blade</span></td>
+                      <td class="stat-cell"><span class="stat-main money">$3,800</span></td>
+                      <td class="stat-cell"><span class="stat-main">$150</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×1">×1</span></td>
+                    </tr>
+                    <tr class="tier-silver">
+                      <th scope="row" class="rank-cell">
+                        <span class="rank-dot"></span>
+                        <span class="rank-names">
+                          <span class="rank-main">Middle Management</span>
+                          <span class="rank-alias">Caporegime · Brigadier · Shateigashira · Hung Kwan · Caposocietà · Jefe de Plaza</span>
+                        </span>
+                      </th>
+                      <td class="stat-cell"><span class="stat-main">340</span></td>
+                      <td class="stat-cell"><span class="stat-main">18–28</span><span class="stat-sub">blade</span></td>
+                      <td class="stat-cell"><span class="stat-main money">$2,200</span></td>
+                      <td class="stat-cell"><span class="stat-main">$100</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×2">×2</span></td>
+                    </tr>
+                    <tr class="tier-copper">
+                      <th scope="row" class="rank-cell">
+                        <span class="rank-dot"></span>
+                        <span class="rank-names">
+                          <span class="rank-main">Street Enforcers</span>
+                          <span class="rank-alias">Soldato · Boyevik · Kobun · Sei Kau Tsai · Picciotto · Sicario</span>
+                        </span>
+                      </th>
+                      <td class="stat-cell"><span class="stat-main">180</span></td>
+                      <td class="stat-cell"><span class="stat-main">10–18</span><span class="stat-sub">blade</span></td>
+                      <td class="stat-cell"><span class="stat-main money">$1,200</span></td>
+                      <td class="stat-cell"><span class="stat-main">$50</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×10">×10</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <p class="text-[10px] text-zinc-500 leading-relaxed">
+                Hire is one-time; upkeep is paid every hour. Caps scale with the city grid: Underbosses ×1, Captains ×2, Soldiers ×10 (15×15 allows 15 / 30 / 150). Minimums are 1 / 2 / 10. Lower each tier's ceiling in Crew Limits before launch, then set your own target in Crew Management with MIN / − / + / MAX. Armor absorbs damage before HP. Everyone's pistol deals 40–80 at range.
+              </p>
+            </div>
+            </div>
+
+            <div id="manual-panel-multiplayer" class="manual-panel hidden" role="tabpanel" aria-labelledby="manual-tab-multiplayer">
+            <!-- Player-facing multiplayer guide -->
+            <div class="bg-zinc-900/70 border border-zinc-800/90 rounded-lg p-2.5 space-y-2.5">
+              <div class="flex items-center justify-between gap-2">
+                <div class="font-bold text-sky-300 uppercase tracking-wider text-[10px]">
+                  Play With Friends (2–4 Players)
+                </div>
+                <span class="text-[9px] font-mono text-zinc-500">EASY SETUP</span>
               </div>
               <p class="text-zinc-400 leading-relaxed">
-                The <span class="text-emerald-300 font-semibold">Host</span> simulates combat, AI, territory capture, and economy, broadcasting authoritative snapshots via encrypted WebRTC (<span class="text-zinc-200 font-mono">Trystero</span>) or multi-tab local bus. Each guest controls a rival Syndicate Boss directly.
+                One player hosts the city and everyone else joins with an invite link. Each player controls their own Boss and fights for turf.
               </p>
+
+              <div class="space-y-2">
+                <div class="manual-step border border-emerald-500/25 bg-zinc-950/70 rounded-lg p-2">
+                  <div class="font-bold text-emerald-300 text-[11px] mb-0.5">1 · Host the game</div>
+                  <p class="text-zinc-400 leading-relaxed">
+                    Pick <span class="manual-chip">Host Multiplayer</span>, enter a Boss alias and press <span class="manual-chip">Create Room</span>. Choose the map, speed and income, then press <span class="manual-chip">Launch Turf War</span> when everyone is in.
+                  </p>
+                </div>
+
+                <div class="manual-step border border-sky-500/25 bg-zinc-950/70 rounded-lg p-2">
+                  <div class="font-bold text-sky-300 text-[11px] mb-0.5">2 · Invite your friends</div>
+                  <p class="text-zinc-400 leading-relaxed">
+                    Press <span class="manual-chip">Copy Invitation</span> and send the link in chat. Friends can open it straight away, or paste it into the Join screen.
+                  </p>
+                </div>
+
+                <div class="manual-step border border-amber-500/25 bg-zinc-950/70 rounded-lg p-2">
+                  <div class="font-bold text-amber-300 text-[11px] mb-0.5">3 · Join a game</div>
+                  <p class="text-zinc-400 leading-relaxed">
+                    Pick <span class="manual-chip">Join Multiplayer</span>, enter a Boss alias, paste the invite link and press <span class="manual-chip">Connect</span>. Wait in the lobby until the host launches.
+                  </p>
+                </div>
+              </div>
+
+              <ul class="space-y-1 text-zinc-400 leading-relaxed border-t border-zinc-800 pt-2">
+                <li>• Empty seats are filled by AI, so you can start with fewer friends.</li>
+                <li>• The host is the referee: their map and match settings are used for everyone.</li>
+                <li>• Keep the host's tab visible. Background tabs slow the game down.</li>
+                <li>• Everyone needs the same game version to connect.</li>
+              </ul>
+            </div>
             </div>
           </div>
 
         </div>
-
-        <button id="btn-start-game" class="w-full bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold py-3 rounded-xl shadow-lg border border-emerald-400/30 transition text-sm tracking-wide">
-          Launch Turf War
-        </button>
       </div>
     </div>
 

@@ -8,7 +8,15 @@
 // is null until main.js assigns the multiplayer bridge.
 
 import { Faction, UnitRank } from '../config/enums.js';
-import { BOSS_MAX_HP, INCOME_TIERS, MAX_BOSS_ARMOR, RANK_STATS } from '../config/balance.js';
+import {
+  BOSS_MAX_HP,
+  INCOME_TIERS,
+  MAX_BOSS_ARMOR,
+  RANK_STATS,
+  UNIT_CAPS,
+  clampMatchUnitCaps,
+  defaultSpawnCaps,
+} from '../config/balance.js';
 import { DEFAULT_GRID_SIZE, DEFAULT_TICK_DURATION, TILE_SIZE } from '../config/constants.js';
 import {
   ALL_FACTION_SLOTS,
@@ -33,6 +41,9 @@ export function createGameState(config = {}) {
   const activeFactionCount = clampFactionCount(config.factionCount);
   const selectedFactionOrgs = ensureUniqueOrgs(config.orgRoster ?? DEFAULT_ORG_ROSTER);
   const activeFactions = getActiveFactionSlots(activeFactionCount);
+  const matchUnitCaps = clampMatchUnitCaps(currentGridSize, config.unitCaps);
+  const playerDefaultCaps = defaultSpawnCaps(matchUnitCaps, UNIT_CAPS.humanCapFraction);
+  const aiDefaultCaps = defaultSpawnCaps(matchUnitCaps, 1);
 
   const treasuries = {};
   const factionAlive = {};
@@ -116,17 +127,14 @@ export function createGameState(config = {}) {
     currentWorldSeed: config.seed ?? null,
 
     // --- recruitment --------------------------------------------------------
-    playerSpawnCaps: {
-      [UnitRank.SOLDIER]: 96,
-      [UnitRank.CAPTAIN]: 11,
-      [UnitRank.UNDERBOSS]: 6,
-    },
+    matchUnitCaps,
+    playerSpawnCaps: { ...playerDefaultCaps },
     // Per-faction recruitment preferences (used by remote human players in multiplayer)
     factionRecruitmentPrefs: {
-      [Faction.PLAYER]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { [UnitRank.SOLDIER]: 96, [UnitRank.CAPTAIN]: 11, [UnitRank.UNDERBOSS]: 6 } },
-      [Faction.RIVAL_1]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { [UnitRank.SOLDIER]: 192, [UnitRank.CAPTAIN]: 22, [UnitRank.UNDERBOSS]: 11 } },
-      [Faction.RIVAL_2]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { [UnitRank.SOLDIER]: 192, [UnitRank.CAPTAIN]: 22, [UnitRank.UNDERBOSS]: 11 } },
-      [Faction.RIVAL_3]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { [UnitRank.SOLDIER]: 192, [UnitRank.CAPTAIN]: 22, [UnitRank.UNDERBOSS]: 11 } },
+      [Faction.PLAYER]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { ...playerDefaultCaps } },
+      [Faction.RIVAL_1]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { ...aiDefaultCaps } },
+      [Faction.RIVAL_2]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { ...aiDefaultCaps } },
+      [Faction.RIVAL_3]: { autoSoldier: true, autoCaptain: true, autoUnderboss: true, caps: { ...aiDefaultCaps } },
     },
     autoRecruitSoldier: true,
     autoRecruitCaptain: true,

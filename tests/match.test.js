@@ -267,10 +267,10 @@ test('match: initWorld resets stale flags, timers, economy, caps and player stat
     assertEqual(state.factionAlive[Faction.RIVAL_1], false);
     assertEqual(state.factionKills[Faction.PLAYER], 0);
 
-    // 5x5 = 25 blocks: 22 soldiers, 2 captains, 1 underboss; human caps are 50%.
-    assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 11);
-    assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 1);
-    assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 1);
+    // 5x5 grid: 50 soldiers, 10 captains, 5 underbosses; human caps are 50%.
+    assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 25);
+    assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 5);
+    assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 3);
 
     assertEqual(state.player.x, 1.5 * 44);
     assertEqual(state.player.y, 1.5 * 44);

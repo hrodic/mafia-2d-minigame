@@ -14,7 +14,7 @@ import {
 import { SPRINT_MAX_DURATION, SPRINT_COOLDOWN_DURATION } from '../config/constants.js';
 import { FACTION_META } from '../config/organizations.js';
 import { state, forEachUnit, getLocalFaction, getLocalBoss, isLocalBossAlive } from '../core/state.js';
-import { clampPlayerSpawnCaps, getUnitCaps } from '../sim/units.js';
+import { clampPlayerSpawnCaps, getUnitCaps, getUnitCapMin } from '../sim/units.js';
 import { calculateFactionUpkeep, recalculateHourlyIncome } from '../sim/economy.js';
 
 
@@ -49,7 +49,8 @@ function syncCapButtons() {
   ];
   for (const [key, rank, max] of entries) {
     const value = state.playerSpawnCaps[rank];
-    const atMin = value <= 1;
+    const min = getUnitCapMin(rank);
+    const atMin = value <= min;
     const atMax = value >= max;
     setCapButtonState(document.getElementById(`btn-cap-${key}-min`), atMin);
     setCapButtonState(document.getElementById(`btn-cap-${key}-dec`), atMin);
@@ -59,7 +60,7 @@ function syncCapButtons() {
 }
 
 export function setRecruitCapMin(rank) {
-  state.playerSpawnCaps[rank] = 1;
+  state.playerSpawnCaps[rank] = getUnitCapMin(rank);
   syncRecruitButtonLabels();
 }
 
@@ -138,12 +139,23 @@ export function syncRecruitButtonLabels() {
   setEconomy('captain', COST_CAPTAIN, UPKEEP_CAPTAIN);
   setEconomy('underboss', COST_UNDERBOSS, UPKEEP_UNDERBOSS);
 
-  document.getElementById('cap-soldier-label').textContent =
-    `${state.playerSpawnCaps[UnitRank.SOLDIER]}/${maxSoldiers}`;
-  document.getElementById('cap-captain-label').textContent =
-    `${state.playerSpawnCaps[UnitRank.CAPTAIN]}/${maxCaptains}`;
-  document.getElementById('cap-underboss-label').textContent =
-    `${state.playerSpawnCaps[UnitRank.UNDERBOSS]}/${maxUnderbosses}`;
+  const setCapLabel = (key, rank, max) => {
+    const el = document.getElementById(`cap-${key}-label`);
+    if (!el) return;
+    const min = getUnitCapMin(rank);
+    el.textContent = `${state.playerSpawnCaps[rank]}/${max}`;
+    el.title = `${pRanks[rank]} spawn cap · min ${min}, max ${max}`;
+    el.setAttribute(
+      'aria-label',
+      `${pRanks[rank]} spawn cap ${state.playerSpawnCaps[rank]} of ${max}, minimum ${min}`
+    );
+    if (el.parentElement) {
+      el.parentElement.title = `${pRanks[rank]} spawn cap · ${min}–${max}`;
+    }
+  };
+  setCapLabel('soldier', UnitRank.SOLDIER, maxSoldiers);
+  setCapLabel('captain', UnitRank.CAPTAIN, maxCaptains);
+  setCapLabel('underboss', UnitRank.UNDERBOSS, maxUnderbosses);
 
   syncCapButtons();
 }

@@ -24,6 +24,7 @@ const STATE_KEYS = [
   'autoRecruitUnderboss',
   'playerSpawnCaps',
   'factionRecruitmentPrefs',
+  'matchUnitCaps',
 ];
 
 function makeWorld() {
@@ -133,6 +134,7 @@ function withCommandState(opts, fn) {
   state.autoRecruitUnderboss = true;
   state.playerSpawnCaps = { ...saved.playerSpawnCaps, ...(opts.playerSpawnCaps || {}) };
   state.factionRecruitmentPrefs = JSON.parse(JSON.stringify(saved.factionRecruitmentPrefs));
+  state.matchUnitCaps = opts.matchUnitCaps ? { ...opts.matchUnitCaps } : null;
 
   try {
     return fn();
@@ -236,10 +238,10 @@ test('commands: RECRUIT_PREF updates the player caps and remote faction prefs', 
     assertEqual(state.autoRecruitSoldier, false);
     assertEqual(state.autoRecruitCaptain, false);
     assertEqual(state.autoRecruitUnderboss, false);
-    // Caps use the 25-neighborhood minimum: 22 soldiers, 2 captains, 1 underboss.
-    assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 22);
-    assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 2);
-    assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 1);
+    // The test world has one chunk, so the 5x5 minimum grid applies: 50 soldiers, 10 captains, 5 underbosses.
+    assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 50);
+    assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 10);
+    assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 5);
 
     assertEqual(
       dispatchCommand(Faction.RIVAL_1, {
@@ -259,9 +261,9 @@ test('commands: RECRUIT_PREF updates the player caps and remote faction prefs', 
     assertEqual(prefs.autoSoldier, false);
     assertEqual(prefs.autoCaptain, true);
     assertEqual(prefs.autoUnderboss, false);
-    assertEqual(prefs.caps[UnitRank.SOLDIER], 22);
-    assertEqual(prefs.caps[UnitRank.CAPTAIN], 2);
-    assertEqual(prefs.caps[UnitRank.UNDERBOSS], 1);
+    assertEqual(prefs.caps[UnitRank.SOLDIER], 50);
+    assertEqual(prefs.caps[UnitRank.CAPTAIN], 10);
+    assertEqual(prefs.caps[UnitRank.UNDERBOSS], 5);
   });
 });
 

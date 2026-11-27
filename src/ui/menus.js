@@ -1,6 +1,7 @@
 // Setup modal, lobby buttons, banners, toasts and map-size controls.
 
-import { INCOME_TIERS } from '../config/balance.js';
+import { UnitRank } from '../config/enums.js';
+import { INCOME_TIERS, UNIT_CAPS, clampMatchUnitCaps, getGridUnitCaps } from '../config/balance.js';
 import { ORGANIZATIONS, ALL_ORG_IDS, ensureUniqueOrgs } from '../config/organizations.js';
 import { state } from '../core/state.js';
 import { parseWorldSeed, randomWorldSeed } from '../core/rng.js';
@@ -130,15 +131,81 @@ export function renderFactionSlotsUI() {
   });
 }
 
+const CAP_TIERS = [
+  { key: 'soldier', maxKey: 'maxSoldiers', min: UNIT_CAPS.minSoldiers },
+  { key: 'captain', maxKey: 'maxCaptains', min: UNIT_CAPS.minCaptains },
+  { key: 'underboss', maxKey: 'maxUnderbosses', min: UNIT_CAPS.minUnderbosses },
+];
+
+/** Clamp the chosen crew limits to the current grid and refresh the setup sliders. */
+function renderSetupCapControls() {
+  const sizeSlider = document.getElementById('map-size-slider');
+  const n = Math.max(5, Math.min(25, Number(sizeSlider ? sizeSlider.value : 15) || 15));
+  const hard = getGridUnitCaps(n);
+  state.matchUnitCaps = clampMatchUnitCaps(n, state.matchUnitCaps || {});
+  for (const tier of CAP_TIERS) {
+    const input = document.getElementById(`setup-cap-${tier.key}`);
+    if (!input) continue;
+    const max = hard[tier.maxKey];
+    input.min = String(tier.min);
+    input.max = String(max);
+    input.value = String(state.matchUnitCaps[tier.maxKey]);
+    const valueEl = document.getElementById(`setup-cap-${tier.key}-value`);
+    if (valueEl) valueEl.textContent = String(state.matchUnitCaps[tier.maxKey]);
+    const maxEl = document.getElementById(`setup-cap-${tier.key}-max`);
+    if (maxEl) maxEl.textContent = ` / ${max}`;
+    const ceilingEl = document.getElementById(`setup-cap-${tier.key}-ceiling`);
+    if (ceilingEl) ceilingEl.textContent = `grid max ${max}`;
+  }
+  updateMatchImpactSummary();
+}
+
+/** Set one tier maximum from the setup slider, clamped to the grid ceiling. */
+export function setSetupUnitCap(key, value) {
+  const tier = CAP_TIERS.find((entry) => entry.key === key);
+  if (!tier) return;
+  state.matchUnitCaps = {
+    ...state.matchUnitCaps,
+    [tier.maxKey]: Number(value),
+  };
+  renderSetupCapControls();
+}
+
+/** One-line preview of the match shape under the current setup choices. */
+export function updateMatchImpactSummary() {
+  const el = document.getElementById('match-impact-summary');
+  if (!el) return;
+  const sizeSlider = document.getElementById('map-size-slider');
+  const n = Math.max(5, Math.min(25, Number(sizeSlider ? sizeSlider.value : 15) || 15));
+  const total = n * n;
+  const caps = clampMatchUnitCaps(n, state.matchUnitCaps || {});
+  const tickSlider = document.getElementById('tick-speed-slider');
+  const tick = Math.max(10, Math.min(30, Number(tickSlider ? tickSlider.value : 10) || 10));
+  const tier = INCOME_TIERS[state.currentIncomeTier] || INCOME_TIERS.HIGH;
+  el.textContent =
+    `${total} Neighborhoods | Caps: ${caps.maxSoldiers}S · ${caps.maxCaptains}C · ${caps.maxUnderbosses}U | ` +
+    `${tick}s tick | $${tier.min.toLocaleString()}–$${tier.max.toLocaleString()}/tick`;
+}
+
+/** Switch the field-manual tab and show only its panel. */
+export function setManualTab(name) {
+  document.querySelectorAll('.manual-tab').forEach((tab) => {
+    const active = tab.dataset.manualTab === name;
+    tab.setAttribute('aria-selected', active ? 'true' : 'false');
+    tab.setAttribute('tabindex', active ? '0' : '-1');
+  });
+  document.querySelectorAll('.manual-panel').forEach((panel) => {
+    panel.classList.toggle('hidden', panel.id !== `manual-panel-${name}`);
+  });
+}
+
 export function updateMapSizePreview(val) {
   const n = Math.max(5, Math.min(25, Number(val) || 15));
   document.getElementById('map-size-slider').value = n;
   document.getElementById('map-size-display').textContent = n === 15 ? '15×15 (Default)' : `${n}×${n}`;
   const total = n * n;
-  const maxU = Math.max(1, Math.floor(total * 0.05));
-  const maxC = Math.max(1, Math.floor(total * 0.10));
-  const maxS = Math.max(1, total - maxC - maxU);
-  document.getElementById('map-cap-preview').innerHTML = `<span>${total} Neighborhoods</span><span class="font-mono text-emerald-400">Cap: ${maxS}S · ${maxC}C · ${maxU}U</span>`;
+  const caps = getGridUnitCaps(n);
+  document.getElementById('map-cap-preview').innerHTML = `<span>${total} Neighborhoods</span><span class="font-mono text-emerald-400">Max: ${caps.maxSoldiers}S · ${caps.maxCaptains}C · ${caps.maxUnderbosses}U</span>`;
 
   document.querySelectorAll('.size-preset-btn').forEach((btn) => {
     const active = Number(btn.getAttribute('data-size')) === n;
@@ -146,6 +213,7 @@ export function updateMapSizePreview(val) {
       ? 'size-preset-btn bg-amber-500/20 border border-amber-500 text-amber-300 py-1 rounded text-[11px] font-mono font-bold transition'
       : 'size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition';
   });
+  renderSetupCapControls();
 }
 
 function openSetupMenu() {
@@ -158,6 +226,7 @@ function openSetupMenu() {
   document.getElementById('disconnect-banner').classList.add('hidden');
   document.getElementById('setup-modal').classList.remove('hidden');
   setWorldSeedDisplay();
+  renderSetupCapControls();
 }
 
 
@@ -226,10 +295,20 @@ document.querySelectorAll('.size-preset-btn').forEach((btn) => {
   });
 });
 
+for (const tier of CAP_TIERS) {
+  const input = document.getElementById(`setup-cap-${tier.key}`);
+  if (!input) continue;
+  input.addEventListener('input', () => {
+    setSetupUnitCap(tier.key, input.value);
+    if (state.net && state.net.mode === 'HOST') state.net.broadcastHostLobbyState();
+  });
+}
+
 document.getElementById('tick-speed-slider').addEventListener('input', (e) => {
   const sec = Number(e.target.value) || 10;
   const label = sec <= 12 ? `${sec}s (Turbo)` : sec <= 22 ? `${sec}s (Normal)` : `${sec}s (Slow)`;
   document.getElementById('tick-speed-display').textContent = label;
+  updateMatchImpactSummary();
   if (state.net && state.net.mode === 'HOST') state.net.broadcastHostLobbyState();
 });
 
@@ -244,6 +323,7 @@ document.querySelectorAll('.income-tier-btn').forEach((btn) => {
         ? 'income-tier-btn bg-emerald-500/20 border border-emerald-500 text-emerald-300 py-2 px-2 rounded-lg text-center transition'
         : 'income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition';
     });
+    updateMatchImpactSummary();
     if (state.net && state.net.mode === 'HOST') state.net.broadcastHostLobbyState();
   });
 });
@@ -293,6 +373,7 @@ document.getElementById('btn-start-game').addEventListener('click', () => {
   getAudioCtx();
   const gridSize = Number(document.getElementById('map-size-slider').value) || 15;
   const tickSeconds = Number(document.getElementById('tick-speed-slider').value) || 10;
+  const unitCaps = clampMatchUnitCaps(gridSize, state.matchUnitCaps);
   const requestedSeed = readRequestedSeed();
 
   if (state.net && state.net.mode === 'HOST') {
@@ -303,6 +384,7 @@ document.getElementById('btn-start-game').addEventListener('click', () => {
       state.currentIncomeTier,
       state.activeFactionCount,
       state.selectedFactionOrgs,
+      unitCaps,
       requestedSeed
     );
     setWorldSeedDisplay();
@@ -319,7 +401,8 @@ document.getElementById('btn-start-game').addEventListener('click', () => {
     state.currentIncomeTier,
     state.activeFactionCount,
     state.selectedFactionOrgs,
-    worldSeed
+    worldSeed,
+    unitCaps
   );
   setWorldSeedDisplay(worldSeed);
 });
@@ -333,6 +416,12 @@ document.getElementById('btn-disconnect-return').addEventListener('click', openS
 document.getElementById('btn-victory-continue').addEventListener('click', () => {
   document.getElementById('victory-banner').classList.add('hidden');
 });
+
+document.querySelectorAll('.manual-tab').forEach((tab) => {
+  tab.addEventListener('click', () => setManualTab(tab.dataset.manualTab));
+});
+
+renderSetupCapControls();
 
 document.getElementById('btn-spectate-match').addEventListener('click', () => {
   state.isSpectating = true;

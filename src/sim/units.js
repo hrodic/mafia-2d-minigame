@@ -2,7 +2,7 @@
 
 import { Faction, UnitRank } from '../config/enums.js';
 import { CHUNK_SIZE, CHUNK_PX, TILE_SIZE } from '../config/constants.js';
-import { RANK_STATS, UNIT_CAPS } from '../config/balance.js';
+import { RANK_STATS, UNIT_CAPS, clampMatchUnitCaps, defaultSpawnCaps } from '../config/balance.js';
 import { ALL_FACTION_SLOTS } from '../config/organizations.js';
 import { state } from '../core/state.js';
 import { emit } from '../core/events.js';
@@ -10,43 +10,63 @@ import { canOccupyPosition } from './movement.js';
 
 
 export function getUnitCaps() {
-  const totalNeighborhoods = Math.max(
-    UNIT_CAPS.minNeighborhoods,
-    state.world.chunks.size || state.currentGridSize * state.currentGridSize
-  );
-  const maxUnderbosses = Math.max(1, Math.floor(totalNeighborhoods * UNIT_CAPS.underbossFraction));
-  const maxCaptains = Math.max(1, Math.floor(totalNeighborhoods * UNIT_CAPS.captainFraction));
-  const maxSoldiers = Math.max(1, totalNeighborhoods - maxCaptains - maxUnderbosses);
-  return { totalNeighborhoods, maxSoldiers, maxCaptains, maxUnderbosses };
+  const chunkCount = state.world && state.world.chunks ? state.world.chunks.size : 0;
+  const gridSize = chunkCount > 0
+    ? Math.round(Math.sqrt(chunkCount))
+    : Math.max(5, Math.min(25, state.currentGridSize || 15));
+  const caps = clampMatchUnitCaps(gridSize, state.matchUnitCaps || {});
+  return {
+    totalNeighborhoods: Math.max(25, gridSize * gridSize),
+    ...caps,
+  };
+}
+
+/** Lowest selectable spawn cap for a rank. */
+export function getUnitCapMin(rank) {
+  if (rank === UnitRank.UNDERBOSS) return UNIT_CAPS.minUnderbosses;
+  if (rank === UnitRank.CAPTAIN) return UNIT_CAPS.minCaptains;
+  return UNIT_CAPS.minSoldiers;
+}
+
+/** Highest selectable spawn cap for a rank at the current grid size. */
+export function getUnitCapMax(rank) {
+  const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
+  if (rank === UnitRank.UNDERBOSS) return maxUnderbosses;
+  if (rank === UnitRank.CAPTAIN) return maxCaptains;
+  return maxSoldiers;
+}
+
+/** Clamp any requested cap into the rank's allowed range. */
+export function clampUnitCap(rank, value) {
+  const min = getUnitCapMin(rank);
+  const max = getUnitCapMax(rank);
+  const n = Math.floor(Number(value));
+  return Math.max(min, Math.min(max, Number.isFinite(n) ? n : min));
 }
 
 export function resetDefaultPlayerSpawnCaps() {
-  const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
-  const humanCap = UNIT_CAPS.humanCapFraction;
-  state.playerSpawnCaps[UnitRank.SOLDIER] = Math.min(maxSoldiers, Math.max(1, Math.round(maxSoldiers * humanCap)));
-  state.playerSpawnCaps[UnitRank.CAPTAIN] = Math.min(maxCaptains, Math.max(1, Math.round(maxCaptains * humanCap)));
-  state.playerSpawnCaps[UnitRank.UNDERBOSS] = Math.min(maxUnderbosses, Math.max(1, Math.round(maxUnderbosses * humanCap)));
+  const caps = getUnitCaps();
+  const playerDefaults = defaultSpawnCaps(caps, UNIT_CAPS.humanCapFraction);
+  const aiDefaults = defaultSpawnCaps(caps, 1);
+  for (const rank of [UnitRank.SOLDIER, UnitRank.CAPTAIN, UnitRank.UNDERBOSS]) {
+    state.playerSpawnCaps[rank] = playerDefaults[rank];
+  }
   for (const f of ALL_FACTION_SLOTS) {
     const isHumanRemote = f !== Faction.PLAYER && state.net && state.net.isHumanFaction(f);
-    const mult = f === Faction.PLAYER || isHumanRemote ? humanCap : 1.0;
+    const defaults = f === Faction.PLAYER || isHumanRemote ? playerDefaults : aiDefaults;
     state.factionRecruitmentPrefs[f] = {
       autoSoldier: true,
       autoCaptain: true,
       autoUnderboss: true,
-      caps: {
-        [UnitRank.SOLDIER]: Math.min(maxSoldiers, Math.max(1, Math.round(maxSoldiers * mult))),
-        [UnitRank.CAPTAIN]: Math.min(maxCaptains, Math.max(1, Math.round(maxCaptains * mult))),
-        [UnitRank.UNDERBOSS]: Math.min(maxUnderbosses, Math.max(1, Math.round(maxUnderbosses * mult))),
-      },
+      caps: { ...defaults },
     };
   }
 }
 
 export function clampPlayerSpawnCaps() {
-  const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
-  state.playerSpawnCaps[UnitRank.SOLDIER] = Math.max(1, Math.min(maxSoldiers, state.playerSpawnCaps[UnitRank.SOLDIER]));
-  state.playerSpawnCaps[UnitRank.CAPTAIN] = Math.max(1, Math.min(maxCaptains, state.playerSpawnCaps[UnitRank.CAPTAIN]));
-  state.playerSpawnCaps[UnitRank.UNDERBOSS] = Math.max(1, Math.min(maxUnderbosses, state.playerSpawnCaps[UnitRank.UNDERBOSS]));
+  for (const rank of [UnitRank.SOLDIER, UnitRank.CAPTAIN, UnitRank.UNDERBOSS]) {
+    state.playerSpawnCaps[rank] = clampUnitCap(rank, state.playerSpawnCaps[rank]);
+  }
 }
 
 export function spawnUnitInChunk(faction, chunk, rank = UnitRank.SOLDIER) {
@@ -143,11 +163,12 @@ export function recruitUnit(faction, rank, silent = false, cachedCounts = null, 
       : maxSoldiers;
 
   let limit = hardLimit;
+  const hardMin = getUnitCapMin(rank);
   if (faction === Faction.PLAYER) {
-    limit = Math.max(1, Math.min(hardLimit, state.playerSpawnCaps[rank] || hardLimit));
+    limit = Math.max(hardMin, Math.min(hardLimit, state.playerSpawnCaps[rank] || hardLimit));
   } else if (state.net && state.net.isHumanFaction(faction)) {
     const prefCap = state.factionRecruitmentPrefs[faction]?.caps?.[rank];
-    if (prefCap) limit = Math.max(1, Math.min(hardLimit, prefCap));
+    if (prefCap) limit = Math.max(hardMin, Math.min(hardLimit, prefCap));
   }
   if (currentCount >= limit) return false;
 

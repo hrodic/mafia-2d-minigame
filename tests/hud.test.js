@@ -26,6 +26,7 @@ const KEYS = [
   'autoRecruitCaptain',
   'autoRecruitUnderboss',
   'playerSpawnCaps',
+  'matchUnitCaps',
   'net',
 ];
 
@@ -75,6 +76,7 @@ function withHudState(opts, fn) {
   state.autoRecruitCaptain = true;
   state.autoRecruitUnderboss = true;
   state.playerSpawnCaps = { ...saved.playerSpawnCaps, ...(opts.playerSpawnCaps || {}) };
+  state.matchUnitCaps = opts.matchUnitCaps ? { ...opts.matchUnitCaps } : null;
   state.net = null;
 
   try {
@@ -194,9 +196,9 @@ test('hud: recruit labels reflect toggles and caps', () => {
       assert(soldier.classList.contains('is-on'));
       assertEqual(document.getElementById('mgmt-rank-soldier').textContent, 'Soldato');
       assertEqual(document.getElementById('mgmt-auto-soldier').textContent, 'ON');
-      assertEqual(document.getElementById('cap-soldier-label').textContent, '11/192');
-      assertEqual(document.getElementById('cap-captain-label').textContent, '2/22');
-      assertEqual(document.getElementById('cap-underboss-label').textContent, '1/11');
+      assertEqual(document.getElementById('cap-soldier-label').textContent, '11/150');
+      assertEqual(document.getElementById('cap-captain-label').textContent, '2/30');
+      assertEqual(document.getElementById('cap-underboss-label').textContent, '1/15');
 
       state.autoRecruitSoldier = false;
       syncRecruitButtonLabels();
@@ -248,7 +250,8 @@ test('hud: recruit cap controls disable at limits and when unaffordable', () => 
       assertEqual(document.getElementById('btn-cap-soldier-inc').disabled, false);
       assertEqual(document.getElementById('btn-cap-captain-inc').disabled, false);
       assertEqual(document.getElementById('btn-cap-underboss-inc').disabled, false);
-      assertEqual(document.getElementById('btn-cap-captain-dec').disabled, false);
+      assertEqual(document.getElementById('btn-cap-captain-dec').disabled, true);
+      assertEqual(document.getElementById('btn-cap-captain-min').disabled, true);
       assertEqual(document.getElementById('btn-cap-underboss-dec').disabled, true);
     }
   );
@@ -287,12 +290,12 @@ test('hud: crew cap shortcuts jump to min and max in one action', () => {
     },
     () => {
       setRecruitCapMin(UnitRank.SOLDIER);
-      assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 1);
+      assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 10);
       assertEqual(document.getElementById('btn-cap-soldier-dec').disabled, true);
       assertEqual(document.getElementById('btn-cap-soldier-min').disabled, true);
 
       setRecruitCapMax(UnitRank.SOLDIER);
-      assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 192);
+      assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 150);
       assertEqual(document.getElementById('btn-cap-soldier-inc').disabled, true);
       assertEqual(document.getElementById('btn-cap-soldier-max').disabled, true);
     }

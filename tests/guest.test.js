@@ -131,6 +131,7 @@ test('guest: initial match applies the seat, starts the world and marks the matc
     factionCount: 2,
     orgRoster: ['COSA_NOSTRA', 'BRATVA'],
     worldSeed: 12345,
+    unitCaps: { maxSoldiers: 80, maxCaptains: 16, maxUnderbosses: 8 },
   };
 
   controller.handleInit({ type: MSG.INIT_MATCH, payload }, 'host');

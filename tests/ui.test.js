@@ -126,6 +126,112 @@ test('ui: action dock uses bottom keybinds and transform cooldown fills', async 
   assert(/\.action-btn\[data-state='affordable'\]/s.test(css), 'affordable-state styling missing');
 });
 
+test('ui: setup screen has a visible CTA, tabbed manual and live impact summary', async () => {
+  const html = await fetchIndexHtml();
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const cta = doc.getElementById('setup-cta-bar');
+  const start = doc.getElementById('btn-start-game');
+  assert(cta && start, 'setup CTA bar and start button must exist');
+  assert(cta.contains(start), 'start button must live in the sticky CTA bar');
+  assertEqual(doc.querySelectorAll('#btn-start-game').length, 1);
+
+  const tabs = doc.querySelectorAll('.manual-tab');
+  const panels = doc.querySelectorAll('.manual-panel');
+  assertEqual(tabs.length, 3);
+  assertEqual(panels.length, 3);
+  assertEqual(tabs[0].getAttribute('aria-selected'), 'true');
+  assertEqual(tabs[0].getAttribute('role'), 'tab');
+  assertEqual(doc.getElementById('manual-panel-controls').getAttribute('role'), 'tabpanel');
+  assert(doc.getElementById('manual-panel-hierarchy').classList.contains('hidden'));
+  assert(doc.getElementById('manual-panel-multiplayer').classList.contains('hidden'));
+  assert(doc.getElementById('match-impact-summary'), 'live match impact summary missing');
+
+  const cssResponse = await fetch('../styles.css', { cache: 'no-store' });
+  const css = await cssResponse.text();
+  assert(/\.setup-cta-bar\s*\{[^}]*position:\s*sticky/s.test(css), 'CTA bar must be sticky');
+  assert(/\.setup-cta-bar\s*\{[^}]*top:\s*0/s.test(css), 'CTA bar must stick to the top');
+  assert(/\.manual-tab\[aria-selected='true'\]/s.test(css), 'active manual tab style missing');
+});
+
+test('ui: multiplayer manual is player-facing and step based', async () => {
+  const html = await fetchIndexHtml();
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const panel = doc.getElementById('manual-panel-multiplayer');
+  assert(panel, 'multiplayer manual panel missing');
+  const text = panel.textContent;
+  for (const phrase of ['Host Multiplayer', 'Create Room', 'Copy Invitation', 'Join Multiplayer', 'Connect']) {
+    assert(text.includes(phrase), `multiplayer manual should mention "${phrase}"`);
+  }
+  assert(!/WebRTC|Trystero|P2P|host-authoritative|snapshot/i.test(text), 'manual should avoid engine jargon');
+  assertEqual(panel.querySelectorAll('.manual-step').length, 3);
+});
+
+test('ui: hierarchy manual is a scannable rank table', async () => {
+  const html = await fetchIndexHtml();
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const panel = doc.getElementById('manual-panel-hierarchy');
+  assert(panel, 'hierarchy manual panel missing');
+  const table = panel.querySelector('table.manual-table');
+  assert(table, 'hierarchy rank table missing');
+  assertEqual(table.querySelectorAll('tbody tr').length, 4);
+
+  const headers = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim().toLowerCase());
+  for (const header of ['rank', 'hp', 'dmg', 'hire', 'upkeep', 'cap']) {
+    assert(headers.includes(header), `missing "${header}" column`);
+  }
+
+  const text = table.textContent;
+  for (const value of ['$3,800', '$2,200', '$1,200', '480', '340', '180', '×1', '×2', '×10']) {
+    assert(text.includes(value), `rank table should show ${value}`);
+  }
+
+  const css = await (await fetch('../styles.css', { cache: 'no-store' })).text();
+  assert(/\.manual-table\s*\{[^}]*border-collapse/s.test(css), 'rank table styling missing');
+  assert(/\.manual-table-wrap\s*\{[^}]*overflow-x:\s*auto/s.test(css), 'rank table needs horizontal fallback');
+});
+
+test('ui: setup modal grows on large screens so the manual avoids side scroll', async () => {
+  const html = await fetchIndexHtml();
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const card = doc.querySelector('#setup-modal .setup-modal-card');
+  assert(card, 'setup modal card needs a dedicated sizing class');
+  assert(!card.className.includes('max-w-4xl'), 'fixed 4xl cap should be removed');
+
+  const manual = doc.getElementById('manual-column');
+  assert(manual, 'manual column needs an id');
+  assert(manual.className.includes('lg:col-span-7'), 'manual column keeps 7/12 at lg');
+  assert(manual.className.includes('xl:col-span-8'), 'manual column grows to 8/12 at xl');
+
+  const css = await (await fetch('../styles.css', { cache: 'no-store' })).text();
+  assert(
+    /\.setup-modal-card\s*\{[^}]*width:\s*100%/s.test(css),
+    'modal should fill the available width'
+  );
+  assert(
+    /\.setup-modal-card\s*\{[^}]*max-width:\s*78rem/s.test(css),
+    'modal max width should be raised on wide screens'
+  );
+});
+
+test('ui: hierarchy tiers use the same metals as the crew panel', async () => {
+  const html = await fetchIndexHtml();
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const table = doc.querySelector('#manual-panel-hierarchy table.manual-table');
+  const rows = [...table.querySelectorAll('tbody tr')];
+  assertEqual(rows.length, 4);
+  assert(rows[0].classList.contains('tier-diamond'), 'Supreme Leader should be diamond');
+  assert(rows[1].classList.contains('tier-gold'), 'Second-in-Command should be gold');
+  assert(rows[2].classList.contains('tier-silver'), 'Middle Management should be silver');
+  assert(rows[3].classList.contains('tier-copper'), 'Street Enforcers should be copper');
+
+  const css = await (await fetch('../styles.css', { cache: 'no-store' })).text();
+  const metal = (name) => css.match(new RegExp(`\\.${name}\\s*\\{([^}]*)\\}`))?.[1] || '';
+  assert(metal('tier-diamond').includes('--tier-ink: #f8fafc'), 'diamond ink missing');
+  assert(metal('tier-gold').includes('--tier-ink: #fcd34d'), 'gold ink missing');
+  assert(metal('tier-silver').includes('--tier-ink: #e5e7eb'), 'silver ink missing');
+  assert(metal('tier-copper').includes('--tier-ink: #e6b07c'), 'copper ink missing');
+});
+
 test('ui: critical HUD values are tabular and bars are transform-driven', async () => {
   const html = await fetchIndexHtml();
   const doc = new DOMParser().parseFromString(html, 'text/html');

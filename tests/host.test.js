@@ -63,6 +63,42 @@ test('host: HELLO admits a guest, seats it and broadcasts lobby state', () => {
   assert(calls.sent.some(([data, target]) => data.type === MSG.LOBBY_STATE && target === 'g1'));
 });
 
+test('host: launch forwards crew limits to the world and guests', () => {
+  const { controller, calls } = makeHost();
+  const savedWorld = state.world;
+  const savedPlayer = state.player;
+  const savedNpcs = state.npcs;
+  state.world = { chunks: new Map() };
+  state.player = {
+    x: 0, y: 0, facing: 0, hp: 100, maxHp: 100, armor: 0, maxArmor: 0,
+    alive: true, slashAnimTimer: 0, muzzleFlashTimer: 0,
+  };
+  state.npcs = [];
+  try {
+    controller.handleLobby({ v: GAME_VERSION, type: MSG.HELLO, payload: { name: 'Guest Boss' } }, 'g1');
+
+    const unitCaps = { maxSoldiers: 80, maxCaptains: 16, maxUnderbosses: 8 };
+    controller.launchMatch({
+      gridSize: 10,
+      tickSeconds: 10,
+      incomeTier: 'HIGH',
+      factionCount: 2,
+      orgRoster: ['COSA_NOSTRA', 'BRATVA'],
+      unitCaps,
+      seedOverride: 12345,
+    });
+
+    assertDeepEqual(calls.worlds[0].unitCaps, unitCaps);
+    const init = calls.sent.find(([data]) => data.type === MSG.INIT_MATCH);
+    assert(init, 'INIT_MATCH should be sent to the guest');
+    assertDeepEqual(init[0].payload.unitCaps, unitCaps);
+  } finally {
+    state.world = savedWorld;
+    state.player = savedPlayer;
+    state.npcs = savedNpcs;
+  }
+});
+
 test('host: version mismatch is rejected without admitting the peer', () => {
   const { controller, calls } = makeHost();
   controller.handleLobby({ v: '0.0.0', type: MSG.HELLO, payload: { name: 'Old Client' } }, 'g1');

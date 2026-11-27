@@ -18,7 +18,8 @@ export function initWorld(
   selectedIncomeTier = state.currentIncomeTier,
   factionCount = state.activeFactionCount,
   orgRoster = state.selectedFactionOrgs,
-  seedOverride = null
+  seedOverride = null,
+  unitCaps = state.matchUnitCaps
 ) {
   Object.assign(
     state,
@@ -30,6 +31,7 @@ export function initWorld(
       factionCount,
       orgRoster,
       seed: seedOverride,
+      unitCaps,
       world: state.world,
       net: state.net,
     })

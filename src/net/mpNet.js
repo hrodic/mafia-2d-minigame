@@ -3,6 +3,7 @@
 // continues the protocol/lobby/host/guest split.
 
 import { Faction } from '../config/enums.js';
+import { clampMatchUnitCaps } from '../config/balance.js';
 import { FACTION_META, ensureUniqueOrgs } from '../config/organizations.js';
 import { state, getLocalBoss } from '../core/state.js';
 import { initWorld } from '../sim/match.js';
@@ -36,12 +37,14 @@ export const mpNet = (() => {
   let guest = null;
 
   function getCurrentHostConfig() {
+    const gridSize = Number(document.getElementById('map-size-slider')?.value || 15);
     return {
-      gridSize: Number(document.getElementById('map-size-slider')?.value || 15),
+      gridSize,
       tickSeconds: Number(document.getElementById('tick-speed-slider')?.value || 10),
       incomeTier: state.currentIncomeTier,
       factionCount: state.activeFactionCount,
       orgRoster: ensureUniqueOrgs(state.selectedFactionOrgs),
+      unitCaps: clampMatchUnitCaps(gridSize, state.matchUnitCaps),
     };
   }
 
@@ -53,7 +56,8 @@ export const mpNet = (() => {
       payload.incomeTier,
       payload.factionCount,
       payload.orgRoster,
-      payload.worldSeed
+      payload.worldSeed,
+      payload.unitCaps
     );
   }
 
@@ -259,9 +263,9 @@ export const mpNet = (() => {
     }
   }
 
-  function launchMultiplayerMatch(gridSize, tickSeconds, incomeTier, factionCount, orgRoster, seedOverride = null) {
+  function launchMultiplayerMatch(gridSize, tickSeconds, incomeTier, factionCount, orgRoster, unitCaps, seedOverride = null) {
     if (host) {
-      host.launchMatch({ gridSize, tickSeconds, incomeTier, factionCount, orgRoster, seedOverride });
+      host.launchMatch({ gridSize, tickSeconds, incomeTier, factionCount, orgRoster, unitCaps, seedOverride });
     }
   }
 

@@ -75,11 +75,49 @@ export const RANK_STATS = {
 };
 
 export const UNIT_CAPS = {
-  minNeighborhoods: 25,
-  underbossFraction: 0.05,
-  captainFraction: 0.1,
+  underbossPerSide: 1,
+  captainPerSide: 2,
+  soldierPerSide: 10,
+  minUnderbosses: 1,
+  minCaptains: 2,
+  minSoldiers: 10,
   humanCapFraction: 0.5,
 };
+
+/** Hard caps for a square city grid: underbosses ×1, captains ×2, soldiers ×10 per side. */
+export function getGridUnitCaps(gridSize) {
+  const side = Math.max(5, Math.min(25, Math.floor(Number(gridSize) || 5)));
+  return {
+    maxUnderbosses: Math.max(UNIT_CAPS.minUnderbosses, side * UNIT_CAPS.underbossPerSide),
+    maxCaptains: Math.max(UNIT_CAPS.minCaptains, side * UNIT_CAPS.captainPerSide),
+    maxSoldiers: Math.max(UNIT_CAPS.minSoldiers, side * UNIT_CAPS.soldierPerSide),
+  };
+}
+
+/** Default spawn caps at a fraction of each tier's hard cap, never below its minimum. */
+export function defaultSpawnCaps(caps, fraction) {
+  const scale = (max, min) => Math.min(max, Math.max(min, Math.round(max * fraction)));
+  return {
+    [UnitRank.SOLDIER]: scale(caps.maxSoldiers, UNIT_CAPS.minSoldiers),
+    [UnitRank.CAPTAIN]: scale(caps.maxCaptains, UNIT_CAPS.minCaptains),
+    [UnitRank.UNDERBOSS]: scale(caps.maxUnderbosses, UNIT_CAPS.minUnderbosses),
+  };
+}
+
+/** Clamp player-chosen match maxima between static tier minimums and the grid ceiling. */
+export function clampMatchUnitCaps(gridSize, requested = {}) {
+  const hard = getGridUnitCaps(gridSize);
+  const source = requested || {};
+  const clamp = (value, max, min) => {
+    const n = Math.floor(Number(value));
+    return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : max;
+  };
+  return {
+    maxSoldiers: clamp(source.maxSoldiers, hard.maxSoldiers, UNIT_CAPS.minSoldiers),
+    maxCaptains: clamp(source.maxCaptains, hard.maxCaptains, UNIT_CAPS.minCaptains),
+    maxUnderbosses: clamp(source.maxUnderbosses, hard.maxUnderbosses, UNIT_CAPS.minUnderbosses),
+  };
+}
 
 export const SLASH = {
   // One rule set for every human-controlled boss (local player or remote guest).
