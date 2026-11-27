@@ -24,6 +24,27 @@ command, number or test result; read the file or run the check.
    runs a local esbuild binary to minify each module **without bundling**. Never hand-edit
    `docs/`; rebuild it from `src/`.
 
+## Generated Pages artifact (`docs/`)
+
+`docs/` is **pure output** of `tools/build-pages.ps1` (esbuild minify, no bundling). It is
+not source. Never edit, add or delete anything under `docs/` by hand; never put tests there;
+never use it for debugging. Change `index.html`, `styles.css` or `src/`, run the build
+script, and commit the regenerated `docs/` directory. If the artifact is wrong, fix the
+source or build script and rebuild; do not patch `docs/`.
+
+## Static validation tooling
+
+Run these before every commit:
+
+1. `tools/check.ps1` — imports, test registry, DOM ids, skill metadata, `docs/` shape and
+   the `sim/` headless ratchet.
+2. `tools/typecheck.ps1` — native TypeScript compiler against `jsconfig.json`
+   (`// @ts-check` modules only).
+3. `tests/tests.html` — browser test suite; title must be `PASS`.
+4. `tools/build-pages.ps1` + `http://localhost:8123/docs/` — when `src/`, `index.html` or
+   `styles.css` changed.
+5. `tests/mp-harness.html` in two tabs — when `sim/`, `net/` or shared state changed.
+
 ## Versioning (SemVer)
 
 `GAME_VERSION` in `src/config/version.js` is the single source (`MAJOR.MINOR.PATCH`).
@@ -41,6 +62,7 @@ command, number or test result; read the file or run the check.
 
 | Task | Command / URL |
 |---|---|
+| Full static gate | `tools/check.ps1` + `tools/typecheck.ps1` + `tests/tests.html` |
 | Static check | `powershell -ExecutionPolicy Bypass -File tools/check.ps1` → `OK: ...` |
 | Type check | `powershell -ExecutionPolicy Bypass -File tools/typecheck.ps1` → `Type check OK` |
 | Build Pages artifact | `powershell -ExecutionPolicy Bypass -File tools/build-pages.ps1` → `Built docs/: ...` |

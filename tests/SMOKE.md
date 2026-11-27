@@ -4,18 +4,34 @@ The architecture refactor has a **golden rule: every commit must leave the game
 playable, deployable and the automated tests green.** Run the quick smoke after every
 change; run the full checklist at the end of every phase.
 
-Serve the repo over http first (`python -m http.server 8000` or any static server).
+Serve the repo over http first:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123
+```
+
+## Static and release gates — after EVERY change
+
+- [ ] `powershell -ExecutionPolicy Bypass -File tools/check.ps1` → `OK: ...`
+- [ ] `powershell -ExecutionPolicy Bypass -File tools/typecheck.ps1` → `Type check OK`
+- [ ] `http://localhost:8123/tests/tests.html` → title `PASS`; browser console clean
+- [ ] If `src/`, `index.html` or `styles.css` changed:
+  `powershell -ExecutionPolicy Bypass -File tools/build-pages.ps1` → `Built docs/: ...`
+- [ ] `http://localhost:8123/docs/` loads; `docs/` contains no tests
+- [ ] `http://localhost:8123/docs/tests/tests.html` → 404
+- [ ] `docs/` is **never hand-edited**; fix source or the build script and rebuild
 
 ## Quick smoke (~1 minute) — after EVERY commit
 
-- [ ] `http://localhost:8000/` loads with no console errors; setup modal renders.
+- [ ] `http://localhost:8123/` loads with no console errors; setup modal renders.
 - [ ] Launch single player (default 15×15).
 - [ ] Move: WASD + click-to-move + minimap click.
+- [ ] While moving, click a new street point: the boss immediately switches to the new target.
 - [ ] Slash (Space/F) works.
 - [ ] Right-click pistol fires (tracer + accuracy label).
 - [ ] Capture one block (progress bar → tint change).
 - [ ] One economy tick fires (hour advances, income/upkeep applied).
-- [ ] `http://localhost:8000/tests/tests.html` → all tests green, title says `PASS`.
+- [ ] `http://localhost:8123/tests/tests.html` → all tests green, title says `PASS`.
 
 ## Multiplayer quick check (two tabs) — any change touching sim/net/shared state
 
@@ -28,8 +44,10 @@ Serve the repo over http first (`python -m http.server 8000` or any static serve
 - [ ] Slot toggles (human/AI) sync to the guest; guest settings summary matches host.
 - [ ] Launch; both bosses move; guest slash/shoot works through host simulation.
 - [ ] Guest recruit toggle/caps reach the host (auto-recruit respects them).
+- [ ] Host tab hidden/backgrounded → guest still receives snapshots and movement continues.
 - [ ] Guest closes tab → host shows "AI took control" toast.
 - [ ] Host closes tab → guest sees the disconnect banner.
+- [ ] Repeat the host/guest check from the built `/docs/` artifact.
 
 ## Full checklist — end of EVERY phase
 
@@ -44,7 +62,8 @@ Serve the repo over http first (`python -m http.server 8000` or any static serve
 ### Single player
 
 - [ ] World seed: start with a known seed, New Game, reuse it → same map; change it → different map.
-- [ ] Seed badge/Copy puts the current seed on the clipboard.- [ ] Boss HP/armor/cash/sprint/hour HUD values update correctly.
+- [ ] Seed badge/Copy puts the current seed on the clipboard.
+- [ ] Boss HP/armor/cash/sprint/hour HUD values update correctly.
 - [ ] Movement: WASD, arrows, click street, minimap click; waypoint marker shows.
 - [ ] Collision: cannot walk through buildings/cars/dumpsters; doors/alley paths work.
 - [ ] Sprint: 1.6× burst 2 s, cooldown 4 s, HUD bar reflects state.
@@ -80,6 +99,11 @@ Serve the repo over http first (`python -m http.server 8000` or any static serve
 - [ ] Peer leaves mid-match → AI takeover toast; remaining players continue.
 - [ ] Host leaves mid-match → guests see disconnect modal → Return to Menu.
 
-### Automated
-- [ ] `tests/tests.html` all green.
+### Automated and release
+- [ ] `tools/check.ps1` → `OK: ...`
+- [ ] `tools/typecheck.ps1` → `Type check OK`
+- [ ] `tests/tests.html` → `PASS`
+- [ ] `tools/build-pages.ps1` → `Built docs/: ...`
+- [ ] `docs/` contains `index.html`, `styles.css`, `.nojekyll`, `src/main.js`
+- [ ] `docs/` contains no `*.test.js` and no `tests/` directory
 - [ ] No new console errors/warnings introduced by the change.

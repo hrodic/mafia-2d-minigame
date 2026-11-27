@@ -21,8 +21,8 @@ architecture description here.
 - **Phase 4 — DONE (`0.4.19`):** netcode hardening; step 1 split complete; snapshot apply
   is O(n); hidden-host fallback added. Chunk deltas and NAT/TURN work moved to the future
   ideas section.
-- **Phase 5 — IN PROGRESS (`0.4.21`):** quality gates and docs; targeted net/protocol tests
-  added, duplicate balance check removed, editor type-check config/JSDoc added.
+- **Phase 5 — IN PROGRESS (`0.4.22`):** quality gates and docs; tests/typecheck/build tooling
+  documented and enforced; deploy/smoke guidance refreshed; Pages validation remains.
 
 Phase 3 is complete on `refactor/phase-3-unified-entity`. Phase 4 is complete on
 `refactor/phase-4-netcode`. Phase 5 is in progress on `refactor/phase-5-quality`; use the
@@ -89,9 +89,11 @@ These are intentionally outside Phase 4 and are not scheduled.
    `// @ts-check`), JSDoc on `fixedStep`, `hiddenSim`, `events`, `protocol` and `lobby`.
    `tools/typecheck.ps1` downloads the ignored native `tsc.exe` and passes. No npm or
    transpilation.
-3. **NEXT:** refresh README/architecture docs, deploy steps, how to add content via balance
-   tables.
-4. Validate the deployed GitHub Pages URL (module MIME, relative paths, CDNs, invites).
+3. **DONE (`0.4.22`):** README/architecture/deploy/smoke docs refreshed; `docs/` is
+   documented as pure esbuild output and never hand-edited; static validation tooling is
+   listed in `AGENTS.md`, `README.md` and the zero-build skill.
+4. **NEXT:** validate the deployed GitHub Pages URL (module MIME, relative paths, CDNs,
+   invites, multiplayer, `/docs` only).
 
 ## Pitfalls / known bugs
 
