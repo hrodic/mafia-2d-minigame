@@ -35,7 +35,8 @@ Each faction carries `state.factionTactics[faction]`:
 | `updatedAt` | Accumulated simulation seconds of the last refresh |
 
 `sim/tactics.js` refreshes these facts every **250 ms** inside the fixed simulation step. It
-also sets per-unit `inBossAura` with hysteresis: **480 px enter / 540 px exit**.
+also sets per-unit `inBossAura` with hysteresis: **325 px enter / 360 px exit** for both
+local orders. The 200-300 px gunner ring stays local.
 
 Scope split:
 
@@ -52,9 +53,10 @@ Controls:
 
 **Implementation status:** the command layer, UI, commands and snapshot sync are live.
 Defaults **Expand + Attack** preserve the pre-command behavior. **Global Defend** and
-**Local Guard** are wired. Guard keeps non-boss crews inside the boss aura in a defensive
-screen, focuses the local threat and does not chase beyond the 360 px leash. Attack crews
-collapse to the boss when he is in danger. All other behavior is unchanged.
+**Local Guard** are wired. Guard keeps non-boss crews in a scattered ring around the boss:
+Soldiers/Captains at **50–150 px** and Underbosses at **200–300 px**, covering all
+directions. Attack crews collapse into the same guard ring when the boss is in danger.
+All other behavior is unchanged.
 
 ## Operational directives
 
@@ -105,25 +107,59 @@ expanding around the boss while distant crews hold turf.
 
 ### 3. Guard — screen the boss
 
-Local **Guard** applies to non-boss allies **inside the boss aura**. It replaces patrol
-selection with a defensive post around the boss.
+Local **Guard** applies to non-boss allies inside the local aura. It replaces patrol
+selection with a scattered defensive ring around the boss.
 
-- Melee ranks hold about **110 px** from the boss on the threat side.
-- The **Underboss** holds about **180 px behind** the boss, slightly offset to one side, and
-  fires from there instead of advancing.
-- With no threat, units hold their current side at those distances.
-- Each guard caches a **stable ring slot**; when it reaches the post it stands still inside a
+- **Soldiers and Captains** hold a scattered post between **50 and 150 px** from the boss.
+- **Underbosses** default to a scattered post between **200 and 300 px** and fire from
+  there; if a target is out of gun range they may step in, then return.
+- Slots are deterministic per unit: a golden-angle direction with a small jitter plus a
+  hashed distance. There is **no rear bias**; the result covers all directions without
+  forming a perfect ring.
+- If a slot points into a wall or off the map, the post searches the walkable ring and keeps
+  at least **60%** of the intended distance instead of collapsing onto the boss.
+- Each guard caches a **stable slot**; when it reaches the post it stands still inside a
   **14 px idle deadzone** instead of micro-correcting or orbiting the boss.
-- The local focus enemy is the shared target; other enemies are ignored.
-- Melee guards may step toward the focus but never beyond the **360 px leash** from the boss.
-- A focus that leaves the leash is dropped and the guard returns to its post.
+- The local focus enemy is the shared **priority** target. It is not the only target:
+  without a valid focus, guards still engage the nearest enemy in their own aggro range.
+- Guards may chase the focus or a self-defense target inside their normal aggro range, up to
+  **1000 px** from the boss. They keep their guard assignment while outside the local aura
+  and return to their post once the fight ends.
+- A focus outside the **360 px** local focus radius is dropped and the guard returns to its
+  post unless a nearer enemy is engaging it.
 - Guard units do not patrol for new blocks. Automatic capture still runs if they happen to
   stand on non-owned turf.
 - The boss itself is never ordered; its own survival and combat logic remain in control.
 
+The local aura is **325 px enter / 360 px exit** for **both** Guard and Attack. The same
+units stay under the local order when you switch; only the order changes.
+
+**Self-defense:** an enemy inside the guard's immediate reach always overrides the shared
+focus. Melee guards answer an adjacent attacker first; Underbosses answer a close threat
+inside **180 px** first. Without a valid focus, guards still engage the nearest enemy in
+their normal aggro range instead of standing idle.
+
+**Guard assignment / recall:** a unit that was guarding keeps `guardAssigned` state while it
+chases outside the 325/360 bubble. It does not fall back to the global stance during the
+fight. After the target is gone it returns to its scattered post. The assignment clears when:
+
+- the boss is farther than **1000 px**,
+- the local order changes to Attack and the boss is not in danger,
+- the boss dies or the faction is eliminated.
+
+If the player switches to Attack while guards are outside the bubble, they resume the global
+stance until they re-enter the local aura.
+
+**Focus debounce:** acquiring the first focus and dropping a lost focus are immediate. A
+switch to a different enemy must survive **two 250 ms refreshes (~0.5 s)** before it commits,
+so two equidistant enemies cannot swing the ring back and forth.
+
+**CPU cadence:** guard posts are rebuilt only when the 250 ms command layer publishes a new
+revision, not every simulation frame. Between refreshes guards reuse the cached post.
+
 **Attack + boss danger:** when the boss is in danger, Attack crews temporarily behave like
-Guard and collapse around him (melee about **120 px**, Underboss **180 px**). Normal Attack
-resumes when the danger clears.
+Guard and collapse into the same scattered ring. Normal Attack resumes when the danger
+clears.
 
 ### 4. Engage — nearest enemy only
 
@@ -243,8 +279,14 @@ in directive 3; combat behavior is otherwise unchanged.
 
 - **Target selection:** nearest enemy only.
 - **Defend destinations:** owned turf only (threatened, then border, then nearest owned); capture stays automatic.
-- **Guard posts:** melee **110 px** on the threat side; Underboss **180 px** behind and offset; **360 px** leash; stable slot + **14 px** idle deadzone.
-- **Attack danger collapse:** boss in danger → nearby Attack crews use Guard posts (melee **120 px**).
+- **Guard ring:** Soldiers/Captains **50–150 px**; Underbosses **200–300 px**; scattered all-around slots.
+- **Guard posts:** stable slot; **14 px** idle deadzone; chase up to **1000 px** from the boss, then return.
+- **Guard recall:** an assigned guard stays Guard outside the 325/360 bubble and returns after combat.
+- **Local aura:** **325 px** enter / **360 px** exit for both Guard and Attack.
+- **Self-defense:** guards always engage the nearest enemy in their own aggro range, even without a focus.
+- **Self-defense priority:** an adjacent melee threat or a <180 px ranged threat overrides the shared focus.
+- **Focus debounce:** first focus and loss immediate; switches commit after **~0.5 s**.
+- **Attack danger collapse:** boss in danger → nearby Attack crews use the same Guard ring.
 - **Ranged fire band:** melee reach → weapon range. There is no 110 px minimum.
 - **Underboss close range:** below 110 px, fire while backing off (80 px step, 0.6 s).
 - **Boss close range:** healthy and not outnumbered → commit to melee inside 110 px.

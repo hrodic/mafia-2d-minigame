@@ -9,6 +9,7 @@ import { Faction, UnitRank } from '../config/enums.js';
 import { AI_TACTICS } from '../config/balance.js';
 import { CHUNK_PX } from '../config/constants.js';
 import {
+  LOCAL_ORDER,
   TACTICS,
   isGlobalStance,
   isLocalOrder,
@@ -111,6 +112,51 @@ function refreshThreatenedChunks(record, faction) {
   }
 }
 
+/**
+ * Keep the current local focus until a different candidate has survived
+ * `focusSwitchTicks` refreshes (~0.5 s at 4 Hz). Acquisition and loss are
+ * immediate so guards react to the first threat and drop a dead target.
+ */
+function refreshLocalFocus(record, candidateId) {
+  const current = record.localFocus;
+  if (
+    record.localFocusId !== null &&
+    (!current || current.hp <= 0 || current.alive === false)
+  ) {
+    record.localFocusId = null;
+    record.localFocus = null;
+    record.focusCandidateId = null;
+    record.focusCandidateTicks = 0;
+  }
+
+  if (candidateId === record.localFocusId) {
+    record.focusCandidateId = null;
+    record.focusCandidateTicks = 0;
+    return;
+  }
+
+  if (record.localFocusId === null || candidateId === null) {
+    record.localFocusId = candidateId;
+    record.localFocus = candidateId !== null ? getUnitById(candidateId) : null;
+    record.focusCandidateId = null;
+    record.focusCandidateTicks = 0;
+    return;
+  }
+
+  if (record.focusCandidateId === candidateId) {
+    record.focusCandidateTicks += 1;
+  } else {
+    record.focusCandidateId = candidateId;
+    record.focusCandidateTicks = 1;
+  }
+  if (record.focusCandidateTicks >= TACTICS.focusSwitchTicks) {
+    record.localFocusId = candidateId;
+    record.localFocus = getUnitById(candidateId);
+    record.focusCandidateId = null;
+    record.focusCandidateTicks = 0;
+  }
+}
+
 function refreshFaction(faction) {
   const record = state.factionTactics[faction];
   if (!record) return null;
@@ -126,18 +172,20 @@ function refreshFaction(faction) {
       hpFraction <= AI_TACTICS.bossRetreatHpFraction ||
       (scan.nearbyEnemyCount >= AI_TACTICS.bossRetreatMinEnemies &&
         scan.nearbyEnemyCount > scan.nearbyAllyCount);
-    record.localFocusId = findLocalFocus(boss);
-    record.localFocus =
-      record.localFocusId !== null ? getUnitById(record.localFocusId) : null;
+    const candidateId = findLocalFocus(boss);
+    refreshLocalFocus(record, candidateId);
   } else {
     record.bossId = null;
     record.bossInDanger = false;
     record.localFocusId = null;
     record.localFocus = null;
+    record.focusCandidateId = null;
+    record.focusCandidateTicks = 0;
   }
 
   refreshThreatenedChunks(record, faction);
   record.updatedAt += TACTICS.updateInterval;
+  record.revision = (record.revision || 0) + 1;
   return boss;
 }
 
@@ -145,12 +193,16 @@ function refreshAuraFlags(bosses) {
   for (let i = 0; i < state.npcs.length; i++) {
     const unit = state.npcs[i];
     if (!unit || unit.rank === UnitRank.BOSS) {
-      if (unit) unit.inBossAura = false;
+      if (unit) {
+        unit.inBossAura = false;
+        unit.guardAssigned = false;
+      }
       continue;
     }
     const boss = bosses.get(unit.faction);
     if (!boss) {
       unit.inBossAura = false;
+      unit.guardAssigned = false;
       continue;
     }
     const distance = Math.hypot(unit.x - boss.x, unit.y - boss.y);
@@ -158,6 +210,21 @@ function refreshAuraFlags(bosses) {
     unit.inBossAura = wasInside
       ? distance <= TACTICS.auraExitRadius
       : distance <= TACTICS.auraEnterRadius;
+
+    const record = state.factionTactics[unit.faction];
+    const guardOrder = Boolean(record) && record.localOrder === LOCAL_ORDER.GUARD;
+    const collapsing = Boolean(record) &&
+      record.localOrder === LOCAL_ORDER.ATTACK &&
+      record.bossInDanger;
+
+    if (unit.inBossAura) {
+      unit.guardAssigned = guardOrder || collapsing;
+    } else if (unit.guardAssigned) {
+      const stillGuarding = guardOrder || collapsing;
+      if (!stillGuarding || distance > TACTICS.guardRecallRadius) {
+        unit.guardAssigned = false;
+      }
+    }
   }
 }
 

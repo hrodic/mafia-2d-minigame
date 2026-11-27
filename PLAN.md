@@ -29,7 +29,8 @@ architecture description here.
   dead zone, Glock/MP9 shop, economy/music/blood tuning, and the tactical command layer.
   Command-layer steps 1–3 are live: faction global/local order state, Orders UI, commands,
   snapshot sync, **Global Defend** (owned-turf patrol + safe reinforcement placement) and
-  **Local Guard** (boss screen, focus/leash, Attack danger collapse). Defaults
+  **Local Guard** (scattered 50–150 px melee / 200–300 px gunner ring, focus debounce,
+  250 ms post cache, Attack danger collapse, self-defense, guard recall). Defaults
   **Expand + Attack** preserve the pre-command behavior. Version stays `0.8.0` for
   the whole branch by owner decision.
 

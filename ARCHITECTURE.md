@@ -257,7 +257,8 @@ transitions only, never positions, timers or per-NPC updates.
 See **`TACTICS.md`** for the current operational stance and rules of engagement.
 `sim/tactics.js` owns the faction command layer: every 250 ms it refreshes boss
 position/danger, threatened owned chunks, the local focus target and each unit's
-`inBossAura` flag (480 px enter / 540 px exit). `state.factionTactics[faction]` stores the
+`inBossAura` flag (325 px enter / 360 px exit for both local orders).
+`state.factionTactics[faction]` stores the
 selected global stance (Defend/Expand) and local order (Guard/Attack); defaults are
 Expand/Attack. Orders travel through `SET_GLOBAL_STANCE` / `SET_LOCAL_ORDER` commands and
 compact snapshot codes. This module only reads sim facts; presentation reads the state.
@@ -266,10 +267,16 @@ boss aura pick only owned patrol destinations (threatened block → owned border
 owned), and reinforcements prefer safe friendly turf near the threatened block, avoiding
 blocks with 3+ enemies. Capture stays automatic; Defend only restricts deliberate
 destinations. Local **Guard** is applied in `sim/ai.js` for non-boss allies inside the aura:
-melee allies hold a 110 px screen on the threat side, the Underboss holds 180 px behind and
-offset from the boss so its firing line stays open, melee guards chase the local focus only
-within a 360 px leash, and Attack crews use the same posts at 120 px when the boss is in danger. Each guard caches a stable ring slot and
-holds inside a 14 px idle deadzone, so on-station guards stand still instead of orbiting.
+Soldiers/Captains hold scattered 50–150 px slots and Underbosses hold scattered 200–300 px
+slots in all directions, guards chase the local focus or a self-defense target inside their
+normal aggro range up to a 1000 px recall radius, an adjacent threat overrides the shared
+focus, and Attack crews collapse into the same ring when the boss is in danger. A unit that
+was guarding keeps `guardAssigned` outside the 325/360 aura and returns to its post after
+combat instead of falling back to the global stance. Each guard
+caches a stable slot and holds inside a 14 px idle deadzone; posts rebuild only when the
+250 ms command layer increments its revision, and focus switches debounce for two refreshes.
+Blocked/off-map slots fall back to the nearest walkable ring direction that keeps at least
+60% of the intended range.
 `sim/ai.js`: `scanNearby` (nearest enemy + ally/enemy counts in the 3×3 spatial buckets),
 a one-second boss equipment shop (Glock first, first ammo/reload, then MP9 once the
 syndicate has 5 living units and 3 blocks), boss armor purchase, melee for every rank and

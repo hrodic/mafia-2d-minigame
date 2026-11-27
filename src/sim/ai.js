@@ -166,12 +166,18 @@ function usesDefendStance(u) {
  * the boss aura. Returns null when neither applies.
  */
 function getGuardState(u) {
-  if (u.rank === UnitRank.BOSS || !u.inBossAura) return null;
+  if (u.rank === UnitRank.BOSS) return null;
   const record = state.factionTactics && state.factionTactics[u.faction];
   if (!record || record.bossId === null) return null;
 
   const collapse = record.localOrder === LOCAL_ORDER.ATTACK && record.bossInDanger;
   if (record.localOrder !== LOCAL_ORDER.GUARD && !collapse) return null;
+
+  const distanceToBoss = Math.hypot(u.x - record.bossX, u.y - record.bossY);
+  const attached =
+    u.inBossAura ||
+    (Boolean(u.guardAssigned) && distanceToBoss <= TACTICS.guardRecallRadius);
+  if (!attached) return null;
 
   let focus = record.localFocus;
   if (focus && focus.id !== record.localFocusId) focus = null;
@@ -182,60 +188,112 @@ function getGuardState(u) {
       focus.hp > 0 &&
       focus.alive !== false &&
       focus.faction !== u.faction &&
-      Math.hypot(focus.x - record.bossX, focus.y - record.bossY) <= TACTICS.guardLeashRadius;
+      Math.hypot(focus.x - record.bossX, focus.y - record.bossY) <= TACTICS.localFocusRadius;
     if (!valid) focus = null;
   }
 
-  return { record, focus, collapse };
+  return { record, focus };
+}
+
+const GOLDEN_ANGLE = 2.399963229728653;
+const TWO_PI = Math.PI * 2;
+
+/** Deterministic 0..1 hash used to scatter stable guard slots. */
+function guardHash(id, salt) {
+  const x = Math.sin(id * 127.1 + salt * 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+function assignGuardSlot(u) {
+  if (!Number.isFinite(u.guardSlotAngle)) {
+    const base = (u.id * GOLDEN_ANGLE) % TWO_PI;
+    const jitter = (guardHash(u.id, 3) - 0.5) * 0.7;
+    u.guardSlotAngle = (base + jitter + TWO_PI) % TWO_PI;
+  }
+  if (!Number.isFinite(u.guardSlotDistance)) {
+    const isUnderboss = u.rank === UnitRank.UNDERBOSS;
+    const min = isUnderboss
+      ? TACTICS.guardUnderbossMinDistance
+      : TACTICS.guardMeleeMinDistance;
+    const max = isUnderboss
+      ? TACTICS.guardUnderbossMaxDistance
+      : TACTICS.guardMeleeMaxDistance;
+    u.guardSlotDistance = min + guardHash(u.id, isUnderboss ? 2 : 1) * (max - min);
+  }
+}
+
+function angularDistance(a, b) {
+  const d = Math.abs(a - b) % TWO_PI;
+  return d > Math.PI ? TWO_PI - d : d;
+}
+
+function findGuardPost(u, bossX, bossY, angle, distance) {
+  const snapAt = (testAngle) => {
+    const gx = bossX + Math.cos(testAngle) * distance;
+    const gy = bossY + Math.sin(testAngle) * distance;
+    const snapped = state.world.findNearestWalkablePoint(gx, gy, u.bodyRadius);
+    if (!snapped) return null;
+    return {
+      point: snapped,
+      dist: Math.hypot(snapped.x - bossX, snapped.y - bossY),
+    };
+  };
+
+  const exact = snapAt(angle);
+  if (exact && exact.dist >= distance * 0.6) return exact.point;
+
+  let best = exact ? exact.point : null;
+  let bestDist = exact ? exact.dist : -1;
+  let bestDeviation = Infinity;
+
+  // The slot may point into a wall or off the map. Search the walkable ring
+  // for the closest direction that still preserves most of the intended range.
+  const steps = 16;
+  for (let i = 0; i < steps; i++) {
+    const testAngle = (i / steps) * TWO_PI;
+    const candidate = snapAt(testAngle);
+    if (!candidate) continue;
+    if (candidate.dist >= distance * 0.6) {
+      const deviation = angularDistance(testAngle, angle);
+      if (deviation < bestDeviation) {
+        bestDeviation = deviation;
+        best = candidate.point;
+      }
+    } else if (bestDeviation === Infinity && candidate.dist > bestDist) {
+      bestDist = candidate.dist;
+      best = candidate.point;
+    }
+  }
+  return best;
 }
 
 function setGuardGoal(u, guard) {
-  const { record, focus, collapse } = guard;
-  const bossX = record.bossX;
-  const bossY = record.bossY;
-  const hasThreat = Boolean(focus);
-  const isUnderboss = u.rank === UnitRank.UNDERBOSS;
+  const { record } = guard;
+  assignGuardSlot(u);
 
-  let angle;
-  if (hasThreat) {
-    angle = Math.atan2(focus.y - bossY, focus.x - bossX);
-    if (isUnderboss) {
-      // The gunner holds behind and slightly to one side of the boss so its
-      // firing line around the boss stays open.
-      const side = u.id % 2 === 0 ? 1 : -1;
-      angle += Math.PI + side * 0.35;
-    } else {
-      // A light deterministic spread keeps the melee screen from stacking.
-      angle += ((u.id % 5) - 2) * 0.16;
-    }
-  } else {
-    // No threat: each unit owns a stable ring slot. Deriving the angle from
-    // its current bearing every frame would make it orbit the boss.
-    if (!Number.isFinite(u.guardSlotAngle)) {
-      const dx = u.x - bossX;
-      const dy = u.y - bossY;
-      u.guardSlotAngle = Math.hypot(dx, dy) > 4
-        ? Math.atan2(dy, dx)
-        : (u.id * 2.399963229728653) % (Math.PI * 2);
-    }
-    angle = u.guardSlotAngle;
-    if (isUnderboss) angle += (u.id % 2 === 0 ? 1 : -1) * 0.2;
+  // Rebuild the post only when the 250 ms command layer refreshes. Between
+  // refreshes the guard holds a cached point instead of recomputing per frame.
+  const revision = record.revision || 0;
+  if (u.guardPostRevision !== revision) {
+    const snapped = findGuardPost(
+      u,
+      record.bossX,
+      record.bossY,
+      u.guardSlotAngle,
+      u.guardSlotDistance
+    );
+    const gx = record.bossX + Math.cos(u.guardSlotAngle) * u.guardSlotDistance;
+    const gy = record.bossY + Math.sin(u.guardSlotAngle) * u.guardSlotDistance;
+    u.guardPostX = snapped ? snapped.x : gx;
+    u.guardPostY = snapped ? snapped.y : gy;
+    u.guardPostRevision = revision;
   }
 
-  const distance = isUnderboss
-    ? TACTICS.guardUnderbossDistance
-    : collapse
-      ? TACTICS.guardCollapseDistance
-      : TACTICS.guardMeleeDistance;
-
-  const gx = bossX + Math.cos(angle) * distance;
-  const gy = bossY + Math.sin(angle) * distance;
-  const snapped = state.world.findNearestWalkablePoint(gx, gy, u.bodyRadius);
-  if (!snapped) return;
-
+  const postX = u.guardPostX;
+  const postY = u.guardPostY;
   const previousX = u.goalX;
   const previousY = u.goalY;
-  const atPost = Math.hypot(u.x - snapped.x, u.y - snapped.y) <= TACTICS.guardIdleRadius;
+  const atPost = Math.hypot(u.x - postX, u.y - postY) <= TACTICS.guardIdleRadius;
   if (atPost) {
     // Already on station: stand still instead of micro-correcting.
     u.goalX = u.x;
@@ -245,23 +303,23 @@ function setGuardGoal(u, guard) {
     return;
   }
 
-  u.goalX = snapped.x;
-  u.goalY = snapped.y;
-  if (Math.hypot(snapped.x - previousX, snapped.y - previousY) > 24) {
+  u.goalX = postX;
+  u.goalY = postY;
+  if (Math.hypot(postX - previousX, postY - previousY) > 24) {
     u.path = null;
     u.pathTimer = 0;
   }
 }
 
-/** Keep a chasing guard inside the 360 px leash around the boss. */
+/** Keep a chasing guard inside the recall radius around the boss. */
 function clampGuardGoal(u, guard) {
   const { record } = guard;
   const dx = u.goalX - record.bossX;
   const dy = u.goalY - record.bossY;
   const dist = Math.hypot(dx, dy);
-  if (dist <= TACTICS.guardLeashRadius || dist < 0.001) return;
-  const gx = record.bossX + (dx / dist) * TACTICS.guardLeashRadius;
-  const gy = record.bossY + (dy / dist) * TACTICS.guardLeashRadius;
+  if (dist <= TACTICS.guardRecallRadius || dist < 0.001) return;
+  const gx = record.bossX + (dx / dist) * TACTICS.guardRecallRadius;
+  const gy = record.bossY + (dy / dist) * TACTICS.guardRecallRadius;
   const snapped = state.world.findNearestWalkablePoint(gx, gy, u.bodyRadius);
   if (snapped) {
     u.goalX = snapped.x;
@@ -395,21 +453,37 @@ export function updateNpcAi(u, dt) {
 
   const guard = getGuardState(u);
   if (guard) {
-    if (guard.focus) {
-      nearestEnemy = {
+    const threat = nearestEnemy;
+    const threatDist = nearestEnemyDist;
+    const focusDist = guard.focus
+      ? Math.hypot(guard.focus.x - u.x, guard.focus.y - u.y)
+      : Infinity;
+    const selfDefenseRadius = isRangedShooter ? 180 : melee.reach + 30;
+    let chosen = null;
+    let chosenDist = Infinity;
+
+    // Immediate self-defense always wins over the shared focus.
+    if (threat && threatDist <= selfDefenseRadius) {
+      chosen = threat;
+      chosenDist = threatDist;
+    } else if (guard.focus && focusDist <= aggroRange) {
+      chosen = {
         isPlayer: guard.focus === state.player,
         entity: guard.focus,
         x: guard.focus.x,
         y: guard.focus.y,
       };
-      nearestEnemyDist = Math.hypot(guard.focus.x - u.x, guard.focus.y - u.y);
-    } else {
-      nearestEnemy = null;
-      nearestEnemyDist = Infinity;
+      chosenDist = focusDist;
+    } else if (threat && threatDist <= aggroRange) {
+      chosen = threat;
+      chosenDist = threatDist;
     }
+
+    nearestEnemy = chosen;
+    nearestEnemyDist = chosenDist;
   }
 
-  if (guard && !guard.focus) {
+  if (guard && (!nearestEnemy || nearestEnemyDist > aggroRange)) {
     setGuardGoal(u, guard);
   } else if (retreating) {
     u.goalX = u.retreatX;
@@ -498,14 +572,7 @@ export function updateNpcAi(u, dt) {
         }
       }
     }
-    if (guard) {
-      if (u.rank === UnitRank.UNDERBOSS) {
-        // The gunner keeps its post behind the boss and fires from there.
-        setGuardGoal(u, guard);
-      } else {
-        clampGuardGoal(u, guard);
-      }
-    }
+    if (guard) clampGuardGoal(u, guard);
   } else if (guard) {
     setGuardGoal(u, guard);
   } else if (u.aiTimer <= 0) {

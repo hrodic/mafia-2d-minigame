@@ -121,7 +121,7 @@ test('tactics: order setters accept stable codes and reject anything else', () =
 
 test('tactics: the refresh cadence is 250 ms', () => {
   const boss = unit({ id: 1, rank: UnitRank.BOSS, hp: 400, maxHp: 400 });
-  const soldier = unit({ id: 2, x: boss.x + 470 });
+  const soldier = unit({ id: 2, x: boss.x + 320 });
   withTacticsState(
     {
       npcs: [boss, soldier],
@@ -136,9 +136,9 @@ test('tactics: the refresh cadence is 250 ms', () => {
   );
 });
 
-test('tactics: boss aura uses 480 px enter and 540 px exit hysteresis', () => {
+test('tactics: the local aura uses 325 px enter and 360 px exit hysteresis', () => {
   const boss = unit({ id: 1, rank: UnitRank.BOSS, hp: 400, maxHp: 400 });
-  const soldier = unit({ id: 2, x: boss.x + 470 });
+  const soldier = unit({ id: 2, x: boss.x + 320 });
   withTacticsState(
     {
       npcs: [boss, soldier],
@@ -146,19 +146,19 @@ test('tactics: boss aura uses 480 px enter and 540 px exit hysteresis', () => {
     },
     () => {
       updateFactionTactics(0.25);
-      assertEqual(soldier.inBossAura, true, 'enters below 480 px');
+      assertEqual(soldier.inBossAura, true, 'enters below 325 px');
 
-      soldier.x = boss.x + 520;
+      soldier.x = boss.x + 350;
       updateFactionTactics(0.25);
-      assertEqual(soldier.inBossAura, true, 'stays inside up to 540 px');
+      assertEqual(soldier.inBossAura, true, 'stays inside up to 360 px');
 
-      soldier.x = boss.x + 550;
+      soldier.x = boss.x + 370;
       updateFactionTactics(0.25);
-      assertEqual(soldier.inBossAura, false, 'leaves beyond 540 px');
+      assertEqual(soldier.inBossAura, false, 'leaves beyond 360 px');
 
-      soldier.x = boss.x + 500;
+      soldier.x = boss.x + 340;
       updateFactionTactics(0.25);
-      assertEqual(soldier.inBossAura, false, 'does not re-enter between 480 and 540');
+      assertEqual(soldier.inBossAura, false, 'does not re-enter between 325 and 360');
     }
   );
 });
@@ -266,6 +266,103 @@ test('tactics: local focus prefers the boss chunk, then the 360 px radius', () =
     },
     () => {
       assertEqual(findLocalFocus(boss), null, 'no focus without a nearby enemy');
+    }
+  );
+});
+
+test('tactics: Guard and Attack share the same 325/360 local aura', () => {
+  const boss = unit({ id: 1, rank: UnitRank.BOSS, hp: 400, maxHp: 400, x: 100, y: 100 });
+  const gunner = unit({
+    id: 2,
+    rank: UnitRank.UNDERBOSS,
+    hp: 10,
+    maxHp: 10,
+    x: 400,
+    y: 100,
+  });
+  withTacticsState(
+    {
+      npcs: [boss, gunner],
+      buckets: new Map([[packChunkKey(0, 0), [boss, gunner]]]),
+    },
+    () => {
+      const record = state.factionTactics[Faction.RIVAL_1];
+      record.localOrder = LOCAL_ORDER.GUARD;
+      updateFactionTactics(0.25);
+      assertEqual(gunner.inBossAura, true, '300 px gunner is inside the Guard aura');
+      gunner.x = 500;
+      updateFactionTactics(0.25);
+      assertEqual(gunner.inBossAura, false, '400 px is outside the Guard exit radius');
+
+      record.localOrder = LOCAL_ORDER.ATTACK;
+      gunner.x = 400;
+      updateFactionTactics(0.25);
+      assertEqual(gunner.inBossAura, true, 'Attack uses the same 325 px enter radius');
+      gunner.x = 500;
+      updateFactionTactics(0.25);
+      assertEqual(gunner.inBossAura, false, 'Attack uses the same 360 px exit radius');
+    }
+  );
+});
+
+test('tactics: a Guard assignment persists outside the aura within the recall radius', () => {
+  const boss = unit({ id: 1, rank: UnitRank.BOSS, hp: 400, maxHp: 400, x: 100, y: 100 });
+  const soldier = unit({ id: 2, x: 300, y: 100 });
+  withTacticsState(
+    {
+      npcs: [boss, soldier],
+      buckets: new Map([[packChunkKey(0, 0), [boss, soldier]]]),
+    },
+    () => {
+      const record = state.factionTactics[Faction.RIVAL_1];
+      record.localOrder = LOCAL_ORDER.GUARD;
+      updateFactionTactics(0.25);
+      assertEqual(soldier.guardAssigned, true, 'inside the aura the guard is assigned');
+
+      soldier.x = 500;
+      updateFactionTactics(0.25);
+      assertEqual(soldier.inBossAura, false, '400 px is outside the aura');
+      assertEqual(soldier.guardAssigned, true, 'the guard keeps its assignment');
+
+      soldier.x = 1200;
+      updateFactionTactics(0.25);
+      assertEqual(soldier.guardAssigned, false, 'beyond the recall radius it goes global');
+
+      soldier.x = 300;
+      record.localOrder = LOCAL_ORDER.ATTACK;
+      updateFactionTactics(0.25);
+      assertEqual(soldier.guardAssigned, false, 'Attack does not keep the guard assignment');
+    }
+  );
+});
+
+test('tactics: focus acquisition and loss are immediate, switches debounce', () => {
+  const boss = unit({ id: 1, rank: UnitRank.BOSS, hp: 400, maxHp: 400, x: 100, y: 100 });
+  const enemyA = unit({ id: 2, hp: 10, maxHp: 10, x: 200, y: 100, faction: Faction.RIVAL_2 });
+  const enemyB = unit({ id: 3, hp: 10, maxHp: 10, x: 300, y: 100, faction: Faction.RIVAL_2 });
+  withTacticsState(
+    {
+      npcs: [boss, enemyA, enemyB],
+      buckets: new Map([[packChunkKey(0, 0), [boss, enemyA, enemyB]]]),
+    },
+    () => {
+      const record = state.factionTactics[Faction.RIVAL_1];
+      updateFactionTactics(0.25);
+      assertEqual(record.localFocusId, enemyA.id, 'first focus is acquired immediately');
+
+      // A is gone, B remains: the switch must take two 250 ms refreshes.
+      enemyA.x = 5000;
+      state.spatialBuckets = new Map([[packChunkKey(0, 0), [boss, enemyB]]]);
+      updateFactionTactics(0.25);
+      assertEqual(record.localFocusId, enemyA.id, 'switch is debounced for 0.5 s');
+      updateFactionTactics(0.25);
+      assertEqual(record.localFocusId, enemyB.id, 'switch commits after 0.5 s');
+
+      // Loss is immediate.
+      state.spatialBuckets = new Map([[packChunkKey(0, 0), [boss]]]);
+      updateFactionTactics(0.25);
+      assertEqual(record.localFocusId, null, 'lost focus is dropped immediately');
+      assertEqual(record.localFocus, null);
     }
   );
 });

@@ -24,13 +24,15 @@ export const LOCAL_ORDER_LABELS = Object.freeze({
 
 export const TACTICS = Object.freeze({
   updateInterval: 0.25,
-  auraEnterRadius: 480,
-  auraExitRadius: 540,
+  auraEnterRadius: 325,
+  auraExitRadius: 360,
   localFocusRadius: 360,
-  guardLeashRadius: 360,
-  guardMeleeDistance: 110,
-  guardUnderbossDistance: 180,
-  guardCollapseDistance: 120,
+  focusSwitchTicks: 2,
+  guardRecallRadius: 1000,
+  guardMeleeMinDistance: 50,
+  guardMeleeMaxDistance: 150,
+  guardUnderbossMinDistance: 200,
+  guardUnderbossMaxDistance: 300,
   guardIdleRadius: 14,
 });
 
@@ -56,6 +58,9 @@ export function createFactionTactics() {
     threatenedChunks: [],
     localFocusId: null,
     localFocus: null,
+    focusCandidateId: null,
+    focusCandidateTicks: 0,
+    revision: 0,
     updatedAt: 0,
   };
 }
