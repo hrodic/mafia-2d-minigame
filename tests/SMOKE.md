@@ -81,10 +81,12 @@ powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123
 - [ ] Weapon badge shows rounds left and spare magazines; reload subtracts one magazine.
 - [ ] Armor: Q or B → 1 buys 300 armor ($2,000), absorbs damage, once per tick, HUD shows.
 - [ ] Ammo quick key: T buys 20 rounds for the active weapon, same as B → 2.
-- [ ] Rival AI bosses buy Glock first then ammo/MP9, buy armor, use gun/slash, capture blocks, recruit crew; shooters
-  hold fire when a building or ally blocks the bullet path.
-- [ ] Wounded/unarmored bosses buy armor or sprint away; blocked shooters sidestep allies
-  in the firing lane and knife at close range.
+- [ ] Rival AI bosses buy Glock first then ammo/MP9, buy armor, use gun/slash, capture blocks,
+  recruit crew. Underbosses fire inside the old 110px band while backing off, then knife inside
+  melee reach; shooters hold fire when a building or ally blocks the bullet path.
+- [ ] Wounded/outnumbered bosses buy armor but keep retreating while danger persists;
+  healthy, non-outnumbered bosses commit to melee instead of kiting. Blocked shooters
+  sidestep allies in the firing lane and knife at close range.
 - [ ] Pistol rounds can damage allied units; knives never hit allies.
 - [ ] HP regens on friendly turf only, pauses while taking damage, and clamps at max.
 - [ ] Units visibly step/bob while walking on host and guest, and stand still when idle.

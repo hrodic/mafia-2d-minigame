@@ -17,7 +17,8 @@ architecture description here.
   - UI/UX overhaul: primary status, crew management, action bar, leaderboard + kills
 - **Phase 3 — DONE (`0.4.11`):** shared unit contract, commands, fixed timestep, 600-step
   headless smoke + command-equivalence tests. Balance pass: one human slash rule; non-boss
-  AI ranks base speed 150; bosses 140 (sprint is their mobility edge).
+  AI ranks base speed 150; bosses 140 (sprint is their mobility edge). Current speeds:
+  Boss 130, Underboss 135, Captain 140, Soldier 150.
 - **Phase 4 — DONE (`0.4.19`):** netcode hardening; step 1 split complete; snapshot apply
   is O(n); hidden-host fallback added. Chunk deltas and NAT/TURN work moved to the future
   ideas section.

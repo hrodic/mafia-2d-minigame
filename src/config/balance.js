@@ -88,6 +88,10 @@ export const AI_TACTICS = {
   bossRetreatDistance: 280,
   flankDistance: 90,
   flankDuration: 0.9,
+  rangedBackoffDistance: 110,
+  rangedBackoffStep: 80,
+  rangedBackoffDuration: 0.6,
+  bossMeleeCommitDistance: 110,
 };
 
 export const UNIT_CAPS = {

@@ -348,6 +348,85 @@ test('ai: shooters hold fire when an ally is in the bullet path', () => {
   );
 });
 
+test('ai: ranged underbosses fire and back off inside the old 110px minimum', () => {
+  const shooter = remoteUnit(UnitRank.UNDERBOSS, 700);
+  shooter.weapon = 'pistol';
+  shooter.pistolOwned = true;
+  shooter.ammo = 10;
+  shooter.speed = 135;
+  shooter.shopTimer = 10;
+  withAiState(
+    {
+      world: pistolTestWorld(),
+      player: pistolTestPlayer({ x: 80, y: 0 }),
+      npcs: [shooter],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [shooter]]]),
+    },
+    () => {
+      updateNpcAi(shooter, 0.016);
+      assertEqual(shooter.ammo, 9, 'underboss should fire below 110 px');
+      assertEqual(shooter.attackCooldown, 0.2, 'underboss should start the fire cadence');
+      assert(shooter.backoffTimer > 0, 'underboss should commit to a backoff');
+      assert(
+        shooter.goalX < shooter.x - 10,
+        `underboss should back away from the enemy, x=${shooter.x}, goalX=${shooter.goalX}, backoff=${shooter.backoffTimer}`
+      );
+    }
+  );
+});
+
+test('ai: healthy bosses commit to melee instead of backing off', () => {
+  const boss = madeBoss({
+    x: 0,
+    y: 0,
+    hp: 800,
+    armor: 300,
+    weapon: 'pistol',
+    pistolOwned: true,
+    ammo: 10,
+    shopTimer: 10,
+  });
+  withAiState(
+    {
+      world: pistolTestWorld(),
+      player: pistolTestPlayer({ x: 80, y: 0 }),
+      npcs: [boss],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [boss]]]),
+      treasuries: { [Faction.RIVAL_1]: 0 },
+    },
+    () => {
+      updateNpcAi(boss, 0.016);
+      assertEqual(boss.retreatTimer, 0, 'healthy boss should not retreat');
+      assertEqual(boss.backoffTimer, 0, 'healthy boss should not kite');
+      assertEqual(boss.ammo, 9, 'healthy boss should still fire while closing');
+      assert(boss.goalX > boss.x, `boss should advance for melee, goalX=${boss.goalX}`);
+    }
+  );
+});
+
+test('ai: ranged units knife inside melee reach and stop backing off', () => {
+  const shooter = remoteUnit(UnitRank.UNDERBOSS, 710);
+  shooter.weapon = 'pistol';
+  shooter.pistolOwned = true;
+  shooter.ammo = 10;
+  shooter.minDmg = 25;
+  shooter.maxDmg = 35;
+  withAiState(
+    {
+      world: pistolTestWorld(),
+      player: pistolTestPlayer({ x: 45, y: 0 }),
+      npcs: [shooter],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [shooter]]]),
+    },
+    () => {
+      updateNpcAi(shooter, 0.016);
+      assertEqual(shooter.ammo, 10, 'no shot inside melee reach');
+      assertEqual(shooter.backoffTimer, 0, 'melee cancels the backoff');
+      assert(state.player.hp < 400, `knife should damage the player, hp=${state.player.hp}`);
+    }
+  );
+});
+
 test('ai: wounded unarmored bosses sprint away instead of suiciding', () => {
   const boss = madeBoss({ hp: 100, armor: 0, armorCooldown: 0, speed: 130 });
   withAiState(
@@ -395,7 +474,27 @@ test('ai: outnumbered unarmored bosses retreat even at full HP', () => {
   );
 });
 
-test('ai: bosses buy armor before retreating when they can afford it', () => {
+test('ai: critical bosses keep retreating while the danger persists', () => {
+  const boss = madeBoss({ hp: 100, armor: 300, speed: 130 });
+  withAiState(
+    {
+      world: pistolTestWorld(),
+      player: pistolTestPlayer({ x: 600, y: 500 }),
+      npcs: [boss],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [boss]]]),
+      treasuries: { [Faction.RIVAL_1]: 0 },
+    },
+    () => {
+      updateNpcAi(boss, 0.016);
+      assert(boss.retreatTimer > 0, 'critical boss should start retreating');
+      for (let i = 0; i < 150; i++) updateNpcAi(boss, 0.016);
+      assert(boss.retreatTimer > 0, 'critical boss should re-commit as the danger persists');
+      assert(boss.goalX < boss.x, 'retreat goal should remain away from the player');
+    }
+  );
+});
+
+test('ai: armored critical bosses still retreat instead of fighting', () => {
   const boss = madeBoss({ hp: 100, armor: 0, armorCooldown: 0 });
   withAiState(
     {
@@ -408,7 +507,9 @@ test('ai: bosses buy armor before retreating when they can afford it', () => {
     () => {
       updateNpcAi(boss, 0.016);
       assertEqual(boss.armor, 300, 'boss should refresh armor when threatened');
-      assertEqual(boss.retreatTimer, 0, 'armored boss should not abandon the fight');
+      assert(boss.retreatTimer > 0, 'armor must not cancel a survival retreat');
+      assert(boss.goalX < boss.x, `retreat goal should move away, goalX=${boss.goalX}`);
+      assertEqual(boss.isSprinting, true, 'retreat should use the sprint burst');
     }
   );
 });

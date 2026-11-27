@@ -145,12 +145,29 @@ function chooseFlankPoint(u, enemy) {
   return null;
 }
 
+/** Pick a point away from a too-close enemy so a ranged unit can keep firing. */
+function chooseBackoffPoint(u, enemy, distance) {
+  if (!state.world.findNearestWalkablePoint) return null;
+  const away = Math.atan2(u.y - enemy.y, u.x - enemy.x);
+  for (const offset of [0, 0.5, -0.5, 1.0, -1.0]) {
+    const angle = away + offset;
+    const gx = u.x + Math.cos(angle) * distance;
+    const gy = u.y + Math.sin(angle) * distance;
+    const snapped = state.world.findNearestWalkablePoint(gx, gy, u.bodyRadius);
+    if (!snapped) continue;
+    if (Math.hypot(snapped.x - u.x, snapped.y - u.y) < distance * 0.4) continue;
+    return snapped;
+  }
+  return null;
+}
+
 /** One AI step for a non-remote, non-player unit. */
 export function updateNpcAi(u, dt) {
   u.aiTimer -= dt;
   u.pathTimer -= dt;
   u.retreatTimer = Math.max(0, (u.retreatTimer || 0) - dt);
   u.flankTimer = Math.max(0, (u.flankTimer || 0) - dt);
+  u.backoffTimer = Math.max(0, (u.backoffTimer || 0) - dt);
   u.shopTimer = Math.max(0, (u.shopTimer || 0) - dt);
 
   if (u.rank === UnitRank.BOSS && !u.humanPeerId && u.shopTimer <= 0) {
@@ -171,39 +188,79 @@ export function updateNpcAi(u, dt) {
   const aggroRange = isRangedShooter ? 680 : 480;
   const melee = SLASH.aiMeleeByRank[u.rank] || SLASH.aiMelee;
 
-  let retreating = u.rank === UnitRank.BOSS && u.retreatTimer > 0;
-  if (!retreating && u.rank === UnitRank.BOSS && nearestEnemy) {
+  let bossInDanger = false;
+  if (u.rank === UnitRank.BOSS && nearestEnemy) {
     const hpFraction = u.maxHp > 0 ? u.hp / u.maxHp : 1;
-    const noArmor = (u.armor || 0) <= 0;
     const critical = hpFraction <= AI_TACTICS.bossRetreatHpFraction;
     const outnumbered =
       nearbyEnemyCount >= AI_TACTICS.bossRetreatMinEnemies &&
       nearbyEnemyCount > nearbyAllyCount;
-    if (noArmor && (critical || outnumbered)) {
-      const point = chooseRetreatPoint(u, nearestEnemy);
-      if (point) {
-        u.retreatX = point.x;
-        u.retreatY = point.y;
-        u.retreatTimer = AI_TACTICS.bossRetreatDuration;
-        u.flankTimer = 0;
-        u.path = null;
-        u.pathTimer = 0;
-        retreating = true;
-      }
+    bossInDanger = critical || outnumbered;
+  }
+
+  let retreating = u.rank === UnitRank.BOSS && u.retreatTimer > 0;
+  if (!retreating && bossInDanger) {
+    const point = chooseRetreatPoint(u, nearestEnemy);
+    if (point) {
+      u.retreatX = point.x;
+      u.retreatY = point.y;
+      u.retreatTimer = AI_TACTICS.bossRetreatDuration;
+      u.flankTimer = 0;
+      u.path = null;
+      u.pathTimer = 0;
+      retreating = true;
     }
   }
 
   if (retreating) {
     u.goalX = u.retreatX;
     u.goalY = u.retreatY;
+    u.backoffTimer = 0;
   } else if (nearestEnemy && nearestEnemyDist <= aggroRange) {
+    const canFireNow =
+      isRangedShooter &&
+      Boolean(rangedWeapon) &&
+      (u.ammo ?? 0) > 0 &&
+      !(u.reloadTimer > 0);
+    const bossWantsMelee =
+      u.rank === UnitRank.BOSS &&
+      !bossInDanger &&
+      nearestEnemyDist <= AI_TACTICS.bossMeleeCommitDistance;
+    const tooClose =
+      canFireNow &&
+      !bossWantsMelee &&
+      nearestEnemyDist > melee.reach &&
+      nearestEnemyDist < AI_TACTICS.rangedBackoffDistance;
+    if (!tooClose) u.backoffTimer = 0;
+    if (bossWantsMelee) u.flankTimer = 0;
+    if (tooClose && u.backoffTimer <= 0) {
+      const point = chooseBackoffPoint(u, nearestEnemy, AI_TACTICS.rangedBackoffStep);
+      if (point) {
+        u.backoffX = point.x;
+        u.backoffY = point.y;
+        u.backoffTimer = AI_TACTICS.rangedBackoffDuration;
+      }
+    }
+    const backingOff = tooClose && u.backoffTimer > 0;
     const flanking = u.flankTimer > 0;
-    u.goalX = flanking ? u.flankX : nearestEnemy.x;
-    u.goalY = flanking ? u.flankY : nearestEnemy.y;
+
+    if (backingOff) {
+      u.goalX = u.backoffX;
+      u.goalY = u.backoffY;
+    } else {
+      u.goalX = flanking ? u.flankX : nearestEnemy.x;
+      u.goalY = flanking ? u.flankY : nearestEnemy.y;
+    }
+    if (bossWantsMelee) {
+      u.backoffTimer = 0;
+      u.goalX = nearestEnemy.x;
+      u.goalY = nearestEnemy.y;
+    }
 
     if (nearestEnemyDist <= melee.reach) {
       // Knives have no friendly-fire restriction: always take the free hit.
       u.flankTimer = 0;
+      u.backoffTimer = 0;
       u.goalX = nearestEnemy.x;
       u.goalY = nearestEnemy.y;
       u.facing = Math.atan2(nearestEnemy.y - u.y, nearestEnemy.x - u.x);
@@ -219,7 +276,6 @@ export function updateNpcAi(u, dt) {
     } else if (
       isRangedShooter &&
       rangedWeapon &&
-      nearestEnemyDist >= 110 &&
       nearestEnemyDist <= rangedWeapon.range &&
       u.attackCooldown <= 0 &&
       (u.ammo ?? 1) > 0 &&
@@ -229,7 +285,7 @@ export function updateNpcAi(u, dt) {
       const friendBlocked = clear && hasFriendlyInShotPath(u, nearestEnemy.x, nearestEnemy.y);
       if (clear && !friendBlocked) {
         performBossPistolShot(u, false, nearestEnemy.x, nearestEnemy.y);
-      } else if (friendBlocked && !flanking) {
+      } else if (friendBlocked && !flanking && !backingOff) {
         const point = chooseFlankPoint(u, nearestEnemy);
         if (point) {
           u.flankX = point.x;

@@ -141,24 +141,24 @@ line. Buying it auto-equips the MP9 and cancels an in-progress reload.
 
 | Value | Current |
 |---|---|
-| Pistol (Glock 19) price | **$1,000** |
+| Glock 19 price | **$1,000** |
 | MP9 price | **$4,000** (requires Glock) |
 | Kevlar armor | **$2,000** for +300, once per hour |
 | 9mm ammo | **$20 for 20 rounds** |
-| Pistol reserve cap | **20 magazines** |
+| Glock reserve cap | **20 magazines** |
 | MP9 reserve cap | **10 magazines** |
-| Starting pistol reserve | **0 magazines** |
+| Starting Glock reserve | **0 magazines** |
 | Reload cost | **1 spare magazine** |
 | Ammo purchase | **active weapon only** |
 | Shop access | **boss rank only**, standing on **friendly turf** |
 | Shop menu | **B** toggles; purchases keep it open, any other key closes it |
-| Pistol ammo bundle | **+2 magazines** (20 rounds) |
+| Glock ammo bundle | **+2 magazines** (20 rounds) |
 | MP9 ammo bundle | **+1 magazine** (20 rounds) |
 | Full reserve | purchase disabled; no cash is spent |
 
 The action-bar weapon badge shows **rounds left** and the **spare-magazine count**
 (`×3`) for the active weapon. Reloading subtracts one. Buying ammo always fills the
-**currently active** gun: pistol gets 2 magazines, MP9 gets 1. If its current magazine is
+**currently active** gun: Glock gets 2 magazines, MP9 gets 1. If its current magazine is
 empty, the purchase also starts the 4 s reload. Quick keys: **Q** buys armor, **T** buys
 ammo; the B menu exposes the same purchases as 1-4.
 
@@ -182,18 +182,23 @@ cosine per hit; it adds no raycast or allocation.
 | Value | Current |
 |---|---|
 | Boss retreat HP | **≤ 35%** |
-| Boss retreat trigger | **no armor** and (HP ≤ 35% or ≥ 3 enemies with more enemies than allies) |
-| Boss retreat | **2.2 s**, target 280 px away, sprint burst |
-| Pistol flank | **90 px** lateral sidestep, committed for **0.9 s** |
+| Boss retreat trigger | **HP ≤ 35%** or **≥ 3 enemies with more enemies than allies** (armor does **not** cancel retreat) |
+| Boss retreat | **2.2 s**, target 280 px away, sprint burst; repeats while the danger persists |
+| Gun flank | **90 px** lateral sidestep, committed for **0.9 s** |
 | Flank fallback | back off 72 px when both sides are blocked |
+| Ranged fire band | **melee reach → weapon range** (no 110 px minimum) |
+| Underboss close-range gun | below **110 px**: fire while backing off; **80 px** step, **0.6 s** commits |
+| Boss close range | healthy and not outnumbered: commit to melee inside **110 px**, firing while closing |
+| Boss survival priority | low HP or outnumbered: retreat even with armor; melee only when healthy and not overwhelmed |
+| Melee handoff | inside melee reach the knife takes over and cancels any backoff |
 | Close range | knife takes priority; knives never hit allies |
 | AI shop cadence | once per second |
 | AI Glock | **first purchase** whenever affordable ($1,000) |
 | AI first ammo | buys 20 rounds when the Glock is dry, then reloads to 10 |
 | AI MP9 | after **5 living units** and **3 owned blocks**, if $4,000 is available |
-| Armor | boss buys armor when it is missing/low and affordable; retreat is the fallback |
+| Armor | boss buys armor when missing/low and affordable; retreat still triggers while in danger |
 
-Pistol shooters hold fire while any ally is in the bullet path. They sidestep to re-open the
+Gun shooters hold fire while any ally is in the bullet path. They sidestep to re-open the
 lane, then fire as soon as it is clear.
 
 ### Armor & sprint

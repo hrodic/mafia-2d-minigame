@@ -255,12 +255,15 @@ transitions only, never positions, timers or per-NPC updates.
 `sim/ai.js`: `scanNearby` (nearest enemy + ally/enemy counts in the 3×3 spatial buckets),
 a one-second boss equipment shop (Glock first, first ammo/reload, then MP9 once the
 syndicate has 5 living units and 3 blocks), boss armor purchase, melee for every rank and
-weapon fire for bosses/underbosses when the bullet path is clear (`hasClearShot`) and no
-ally is in the way (`hasFriendlyInShotPath`);
-an MP9-equipped boss keeps its 0.1 s automatic cadence through the shared weapon cooldown,
+weapon fire for bosses/underbosses from **melee reach to weapon range** when the bullet
+path is clear (`hasClearShot`) and no ally is in the way (`hasFriendlyInShotPath`);
+underbosses fire while backing off inside **110 px**, while healthy bosses commit to melee;
+the knife takes over inside melee reach; an MP9-equipped boss keeps its 0.1 s automatic
+cadence through the shared weapon cooldown,
 `choosePatrolChunk` (nearest non-owned chunk with
 a global fallback), A* path following/steering, obstacle dodge and capture. Wounded or
-outnumbered unarmored bosses buy armor when possible, otherwise sprint to a retreat point;
+outnumbered bosses buy armor when possible but still sprint to a retreat point while the
+danger persists; healthy, non-outnumbered bosses commit to melee instead of kiting, and
 blocked gun shooters sidestep their firing lane, back off when both flanks are blocked,
 and always knife at close range (knives have no friendly-fire restriction). `updateNpcAi(u,
 dt)` is headless; remote-human bosses bypass it. `simulation.js` remains the fixed-step
