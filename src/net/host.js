@@ -4,6 +4,7 @@
 
 import { Faction, UnitRank } from '../config/enums.js';
 import { GAME_VERSION } from '../config/version.js';
+import { RANK_STATS } from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
 import { state } from '../core/state.js';
 import { randomWorldSeed } from '../core/rng.js';
@@ -173,7 +174,7 @@ export function createHostController(deps) {
       const bossNpc = state.npcs.find((n) => n.faction === leftFaction && n.rank === UnitRank.BOSS);
       if (bossNpc) {
         bossNpc.humanPeerId = null;
-        bossNpc.speed = 152;
+        bossNpc.speed = RANK_STATS[UnitRank.BOSS].speedAi;
       }
       notify(`${leftName} disconnected. AI took control of ${FACTION_META[leftFaction].short}.`);
       return;

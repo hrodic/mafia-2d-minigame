@@ -1,7 +1,7 @@
 // Render layer tests: canvas sizing, primitive drawing and full-frame smoke tests.
 import { test, assert, assertEqual } from './harness.js';
 import { Faction, UnitRank } from '../src/config/enums.js';
-import { ALL_FACTION_SLOTS } from '../src/config/organizations.js';
+import { ALL_FACTION_SLOTS, FACTION_META } from '../src/config/organizations.js';
 import { TILE_SIZE, CHUNK_PX } from '../src/config/constants.js';
 import { state } from '../src/core/state.js';
 import { CityMap } from '../src/world/city.js';
@@ -412,6 +412,55 @@ test('render: visible chunks draw their income labels', () => {
       assert(
         texts.includes(chunk.incomeLabel),
         `expected ${chunk.incomeLabel} to be drawn; got ${texts.join(' | ')}`
+      );
+    }
+  );
+});
+
+test('render: every boss radar marker is the same glowing faction-colored circle', () => {
+  const bossNpc = { x: 330, y: 330, rank: UnitRank.BOSS, faction: Faction.RIVAL_1 };
+  withRenderState(
+    {
+      prepareMap: (map) => map.generateChunk(0, 0),
+      npcs: [bossNpc],
+      player: makePlayer({ x: 60, y: 60 }),
+    },
+    () => {
+      const g = minimapCanvas.getContext('2d');
+      const originalArc = g.arc;
+      const originalFillRect = g.fillRect;
+      const arcs = [];
+      const fills = [];
+      g.arc = function (x, y, r, start, end) {
+        arcs.push({
+          r,
+          style: String(this.fillStyle).toLowerCase(),
+          shadow: String(this.shadowColor).toLowerCase(),
+        });
+        return originalArc.call(this, x, y, r, start, end);
+      };
+      g.fillRect = function (x, y, w, h) {
+        fills.push({ w, h });
+        return originalFillRect.call(this, x, y, w, h);
+      };
+      try {
+        renderMinimap();
+      } finally {
+        g.arc = originalArc;
+        g.fillRect = originalFillRect;
+      }
+      const bossAccent = FACTION_META[Faction.RIVAL_1].accent.toLowerCase();
+      const playerAccent = FACTION_META[Faction.PLAYER].accent.toLowerCase();
+      const bossArc = arcs.find((arc) => arc.r === 3.2 && arc.style === bossAccent);
+      assert(bossArc, `expected a boss circle in ${bossAccent}`);
+      assertEqual(bossArc.shadow, '#ffffff');
+      assert(
+        arcs.some((arc) => arc.r === 3.2 && arc.style === playerAccent && arc.shadow === '#ffffff'),
+        'the local boss must use the same glowing circle'
+      );
+      assert(
+        !fills.some((fill) => fill.w === 6 && fill.h === 6),
+        'boss dots must not be drawn as squares'
       );
     }
   );

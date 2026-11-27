@@ -268,6 +268,8 @@ export function render(dt = 1 / 60) {
         slashArc: SLASH.humanBoss.arc,
         isShooting: state.player.muzzleFlashTimer > 0,
         hitFlash: state.player.hitFlashTimer > 0,
+        isMoving: state.player.isMoving,
+        walkPhase: state.player.walkPhase || 0,
       });
     } else if (item.type === 'npc') {
       const u = item.unit;
@@ -304,6 +306,8 @@ export function render(dt = 1 / 60) {
         slashArc: slashProfile.arc,
         isShooting: u.muzzleFlashTimer > 0,
         hitFlash: u.hitFlashTimer > 0,
+        isMoving: u.isMoving,
+        walkPhase: u.walkPhase || 0,
       });
     }
   }

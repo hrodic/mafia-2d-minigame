@@ -42,6 +42,11 @@ function requestShoot(tx, ty) {
   sendOrDispatchCommand({ cmd: 'SHOOT', tx, ty });
 }
 
+function requestReload() {
+  if (!state.gameStarted || !isLocalBossAlive()) return;
+  sendOrDispatchCommand({ cmd: 'RELOAD' });
+}
+
 window.addEventListener('keydown', (e) => {
   getAudioCtx();
   const k = e.key.toLowerCase();
@@ -57,6 +62,7 @@ window.addEventListener('keydown', (e) => {
   }
   if (k === ' ' || k === 'f') requestSlash();
   if (k === 'q') requestBuyArmor();
+  if (k === 'r' && !wasDown) requestReload();
 });
 window.addEventListener('keyup', (e) => {
   const k = e.key.toLowerCase();

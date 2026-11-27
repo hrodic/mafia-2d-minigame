@@ -30,12 +30,16 @@ Don / Pakhan / Oyabun / Shan Chu / Capobastone / Patrón); the field manual list
 tick, scaled automatically by the configured tick length; points from multiple units stack.
 Boss armor is bought separately; Underboss starts with armor.
 
-| Rank | HP | Armor | Blade dmg | Speed | Capture/tick | Radius | Hire | Upkeep/hr | Cap |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Boss | 800 | 0 → 300 | 30–40 | 140 | 1 | 13.5 | — | — | 1 |
-| Underboss | 800 | 120 | 25–35 | 150 | 1 | 12.8 | $4,000 | $600 | ×1 grid side |
-| Captain | 600 | 0 | 20–30 | 160 | 0.5 | 12 | $2,500 | $300 | ×2 grid side |
-| Soldier | 300 | 0 | 15–25 | 170 | 0.2 | 11 | $1,000 | $100 | ×10 grid side |
+| Rank | HP | Armor | Blade dmg | Speed | Capture/tick | Regen/s | Radius | Hire | Upkeep/hr | Cap |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Boss | 800 | 0 → 300 | 30–40 | 130 | 1 | 5 | 13.5 | — | — | 1 |
+| Underboss | 800 | 120 | 25–35 | 135 | 1 | 4 | 12.8 | $4,000 | $600 | ×1 grid side |
+| Captain | 600 | 0 | 20–30 | 140 | 0.5 | 2 | 12 | $2,500 | $300 | ×2 grid side |
+| Soldier | 300 | 0 | 15–25 | 150 | 0.2 | 1 | 11 | $1,000 | $100 | ×10 grid side |
+
+Regen only runs while a unit is standing on its own faction's turf, is below max HP,
+and is not in the hit-flash window after taking damage. It is integrated into the existing
+per-unit simulation loop and reuses `hitFlashTimer`, so there is no extra timer or pass.
 
 Derived notes:
 
@@ -91,9 +95,10 @@ underbosses cleave up to 3, captains up to 2, and soldiers hit 1.
 
 Base damage **50–80**, knockback **10–15**, max range **600 px**.
 **Bosses and underbosses** (human and AI) fire on a **0.2 s** cadence from a
-**10-round** magazine, then reload for **5 s**. Captains and soldiers are knife-only and
-carry no ammo at all. AI shooters require a clear bullet path to the target: a building or
-solid prop in the way means they hold fire instead of wasting rounds.
+**10-round** magazine. Reloading takes **4 s**; pressing **R** reloads early and discards
+the remaining rounds. Captains and soldiers are knife-only and carry no ammo at all.
+Pistol rounds can hit **same-faction units**; AI shooters hold fire when a building, prop
+or ally is in the bullet path. Knives never hit allies.
 
 | Distance | Damage | Hit chance |
 |---|---:|---:|
@@ -120,6 +125,21 @@ roll → armor → HP. A miss can never crit. Each target of a cleave rolls sepa
 back check uses the victim's facing against the incoming strike direction and costs one
 cosine per hit; it adds no raycast or allocation.
 
+### AI tactics
+
+| Value | Current |
+|---|---|
+| Boss retreat HP | **≤ 35%** |
+| Boss retreat trigger | **no armor** and (HP ≤ 35% or ≥ 3 enemies with more enemies than allies) |
+| Boss retreat | **2.2 s**, target 280 px away, sprint burst |
+| Pistol flank | **90 px** lateral sidestep, committed for **0.9 s** |
+| Flank fallback | back off 72 px when both sides are blocked |
+| Close range | knife takes priority; knives never hit allies |
+| Armor | boss buys armor when it is missing/low and affordable; retreat is the fallback |
+
+Pistol shooters hold fire while any ally is in the bullet path. They sidestep to re-open the
+lane, then fire as soon as it is clear.
+
 ### Armor & sprint
 
 | Value | Current |
@@ -130,6 +150,7 @@ cosine per hit; it adds no raycast or allocation.
 | Sprint multiplier | 1.6× |
 | Sprint duration | 2.0 s |
 | Sprint cooldown | 4.0 s |
+| Sprint access | Boss only (player, AI boss, remote-human boss) |
 
 ## Economy
 

@@ -21,3 +21,4 @@ export const HIT_FLASH_DURATION = 0.16;
 export const SPRINT_MAX_DURATION = 2.0;
 export const SPRINT_COOLDOWN_DURATION = 4.0;
 export const SPRINT_SPEED_MULTIPLIER = 1.6;
+export const WALK_PHASE_PER_PX = 0.12;

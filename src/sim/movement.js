@@ -2,7 +2,7 @@
 // NPC sprint state. Shared by the local player, AI and remote-controlled bosses.
 
 import { Faction, UnitRank } from '../config/enums.js';
-import { CHUNK_PX, SPRINT_MAX_DURATION, SPRINT_COOLDOWN_DURATION, SPRINT_SPEED_MULTIPLIER } from '../config/constants.js';
+import { CHUNK_PX, SPRINT_MAX_DURATION, SPRINT_COOLDOWN_DURATION, SPRINT_SPEED_MULTIPLIER, WALK_PHASE_PER_PX } from '../config/constants.js';
 import { RANK_STATS } from '../config/balance.js';
 import { state } from '../core/state.js';
 import { packChunkKey } from '../world/city.js';
@@ -108,6 +108,8 @@ export function updateUnitSprint(unit, wantsSprint, dt) {
  * collision, friendly pushing and sprint are shared by the player, AI and guest bosses.
  */
 export function moveUnit(unit, input = {}, dt = 0) {
+  const startX = unit.x;
+  const startY = unit.y;
   const rawX = input.mx || 0;
   const rawY = input.my || 0;
   const len = Math.hypot(rawX, rawY);
@@ -115,7 +117,8 @@ export function moveUnit(unit, input = {}, dt = 0) {
   const dirX = hasInput ? rawX / len : 0;
   const dirY = hasInput ? rawY / len : 0;
 
-  const sprintMult = updateUnitSprint(unit, Boolean(input.sprint) && hasInput, dt);
+  const wantsSprint = Boolean(input.sprint) && hasInput && unit.rank === UnitRank.BOSS;
+  const sprintMult = updateUnitSprint(unit, wantsSprint, dt);
 
   const isPlayer = unit === state.player;
   const radius =
@@ -154,6 +157,14 @@ export function moveUnit(unit, input = {}, dt = 0) {
       unit.y = py;
       moved = true;
     }
+  }
+
+  const stepSq = (unit.x - startX) ** 2 + (unit.y - startY) ** 2;
+  if (stepSq > 0.0001) {
+    unit.isMoving = true;
+    unit.walkPhase = ((unit.walkPhase || 0) + Math.sqrt(stepSq) * WALK_PHASE_PER_PX) % (Math.PI * 2);
+  } else {
+    unit.isMoving = false;
   }
 
   return { moved, dirX, dirY, speed, sprintMult };

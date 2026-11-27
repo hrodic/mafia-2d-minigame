@@ -73,6 +73,21 @@ test('interpolation: every NPC is interpolated and decays its timers', () => {
   });
 });
 
+test('interpolation: guest movement advances the walk phase and idles when settled', () => {
+  const player = makeEntity({ x: 0, y: 0, netX: 100, netY: 0 });
+  withEntities(player, [], () => {
+    stepGuestPresentation(1 / 60);
+    assertEqual(player.isMoving, true);
+    assert(player.walkPhase > 0, `walkPhase should advance, got ${player.walkPhase}`);
+
+    for (let i = 0; i < 120; i++) stepGuestPresentation(1 / 60);
+    assertEqual(player.isMoving, false);
+    const settledPhase = player.walkPhase;
+    stepGuestPresentation(1 / 60);
+    assertEqual(player.walkPhase, settledPhase);
+  });
+});
+
 test('interpolation: a zero or negative delta leaves entities untouched', () => {
   const player = makeEntity({ x: 5, y: 5, netX: 100, netY: 100 });
   withEntities(player, [], () => {

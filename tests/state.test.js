@@ -41,7 +41,7 @@ test('state: player boss starts at full health with correct base stats', () => {
   assertEqual(state.player.maxHp, BOSS_MAX_HP);
   assertEqual(state.player.armor, 0);
   assertEqual(state.player.maxArmor, MAX_BOSS_ARMOR);
-  assertEqual(state.player.speed, 140);
+  assertEqual(state.player.speed, 130);
   assertEqual(state.player.minDmg, 30);
   assertEqual(state.player.maxDmg, 40);
   assertEqual(state.player.alive, true);

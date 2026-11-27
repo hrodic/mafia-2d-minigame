@@ -7,7 +7,7 @@ import { on } from '../src/core/events.js';
 import { packChunkKey } from '../src/world/city.js';
 import { scanNearby, choosePatrolChunk, updateNpcAi } from '../src/sim/ai.js';
 
-const STATE_KEYS = ['world', 'player', 'npcs', 'spatialBuckets'];
+const STATE_KEYS = ['world', 'player', 'npcs', 'spatialBuckets', 'treasuries'];
 
 function withAiState(opts, fn) {
   const saved = {};
@@ -16,6 +16,10 @@ function withAiState(opts, fn) {
   state.player = opts.player || { x: 100, y: 100, faction: Faction.PLAYER, alive: true };
   state.npcs = opts.npcs || [];
   state.spatialBuckets = opts.spatialBuckets || new Map();
+  state.treasuries = saved.treasuries;
+  if (opts.treasuries) {
+    state.treasuries = { ...saved.treasuries, ...opts.treasuries };
+  }
   try {
     return fn();
   } finally {
@@ -185,7 +189,7 @@ function walledPistolTestWorld() {
   return { ...pistolTestWorld(), isWalkable: (x) => x >= 100 };
 }
 
-function pistolTestPlayer() {
+function pistolTestPlayer(overrides = {}) {
   return {
     id: 0,
     faction: Faction.PLAYER,
@@ -200,6 +204,7 @@ function pistolTestPlayer() {
     alive: true,
     facing: 0,
     hitFlashTimer: 0,
+    ...overrides,
   };
 }
 
@@ -217,6 +222,26 @@ function remoteUnit(rank, id = 42) {
     goalX: 0,
     goalY: 0,
     dodgeDir: 1,
+  });
+}
+
+function madeBoss(overrides = {}) {
+  const boss = remoteUnit(UnitRank.BOSS, 80);
+  return Object.assign(boss, {
+    x: 500,
+    y: 500,
+    hp: 800,
+    maxHp: 800,
+    armor: 300,
+    maxArmor: 300,
+    armorCooldown: 0,
+    bodyRadius: 13.5,
+    speed: 130,
+    facing: 0,
+    sprintTimer: 0,
+    sprintCooldown: 0,
+    isSprinting: false,
+    ...overrides,
   });
 }
 
@@ -269,6 +294,161 @@ test('ai: only bosses and underbosses fire the pistol', () => {
       assertEqual(blocked.ammo, 10, 'a building between shooter and target must block the shot');
       assertEqual(blocked.attackCooldown, 0, 'blocked line of sight must not start a cooldown');
       assertEqual(state.player.hp, 400, 'blocked line of sight must not damage the player');
+    }
+  );
+});
+
+test('ai: shooters hold fire when an ally is in the bullet path', () => {
+  const shooter = remoteUnit(UnitRank.UNDERBOSS, 60);
+  const ally = remoteUnit(UnitRank.SOLDIER, 61);
+  ally.x = 100;
+  ally.y = 0;
+  withAiState(
+    {
+      world: pistolTestWorld(),
+      player: pistolTestPlayer(),
+      npcs: [shooter, ally],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [shooter, ally]]]),
+    },
+    () => {
+      updateNpcAi(shooter, 0.016);
+      assertEqual(shooter.ammo, 10, 'ally in the path must block the shot');
+      assertEqual(shooter.attackCooldown, 0, 'blocked friendly fire must not start a cooldown');
+      assertEqual(state.player.hp, 400, 'no damage should be dealt');
+    }
+  );
+
+  const shooter2 = remoteUnit(UnitRank.UNDERBOSS, 62);
+  const allyBehind = remoteUnit(UnitRank.SOLDIER, 63);
+  allyBehind.x = 260;
+  allyBehind.y = 0;
+  withAiState(
+    {
+      world: pistolTestWorld(),
+      player: pistolTestPlayer(),
+      npcs: [shooter2, allyBehind],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [shooter2, allyBehind]]]),
+    },
+    () => {
+      updateNpcAi(shooter2, 0.016);
+      assertEqual(shooter2.ammo, 9, 'ally behind the target does not block the shot');
+      assertEqual(shooter2.attackCooldown, 0.2);
+    }
+  );
+});
+
+test('ai: wounded unarmored bosses sprint away instead of suiciding', () => {
+  const boss = madeBoss({ hp: 100, armor: 0, armorCooldown: 0, speed: 130 });
+  withAiState(
+    {
+      world: pistolTestWorld(),
+      player: pistolTestPlayer({ x: 600, y: 500 }),
+      npcs: [boss],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [boss]]]),
+      treasuries: { [Faction.RIVAL_1]: 0 },
+    },
+    () => {
+      updateNpcAi(boss, 0.016);
+      assert(boss.retreatTimer > 0, 'wounded unarmored boss should commit to a retreat');
+      assert(boss.goalX < boss.x, `retreat goal should move away from the player, goalX=${boss.goalX}`);
+      assertEqual(boss.isSprinting, true, 'retreat should use the sprint burst');
+    }
+  );
+});
+
+test('ai: outnumbered unarmored bosses retreat even at full HP', () => {
+  const boss = madeBoss({ hp: 800, armor: 0, armorCooldown: 0 });
+  const squad = [
+    remoteUnit(UnitRank.SOLDIER, 81),
+    remoteUnit(UnitRank.SOLDIER, 82),
+  ];
+  squad[0].faction = Faction.RIVAL_2;
+  squad[0].x = 600;
+  squad[0].y = 480;
+  squad[1].faction = Faction.RIVAL_2;
+  squad[1].x = 600;
+  squad[1].y = 520;
+  withAiState(
+    {
+      world: pistolTestWorld(),
+      player: pistolTestPlayer({ x: 600, y: 500 }),
+      npcs: [boss, ...squad],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [boss, ...squad]]]),
+      treasuries: { [Faction.RIVAL_1]: 0 },
+    },
+    () => {
+      updateNpcAi(boss, 0.016);
+      assert(boss.retreatTimer > 0, 'outnumbered unarmored boss should retreat');
+      assertEqual(boss.isSprinting, true);
+    }
+  );
+});
+
+test('ai: bosses buy armor before retreating when they can afford it', () => {
+  const boss = madeBoss({ hp: 100, armor: 0, armorCooldown: 0 });
+  withAiState(
+    {
+      world: pistolTestWorld(),
+      player: pistolTestPlayer({ x: 600, y: 500 }),
+      npcs: [boss],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [boss]]]),
+      treasuries: { [Faction.RIVAL_1]: 4000 },
+    },
+    () => {
+      updateNpcAi(boss, 0.016);
+      assertEqual(boss.armor, 300, 'boss should refresh armor when threatened');
+      assertEqual(boss.retreatTimer, 0, 'armored boss should not abandon the fight');
+    }
+  );
+});
+
+test('ai: pistol shooters sidestep when an ally blocks the line of fire', () => {
+  const shooter = remoteUnit(UnitRank.UNDERBOSS, 90);
+  shooter.speed = 135;
+  shooter.facing = 0;
+  const ally = remoteUnit(UnitRank.SOLDIER, 91);
+  ally.x = 100;
+  ally.y = 0;
+  withAiState(
+    {
+      world: pistolTestWorld(),
+      player: pistolTestPlayer(),
+      npcs: [shooter, ally],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [shooter, ally]]]),
+    },
+    () => {
+      updateNpcAi(shooter, 0.016);
+      assertEqual(shooter.ammo, 10, 'blocked shooter must not spend a round');
+      assert(shooter.flankTimer > 0, 'blocked shooter should commit to a sidestep');
+      assert(Math.abs(shooter.goalY) > 30, `sidestep should leave the firing line, goalY=${shooter.goalY}`);
+
+      ally.x = 260;
+      ally.y = 0;
+      updateNpcAi(shooter, 0.016);
+      assertEqual(shooter.ammo, 9, 'shooter should fire once the lane is clear');
+    }
+  );
+});
+
+test('ai: close-range knife attacks ignore intervening allies', () => {
+  const shooter = remoteUnit(UnitRank.UNDERBOSS, 92);
+  shooter.speed = 135;
+  shooter.minDmg = 25;
+  shooter.maxDmg = 35;
+  const ally = remoteUnit(UnitRank.SOLDIER, 93);
+  ally.x = 20;
+  ally.y = 0;
+  withAiState(
+    {
+      world: pistolTestWorld(),
+      player: pistolTestPlayer({ x: 40, y: 0 }),
+      npcs: [shooter, ally],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [shooter, ally]]]),
+    },
+    () => {
+      updateNpcAi(shooter, 0.016);
+      assert(state.player.hp < 400, `knife should still hit the enemy, hp=${state.player.hp}`);
+      assertEqual(ally.hp, 180, 'knife must not damage the ally');
     }
   );
 });

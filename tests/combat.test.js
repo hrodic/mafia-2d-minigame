@@ -40,6 +40,8 @@ import {
   getPistolAim,
   performBossPistolShot,
   tickWeapon,
+  startReload,
+  hasFriendlyInShotPath,
   isBackHit,
   rollCriticalHit,
   damagePlayerBoss,
@@ -358,6 +360,76 @@ test('combat: back hits apply the extra critical chance with both weapons', () =
         withFixedRandom(0.99, () => performBossPistolShot(state.player, true, 200, 0));
       });
       assertEqual(state.npcs[0].hp, 356, 'pistol back hit should crit');
+    }
+  );
+});
+
+test('combat: pistol friendly fire hits allied units', () => {
+  withCombatState(
+    {
+      player: makePlayer(),
+      npcs: [makeNpc({ faction: Faction.PLAYER, x: 200, y: 0, hp: 100, maxHp: 100, facing: Math.PI })],
+    },
+    ({ events }) => {
+      withFixedRandom(0.99, () => {
+        assertEqual(performBossPistolShot(state.player, true, 200, 0), true);
+      });
+      assertEqual(state.npcs[0].hp, 28, '80 max damage * .9 falloff = 72');
+      const hit = eventsOf(events, 'unit:damaged')[0];
+      assertEqual(hit.payload.amount, 72);
+      assertEqual(hit.payload.isPlayer, false);
+    }
+  );
+});
+
+test('combat: knives never damage friendly units', () => {
+  withCombatState(
+    {
+      player: makePlayer({ facing: 0 }),
+      npcs: [makeNpc({ faction: Faction.PLAYER, x: 20, y: 0, hp: 100, maxHp: 100 })],
+    },
+    ({ events }) => {
+      performKnifeSlash();
+      assertEqual(state.npcs[0].hp, 100);
+      assertEqual(eventsOf(events, 'unit:damaged').length, 0);
+    }
+  );
+});
+
+test('combat: manual reload discards the magazine, then refills after 4s', () => {
+  withCombatState({ player: makePlayer() }, () => {
+    const p = state.player;
+    p.ammo = 7;
+    p.reloadTimer = 0;
+    p.attackCooldown = 0;
+    assertEqual(startReload(p), true);
+    assertEqual(p.ammo, 0);
+    assertEqual(p.reloadTimer, PISTOL.reloadTime);
+    assertEqual(startReload(p), false, 'cannot restart an active reload');
+
+    tickWeapon(p, PISTOL.reloadTime);
+    assertEqual(p.reloadTimer, 0);
+    assertEqual(p.ammo, PISTOL.magazine);
+    assertEqual(startReload(p), false, 'full magazine does not reload');
+  });
+});
+
+test('combat: friendly argument detects allies in the line of fire', () => {
+  withCombatState(
+    {
+      player: makePlayer({ x: 1000, y: 0 }),
+      npcs: [
+        makeNpc({ id: 70, faction: Faction.RIVAL_1, x: 0, y: 0, hp: 200, maxHp: 200 }),
+        makeNpc({ id: 71, faction: Faction.RIVAL_1, x: 100, y: 0, hp: 200, maxHp: 200 }),
+        makeNpc({ id: 72, faction: Faction.RIVAL_2, x: 200, y: 0, hp: 200, maxHp: 200 }),
+      ],
+    },
+    () => {
+      const shooter = state.npcs.find((n) => n.id === 70);
+      const ally = state.npcs.find((n) => n.id === 71);
+      assertEqual(hasFriendlyInShotPath(shooter, 200, 0), true);
+      ally.x = 260;
+      assertEqual(hasFriendlyInShotPath(shooter, 200, 0), false, 'ally behind the target is safe');
     }
   );
 });
@@ -819,7 +891,7 @@ test('combat: player pistol fires faster and damages rival units', () => {
   );
 });
 
-test('combat: pistol fires 10 rounds on a 0.2s cadence then reloads for 5s', () => {
+test('combat: pistol fires 10 rounds on a 0.2s cadence then reloads for 4s', () => {
   withCombatState({ player: makePlayer() }, () => {
     const p = state.player;
     const fire = () => performBossPistolShot(p, true, p.x + 300, p.y);

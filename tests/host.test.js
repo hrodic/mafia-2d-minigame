@@ -206,11 +206,11 @@ test('host: peer leave before launch frees the seat; mid-match returns the boss 
   controller.handleLobby({ v: GAME_VERSION, type: MSG.HELLO, payload: { name: 'Fighter' } }, 'g2');
   setMatchStarted(true);
   const savedNpcs = state.npcs;
-  state.npcs = [{ faction: Faction.RIVAL_1, rank: 'BOSS', humanPeerId: 'g2', speed: 140 }];
+  state.npcs = [{ faction: Faction.RIVAL_1, rank: 'BOSS', humanPeerId: 'g2', speed: 130 }];
   try {
     controller.handlePeerLeave('g2');
     assertEqual(state.npcs[0].humanPeerId, null);
-    assertEqual(state.npcs[0].speed, 152);
+    assertEqual(state.npcs[0].speed, 130);
     assert(calls.notified.some((message) => message.includes('AI took control')));
   } finally {
     state.npcs = savedNpcs;

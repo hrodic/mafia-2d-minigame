@@ -1,6 +1,6 @@
 // Simulation orchestration tests: host movement/tick cadence, guest early-return,
 // host snapshot driving and an AI smoke test.
-import { test, assert, assertEqual } from './harness.js';
+import { test, assert, assertEqual, assertClose } from './harness.js';
 import { Faction, UnitRank, PropType } from '../src/config/enums.js';
 import { CHUNK_SIZE, TILE_SIZE, SIM_DT, MAX_FRAME_DELTA, MAX_SIM_STEPS } from '../src/config/constants.js';
 import { state } from '../src/core/state.js';
@@ -196,6 +196,13 @@ test('simulation: host movement, timers and HUD cadence', () => {
     assert(state.player.attackCooldown < 0.5, 'timers should advance');
     updatePresentation(1 / 60);
     assert(state.camera.x > 0, 'camera should follow the boss during presentation');
+  });
+});
+
+test('simulation: friendly turf regenerates the local boss', () => {
+  withSimState({ player: makePlayer({ hp: 100, maxHp: 800 }) }, () => {
+    update(1);
+    assertClose(state.player.hp, 105, 1e-9);
   });
 });
 

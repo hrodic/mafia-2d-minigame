@@ -46,6 +46,7 @@ src/
     movement.js            moveUnit/sprint, collision, remote-human boss, waypoint steering
     units.js               caps, spawning, recruitment
     combat.js              damage/armor, slashes, pistol raycast, armor purchases
+    regen.js               friendly-turf HP regeneration, suppressed by hit flash
     territory.js           capture progress, elimination, victory
     economy.js             upkeep, income, hourly tick and auto-recruitment
     commands.js            dispatchCommand: local + remote action entry point
@@ -235,7 +236,9 @@ labels, seed display and HUD.
   player timers, handles player input/aim and capture; movement/sprint go through the
   shared `moveUnit`/`updateUnitSprint`. Then for each NPC either updates a remote-human boss
   (`updateHumanControlledRivalBoss`) or runs `updateNpcAi` (perception, armor, attacks,
-  patrol, A* steering, capture); then runs the hourly economy tick and `net.updateHost`.
+  patrol, A* steering, capture), then regenerates it on friendly turf; the player regenerates
+  after the NPC loop so a same-frame hit suppresses it; then runs the hourly economy tick and
+  `net.updateHost`.
 - **Guest `updateGuest(renderDt)`:** streams input (`net.updateGuest`), runs guest
   presentation (`stepGuestPresentation`: interpolate `netX/netY`, decay animation timers),
   advances the HUD timer bar, then calls `updatePresentation`.
@@ -249,8 +252,12 @@ transitions only, never positions, timers or per-NPC updates.
 ### AI
 `sim/ai.js`: `scanNearby` (nearest enemy + ally/enemy counts in the 3×3 spatial buckets),
 boss armor purchase, melee for every rank and pistol fire for bosses/underbosses when the
-bullet path is clear (`hasClearShot`), `choosePatrolChunk` (nearest non-owned chunk with
-a global fallback), A* path following/steering, obstacle dodge and capture. `updateNpcAi(u,
+bullet path is clear (`hasClearShot`) and no ally is in the way (`hasFriendlyInShotPath`),
+`choosePatrolChunk` (nearest non-owned chunk with
+a global fallback), A* path following/steering, obstacle dodge and capture. Wounded or
+outnumbered unarmored bosses buy armor when possible, otherwise sprint to a retreat point;
+blocked pistol shooters sidestep their firing lane, back off when both flanks are blocked,
+and always knife at close range (knives have no friendly-fire restriction). `updateNpcAi(u,
 dt)` is headless; remote-human bosses bypass it. `simulation.js` remains the fixed-step
 orchestration loop; presentation is separate.
 
@@ -265,8 +272,8 @@ carries that choice into the match and multiplayer host/guest init. Caps clamp p
 remote-human preferences to the configured range; every faction (human or AI) starts at the
 full quota until the player lowers a slider. It emits `unit:recruited`;
 `render/recruitFx.js` draws the `+RANK ($cost)` text. Rival bosses controlled by a human
-peer have `humanPeerId`; all bosses use speed `140` (AI and human), while non-boss AI ranks
-use their per-rank speeds (`150` Underboss, `160` Captain, `170` Soldier). Same-faction units may push through each other (boss included); other factions
+peer have `humanPeerId`; all bosses use speed `130` (AI and human), while non-boss AI ranks
+use their per-rank speeds (`135` Underboss, `140` Captain, `150` Soldier). Same-faction units may push through each other (boss included); other factions
 always collide.
 
 ### Combat
@@ -274,7 +281,8 @@ always collide.
 (`damagePlayerBoss` delegates to `applyDamageToNpc`), death/elimination, one
 `performSlash` pipeline with player/rival/AI wrappers that share one knockback while
 keeping per-rank reach, arc and cooldowns, a pistol raycast with distance accuracy/damage
-bands and magazine reload, a per-hit critical roll (5% base, +15% from the rear cone, 2×
+bands, magazine reload (auto at 0 or manual with R, 4 s), pistol friendly fire and
+ally-aware AI hold-fire, a per-hit critical roll (5% base, +15% from the rear cone, 2×
 damage), and
 point-blank damage falloff, and armor purchases (player, rival AI). It emits facts only;
 `render/combatFx.js` draws blood/corpses/text/arcs/tracers and `audio/combatSfx.js` plays
@@ -298,11 +306,11 @@ subscribe in `main.js`.
 
 ### Balance data
 `config/balance.js` is the gameplay tuning surface: `RANK_STATS` (HP, armor, damage,
-AI/human speed, radius, capture points per tick, cost/upkeep), `UNIT_CAPS`, `CORRUPTION`, `SLASH`
+AI/human speed, radius, capture points per tick, regen per second, cost/upkeep), `UNIT_CAPS`, `CORRUPTION`, `SLASH`
 profiles, and
 `PISTOL` stats + accuracy bands. `config/constants.js` owns world/map defaults, sprint,
 pistol range, hit flash, the fixed sim step and catch-up limits. Non-boss AI ranks use
-their rank speed (Underboss `150`, Captain `160`, Soldier `170`); bosses use `140` for both AI and human control, so sprint is the boss
+their rank speed (Underboss `135`, Captain `140`, Soldier `150`); bosses use `130` for both AI and human control, so sprint is the boss
 mobility advantage. Local and remote humans and AI bosses share one `SLASH.humanBoss`/`SLASH.aiBoss`
 rule set; crew melee reads `SLASH.aiMeleeByRank` for per-rank reach, arc and cooldown. The local player's HP, damage, speed and
 radius derive from `RANK_STATS.BOSS`. Systems read the tables at spawn/attack time and copy
@@ -347,7 +355,7 @@ controllers live in their own modules):
   Seats map peers to factions; unused seats can be closed as AI. Version gate rejects
   mismatched clients.
 - **Channels:** `lobby`, `init` (initial match state), `snap` (snapshots), `input`
-  (guest movement/aim ~16 Hz), `cmd` (guest actions: move, slash, shoot, armor, recruit
+  (guest movement/aim ~16 Hz), `cmd` (guest actions: move, slash, shoot, reload, armor, recruit
   prefs), `event` (e.g. SHOT tracer broadcast).
 - **Authority:** the host runs the simulation and broadcasts full-state snapshots ~12 Hz;
   guests interpolate positions (`render/interpolation.js`) and send input/commands.
@@ -370,7 +378,10 @@ and characters into a depth-sorted list, and draws layers: a subtle world-space 
 backdrop (outside the playable chunks), ground + faction tint, capture bars, turf income
 labels, blood decals/corpses, waypoint and muzzle-accurate aim/reticle UI, characters (with
 HP/armor bars and rank labels), then effects (slash arcs, muzzle flashes, tracers, blood,
-sparks, casings, floating text). Static ground is cached per visible chunk in an LRU of
+sparks, casings, floating text). Character walk animation is distance-driven: `moveUnit`
+and guest interpolation advance `walkPhase`/`isMoving`, and `drawCharacter` uses one sine
+per visible moving unit for foot swing and a small body bob (no new timers or per-unit
+render state). Static ground is cached per visible chunk in an LRU of
 offscreen canvases (asphalt grain, curbs, markings); building walls/roofs/roof props are
 cached per building sprite and drawn in the same depth order, with dynamically lit facade
 windows layered on top. `render/weather.js` draws the capped diagonal rain pass in screen
@@ -378,8 +389,10 @@ space whenever the day/night schedule says rain. Rain is re-decided only when th
 day/night period flips (25% day, 50% night). The same continuous hour drives the lamp
 intensity (off 08–21, on 22–07, one-hour dusk/dawn fades) and a screen-space ambient tint:
 warm sunny light by day, cool blue by night.
-`render/minimap.js` caches the faction territory layer and overlays units, the boss, the
-camera rect and chunk coordinates; `render/minimapLayout.js` owns the shared bounds/cell/
+`render/minimap.js` caches the faction territory layer and overlays units (every boss —
+player, AI or remote human — is the same white-glowing circle filled with its faction
+accent; crew stay small squares), the camera rect and chunk coordinates;
+`render/minimapLayout.js` owns the shared bounds/cell/
 offset and world<->map mapping (also used by radar clicks). The radar canvas is 168px by
 default and expands to 336px.
 
@@ -397,7 +410,8 @@ distance from the camera.
   (turf, kills, deaths).
 - `ui/actionBar.js`: bottom-center combat bar. Slash/pistol/armor/sprint show ready/cooling
   states, cooldown overlays, costs and shortcuts; the pistol badge shows rounds left and
-  switches to a reload fill at 0; sprint is hold-to-run and guest input includes the held state.
+  switches to a 4s reload fill at 0 (R reloads early); sprint is boss-only, hold-to-run,
+  and guest input includes the held state.
 - `ui/hudCadence.js`: 4 Hz HUD refresh from the main loop.
 - `ui/menus.js`: setup modal tabs (Field Manual first, then Single/Host/Join), grid-derived
   crew-limit sliders, lobby buttons, start-game flow, `openSetupMenu`, banners and
@@ -408,7 +422,7 @@ distance from the camera.
   payload through `state.net.sendCommand`; host/single call `sim/commands.js` directly.
 - `ui/support.js`: the top-bar **Tip me** link opens the official Ko-fi popup; the floating
   launcher is hidden in CSS and the link falls back to ko-fi.com/hrodic.
-- `sim/commands.js`: `dispatchCommand(faction, payload)` for move, slash, shoot, armor and
+- `sim/commands.js`: `dispatchCommand(faction, payload)` for move, slash, shoot, reload, armor and
   recruit prefs. Local input and the host's remote-command receiver share it.
 
 ## Testing

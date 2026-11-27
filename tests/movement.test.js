@@ -123,6 +123,21 @@ test('movement: friendly pushing detects nearby friends only', () => {
   });
 });
 
+test('movement: only bosses can sprint', () => {
+  const soldier = makeMovableUnit({ rank: UnitRank.SOLDIER, speed: 100, x: 0, y: 0 });
+  withState(basePatch({ player: { ...soldier, alive: true } }), () => {
+    const result = moveUnit(
+      soldier,
+      { mx: 1, my: 0, sprint: true, ignorePlayer: true, ignoreNpcId: -1 },
+      0.1
+    );
+    assertEqual(result.moved, true);
+    assertEqual(soldier.isSprinting, false);
+    assertEqual(result.sprintMult, 1.0);
+    assertEqual(soldier.x, 10, 'soldier should move at base speed');
+  });
+});
+
 test('movement: unit sprint drains, triggers cooldown and returns the multiplier', () => {
   const boss = { sprintCooldown: 0, sprintTimer: 0, isSprinting: false };
   assertEqual(updateUnitSprint(boss, true, SPRINT_MAX_DURATION * 0.5), 1.6);
@@ -169,7 +184,7 @@ function makeMovableUnit(overrides = {}) {
   };
 }
 
-test('movement: moveUnit applies base speed, sprint and body radius to any unit', () => {
+test('movement: moveUnit applies base speed, sprint and body radius to the boss', () => {
   const unit = makeMovableUnit();
   withState(basePatch({ player: { ...unit, alive: true } }), () => {
     const result = moveUnit(
@@ -408,4 +423,28 @@ test('movement: keyboard input cancels an active waypoint path', () => {
       assert(boss.x > 100);
     }
   );
+});
+
+test('movement: walk state advances only while the unit actually moves', () => {
+  const unit = {
+    x: 100,
+    y: 100,
+    speed: 100,
+    bodyRadius: 11,
+    rank: UnitRank.SOLDIER,
+    faction: Faction.RIVAL_1,
+    sprintCooldown: 0,
+    sprintTimer: 0,
+  };
+  withState(basePatch(), () => {
+    const moved = moveUnit(unit, { mx: 1, my: 0 }, 0.1);
+    assert(moved.moved, 'unit should move');
+    assertEqual(unit.isMoving, true);
+    assert(unit.walkPhase > 0, `walkPhase should advance, got ${unit.walkPhase}`);
+    const phase = unit.walkPhase;
+
+    moveUnit(unit, { mx: 0, my: 0 }, 0.1);
+    assertEqual(unit.isMoving, false);
+    assertEqual(unit.walkPhase, phase, 'idle units must not advance their walk phase');
+  });
 });
