@@ -1,5 +1,5 @@
 // Menu tests: toast, banners, map-size preview and faction slot rendering.
-import { test, assert, assertEqual } from './harness.js';
+import { test, assert, assertEqual, assertDeepEqual } from './harness.js';
 import { state } from '../src/core/state.js';
 import {
   showToast,
@@ -10,8 +10,9 @@ import {
   showDefeatBanner,
   setWorldSeedDisplay,
   toggleHudInfo,
-  setManualTab,
+  setSetupTab,
   setSetupUnitCap,
+  applyMatchPreset,
   updateMatchImpactSummary,
 } from '../src/ui/menus.js';
 
@@ -90,37 +91,65 @@ test('menus: seed display shows the current seed and hides when absent', () => {
   assertEqual(last.textContent, 'Last: —');
 });
 
-test('menus: field manual tabs switch aria-selected and panel visibility', () => {
-  const names = ['controls', 'hierarchy', 'multiplayer'];
-  const buttons = names.map((name) => {
+test('menus: setup tabs toggle panels, CTA and the Play shortcut target', () => {
+  const ids = [
+    'setup-panel-manual',
+    'setup-panel-play',
+    'mp-host-panel',
+    'mp-join-panel',
+    'match-settings-wrapper',
+    'setup-cta-bar',
+    'btn-start-game',
+    'setup-scroll',
+  ];
+  const els = ids.map((id) => {
+    const el = document.createElement('div');
+    el.id = id;
+    document.body.append(el);
+    return el;
+  });
+  const tabs = ['manual', 'single', 'host', 'join'].map((tab) => {
     const button = document.createElement('button');
-    button.className = 'manual-tab';
-    button.dataset.manualTab = name;
-    button.setAttribute('aria-selected', name === 'controls' ? 'true' : 'false');
+    button.className = 'setup-tab';
+    button.dataset.setupTab = tab;
+    button.setAttribute('aria-selected', tab === 'manual' ? 'true' : 'false');
+    document.body.append(button);
     return button;
   });
-  const panels = names.map((name) => {
-    const panel = document.createElement('div');
-    panel.className = `manual-panel${name === 'controls' ? '' : ' hidden'}`;
-    panel.id = `manual-panel-${name}`;
-    return panel;
-  });
-  document.body.append(...buttons, ...panels);
+  const scroller = els[ids.indexOf('setup-scroll')];
+  scroller.style.height = '20px';
+  scroller.style.overflowY = 'auto';
+  scroller.innerHTML = '<div style="height:200px"></div>';
   try {
-    setManualTab('hierarchy');
-    assertEqual(buttons[0].getAttribute('aria-selected'), 'false');
-    assertEqual(buttons[1].getAttribute('aria-selected'), 'true');
-    assert(panels[0].classList.contains('hidden'));
-    assert(!panels[1].classList.contains('hidden'));
-    assert(panels[2].classList.contains('hidden'));
+    setSetupTab('manual');
+    assert(!els[0].classList.contains('hidden'), 'manual panel visible');
+    assert(els[1].classList.contains('hidden'), 'play panel hidden on manual');
+    assert(els[5].classList.contains('hidden'), 'CTA hidden on manual');
+    assertEqual(tabs[0].getAttribute('aria-selected'), 'true');
+    els[7].scrollTop = 100;
 
-    setManualTab('multiplayer');
-    assertEqual(buttons[1].getAttribute('aria-selected'), 'false');
-    assertEqual(buttons[2].getAttribute('aria-selected'), 'true');
-    assert(panels[1].classList.contains('hidden'));
-    assert(!panels[2].classList.contains('hidden'));
+    setSetupTab('single');
+    assert(els[0].classList.contains('hidden'));
+    assert(!els[1].classList.contains('hidden'), 'play panel visible on single');
+    assert(!els[4].classList.contains('hidden'), 'settings visible on single');
+    assert(!els[5].classList.contains('hidden'), 'CTA visible on single');
+    assertEqual(els[6].textContent, 'Launch Turf War');
+    assertEqual(els[7].scrollTop, 0, 'tab switch should reset the scroll position');
+    assertEqual(tabs[1].getAttribute('aria-selected'), 'true');
+
+    setSetupTab('host');
+    assert(!els[2].classList.contains('hidden'), 'host panel visible on host');
+    assert(els[3].classList.contains('hidden'), 'join panel hidden on host');
+    assert(!els[4].classList.contains('hidden'), 'settings visible on host');
+
+    setSetupTab('join');
+    assert(els[2].classList.contains('hidden'), 'host panel hidden on join');
+    assert(!els[3].classList.contains('hidden'), 'join panel visible on join');
+    assert(els[4].classList.contains('hidden'), 'settings hidden on join');
+    assert(els[5].classList.contains('hidden'), 'CTA hidden on join');
+    assertEqual(tabs[3].getAttribute('aria-selected'), 'true');
   } finally {
-    for (const el of [...buttons, ...panels]) el.remove();
+    for (const el of [...els, ...tabs]) el.remove();
   }
 });
 
@@ -132,11 +161,11 @@ test('menus: match impact summary follows grid, tick and income choices', () => 
     state.currentIncomeTier = 'HIGH';
     updateMapSizePreview(10);
     const summary = document.getElementById('match-impact-summary').textContent;
-    assert(summary.includes('100 Neighborhoods'), summary);
-    assert(summary.includes('100S'), summary);
-    assert(summary.includes('20C'), summary);
-    assert(summary.includes('10U'), summary);
-    assert(summary.includes('10s tick'), summary);
+    assert(summary.includes('100 neighborhoods'), summary);
+    assert(summary.includes('50 Street Enforcers'), summary);
+    assert(summary.includes('10 Middle Management'), summary);
+    assert(summary.includes('5 Second-in-Command'), summary);
+    assert(summary.includes('10s ticks'), summary);
     assert(summary.includes('$1,000'), summary);
 
     state.currentIncomeTier = 'LOW';
@@ -161,16 +190,16 @@ test('menus: crew limits follow the grid ceiling and can be lowered', () => {
     setSetupUnitCap('soldier', 140);
     assertEqual(state.matchUnitCaps.maxSoldiers, 140);
     assertEqual(document.getElementById('setup-cap-soldier-value').textContent, '140');
-    assert(document.getElementById('match-impact-summary').textContent.includes('140S'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('140 Street Enforcers'));
 
     updateMapSizePreview(5);
     assertEqual(soldier.max, '50');
-    assertEqual(soldier.value, '50');
-    assertEqual(state.matchUnitCaps.maxSoldiers, 50);
+    assertEqual(soldier.value, '25');
+    assertEqual(state.matchUnitCaps.maxSoldiers, 25);
     assertEqual(document.getElementById('setup-cap-captain').max, '10');
-    assertEqual(document.getElementById('setup-cap-captain').value, '10');
+    assertEqual(document.getElementById('setup-cap-captain').value, '5');
     assertEqual(document.getElementById('setup-cap-underboss').max, '5');
-    assertEqual(document.getElementById('setup-cap-underboss').value, '5');
+    assertEqual(document.getElementById('setup-cap-underboss').value, '3');
   } finally {
     state.matchUnitCaps = saved;
     document.getElementById('setup-cap-soldier').value = String(saved.maxSoldiers);
@@ -181,13 +210,63 @@ test('menus: crew limits follow the grid ceiling and can be lowered', () => {
   }
 });
 
+test('menus: presets apply grid, tick and income together', () => {
+  const savedTier = state.currentIncomeTier;
+  const savedCaps = state.matchUnitCaps;
+  try {
+    applyMatchPreset('turbo');
+    assertEqual(document.getElementById('map-size-slider').value, '10');
+    assertEqual(document.getElementById('tick-speed-slider').value, '10');
+    assertEqual(state.currentIncomeTier, 'HIGH');
+    assertDeepEqual(state.matchUnitCaps, { maxSoldiers: 50, maxCaptains: 10, maxUnderbosses: 5 });
+    assertEqual(document.getElementById('setup-cap-soldier').value, '50');
+    assert(document.getElementById('match-impact-summary').textContent.includes('100 neighborhoods'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('50 Street Enforcers'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('10s ticks'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('$1,000'));
+    assertEqual(
+      document.querySelector('.match-preset[data-preset="turbo"]').getAttribute('aria-pressed'),
+      'true'
+    );
+
+    applyMatchPreset('normal');
+    assertEqual(document.getElementById('map-size-slider').value, '15');
+    assertEqual(document.getElementById('tick-speed-slider').value, '15');
+    assertEqual(state.currentIncomeTier, 'MID');
+    assertDeepEqual(state.matchUnitCaps, { maxSoldiers: 75, maxCaptains: 15, maxUnderbosses: 8 });
+    assert(document.getElementById('match-impact-summary').textContent.includes('225 neighborhoods'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('75 Street Enforcers'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('8 Second-in-Command'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('15s ticks'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('$500'));
+
+    applyMatchPreset('long');
+    assertEqual(document.getElementById('map-size-slider').value, '20');
+    assertEqual(document.getElementById('tick-speed-slider').value, '25');
+    assertEqual(state.currentIncomeTier, 'LOW');
+    assertDeepEqual(state.matchUnitCaps, { maxSoldiers: 100, maxCaptains: 20, maxUnderbosses: 10 });
+    assert(document.getElementById('match-impact-summary').textContent.includes('400 neighborhoods'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('100 Street Enforcers'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('25s ticks'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('$250'));
+    assertEqual(
+      document.querySelector('.match-preset[data-preset="long"]').getAttribute('aria-pressed'),
+      'true'
+    );
+  } finally {
+    state.currentIncomeTier = savedTier;
+    state.matchUnitCaps = savedCaps;
+    updateMapSizePreview(15);
+  }
+});
+
 test('menus: map size preview updates display and caps', () => {
   updateMapSizePreview(10);
   assertEqual(document.getElementById('map-size-slider').value, '10');
   assertEqual(document.getElementById('map-size-display').textContent, '10×10');
   const preview = document.getElementById('map-cap-preview').textContent;
-  assert(preview.includes('100 Neighborhoods'), preview);
-  assert(preview.includes('100S · 20C · 10U'), preview);
+  assert(preview.includes('100 neighborhoods'), preview);
+  assert(preview.includes('100 Street Enforcers · 20 Middle Management · 10 Second-in-Command'), preview);
 
   updateMapSizePreview(15);
   assertEqual(document.getElementById('map-size-display').textContent, '15×15 (Default)');

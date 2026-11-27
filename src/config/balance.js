@@ -119,6 +119,17 @@ export function clampMatchUnitCaps(gridSize, requested = {}) {
   };
 }
 
+/** Grid-derived defaults for the setup sliders: half of each ceiling, never below its minimum. */
+export function defaultMatchUnitCaps(gridSize, fraction = UNIT_CAPS.humanCapFraction) {
+  const hard = getGridUnitCaps(gridSize);
+  const scale = (max, min) => Math.min(max, Math.max(min, Math.round(max * fraction)));
+  return {
+    maxSoldiers: scale(hard.maxSoldiers, UNIT_CAPS.minSoldiers),
+    maxCaptains: scale(hard.maxCaptains, UNIT_CAPS.minCaptains),
+    maxUnderbosses: scale(hard.maxUnderbosses, UNIT_CAPS.minUnderbosses),
+  };
+}
+
 export const SLASH = {
   // One rule set for every human-controlled boss (local player or remote guest).
   humanBoss: {

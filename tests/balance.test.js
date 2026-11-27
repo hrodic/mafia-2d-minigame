@@ -20,6 +20,7 @@ import {
   UNIT_ATTACK_COOLDOWN,
   getGridUnitCaps,
   clampMatchUnitCaps,
+  defaultMatchUnitCaps,
 } from '../src/config/balance.js';
 
 const EXPECTED_RANKS = {
@@ -135,6 +136,16 @@ test('balance: unit caps scale by grid side and tier minimums are locked', () =>
     clampMatchUnitCaps(15, { maxSoldiers: 999, maxCaptains: 1, maxUnderbosses: 0 }),
     { maxUnderbosses: 1, maxCaptains: 2, maxSoldiers: 150 }
   );
+  assertDeepEqual(defaultMatchUnitCaps(10), {
+    maxSoldiers: 50,
+    maxCaptains: 10,
+    maxUnderbosses: 5,
+  });
+  assertDeepEqual(defaultMatchUnitCaps(15), {
+    maxSoldiers: 75,
+    maxCaptains: 15,
+    maxUnderbosses: 8,
+  });
   assertEqual(UNIT_ATTACK_COOLDOWN, 1.0);
 });
 

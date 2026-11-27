@@ -126,7 +126,7 @@ test('ui: action dock uses bottom keybinds and transform cooldown fills', async 
   assert(/\.action-btn\[data-state='affordable'\]/s.test(css), 'affordable-state styling missing');
 });
 
-test('ui: setup screen has a visible CTA, tabbed manual and live impact summary', async () => {
+test('ui: setup screen has a visible CTA, unified manual and live impact summary', async () => {
   const html = await fetchIndexHtml();
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const cta = doc.getElementById('setup-cta-bar');
@@ -134,43 +134,51 @@ test('ui: setup screen has a visible CTA, tabbed manual and live impact summary'
   assert(cta && start, 'setup CTA bar and start button must exist');
   assert(cta.contains(start), 'start button must live in the sticky CTA bar');
   assertEqual(doc.querySelectorAll('#btn-start-game').length, 1);
+  assert(cta.classList.contains('hidden'), 'CTA should start hidden behind the Field Manual');
 
-  const tabs = doc.querySelectorAll('.manual-tab');
-  const panels = doc.querySelectorAll('.manual-panel');
-  assertEqual(tabs.length, 3);
-  assertEqual(panels.length, 3);
-  assertEqual(tabs[0].getAttribute('aria-selected'), 'true');
-  assertEqual(tabs[0].getAttribute('role'), 'tab');
-  assertEqual(doc.getElementById('manual-panel-controls').getAttribute('role'), 'tabpanel');
-  assert(doc.getElementById('manual-panel-hierarchy').classList.contains('hidden'));
-  assert(doc.getElementById('manual-panel-multiplayer').classList.contains('hidden'));
+  const setupTabs = doc.querySelectorAll('.setup-tab');
+  assertEqual(setupTabs.length, 4);
+  assertEqual(setupTabs[0].dataset.setupTab, 'manual');
+  assertEqual(setupTabs[0].getAttribute('role'), 'tab');
+  assertEqual(setupTabs[0].getAttribute('aria-selected'), 'true');
+  assert(!doc.getElementById('setup-panel-manual').classList.contains('hidden'));
+  assert(doc.getElementById('setup-panel-play').classList.contains('hidden'));
+  assert(doc.getElementById('btn-manual-play'), 'Field Manual needs a Play button');
+  assertEqual(doc.getElementById('btn-manual-play').textContent.trim(), 'Play');
+
+  assertEqual(doc.querySelectorAll('#setup-panel-manual .manual-tab').length, 0);
+  assertEqual(doc.querySelectorAll('#setup-panel-manual .manual-section').length, 2);
+  const guide = doc.getElementById('multiplayer-guide');
+  assert(guide, 'multiplayer guide missing');
+  assert(doc.getElementById('mp-join-panel').contains(guide), 'multiplayer guide belongs in the Join tab');
   assert(doc.getElementById('match-impact-summary'), 'live match impact summary missing');
+  assertEqual(doc.querySelector('.match-impact-label').textContent.trim(), 'YOUR SETUP');
 
   const cssResponse = await fetch('../styles.css', { cache: 'no-store' });
   const css = await cssResponse.text();
   assert(/\.setup-cta-bar\s*\{[^}]*position:\s*sticky/s.test(css), 'CTA bar must be sticky');
   assert(/\.setup-cta-bar\s*\{[^}]*top:\s*0/s.test(css), 'CTA bar must stick to the top');
-  assert(/\.manual-tab\[aria-selected='true'\]/s.test(css), 'active manual tab style missing');
+  assert(/\.setup-tab\[aria-selected='true'\]/s.test(css), 'active setup tab style missing');
 });
 
-test('ui: multiplayer manual is player-facing and step based', async () => {
+test('ui: multiplayer guide is player-facing and lives in the Join tab', async () => {
   const html = await fetchIndexHtml();
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  const panel = doc.getElementById('manual-panel-multiplayer');
-  assert(panel, 'multiplayer manual panel missing');
+  const panel = doc.getElementById('multiplayer-guide');
+  assert(panel, 'multiplayer guide missing');
   const text = panel.textContent;
   for (const phrase of ['Host Multiplayer', 'Create Room', 'Copy Invitation', 'Join Multiplayer', 'Connect']) {
-    assert(text.includes(phrase), `multiplayer manual should mention "${phrase}"`);
+    assert(text.includes(phrase), `multiplayer guide should mention "${phrase}"`);
   }
-  assert(!/WebRTC|Trystero|P2P|host-authoritative|snapshot/i.test(text), 'manual should avoid engine jargon');
+  assert(!/WebRTC|Trystero|P2P|host-authoritative|snapshot/i.test(text), 'guide should avoid engine jargon');
   assertEqual(panel.querySelectorAll('.manual-step').length, 3);
 });
 
 test('ui: hierarchy manual is a scannable rank table', async () => {
   const html = await fetchIndexHtml();
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  const panel = doc.getElementById('manual-panel-hierarchy');
-  assert(panel, 'hierarchy manual panel missing');
+  const panel = doc.getElementById('setup-panel-manual');
+  assert(panel, 'field manual panel missing');
   const table = panel.querySelector('table.manual-table');
   assert(table, 'hierarchy rank table missing');
   assertEqual(table.querySelectorAll('tbody tr').length, 4);
@@ -190,17 +198,19 @@ test('ui: hierarchy manual is a scannable rank table', async () => {
   assert(/\.manual-table-wrap\s*\{[^}]*overflow-x:\s*auto/s.test(css), 'rank table needs horizontal fallback');
 });
 
-test('ui: setup modal grows on large screens so the manual avoids side scroll', async () => {
+test('ui: setup modal is top-aligned with a stable height', async () => {
   const html = await fetchIndexHtml();
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const card = doc.querySelector('#setup-modal .setup-modal-card');
   assert(card, 'setup modal card needs a dedicated sizing class');
   assert(!card.className.includes('max-w-4xl'), 'fixed 4xl cap should be removed');
+  assert(doc.getElementById('setup-modal').className.includes('items-start'), 'modal should align to the top');
+  assert(doc.getElementById('setup-scroll'), 'modal needs an inner scroll region');
 
-  const manual = doc.getElementById('manual-column');
-  assert(manual, 'manual column needs an id');
-  assert(manual.className.includes('lg:col-span-7'), 'manual column keeps 7/12 at lg');
-  assert(manual.className.includes('xl:col-span-8'), 'manual column grows to 8/12 at xl');
+  const manual = doc.getElementById('setup-panel-manual');
+  assert(manual, 'manual panel needs an id');
+  assert(!manual.className.includes('lg:col-span-7'), 'manual should take the full panel width');
+  assert(manual.querySelector('#btn-manual-play'), 'manual needs a Play button');
 
   const css = await (await fetch('../styles.css', { cache: 'no-store' })).text();
   assert(
@@ -211,12 +221,16 @@ test('ui: setup modal grows on large screens so the manual avoids side scroll', 
     /\.setup-modal-card\s*\{[^}]*max-width:\s*78rem/s.test(css),
     'modal max width should be raised on wide screens'
   );
+  assert(
+    /\.setup-modal-card\s*\{[^}]*height:\s*min\(92vh,\s*62rem\)/s.test(css),
+    'modal needs a stable height across tabs'
+  );
 });
 
 test('ui: hierarchy tiers use the same metals as the crew panel', async () => {
   const html = await fetchIndexHtml();
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  const table = doc.querySelector('#manual-panel-hierarchy table.manual-table');
+  const table = doc.querySelector('#setup-panel-manual table.manual-table');
   const rows = [...table.querySelectorAll('tbody tr')];
   assertEqual(rows.length, 4);
   assert(rows[0].classList.contains('tier-diamond'), 'Supreme Leader should be diamond');
@@ -230,6 +244,33 @@ test('ui: hierarchy tiers use the same metals as the crew panel', async () => {
   assert(metal('tier-gold').includes('--tier-ink: #fcd34d'), 'gold ink missing');
   assert(metal('tier-silver').includes('--tier-ink: #e5e7eb'), 'silver ink missing');
   assert(metal('tier-copper').includes('--tier-ink: #e6b07c'), 'copper ink missing');
+});
+
+test('ui: settings cards are grouped by priority with the seed last', async () => {
+  const html = await fetchIndexHtml();
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const wrapper = doc.getElementById('match-settings-wrapper');
+  const cards = [...wrapper.children];
+  const last = cards[cards.length - 1];
+  assert(last.querySelector('label[for="world-seed-input"]'), 'World Seed should be the last settings card');
+  assertEqual(doc.getElementById('crew-limits-card').className.includes('xl:col-span-2'), true);
+  const summary = doc.getElementById('match-impact-summary');
+  assertEqual(summary.querySelector('.match-impact-label').textContent.trim(), 'YOUR SETUP');
+  assert(summary.querySelector('#match-impact-text').textContent.includes('Street Enforcers'));
+  assert(summary.querySelector('#match-impact-text').textContent.includes('Middle Management'));
+  assert(summary.querySelector('#match-impact-text').textContent.includes('Second-in-Command'));
+
+  const presets = [...summary.querySelectorAll('.match-preset')];
+  assertEqual(presets.length, 3);
+  assertEqual(presets[0].dataset.preset, 'turbo');
+  assertEqual(presets[1].dataset.preset, 'normal');
+  assertEqual(presets[2].dataset.preset, 'long');
+  assertEqual(presets[1].getAttribute('aria-pressed'), 'true');
+  assertEqual(doc.getElementById('tick-speed-slider').value, '15');
+  assertEqual(doc.getElementById('tick-speed-display').textContent.trim(), '15s (Normal)');
+  assert(doc.getElementById('income-tier-display').textContent.includes('$500'));
+  assert(doc.querySelector('.income-tier-btn[data-income="MID"]').className.includes('bg-emerald-500/20'));
+  assert(summary.querySelector('#match-impact-text').textContent.includes('15s ticks'));
 });
 
 test('ui: critical HUD values are tabular and bars are transform-driven', async () => {

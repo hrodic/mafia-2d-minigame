@@ -1,7 +1,7 @@
 // Setup modal, lobby buttons, banners, toasts and map-size controls.
 
 import { UnitRank } from '../config/enums.js';
-import { INCOME_TIERS, UNIT_CAPS, clampMatchUnitCaps, getGridUnitCaps } from '../config/balance.js';
+import { INCOME_TIERS, UNIT_CAPS, clampMatchUnitCaps, defaultMatchUnitCaps, getGridUnitCaps } from '../config/balance.js';
 import { ORGANIZATIONS, ALL_ORG_IDS, ensureUniqueOrgs } from '../config/organizations.js';
 import { state } from '../core/state.js';
 import { parseWorldSeed, randomWorldSeed } from '../core/rng.js';
@@ -137,6 +137,61 @@ const CAP_TIERS = [
   { key: 'underboss', maxKey: 'maxUnderbosses', min: UNIT_CAPS.minUnderbosses },
 ];
 
+const MATCH_PRESETS = {
+  turbo: { gridSize: 10, tickSeconds: 10, incomeTier: 'HIGH' },
+  normal: { gridSize: 15, tickSeconds: 15, incomeTier: 'MID' },
+  long: { gridSize: 20, tickSeconds: 25, incomeTier: 'LOW' },
+};
+
+function tickSpeedLabel(seconds) {
+  return seconds <= 12 ? `${seconds}s (Turbo)` : seconds <= 22 ? `${seconds}s (Normal)` : `${seconds}s (Slow)`;
+}
+
+function renderIncomeTier() {
+  const tier = INCOME_TIERS[state.currentIncomeTier];
+  if (!tier) return;
+  const display = document.getElementById('income-tier-display');
+  if (display) display.textContent = `$${tier.min.toLocaleString()}–$${tier.max.toLocaleString()} / tick`;
+  document.querySelectorAll('.income-tier-btn').forEach((btn) => {
+    const active = btn.getAttribute('data-income') === state.currentIncomeTier;
+    btn.className = active
+      ? 'income-tier-btn bg-emerald-500/20 border border-emerald-500 text-emerald-300 py-2 px-2 rounded-lg text-center transition'
+      : 'income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition';
+  });
+}
+
+function syncPresetButtons() {
+  const sizeSlider = document.getElementById('map-size-slider');
+  const tickSlider = document.getElementById('tick-speed-slider');
+  const gridSize = Math.max(5, Math.min(25, Number(sizeSlider ? sizeSlider.value : 15) || 15));
+  const tickSeconds = Math.max(10, Math.min(30, Number(tickSlider ? tickSlider.value : 10) || 10));
+  document.querySelectorAll('.match-preset').forEach((btn) => {
+    const preset = MATCH_PRESETS[btn.dataset.preset];
+    const active = Boolean(preset)
+      && preset.gridSize === gridSize
+      && preset.tickSeconds === tickSeconds
+      && preset.incomeTier === state.currentIncomeTier;
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+}
+
+/** Apply a ready-made grid / tick / income combination. */
+export function applyMatchPreset(name) {
+  const preset = MATCH_PRESETS[name];
+  if (!preset) return;
+  updateMapSizePreview(preset.gridSize);
+
+  const tickSlider = document.getElementById('tick-speed-slider');
+  if (tickSlider) tickSlider.value = String(preset.tickSeconds);
+  const tickDisplay = document.getElementById('tick-speed-display');
+  if (tickDisplay) tickDisplay.textContent = tickSpeedLabel(preset.tickSeconds);
+
+  state.currentIncomeTier = preset.incomeTier;
+  renderIncomeTier();
+  updateMatchImpactSummary();
+  if (state.net && state.net.mode === 'HOST') state.net.broadcastHostLobbyState();
+}
+
 /** Clamp the chosen crew limits to the current grid and refresh the setup sliders. */
 function renderSetupCapControls() {
   const sizeSlider = document.getElementById('map-size-slider');
@@ -182,21 +237,51 @@ export function updateMatchImpactSummary() {
   const tickSlider = document.getElementById('tick-speed-slider');
   const tick = Math.max(10, Math.min(30, Number(tickSlider ? tickSlider.value : 10) || 10));
   const tier = INCOME_TIERS[state.currentIncomeTier] || INCOME_TIERS.HIGH;
-  el.textContent =
-    `${total} Neighborhoods | Caps: ${caps.maxSoldiers}S · ${caps.maxCaptains}C · ${caps.maxUnderbosses}U | ` +
-    `${tick}s tick | $${tier.min.toLocaleString()}–$${tier.max.toLocaleString()}/tick`;
+  const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
+  const textEl = document.getElementById('match-impact-text') || el;
+  textEl.textContent =
+    `${total} neighborhoods · ${plural(caps.maxSoldiers, 'Street Enforcer', 'Street Enforcers')} · ` +
+    `${plural(caps.maxCaptains, 'Middle Management', 'Middle Management')} · ` +
+    `${plural(caps.maxUnderbosses, 'Second-in-Command', 'Second-in-Command')} · ` +
+    `${tick}s ticks · $${tier.min.toLocaleString()}–$${tier.max.toLocaleString()}/tick`;
+  syncPresetButtons();
 }
 
-/** Switch the field-manual tab and show only its panel. */
-export function setManualTab(name) {
-  document.querySelectorAll('.manual-tab').forEach((tab) => {
-    const active = tab.dataset.manualTab === name;
-    tab.setAttribute('aria-selected', active ? 'true' : 'false');
-    tab.setAttribute('tabindex', active ? '0' : '-1');
+/** Top-level setup tabs: Field Manual, Single Player, Host and Join. */
+export function setSetupTab(tab) {
+  const next = ['manual', 'single', 'host', 'join'].includes(tab) ? tab : 'manual';
+  if (state.net) {
+    if (next === 'single') state.net.setMode('SINGLE');
+    else if (next === 'host') state.net.setMode('HOST');
+    else if (next === 'join') state.net.setMode('JOIN');
+  }
+
+  document.querySelectorAll('.setup-tab').forEach((btn) => {
+    const active = btn.dataset.setupTab === next;
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+    btn.setAttribute('tabindex', active ? '0' : '-1');
   });
-  document.querySelectorAll('.manual-panel').forEach((panel) => {
-    panel.classList.toggle('hidden', panel.id !== `manual-panel-${name}`);
-  });
+
+  const manualPanel = document.getElementById('setup-panel-manual');
+  const playPanel = document.getElementById('setup-panel-play');
+  const hostPanel = document.getElementById('mp-host-panel');
+  const joinPanel = document.getElementById('mp-join-panel');
+  const settings = document.getElementById('match-settings-wrapper');
+  const cta = document.getElementById('setup-cta-bar');
+  const start = document.getElementById('btn-start-game');
+  const scroller = document.getElementById('setup-scroll');
+
+  if (manualPanel) manualPanel.classList.toggle('hidden', next !== 'manual');
+  if (playPanel) playPanel.classList.toggle('hidden', next === 'manual');
+  if (hostPanel) hostPanel.classList.toggle('hidden', next !== 'host');
+  if (joinPanel) joinPanel.classList.toggle('hidden', next !== 'join');
+  if (settings) settings.classList.toggle('hidden', next === 'join');
+  if (cta) cta.classList.toggle('hidden', next === 'manual' || next === 'join');
+  if (scroller) scroller.scrollTop = 0;
+  if (start && next === 'single') {
+    start.disabled = false;
+    start.textContent = 'Launch Turf War';
+  }
 }
 
 export function updateMapSizePreview(val) {
@@ -205,7 +290,12 @@ export function updateMapSizePreview(val) {
   document.getElementById('map-size-display').textContent = n === 15 ? '15×15 (Default)' : `${n}×${n}`;
   const total = n * n;
   const caps = getGridUnitCaps(n);
-  document.getElementById('map-cap-preview').innerHTML = `<span>${total} Neighborhoods</span><span class="font-mono text-emerald-400">Max: ${caps.maxSoldiers}S · ${caps.maxCaptains}C · ${caps.maxUnderbosses}U</span>`;
+  const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
+  document.getElementById('map-cap-preview').innerHTML =
+    `<span>${total} neighborhoods</span>` +
+    `<span class="font-mono text-emerald-400">Max: ${plural(caps.maxSoldiers, 'Street Enforcer', 'Street Enforcers')} · ` +
+    `${plural(caps.maxCaptains, 'Middle Management', 'Middle Management')} · ` +
+    `${plural(caps.maxUnderbosses, 'Second-in-Command', 'Second-in-Command')}</span>`;
 
   document.querySelectorAll('.size-preset-btn').forEach((btn) => {
     const active = Number(btn.getAttribute('data-size')) === n;
@@ -213,6 +303,7 @@ export function updateMapSizePreview(val) {
       ? 'size-preset-btn bg-amber-500/20 border border-amber-500 text-amber-300 py-1 rounded text-[11px] font-mono font-bold transition'
       : 'size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition';
   });
+  state.matchUnitCaps = defaultMatchUnitCaps(n);
   renderSetupCapControls();
 }
 
@@ -227,6 +318,7 @@ function openSetupMenu() {
   document.getElementById('setup-modal').classList.remove('hidden');
   setWorldSeedDisplay();
   renderSetupCapControls();
+  setSetupTab('manual');
 }
 
 
@@ -260,10 +352,12 @@ document.getElementById('world-seed-hud')?.addEventListener('click', () => {
   copySeed(state.currentWorldSeed);
 });
 
-document.querySelectorAll('.game-mode-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    state.net.setMode(btn.getAttribute('data-mode'));
-  });
+document.querySelectorAll('.setup-tab').forEach((btn) => {
+  btn.addEventListener('click', () => setSetupTab(btn.dataset.setupTab));
+});
+document.getElementById('btn-manual-play')?.addEventListener('click', () => setSetupTab('single'));
+document.querySelectorAll('.match-preset').forEach((btn) => {
+  btn.addEventListener('click', () => applyMatchPreset(btn.dataset.preset));
 });
 
 document.querySelectorAll('.fcount-btn').forEach((btn) => {
@@ -306,8 +400,7 @@ for (const tier of CAP_TIERS) {
 
 document.getElementById('tick-speed-slider').addEventListener('input', (e) => {
   const sec = Number(e.target.value) || 10;
-  const label = sec <= 12 ? `${sec}s (Turbo)` : sec <= 22 ? `${sec}s (Normal)` : `${sec}s (Slow)`;
-  document.getElementById('tick-speed-display').textContent = label;
+  document.getElementById('tick-speed-display').textContent = tickSpeedLabel(sec);
   updateMatchImpactSummary();
   if (state.net && state.net.mode === 'HOST') state.net.broadcastHostLobbyState();
 });
@@ -315,14 +408,7 @@ document.getElementById('tick-speed-slider').addEventListener('input', (e) => {
 document.querySelectorAll('.income-tier-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     state.currentIncomeTier = btn.getAttribute('data-income') || 'HIGH';
-    const tier = INCOME_TIERS[state.currentIncomeTier];
-    document.getElementById('income-tier-display').textContent = `$${tier.min.toLocaleString()}–$${tier.max.toLocaleString()} / tick`;
-    document.querySelectorAll('.income-tier-btn').forEach((b) => {
-      const active = b.getAttribute('data-income') === state.currentIncomeTier;
-      b.className = active
-        ? 'income-tier-btn bg-emerald-500/20 border border-emerald-500 text-emerald-300 py-2 px-2 rounded-lg text-center transition'
-        : 'income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition';
-    });
+    renderIncomeTier();
     updateMatchImpactSummary();
     if (state.net && state.net.mode === 'HOST') state.net.broadcastHostLobbyState();
   });
@@ -417,11 +503,8 @@ document.getElementById('btn-victory-continue').addEventListener('click', () => 
   document.getElementById('victory-banner').classList.add('hidden');
 });
 
-document.querySelectorAll('.manual-tab').forEach((tab) => {
-  tab.addEventListener('click', () => setManualTab(tab.dataset.manualTab));
-});
-
-renderSetupCapControls();
+applyMatchPreset('normal');
+setSetupTab('manual');
 
 document.getElementById('btn-spectate-match').addEventListener('click', () => {
   state.isSpectating = true;

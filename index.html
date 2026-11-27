@@ -262,8 +262,8 @@
     </div>
 
     <!-- Pre-Game Setup, Multiplayer Lobby & Field Manual Modal -->
-    <div id="setup-modal" class="fixed inset-0 bg-zinc-950/95 flex items-center justify-center z-40 p-3 sm:p-4">
-      <div class="bg-zinc-900 border border-amber-500/30 p-5 sm:p-6 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] setup-modal-card max-h-[94vh] overflow-y-auto relative">
+    <div id="setup-modal" class="fixed inset-0 bg-zinc-950/95 flex items-start justify-center z-40 p-3 sm:p-4">
+      <div class="bg-zinc-900 border border-amber-500/30 p-5 sm:p-6 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] setup-modal-card overflow-hidden flex flex-col relative">
         <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-600"></div>
 
         <!-- Modal Header -->
@@ -280,30 +280,26 @@
           </span>
         </div>
 
-        <!-- Three Game Modes Selector -->
-        <div class="grid grid-cols-3 gap-2 mb-4 bg-zinc-950/90 p-1.5 rounded-xl border border-zinc-800">
-          <button type="button" data-mode="SINGLE" class="game-mode-btn bg-amber-500/20 border border-amber-500 text-amber-300 py-2 px-3 rounded-lg text-xs font-extrabold uppercase tracking-wider transition">
-            Single Player
-          </button>
-          <button type="button" data-mode="HOST" class="game-mode-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 py-2 px-3 rounded-lg text-xs font-extrabold uppercase tracking-wider transition">
-            Host Multiplayer
-          </button>
-          <button type="button" data-mode="JOIN" class="game-mode-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 py-2 px-3 rounded-lg text-xs font-extrabold uppercase tracking-wider transition">
-            Join Multiplayer
-          </button>
+        <!-- Setup sections: Field Manual first so new players land in the tutorial -->
+        <div class="setup-tabs" role="tablist" aria-label="Setup sections">
+          <button type="button" id="setup-tab-manual" class="setup-tab" data-setup-tab="manual" role="tab" aria-selected="true" aria-controls="setup-panel-manual">Field Manual</button>
+          <button type="button" id="setup-tab-single" class="setup-tab" data-setup-tab="single" role="tab" aria-selected="false" aria-controls="setup-panel-play">Single Player</button>
+          <button type="button" id="setup-tab-host" class="setup-tab" data-setup-tab="host" role="tab" aria-selected="false" aria-controls="setup-panel-play">Host Multiplayer</button>
+          <button type="button" id="setup-tab-join" class="setup-tab" data-setup-tab="join" role="tab" aria-selected="false" aria-controls="setup-panel-play">Join Multiplayer</button>
         </div>
 
-        <div id="setup-cta-bar" class="setup-cta-bar">
+        <div id="setup-scroll" class="setup-scroll flex-1 min-h-0 overflow-y-auto">
+        <div id="setup-cta-bar" class="setup-cta-bar hidden">
           <button id="btn-start-game" class="w-full bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold py-3 rounded-xl shadow-lg border border-emerald-400/30 transition text-sm tracking-wide">
             Launch Turf War
           </button>
         </div>
 
-        <!-- Two-Column Layout: Match Settings / Lobby (Left) + Detailed Instructions (Right) -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-5">
+        <!-- Full-width setup panels: one visible at a time -->
+        <div class="grid grid-cols-1 gap-4 mb-5">
 
-          <!-- Left Column: Match Configuration & Multiplayer Panels -->
-          <div class="lg:col-span-5 xl:col-span-4 flex flex-col gap-3">
+          <!-- Play panel: single-player settings, host lobby + settings, or join form -->
+          <div id="setup-panel-play" class="hidden flex flex-col gap-3" role="tabpanel" aria-label="Game setup">
 
             <!-- HOST MULTIPLAYER LOBBY PANEL -->
             <div id="mp-host-panel" class="hidden bg-zinc-950/90 border border-emerald-500/40 rounded-xl p-3.5 space-y-2.5">
@@ -350,7 +346,7 @@
             </div>
 
             <!-- JOIN MULTIPLAYER LOBBY PANEL -->
-            <div id="mp-join-panel" class="hidden bg-zinc-950/90 border border-sky-500/40 rounded-xl p-3.5 space-y-2.5">
+            <div id="mp-join-panel" class="mx-auto w-full max-w-4xl bg-zinc-950/90 border border-sky-500/40 rounded-xl p-3.5 space-y-2.5">
               <div class="flex items-center justify-between">
                 <span class="text-xs font-bold uppercase tracking-wider text-sky-400">
                   Join Multiplayer Session
@@ -391,11 +387,62 @@
                   </button>
                 </div>
               </div>
+
+              <!-- Player-facing multiplayer guide -->
+              <div id="multiplayer-guide" class="border-t border-zinc-800 pt-3 space-y-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="font-bold text-sky-300 uppercase tracking-wider text-[10px]">
+                    How Multiplayer Works (2–4 Players)
+                  </div>
+                  <span class="text-[9px] font-mono text-zinc-500">EASY SETUP</span>
+                </div>
+                <p class="text-zinc-400 leading-relaxed">
+                  One player hosts the city and everyone else joins with an invite link. Each player controls their own Boss and fights for turf.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <div class="manual-step border border-emerald-500/25 bg-zinc-950/70 rounded-lg p-2">
+                    <div class="font-bold text-emerald-300 text-[11px] mb-0.5">1 · Host the game</div>
+                    <p class="text-zinc-400 leading-relaxed">
+                      Pick <span class="manual-chip">Host Multiplayer</span>, enter a Boss alias and press <span class="manual-chip">Create Room</span>. Choose the map, speed and income, then press <span class="manual-chip">Launch Turf War</span> when everyone is in.
+                    </p>
+                  </div>
+
+                  <div class="manual-step border border-sky-500/25 bg-zinc-950/70 rounded-lg p-2">
+                    <div class="font-bold text-sky-300 text-[11px] mb-0.5">2 · Invite your friends</div>
+                    <p class="text-zinc-400 leading-relaxed">
+                      Press <span class="manual-chip">Copy Invitation</span> and send the link in chat. Friends can open it straight away, or paste it into the Join screen.
+                    </p>
+                  </div>
+
+                  <div class="manual-step border border-amber-500/25 bg-zinc-950/70 rounded-lg p-2">
+                    <div class="font-bold text-amber-300 text-[11px] mb-0.5">3 · Join a game</div>
+                    <p class="text-zinc-400 leading-relaxed">
+                      Pick <span class="manual-chip">Join Multiplayer</span>, enter a Boss alias, paste the invite link and press <span class="manual-chip">Connect</span>. Wait in the lobby until the host launches.
+                    </p>
+                  </div>
+                </div>
+
+                <ul class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-zinc-400 leading-relaxed">
+                  <li>• Empty seats are filled by AI, so you can start with fewer friends.</li>
+                  <li>• The host is the referee: their map and match settings are used for everyone.</li>
+                  <li>• Keep the host's tab visible. Background tabs slow the game down.</li>
+                  <li>• Everyone needs the same game version to connect.</li>
+                </ul>
+              </div>
             </div>
 
             <!-- Match Settings Wrapper (Hidden for Guest Joiners) -->
-            <div id="match-settings-wrapper" class="flex flex-col gap-3">
-              <div id="match-impact-summary" class="match-impact hud-num">225 Neighborhoods | Caps: 150S · 30C · 15U | 10s tick | $1,000–$1,500/tick</div>
+            <div id="match-settings-wrapper" class="grid grid-cols-1 xl:grid-cols-2 gap-3">
+              <div id="match-impact-summary" class="match-impact hud-num xl:col-span-2">
+                <span class="match-impact-label">YOUR SETUP</span>
+                <span id="match-impact-text">225 neighborhoods · 75 Street Enforcers · 15 Middle Management · 8 Second-in-Command · 15s ticks · $500–$1,000/tick</span>
+                <div class="match-presets" role="group" aria-label="Match presets">
+                  <button type="button" class="match-preset" data-preset="turbo" aria-pressed="false" title="10×10 · 10s tick · High income">Turbo</button>
+                  <button type="button" class="match-preset" data-preset="normal" aria-pressed="true" title="15×15 · 15s tick · Mid income">Normal</button>
+                  <button type="button" class="match-preset" data-preset="long" aria-pressed="false" title="20×20 · 25s tick · Low income">Long game</button>
+                </div>
+              </div>
 
               <!-- Syndicate Count & Organization Roster (2 to 4 Unique Factions) -->
               <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
@@ -440,14 +487,14 @@
                   <button type="button" data-size="25" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">25×25</button>
                 </div>
 
-                <div id="map-cap-preview" class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-zinc-800/90 pt-2">
-                  <span>225 Neighborhoods</span>
-                  <span class="font-mono text-emerald-400">Max: 150S · 30C · 15U</span>
+                <div id="map-cap-preview" class="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-[11px] text-zinc-400 border-t border-zinc-800/90 pt-2">
+                  <span>225 neighborhoods</span>
+                  <span class="font-mono text-emerald-400">Max: 150 Street Enforcers · 30 Middle Management · 15 Second-in-Command</span>
                 </div>
               </div>
 
               <!-- Crew Limits (player-configurable maxima under the grid ceiling) -->
-              <div id="crew-limits-card" class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
+              <div id="crew-limits-card" class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5 xl:col-span-2">
                 <div class="flex items-center justify-between mb-1">
                   <span class="text-xs font-bold uppercase tracking-wider text-emerald-300">Crew Limits</span>
                   <span class="text-[9px] font-mono text-zinc-500">MAX PER TIER</span>
@@ -456,56 +503,34 @@
                   Grid size sets the ceiling. Lower any tier to keep this match's crews smaller.
                 </p>
 
-                <div class="space-y-2">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
                     <div class="flex items-center justify-between">
                       <span class="text-[11px] font-bold text-[#e6b07c]">Street Enforcers</span>
-                      <span class="text-[11px] font-mono font-extrabold text-zinc-100"><span id="setup-cap-soldier-value">150</span><span id="setup-cap-soldier-max" class="text-zinc-500"> / 150</span></span>
+                      <span class="text-[11px] font-mono font-extrabold text-zinc-100"><span id="setup-cap-soldier-value">75</span><span id="setup-cap-soldier-max" class="text-zinc-500"> / 150</span></span>
                     </div>
-                    <input id="setup-cap-soldier" type="range" min="10" max="150" value="150" step="1" class="w-full accent-emerald-400 cursor-pointer" aria-label="Maximum Street Enforcers" />
+                    <input id="setup-cap-soldier" type="range" min="10" max="150" value="75" step="1" class="w-full accent-emerald-400 cursor-pointer" aria-label="Maximum Street Enforcers" />
                     <div class="flex justify-between text-[9px] font-mono text-zinc-500"><span>min 10</span><span id="setup-cap-soldier-ceiling">grid max 150</span></div>
                   </div>
 
                   <div>
                     <div class="flex items-center justify-between">
                       <span class="text-[11px] font-bold text-[#e5e7eb]">Middle Management</span>
-                      <span class="text-[11px] font-mono font-extrabold text-zinc-100"><span id="setup-cap-captain-value">30</span><span id="setup-cap-captain-max" class="text-zinc-500"> / 30</span></span>
+                      <span class="text-[11px] font-mono font-extrabold text-zinc-100"><span id="setup-cap-captain-value">15</span><span id="setup-cap-captain-max" class="text-zinc-500"> / 30</span></span>
                     </div>
-                    <input id="setup-cap-captain" type="range" min="2" max="30" value="30" step="1" class="w-full accent-zinc-300 cursor-pointer" aria-label="Maximum Middle Management" />
+                    <input id="setup-cap-captain" type="range" min="2" max="30" value="15" step="1" class="w-full accent-zinc-300 cursor-pointer" aria-label="Maximum Middle Management" />
                     <div class="flex justify-between text-[9px] font-mono text-zinc-500"><span>min 2</span><span id="setup-cap-captain-ceiling">grid max 30</span></div>
                   </div>
 
                   <div>
                     <div class="flex items-center justify-between">
                       <span class="text-[11px] font-bold text-[#fcd34d]">Second-in-Command</span>
-                      <span class="text-[11px] font-mono font-extrabold text-zinc-100"><span id="setup-cap-underboss-value">15</span><span id="setup-cap-underboss-max" class="text-zinc-500"> / 15</span></span>
+                      <span class="text-[11px] font-mono font-extrabold text-zinc-100"><span id="setup-cap-underboss-value">8</span><span id="setup-cap-underboss-max" class="text-zinc-500"> / 15</span></span>
                     </div>
-                    <input id="setup-cap-underboss" type="range" min="1" max="15" value="15" step="1" class="w-full accent-amber-400 cursor-pointer" aria-label="Maximum Second-in-Command" />
+                    <input id="setup-cap-underboss" type="range" min="1" max="15" value="8" step="1" class="w-full accent-amber-400 cursor-pointer" aria-label="Maximum Second-in-Command" />
                     <div class="flex justify-between text-[9px] font-mono text-zinc-500"><span>min 1</span><span id="setup-cap-underboss-ceiling">grid max 15</span></div>
                   </div>
                 </div>
-              </div>
-
-              <!-- World Seed (SP + Host; guests adopt the host's seed) -->
-              <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
-                <div class="flex items-center justify-between mb-2">
-                  <label for="world-seed-input" class="text-xs font-bold uppercase tracking-wider text-sky-300">
-                    World Seed
-                  </label>
-                  <span id="last-world-seed" class="text-[10px] font-mono text-zinc-500">Last: —</span>
-                </div>
-                <div class="flex gap-1.5">
-                  <input
-                    id="world-seed-input"
-                    type="text"
-                    inputmode="numeric"
-                    placeholder="Blank = random"
-                    class="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-sky-500 font-mono"
-                  />
-                  <button type="button" id="btn-random-seed" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-200 text-[11px] font-bold px-2 rounded-lg transition">Random</button>
-                  <button type="button" id="btn-copy-seed" class="bg-sky-900/60 hover:bg-sky-800/70 border border-sky-600/60 text-sky-200 text-[11px] font-bold px-2 rounded-lg transition">Copy</button>
-                </div>
-                <p class="text-[10px] text-zinc-500 mt-1.5">The host or single-player chooses; guests adopt the host's seed.</p>
               </div>
 
               <!-- Seconds Per Tick Selector (10s Turbo to 30s Slow) -->
@@ -514,7 +539,7 @@
                   <label for="tick-speed-slider" class="text-xs font-bold uppercase tracking-wider text-zinc-300">
                     Seconds Per Tick
                   </label>
-                  <span id="tick-speed-display" class="font-mono text-sm font-extrabold text-sky-400">10s (Turbo)</span>
+                  <span id="tick-speed-display" class="font-mono text-sm font-extrabold text-sky-400">15s (Normal)</span>
                 </div>
 
                 <input
@@ -523,7 +548,7 @@
                   min="10"
                   max="30"
                   step="1"
-                  value="10"
+                  value="15"
                   class="w-full accent-sky-400 cursor-pointer mb-1.5"
                 />
 
@@ -540,7 +565,7 @@
                   <span class="text-xs font-bold uppercase tracking-wider text-zinc-300">
                     Neighborhood Income
                   </span>
-                  <span id="income-tier-display" class="font-mono text-xs font-bold text-emerald-400">$1,000–$1,500 / tick</span>
+                  <span id="income-tier-display" class="font-mono text-xs font-bold text-emerald-400">$500–$1,000 / tick</span>
                 </div>
 
                 <div class="grid grid-cols-3 gap-2">
@@ -548,36 +573,64 @@
                     <div class="text-xs font-extrabold">Low</div>
                     <div class="text-[10px] font-mono text-zinc-400">$250–$500</div>
                   </button>
-                  <button type="button" data-income="MID" class="income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition">
+                  <button type="button" data-income="MID" class="income-tier-btn bg-emerald-500/20 border border-emerald-500 text-emerald-300 py-2 px-2 rounded-lg text-center transition">
                     <div class="text-xs font-extrabold">Mid</div>
-                    <div class="text-[10px] font-mono text-zinc-400">$500–$1,000</div>
+                    <div class="text-[10px] font-mono text-emerald-200/80">$500–$1,000</div>
                   </button>
-                  <button type="button" data-income="HIGH" class="income-tier-btn bg-emerald-500/20 border border-emerald-500 text-emerald-300 py-2 px-2 rounded-lg text-center transition">
+                  <button type="button" data-income="HIGH" class="income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition">
                     <div class="text-xs font-extrabold">High</div>
-                    <div class="text-[10px] font-mono text-emerald-200/80">$1,000–$1,500</div>
+                    <div class="text-[10px] font-mono text-zinc-400">$1,000–$1,500</div>
                   </button>
                 </div>
+              </div>
+
+              <!-- World Seed (advanced, optional, last) -->
+              <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5 xl:col-span-2">
+                <div class="flex flex-col lg:flex-row lg:items-center gap-2">
+                  <div class="flex items-center justify-between lg:block lg:w-44 shrink-0">
+                    <label for="world-seed-input" class="text-xs font-bold uppercase tracking-wider text-sky-300">
+                      World Seed
+                    </label>
+                    <span id="last-world-seed" class="block text-[10px] font-mono text-zinc-500">Last: —</span>
+                  </div>
+                  <input
+                    id="world-seed-input"
+                    type="text"
+                    inputmode="numeric"
+                    placeholder="Blank = random"
+                    class="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-sky-500 font-mono"
+                  />
+                  <div class="flex gap-1.5 shrink-0">
+                    <button type="button" id="btn-random-seed" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-200 text-[11px] font-bold px-2.5 rounded-lg transition">Random</button>
+                    <button type="button" id="btn-copy-seed" class="bg-sky-900/60 hover:bg-sky-800/70 border border-sky-600/60 text-sky-200 text-[11px] font-bold px-2.5 rounded-lg transition">Copy</button>
+                  </div>
+                </div>
+                <p class="text-[10px] text-zinc-500 mt-1.5">Optional. The host or single-player chooses; guests adopt the host's seed.</p>
               </div>
             </div>
           </div>
 
-          <!-- Right Column: Detailed Controls, Mechanics & HUD Buttons Manual -->
-          <div id="manual-column" class="lg:col-span-7 xl:col-span-8 bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5 flex flex-col gap-3 text-[11px] text-zinc-300">
+          <!-- Field Manual panel: full width tutorial and reference -->
+          <div id="setup-panel-manual" class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5 flex flex-col gap-3 text-[11px] text-zinc-300" role="tabpanel" aria-labelledby="setup-tab-manual">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <div class="text-sm font-extrabold uppercase tracking-wider text-white">Field Manual</div>
+                <p class="text-[11px] text-zinc-400">Combat controls and crew tiers. Ready? Jump straight into a solo match.</p>
+              </div>
+              <button id="btn-manual-play" type="button" class="bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white font-extrabold px-6 py-2.5 rounded-xl shadow-lg border border-emerald-400/30 transition text-sm tracking-wide whitespace-nowrap">
+                Play
+              </button>
+            </div>
             <div class="flex items-center justify-between border-b border-zinc-800 pb-1.5">
               <span class="text-xs font-bold uppercase tracking-wider text-amber-400">
-                Syndicate Hierarchy & Combat Mechanics
+                Combat, Crews & Turf
               </span>
               <span class="text-[10px] font-mono text-zinc-500">FIELD MANUAL</span>
             </div>
 
-            <div class="manual-tabs" role="tablist" aria-label="Field manual sections">
-              <button type="button" class="manual-tab" role="tab" data-manual-tab="controls" id="manual-tab-controls" aria-controls="manual-panel-controls" aria-selected="true">Controls</button>
-              <button type="button" class="manual-tab" role="tab" data-manual-tab="hierarchy" id="manual-tab-hierarchy" aria-controls="manual-panel-hierarchy" aria-selected="false">Hierarchy</button>
-              <button type="button" class="manual-tab" role="tab" data-manual-tab="multiplayer" id="manual-tab-multiplayer" aria-controls="manual-panel-multiplayer" aria-selected="false">Multiplayer</button>
-            </div>
-
-            <div id="manual-panel-controls" class="manual-panel flex flex-col gap-3" role="tabpanel" aria-labelledby="manual-tab-controls">
+            <div class="manual-section">
             <!-- Controls & Weapons Grid -->
+            <div class="font-bold text-amber-400 uppercase tracking-wider text-[10px] mb-1.5">Combat & Controls</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div class="bg-zinc-900/90 border border-zinc-800/90 rounded-lg p-2">
                 <div class="font-bold text-white mb-0.5">🕹️ Movement & Navigation</div>
@@ -609,7 +662,7 @@
             </div>
             </div>
 
-            <div id="manual-panel-hierarchy" class="manual-panel hidden" role="tabpanel" aria-labelledby="manual-tab-hierarchy">
+            <div class="manual-section">
             <!-- Scannable rank table: cap, health, damage, hire and upkeep at a glance -->
             <div class="bg-zinc-900/70 border border-zinc-800/90 rounded-lg p-2.5 space-y-2">
               <div class="flex items-center justify-between gap-2">
@@ -697,53 +750,9 @@
               </p>
             </div>
             </div>
-
-            <div id="manual-panel-multiplayer" class="manual-panel hidden" role="tabpanel" aria-labelledby="manual-tab-multiplayer">
-            <!-- Player-facing multiplayer guide -->
-            <div class="bg-zinc-900/70 border border-zinc-800/90 rounded-lg p-2.5 space-y-2.5">
-              <div class="flex items-center justify-between gap-2">
-                <div class="font-bold text-sky-300 uppercase tracking-wider text-[10px]">
-                  Play With Friends (2–4 Players)
-                </div>
-                <span class="text-[9px] font-mono text-zinc-500">EASY SETUP</span>
-              </div>
-              <p class="text-zinc-400 leading-relaxed">
-                One player hosts the city and everyone else joins with an invite link. Each player controls their own Boss and fights for turf.
-              </p>
-
-              <div class="space-y-2">
-                <div class="manual-step border border-emerald-500/25 bg-zinc-950/70 rounded-lg p-2">
-                  <div class="font-bold text-emerald-300 text-[11px] mb-0.5">1 · Host the game</div>
-                  <p class="text-zinc-400 leading-relaxed">
-                    Pick <span class="manual-chip">Host Multiplayer</span>, enter a Boss alias and press <span class="manual-chip">Create Room</span>. Choose the map, speed and income, then press <span class="manual-chip">Launch Turf War</span> when everyone is in.
-                  </p>
-                </div>
-
-                <div class="manual-step border border-sky-500/25 bg-zinc-950/70 rounded-lg p-2">
-                  <div class="font-bold text-sky-300 text-[11px] mb-0.5">2 · Invite your friends</div>
-                  <p class="text-zinc-400 leading-relaxed">
-                    Press <span class="manual-chip">Copy Invitation</span> and send the link in chat. Friends can open it straight away, or paste it into the Join screen.
-                  </p>
-                </div>
-
-                <div class="manual-step border border-amber-500/25 bg-zinc-950/70 rounded-lg p-2">
-                  <div class="font-bold text-amber-300 text-[11px] mb-0.5">3 · Join a game</div>
-                  <p class="text-zinc-400 leading-relaxed">
-                    Pick <span class="manual-chip">Join Multiplayer</span>, enter a Boss alias, paste the invite link and press <span class="manual-chip">Connect</span>. Wait in the lobby until the host launches.
-                  </p>
-                </div>
-              </div>
-
-              <ul class="space-y-1 text-zinc-400 leading-relaxed border-t border-zinc-800 pt-2">
-                <li>• Empty seats are filled by AI, so you can start with fewer friends.</li>
-                <li>• The host is the referee: their map and match settings are used for everyone.</li>
-                <li>• Keep the host's tab visible. Background tabs slow the game down.</li>
-                <li>• Everyone needs the same game version to connect.</li>
-              </ul>
-            </div>
-            </div>
           </div>
 
+        </div>
         </div>
       </div>
     </div>

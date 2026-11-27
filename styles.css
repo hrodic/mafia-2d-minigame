@@ -702,37 +702,6 @@
       opacity: 1;
       transform: translate(-50%, 0);
     }
-    .manual-tabs {
-      display: flex;
-      gap: 4px;
-      padding: 3px;
-      border: 1px solid rgba(63, 63, 70, 0.8);
-      border-radius: 9px;
-      background: rgba(9, 9, 11, 0.7);
-    }
-    .manual-tab {
-      flex: 1 1 0;
-      padding: 5px 8px;
-      border: 1px solid transparent;
-      border-radius: 7px;
-      background: transparent;
-      color: #a1a1aa;
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-    }
-    .manual-tab:hover {
-      color: #e4e4e7;
-      background: rgba(39, 39, 42, 0.6);
-    }
-    .manual-tab[aria-selected='true'] {
-      color: #fbbf24;
-      border-color: rgba(245, 158, 11, 0.5);
-      background: rgba(245, 158, 11, 0.14);
-    }
     .manual-chip {
       display: inline-block;
       padding: 0 4px;
@@ -851,6 +820,48 @@
     .setup-modal-card {
       width: 100%;
       max-width: 78rem;
+      height: min(92vh, 62rem);
+      max-height: 94vh;
+    }
+    .setup-scroll {
+      scrollbar-gutter: stable;
+      overscroll-behavior: contain;
+    }
+    .setup-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+      margin-bottom: 10px;
+      padding: 4px;
+      border: 1px solid rgba(63, 63, 70, 0.8);
+      border-radius: 12px;
+      background: rgba(9, 9, 11, 0.72);
+    }
+    .setup-tab {
+      padding: 9px 8px;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      background: transparent;
+      color: #a1a1aa;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .setup-tab:hover {
+      color: #e4e4e7;
+      background: rgba(39, 39, 42, 0.6);
+    }
+    .setup-tab[aria-selected='true'] {
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.55);
+      background: rgba(245, 158, 11, 0.14);
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.14);
+    }
+    @media (max-width: 640px) {
+      .setup-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     .setup-cta-bar {
       position: sticky;
@@ -863,7 +874,9 @@
     }
     .match-impact {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
+      gap: 4px 8px;
       padding: 6px 10px;
       border-radius: 8px;
       border: 1px solid rgba(16, 185, 129, 0.28);
@@ -872,6 +885,54 @@
       font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.01em;
+    }
+    .match-impact-label {
+      flex: none;
+      padding: 1px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(16, 185, 129, 0.42);
+      background: rgba(16, 185, 129, 0.2);
+      color: #a7f3d0;
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+    }
+    #match-impact-text {
+      flex: 1 1 16rem;
+      min-width: 0;
+      line-height: 1.45;
+    }
+    .match-presets {
+      display: flex;
+      gap: 4px;
+      margin-left: auto;
+    }
+    .match-preset {
+      padding: 2px 8px;
+      border: 1px solid rgba(113, 113, 122, 0.6);
+      border-radius: 999px;
+      background: rgba(24, 24, 27, 0.85);
+      color: #d4d4d8;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+    .match-preset:hover {
+      color: #fde68a;
+      border-color: rgba(245, 158, 11, 0.6);
+    }
+    .match-preset[aria-pressed='true'] {
+      color: #a7f3d0;
+      border-color: rgba(16, 185, 129, 0.6);
+      background: rgba(16, 185, 129, 0.18);
+    }
+    @media (max-width: 640px) {
+      .match-presets {
+        width: 100%;
+        justify-content: flex-end;
+      }
     }
     @media (max-width: 640px) {
       .action-btn { width: 68px; min-height: 68px; }

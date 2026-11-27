@@ -80,7 +80,7 @@ src/
     actionBar.js           bottom combat bar: readiness, cooldowns, costs
     hudCadence.js          presentation cadence (4 Hz HUD refresh) driven by main.js
     version.js             applies GAME_VERSION to title + HUD/modal labels
-    menus.js               setup modal, lobby buttons, banners, toast, map-size controls
+    menus.js               setup modal tabs, crew limits, lobby buttons, toast, map-size controls
     input.js               keyboard/mouse/minimap + HUD action bindings
     commandBridge.js       input boundary: guests stream, host/single dispatch
     support.js             top-bar Tip me -> Ko-fi popup (fallback link)
@@ -378,7 +378,8 @@ distance from the camera.
   states, cooldown overlays, costs and shortcuts; sprint is hold-to-run and guest input
   includes the held state.
 - `ui/hudCadence.js`: 4 Hz HUD refresh from the main loop.
-- `ui/menus.js`: setup modal, lobby buttons, start-game flow, `openSetupMenu`, banners and
+- `ui/menus.js`: setup modal tabs (Field Manual first, then Single/Host/Join), grid-derived
+  crew-limit sliders, lobby buttons, start-game flow, `openSetupMenu`, banners and
   toasts; exports `initMenus`.
 - `ui/input.js`: keyboard/mouse/minimap handlers, HUD action buttons; releases held keys
   on blur/visibility loss; exports `initInput`.
