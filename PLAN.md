@@ -27,9 +27,10 @@ architecture description here.
   to the future ideas section by owner decision.
 - **Current work — `0.8.0` branch (in progress):** boss survival priority, no ranged/melee
   dead zone, Glock/MP9 shop, economy/music/blood tuning, and the tactical command layer.
-  Command-layer steps 1–2 are live: faction global/local order state, Orders UI, commands,
-  snapshot sync, and **Global Defend** (owned-turf patrol + safe reinforcement placement).
-  Defaults **Expand + Attack** preserve the pre-command behavior. Version stays `0.8.0` for
+  Command-layer steps 1–3 are live: faction global/local order state, Orders UI, commands,
+  snapshot sync, **Global Defend** (owned-turf patrol + safe reinforcement placement) and
+  **Local Guard** (boss screen, focus/leash, Attack danger collapse). Defaults
+  **Expand + Attack** preserve the pre-command behavior. Version stays `0.8.0` for
   the whole branch by owner decision.
 
 Phases 3, 4 and 5 are complete. `refactor/phase-5-quality` has merged into `master`. `0.8.0`

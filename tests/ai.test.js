@@ -7,7 +7,7 @@ import { on } from '../src/core/events.js';
 import { packChunkKey } from '../src/world/city.js';
 import { CHUNK_PX } from '../src/config/constants.js';
 import { scanNearby, choosePatrolChunk, chooseDefendChunk, updateNpcAi } from '../src/sim/ai.js';
-import { GLOBAL_STANCE, createFactionTactics } from '../src/config/tactics.js';
+import { GLOBAL_STANCE, LOCAL_ORDER, TACTICS, createFactionTactics } from '../src/config/tactics.js';
 
 const STATE_KEYS = ['world', 'player', 'npcs', 'spatialBuckets', 'treasuries', 'factionTactics'];
 
@@ -696,6 +696,214 @@ test('ai: global Defend applies outside the aura and is ignored inside it', () =
         Math.floor(unit.goalX / CHUNK_PX),
         1,
         'inside the aura the local Attack behavior keeps expanding'
+      );
+    }
+  );
+});
+
+function guardState(opts = {}) {
+  const record = state.factionTactics[Faction.RIVAL_1];
+  record.localOrder = opts.order ?? LOCAL_ORDER.GUARD;
+  record.bossId = opts.bossId ?? 1;
+  record.bossX = opts.bossX ?? 500;
+  record.bossY = opts.bossY ?? 500;
+  record.bossInDanger = Boolean(opts.danger);
+  record.localFocusId = opts.focus ? opts.focus.id : null;
+  record.localFocus = opts.focus || null;
+  return record;
+}
+
+function guardBoss(overrides = {}) {
+  return npc({
+    id: 1,
+    rank: UnitRank.BOSS,
+    x: 500,
+    y: 500,
+    hp: 400,
+    maxHp: 400,
+    ...overrides,
+  });
+}
+
+test('ai: Guard holds melee allies about 110 px from the boss instead of patrolling', () => {
+  const boss = guardBoss();
+  const soldier = npc({ id: 2, x: 500, y: 650, aiTimer: 0, inBossAura: true });
+  const neutral = { cx: 1, cy: 0, faction: Faction.NEUTRAL };
+  withAiState(
+    {
+      world: defendWorld([{ cx: 0, cy: 0, faction: Faction.RIVAL_1 }, neutral]),
+      player: { id: 0, faction: Faction.PLAYER, alive: true, x: 5000, y: 5000, hp: 400, maxHp: 400 },
+      npcs: [boss, soldier],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [boss, soldier]]]),
+    },
+    () => {
+      guardState();
+      updateNpcAi(soldier, 0.016);
+      const dist = Math.hypot(soldier.goalX - 500, soldier.goalY - 500);
+      assert(
+        Math.abs(dist - TACTICS.guardMeleeDistance) < 1.5,
+        `guard post should be ${TACTICS.guardMeleeDistance}px from the boss, got ${dist}`
+      );
+      const goalChunk = Math.floor(soldier.goalX / CHUNK_PX);
+      assertEqual(goalChunk, 0, 'Guard must not patrol into the neutral block');
+    }
+  );
+});
+
+test('ai: Guard melee focuses a local threat inside the leash', () => {
+  const boss = guardBoss();
+  const soldier = npc({ id: 2, x: 500, y: 600, aiTimer: 0, inBossAura: true });
+  const enemy = npc({ id: 3, x: 800, y: 500, faction: Faction.RIVAL_2, hp: 100 });
+  withAiState(
+    {
+      world: defendWorld([{ cx: 0, cy: 0, faction: Faction.RIVAL_1 }]),
+      player: { id: 0, faction: Faction.PLAYER, alive: true, x: 5000, y: 5000, hp: 400, maxHp: 400 },
+      npcs: [boss, soldier, enemy],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [boss, soldier, enemy]]]),
+    },
+    () => {
+      guardState({ focus: enemy });
+      updateNpcAi(soldier, 0.016);
+      assertEqual(soldier.goalX, enemy.x);
+      assertEqual(soldier.goalY, enemy.y);
+    }
+  );
+});
+
+test('ai: Guard ignores a focus pulled beyond the 360 px leash', () => {
+  const boss = guardBoss();
+  const soldier = npc({ id: 2, x: 500, y: 600, aiTimer: 0, inBossAura: true });
+  const enemy = npc({ id: 3, x: 1000, y: 500, faction: Faction.RIVAL_2, hp: 100 });
+  withAiState(
+    {
+      world: defendWorld([{ cx: 0, cy: 0, faction: Faction.RIVAL_1 }]),
+      player: { id: 0, faction: Faction.PLAYER, alive: true, x: 5000, y: 5000, hp: 400, maxHp: 400 },
+      npcs: [boss, soldier, enemy],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [boss, soldier, enemy]]]),
+    },
+    () => {
+      guardState({ focus: enemy });
+      updateNpcAi(soldier, 0.016);
+      const dist = Math.hypot(soldier.goalX - 500, soldier.goalY - 500);
+      assert(
+        dist <= TACTICS.guardMeleeDistance + 1 &&
+          dist >= TACTICS.guardMeleeDistance - TACTICS.guardIdleRadius,
+        `guard should return to its post instead of chasing, got ${dist}`
+      );
+      assert(soldier.goalX < enemy.x, 'guard goal must not be the out-of-leash enemy');
+    }
+  );
+});
+
+test('ai: Guard underboss holds 180 px behind the boss relative to the threat', () => {
+  const boss = guardBoss();
+  const underboss = npc({
+    id: 3,
+    rank: UnitRank.UNDERBOSS,
+    x: 500,
+    y: 500,
+    aiTimer: 0,
+    inBossAura: true,
+    weapon: 'pistol',
+    ammo: 10,
+  });
+  const enemy = npc({ id: 4, x: 500, y: 800, faction: Faction.RIVAL_2, hp: 200 });
+  withAiState(
+    {
+      world: pistolTestWorld(Faction.RIVAL_1),
+      player: { id: 0, faction: Faction.PLAYER, alive: true, x: 5000, y: 5000, hp: 400, maxHp: 400 },
+      npcs: [boss, underboss, enemy],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [boss, underboss, enemy]]]),
+    },
+    () => {
+      guardState({ focus: enemy });
+      updateNpcAi(underboss, 0.016);
+      const dist = Math.hypot(underboss.goalX - 500, underboss.goalY - 500);
+      assert(
+        Math.abs(dist - TACTICS.guardUnderbossDistance) < 1.5,
+        `underboss should hold ${TACTICS.guardUnderbossDistance}px from the boss, got ${dist}`
+      );
+      assert(underboss.goalY < 500, 'underboss should hold opposite the threat');
+    }
+  );
+});
+
+test('ai: Guard keeps a stable ring slot instead of orbiting the boss', () => {
+  const boss = guardBoss();
+  const soldier = npc({ id: 2, x: 500, y: 650, aiTimer: 0, inBossAura: true });
+  withAiState(
+    {
+      world: defendWorld([{ cx: 0, cy: 0, faction: Faction.RIVAL_1 }]),
+      player: { id: 0, faction: Faction.PLAYER, alive: true, x: 5000, y: 5000, hp: 400, maxHp: 400 },
+      npcs: [boss, soldier],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [boss, soldier]]]),
+    },
+    () => {
+      guardState();
+      updateNpcAi(soldier, 0.016);
+      const firstX = soldier.goalX;
+      const firstY = soldier.goalY;
+      const slot = soldier.guardSlotAngle;
+
+      // Move the unit to a different bearing; the assigned slot must not rotate.
+      soldier.x = 650;
+      soldier.y = 500;
+      soldier.aiTimer = 0;
+      updateNpcAi(soldier, 0.016);
+
+      assertEqual(soldier.guardSlotAngle, slot, 'slot angle must stay cached');
+      assertEqual(soldier.goalX, firstX, 'guard post X must stay stable');
+      assertEqual(soldier.goalY, firstY, 'guard post Y must stay stable');
+    }
+  );
+});
+
+test('ai: Guard stands still once it reaches its post', () => {
+  const boss = guardBoss();
+  const soldier = npc({ id: 2, x: 500, y: 650, aiTimer: 0, inBossAura: true });
+  withAiState(
+    {
+      world: defendWorld([{ cx: 0, cy: 0, faction: Faction.RIVAL_1 }]),
+      player: { id: 0, faction: Faction.PLAYER, alive: true, x: 5000, y: 5000, hp: 400, maxHp: 400 },
+      npcs: [boss, soldier],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [boss, soldier]]]),
+    },
+    () => {
+      guardState();
+      updateNpcAi(soldier, 0.016);
+      const postX = soldier.goalX;
+      const postY = soldier.goalY;
+
+      soldier.x = postX;
+      soldier.y = postY;
+      soldier.aiTimer = 0;
+      updateNpcAi(soldier, 0.016);
+
+      assertEqual(soldier.goalX, soldier.x, 'an on-station guard should hold in place');
+      assertEqual(soldier.goalY, soldier.y, 'an on-station guard should hold in place');
+      assertEqual(soldier.path, null);
+      assertEqual(soldier.pathTimer, 0);
+    }
+  );
+});
+
+test('ai: Attack collapses to the boss when he is in danger', () => {
+  const boss = guardBoss();
+  const soldier = npc({ id: 2, x: 500, y: 650, aiTimer: 0, inBossAura: true });
+  withAiState(
+    {
+      world: defendWorld([{ cx: 0, cy: 0, faction: Faction.RIVAL_1 }]),
+      player: { id: 0, faction: Faction.PLAYER, alive: true, x: 5000, y: 5000, hp: 400, maxHp: 400 },
+      npcs: [boss, soldier],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [boss, soldier]]]),
+    },
+    () => {
+      guardState({ order: LOCAL_ORDER.ATTACK, danger: true });
+      updateNpcAi(soldier, 0.016);
+      const dist = Math.hypot(soldier.goalX - 500, soldier.goalY - 500);
+      assert(
+        Math.abs(dist - TACTICS.guardCollapseDistance) < 1.5,
+        `Attack danger collapse should use ${TACTICS.guardCollapseDistance}px, got ${dist}`
       );
     }
   );

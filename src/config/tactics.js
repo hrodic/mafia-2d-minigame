@@ -27,6 +27,11 @@ export const TACTICS = Object.freeze({
   auraEnterRadius: 480,
   auraExitRadius: 540,
   localFocusRadius: 360,
+  guardLeashRadius: 360,
+  guardMeleeDistance: 110,
+  guardUnderbossDistance: 180,
+  guardCollapseDistance: 120,
+  guardIdleRadius: 14,
 });
 
 /** @param {number} value */
@@ -50,6 +55,7 @@ export function createFactionTactics() {
     bossInDanger: false,
     threatenedChunks: [],
     localFocusId: null,
+    localFocus: null,
     updatedAt: 0,
   };
 }

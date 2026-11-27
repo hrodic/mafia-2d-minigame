@@ -13,7 +13,7 @@ import {
   isGlobalStance,
   isLocalOrder,
 } from '../config/tactics.js';
-import { state } from '../core/state.js';
+import { state, getUnitById } from '../core/state.js';
 import { packChunkKey } from '../world/city.js';
 import { scanNearby } from './ai.js';
 import { hasLivingEnemyOnChunk } from './territory.js';
@@ -127,10 +127,13 @@ function refreshFaction(faction) {
       (scan.nearbyEnemyCount >= AI_TACTICS.bossRetreatMinEnemies &&
         scan.nearbyEnemyCount > scan.nearbyAllyCount);
     record.localFocusId = findLocalFocus(boss);
+    record.localFocus =
+      record.localFocusId !== null ? getUnitById(record.localFocusId) : null;
   } else {
     record.bossId = null;
     record.bossInDanger = false;
     record.localFocusId = null;
+    record.localFocus = null;
   }
 
   refreshThreatenedChunks(record, faction);

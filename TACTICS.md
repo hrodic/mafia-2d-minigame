@@ -51,10 +51,10 @@ Controls:
 - Orders are host-authoritative commands and are mirrored to guests in snapshots.
 
 **Implementation status:** the command layer, UI, commands and snapshot sync are live.
-Defaults **Expand + Attack** preserve the pre-command behavior. **Global Defend is wired**:
-outside the aura, non-boss allies choose only owned turf and reinforcements prefer safe turf
-near the threat. **Local Guard is not wired yet**; crews inside the aura keep the current
-Attack behavior until the next step.
+Defaults **Expand + Attack** preserve the pre-command behavior. **Global Defend** and
+**Local Guard** are wired. Guard keeps non-boss crews inside the boss aura in a defensive
+screen, focuses the local threat and does not chase beyond the 360 px leash. Attack crews
+collapse to the boss when he is in danger. All other behavior is unchanged.
 
 ## Operational directives
 
@@ -103,7 +103,29 @@ deliberate expansion, not accidental capture.**
 Inside the boss aura the local order still wins, so a **Defend + Attack** faction keeps
 expanding around the boss while distant crews hold turf.
 
-### 3. Engage — nearest enemy only
+### 3. Guard — screen the boss
+
+Local **Guard** applies to non-boss allies **inside the boss aura**. It replaces patrol
+selection with a defensive post around the boss.
+
+- Melee ranks hold about **110 px** from the boss on the threat side.
+- The **Underboss** holds about **180 px behind** the boss, slightly offset to one side, and
+  fires from there instead of advancing.
+- With no threat, units hold their current side at those distances.
+- Each guard caches a **stable ring slot**; when it reaches the post it stands still inside a
+  **14 px idle deadzone** instead of micro-correcting or orbiting the boss.
+- The local focus enemy is the shared target; other enemies are ignored.
+- Melee guards may step toward the focus but never beyond the **360 px leash** from the boss.
+- A focus that leaves the leash is dropped and the guard returns to its post.
+- Guard units do not patrol for new blocks. Automatic capture still runs if they happen to
+  stand on non-owned turf.
+- The boss itself is never ordered; its own survival and combat logic remain in control.
+
+**Attack + boss danger:** when the boss is in danger, Attack crews temporarily behave like
+Guard and collapse around him (melee about **120 px**, Underboss **180 px**). Normal Attack
+resumes when the danger clears.
+
+### 4. Engage — nearest enemy only
 
 A unit engages when an enemy is inside its aggro range:
 
@@ -120,7 +142,7 @@ It always targets the **nearest** enemy. It does not prioritize:
 
 There is no focus fire between allies.
 
-### 4. Capture — stand on the block
+### 5. Capture — stand on the block
 
 Capture progress advances while a non-retreating unit stands on a non-owned chunk.
 
@@ -131,7 +153,7 @@ Capture progress advances while a non-retreating unit stands on a non-owned chun
 - A retreating boss does not capture.
 - Units can keep capturing while fighting on the same chunk if the capture rule allows it.
 
-### 5. Survive — boss only
+### 6. Survive — boss only
 
 Only the boss has a survival directive.
 
@@ -156,7 +178,7 @@ When healthy and not outnumbered:
 
 Underbosses, captains and soldiers have no survival retreat. They fight until dead.
 
-### 6. Buy — boss only
+### 7. Buy — boss only
 
 Only boss-rank units shop. Shopping requires friendly turf.
 
@@ -170,7 +192,7 @@ Armor is a separate purchase: **Kevlar** when missing/low, affordable and off co
 
 Underbosses, captains and soldiers never shop.
 
-### 7. Reinforce — safe owned block
+### 8. Reinforce — safe owned block
 
 Under **Expand**, AI reinforcements spawn in a **random owned chunk**; player reinforcements
 prefer the boss's chunk when the boss is on owned turf.
@@ -186,7 +208,7 @@ the unit immediately follows the same independent patrol/engage directive.
 
 There is no “send reinforcements to the front” or “defend this block” order.
 
-### 8. Garrison defense — incidental only
+### 9. Garrison defense — incidental only
 
 Global Defend changes **where distant allies go and where reinforcements spawn**, but there is
 still no reactive defense system.
@@ -214,12 +236,15 @@ Defense happens only when an enemy happens to enter a unit's local aggro range.
 
 The non-boss rows describe **Expand** outside the aura and **Attack** inside it. Under Global
 Defend, patrol destinations outside the aura are restricted to owned turf as described in
-directive 2; combat behavior is unchanged.
+directive 2. Under Local Guard, inside-aura units hold a screen around the boss as described
+in directive 3; combat behavior is otherwise unchanged.
 
 ## Rules of engagement
 
 - **Target selection:** nearest enemy only.
 - **Defend destinations:** owned turf only (threatened, then border, then nearest owned); capture stays automatic.
+- **Guard posts:** melee **110 px** on the threat side; Underboss **180 px** behind and offset; **360 px** leash; stable slot + **14 px** idle deadzone.
+- **Attack danger collapse:** boss in danger → nearby Attack crews use Guard posts (melee **120 px**).
 - **Ranged fire band:** melee reach → weapon range. There is no 110 px minimum.
 - **Underboss close range:** below 110 px, fire while backing off (80 px step, 0.6 s).
 - **Boss close range:** healthy and not outnumbered → commit to melee inside 110 px.
@@ -236,15 +261,14 @@ directive 2; combat behavior is unchanged.
 These are not implemented today and are the natural next iteration points:
 
 - AI stance director (AI factions do not choose Defend or Guard on their own),
-- Local Guard behavior wiring (the command exists, the AI branch does not),
+- guard-ring hard caps, bodyguard angle assignment and sprint exceptions,
 - squad formation and cohesion,
-- escort/bodyguard behavior around the boss,
-- focus fire and target priority,
+- advanced bodyguard roles (caps, cover, escort assignments),
+- cross-squad focus fire and target priority,
 - scouting and shared vision,
 - front-line or chokepoint control,
-- defend-owned-turf orders,
 - regroup, healing, cover-seeking and crew retreat,
-- guard posts and patrol routes,
+- fixed guard posts and patrol routes,
 - coordinated multi-unit flanking,
 - role assignment (scout, guard, skirmisher, etc.),
 - unit-to-unit communication,

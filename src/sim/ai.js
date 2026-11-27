@@ -4,9 +4,9 @@
 import { Faction, UnitRank } from '../config/enums.js';
 import { CHUNK_SIZE, CHUNK_PX, TILE_SIZE } from '../config/constants.js';
 import { SLASH, AI_TACTICS } from '../config/balance.js';
-import { GLOBAL_STANCE } from '../config/tactics.js';
+import { GLOBAL_STANCE, LOCAL_ORDER, TACTICS } from '../config/tactics.js';
 import { FACTION_META } from '../config/organizations.js';
-import { state } from '../core/state.js';
+import { state, getUnitById } from '../core/state.js';
 import { emit } from '../core/events.js';
 import { packChunkKey } from '../world/city.js';
 import { computeTilePath, MAX_ASTAR_PER_FRAME } from '../world/pathfinding.js';
@@ -161,6 +161,114 @@ function usesDefendStance(u) {
   return Boolean(record) && record.globalStance === GLOBAL_STANCE.DEFEND;
 }
 
+/**
+ * Local Guard (or the Attack boss-danger collapse) for a non-boss ally inside
+ * the boss aura. Returns null when neither applies.
+ */
+function getGuardState(u) {
+  if (u.rank === UnitRank.BOSS || !u.inBossAura) return null;
+  const record = state.factionTactics && state.factionTactics[u.faction];
+  if (!record || record.bossId === null) return null;
+
+  const collapse = record.localOrder === LOCAL_ORDER.ATTACK && record.bossInDanger;
+  if (record.localOrder !== LOCAL_ORDER.GUARD && !collapse) return null;
+
+  let focus = record.localFocus;
+  if (focus && focus.id !== record.localFocusId) focus = null;
+  if (!focus && record.localFocusId !== null) focus = getUnitById(record.localFocusId);
+  if (focus) {
+    const valid =
+      focus !== u &&
+      focus.hp > 0 &&
+      focus.alive !== false &&
+      focus.faction !== u.faction &&
+      Math.hypot(focus.x - record.bossX, focus.y - record.bossY) <= TACTICS.guardLeashRadius;
+    if (!valid) focus = null;
+  }
+
+  return { record, focus, collapse };
+}
+
+function setGuardGoal(u, guard) {
+  const { record, focus, collapse } = guard;
+  const bossX = record.bossX;
+  const bossY = record.bossY;
+  const hasThreat = Boolean(focus);
+  const isUnderboss = u.rank === UnitRank.UNDERBOSS;
+
+  let angle;
+  if (hasThreat) {
+    angle = Math.atan2(focus.y - bossY, focus.x - bossX);
+    if (isUnderboss) {
+      // The gunner holds behind and slightly to one side of the boss so its
+      // firing line around the boss stays open.
+      const side = u.id % 2 === 0 ? 1 : -1;
+      angle += Math.PI + side * 0.35;
+    } else {
+      // A light deterministic spread keeps the melee screen from stacking.
+      angle += ((u.id % 5) - 2) * 0.16;
+    }
+  } else {
+    // No threat: each unit owns a stable ring slot. Deriving the angle from
+    // its current bearing every frame would make it orbit the boss.
+    if (!Number.isFinite(u.guardSlotAngle)) {
+      const dx = u.x - bossX;
+      const dy = u.y - bossY;
+      u.guardSlotAngle = Math.hypot(dx, dy) > 4
+        ? Math.atan2(dy, dx)
+        : (u.id * 2.399963229728653) % (Math.PI * 2);
+    }
+    angle = u.guardSlotAngle;
+    if (isUnderboss) angle += (u.id % 2 === 0 ? 1 : -1) * 0.2;
+  }
+
+  const distance = isUnderboss
+    ? TACTICS.guardUnderbossDistance
+    : collapse
+      ? TACTICS.guardCollapseDistance
+      : TACTICS.guardMeleeDistance;
+
+  const gx = bossX + Math.cos(angle) * distance;
+  const gy = bossY + Math.sin(angle) * distance;
+  const snapped = state.world.findNearestWalkablePoint(gx, gy, u.bodyRadius);
+  if (!snapped) return;
+
+  const previousX = u.goalX;
+  const previousY = u.goalY;
+  const atPost = Math.hypot(u.x - snapped.x, u.y - snapped.y) <= TACTICS.guardIdleRadius;
+  if (atPost) {
+    // Already on station: stand still instead of micro-correcting.
+    u.goalX = u.x;
+    u.goalY = u.y;
+    u.path = null;
+    u.pathTimer = 0;
+    return;
+  }
+
+  u.goalX = snapped.x;
+  u.goalY = snapped.y;
+  if (Math.hypot(snapped.x - previousX, snapped.y - previousY) > 24) {
+    u.path = null;
+    u.pathTimer = 0;
+  }
+}
+
+/** Keep a chasing guard inside the 360 px leash around the boss. */
+function clampGuardGoal(u, guard) {
+  const { record } = guard;
+  const dx = u.goalX - record.bossX;
+  const dy = u.goalY - record.bossY;
+  const dist = Math.hypot(dx, dy);
+  if (dist <= TACTICS.guardLeashRadius || dist < 0.001) return;
+  const gx = record.bossX + (dx / dist) * TACTICS.guardLeashRadius;
+  const gy = record.bossY + (dy / dist) * TACTICS.guardLeashRadius;
+  const snapped = state.world.findNearestWalkablePoint(gx, gy, u.bodyRadius);
+  if (snapped) {
+    u.goalX = snapped.x;
+    u.goalY = snapped.y;
+  }
+}
+
 /** Pick a point away from the threat, preferring own turf when possible. */
 function chooseRetreatPoint(u, enemy) {
   if (!state.world.findNearestWalkablePoint) return null;
@@ -246,8 +354,10 @@ export function updateNpcAi(u, dt) {
     tryBuyNpcBossEquipment(u);
   }
 
-  const { uCx, uCy, nearestEnemy, nearestEnemyDist, nearbyEnemyCount, nearbyAllyCount } =
-    scanNearby(u);
+  const scan = scanNearby(u);
+  const { uCx, uCy, nearbyEnemyCount, nearbyAllyCount } = scan;
+  let nearestEnemy = scan.nearestEnemy;
+  let nearestEnemyDist = scan.nearestEnemyDist;
 
   if (u.rank === UnitRank.BOSS) {
     tryBuyNpcBossArmor(u, nearbyEnemyCount, nearbyAllyCount);
@@ -283,7 +393,25 @@ export function updateNpcAi(u, dt) {
     }
   }
 
-  if (retreating) {
+  const guard = getGuardState(u);
+  if (guard) {
+    if (guard.focus) {
+      nearestEnemy = {
+        isPlayer: guard.focus === state.player,
+        entity: guard.focus,
+        x: guard.focus.x,
+        y: guard.focus.y,
+      };
+      nearestEnemyDist = Math.hypot(guard.focus.x - u.x, guard.focus.y - u.y);
+    } else {
+      nearestEnemy = null;
+      nearestEnemyDist = Infinity;
+    }
+  }
+
+  if (guard && !guard.focus) {
+    setGuardGoal(u, guard);
+  } else if (retreating) {
     u.goalX = u.retreatX;
     u.goalY = u.retreatY;
     u.backoffTimer = 0;
@@ -370,6 +498,16 @@ export function updateNpcAi(u, dt) {
         }
       }
     }
+    if (guard) {
+      if (u.rank === UnitRank.UNDERBOSS) {
+        // The gunner keeps its post behind the boss and fires from there.
+        setGuardGoal(u, guard);
+      } else {
+        clampGuardGoal(u, guard);
+      }
+    }
+  } else if (guard) {
+    setGuardGoal(u, guard);
   } else if (u.aiTimer <= 0) {
     u.aiTimer = 1.6 + Math.random() * 1.8;
     const defending = usesDefendStance(u);
