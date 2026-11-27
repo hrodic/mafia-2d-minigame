@@ -312,7 +312,9 @@ test('commands: local and remote human commands produce equivalent outcomes', ()
     },
     () => {
       const target = state.npcs[0];
-      dispatchCommand(Faction.PLAYER, { cmd: 'SLASH' });
+      withFixedRandom(0.99, () => {
+        dispatchCommand(Faction.PLAYER, { cmd: 'SLASH' });
+      });
       local = { damage: 1000 - target.hp, cooldown: state.player.attackCooldown };
     }
   );
@@ -322,7 +324,9 @@ test('commands: local and remote human commands produce equivalent outcomes', ()
       npcs: [makeBoss({ x: 0, y: 0, facing: 0, minDmg: 20, maxDmg: 20 })],
     },
     () => {
-      dispatchCommand(Faction.RIVAL_1, { cmd: 'SLASH' });
+      withFixedRandom(0.99, () => {
+        dispatchCommand(Faction.RIVAL_1, { cmd: 'SLASH' });
+      });
       remote = { damage: 1000 - state.player.hp, cooldown: state.npcs[0].attackCooldown };
     }
   );

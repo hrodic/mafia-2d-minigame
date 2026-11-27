@@ -214,8 +214,8 @@ test('units: soldiers and captains spawn with the correct stats', () => {
     assert(soldier, 'soldier should spawn on a road tile');
     assertEqual(soldier.faction, Faction.PLAYER);
     assertEqual(soldier.rank, UnitRank.SOLDIER);
-    assertEqual(soldier.hp, 360);
-    assertEqual(soldier.maxHp, 360);
+    assertEqual(soldier.hp, 300);
+    assertEqual(soldier.maxHp, 300);
     assertEqual(soldier.minDmg, 15);
     assertEqual(soldier.maxDmg, 25);
     assertEqual(soldier.armor, 0);
@@ -227,7 +227,7 @@ test('units: soldiers and captains spawn with the correct stats', () => {
     assertEqual(state.npcs.length, 1);
 
     const captain = spawnUnitInChunk(Faction.PLAYER, chunk, UnitRank.CAPTAIN);
-    assertEqual(captain.hp, 680);
+    assertEqual(captain.hp, 600);
     assertEqual(captain.minDmg, 20);
     assertEqual(captain.maxDmg, 30);
     assertEqual(captain.bodyRadius, 12);
@@ -241,7 +241,7 @@ test('units: underbosses spawn with armor and higher damage', () => {
   withUnitsState({}, ({ map }) => {
     const chunk = map.generateChunk(0, 0);
     const underboss = spawnUnitInChunk(Faction.PLAYER, chunk, UnitRank.UNDERBOSS);
-    assertEqual(underboss.hp, 960);
+    assertEqual(underboss.hp, 800);
     assertEqual(underboss.armor, 120);
     assertEqual(underboss.maxArmor, 120);
     assertEqual(underboss.minDmg, 25);

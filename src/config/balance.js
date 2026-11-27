@@ -11,8 +11,7 @@ export const INCOME_TIERS = {
   HIGH: { label: 'High', min: 1500, max: 2000 },
 };
 
-// All AI-controlled ranks share one 150 px/s base for now. Role/rank speed can
-// diverge later; human-controlled bosses still use speedHuman.
+// Non-boss AI ranks use per-rank speeds; human-controlled bosses still use speedHuman.
 export const RANK_STATS = {
   [UnitRank.BOSS]: {
     hp: 800,
@@ -29,7 +28,7 @@ export const RANK_STATS = {
     upkeep: 0,
   },
   [UnitRank.UNDERBOSS]: {
-    hp: 960,
+    hp: 800,
     startArmor: 120,
     maxArmor: 120,
     minDmg: 25,
@@ -39,36 +38,36 @@ export const RANK_STATS = {
     speedJitter: 0,
     radius: 12.8,
     capturePerTick: 1,
-    cost: 3800,
-    upkeep: 380,
+    cost: 4000,
+    upkeep: 600,
   },
   [UnitRank.CAPTAIN]: {
-    hp: 680,
+    hp: 600,
     startArmor: 0,
     maxArmor: 0,
     minDmg: 20,
     maxDmg: 30,
-    speedAi: 150,
-    speedHuman: 150,
+    speedAi: 160,
+    speedHuman: 160,
     speedJitter: 0,
     radius: 12,
     capturePerTick: 0.5,
-    cost: 2200,
-    upkeep: 220,
+    cost: 2500,
+    upkeep: 300,
   },
   [UnitRank.SOLDIER]: {
-    hp: 360,
+    hp: 300,
     startArmor: 0,
     maxArmor: 0,
     minDmg: 15,
     maxDmg: 25,
-    speedAi: 150,
-    speedHuman: 150,
+    speedAi: 170,
+    speedHuman: 170,
     speedJitter: 0,
     radius: 11,
     capturePerTick: 0.2,
-    cost: 1200,
-    upkeep: 120,
+    cost: 1000,
+    upkeep: 100,
   },
 };
 
@@ -201,6 +200,15 @@ export const PISTOL = {
       color: '#f43f5e',
     },
   ],
+};
+
+export const CRITICAL = {
+  // Base chance for every weapon. A hit from the target's rear 120° cone adds
+  // backBonus to the chance. Critical damage is multiplied before armor absorbs.
+  chance: 0.05,
+  backBonus: 0.15,
+  backArcCos: 0.5,
+  multiplier: 2,
 };
 
 export const COST_BOSS_ARMOR = 3500;

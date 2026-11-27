@@ -36,7 +36,7 @@ Naming: `domain:pastTense` (`unit:damaged`, `chunk:captured`, `match:victory`).
 | Event | Payload | Emitted by |
 |---|---|---|
 | `match:initialized` | `{ tickDuration, worldSeed }` | match setup (new match built, even when autoStart is false) |
-| `unit:damaged` | `{ unit, amount, absorbed, remaining, isKill, isPlayer, hitAngle, textColor, suffix }` | combat |
+| `unit:damaged` | `{ unit, amount, absorbed, remaining, isKill, isPlayer, isCrit, hitAngle, textColor, suffix }` | combat |
 | `unit:died` | `{ unit, faction, rank, x, y, facing, fallAngle, isBoss, isPlayer }` | combat |
 | `faction:eliminated` | `{ faction }` | territory |
 | `chunk:captured` | `{ chunk, faction }` | territory |

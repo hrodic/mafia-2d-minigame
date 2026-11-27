@@ -2,7 +2,7 @@
 
 import { Faction, UnitRank, PropType } from '../config/enums.js';
 import { CHUNK_SIZE, TILE_SIZE, MAX_PISTOL_RANGE, HIT_FLASH_DURATION } from '../config/constants.js';
-import { COST_BOSS_ARMOR, MAX_BOSS_ARMOR, PISTOL, SLASH } from '../config/balance.js';
+import { COST_BOSS_ARMOR, MAX_BOSS_ARMOR, PISTOL, CRITICAL, SLASH } from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
 import { getPropFootprint, rectContains } from '../world/geometry.js';
 import { state, forEachUnit } from '../core/state.js';
@@ -13,6 +13,22 @@ import { eliminateFaction } from './territory.js';
 
 export function rollDamage(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/** True when the strike comes from inside the target's rear cone. */
+export function isBackHit(target, strikeAngle) {
+  if (!target || typeof target.facing !== 'number') return false;
+  return Math.cos(target.facing - strikeAngle) > CRITICAL.backArcCos;
+}
+
+/** Roll one hit's critical chance: 5% base, 20% from behind. */
+export function rollCriticalHit(target, strikeAngle) {
+  const chance = CRITICAL.chance + (isBackHit(target, strikeAngle) ? CRITICAL.backBonus : 0);
+  return Math.random() < chance;
+}
+
+function applyCriticalDamage(dmg, isCrit) {
+  return isCrit ? Math.max(1, Math.round(dmg * CRITICAL.multiplier)) : dmg;
 }
 
 function creditKill(killerFaction, victimFaction) {
@@ -30,7 +46,8 @@ export function applyDamageToNpc(
   textColor = '#fbbf24',
   suffix = '',
   hitAngle = null,
-  killerFaction = null
+  killerFaction = null,
+  isCrit = false
 ) {
   if (!target) return false;
   const isPlayer = target === state.player;
@@ -58,6 +75,7 @@ export function applyDamageToNpc(
     remaining: remainingDmg,
     isKill,
     isPlayer,
+    isCrit,
     hitAngle,
     textColor,
     suffix,
@@ -171,11 +189,12 @@ export function performSlash(attacker, params = {}) {
   const suffix = params.suffix ?? '';
 
   for (const item of targets) {
-    const dmg = rollDamage(attacker.minDmg, attacker.maxDmg);
     const strikeAngle = item.dist > 0.01 ? Math.atan2(item.dy, item.dx) : attacker.facing;
+    const isCrit = rollCriticalHit(item.entity, strikeAngle);
+    const dmg = applyCriticalDamage(rollDamage(attacker.minDmg, attacker.maxDmg), isCrit);
 
     if (item.isPlayer) {
-      damagePlayerBoss(dmg, playerDamageColor, suffix, strikeAngle, attacker.faction);
+      damagePlayerBoss(dmg, playerDamageColor, suffix, strikeAngle, attacker.faction, isCrit);
       continue;
     }
 
@@ -186,7 +205,7 @@ export function performSlash(attacker, params = {}) {
       item.entity.x = knockX;
       item.entity.y = knockY;
     }
-    applyDamageToNpc(item.entity, dmg, npcDamageColor, suffix, strikeAngle, attacker.faction);
+    applyDamageToNpc(item.entity, dmg, npcDamageColor, suffix, strikeAngle, attacker.faction, isCrit);
   }
 
   return hitCount > 0;
@@ -395,8 +414,10 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
     if (dmgMult < 1) {
       dmg = Math.max(1, Math.round(dmg * dmgMult));
     }
+    const isCrit = rollCriticalHit(bestTarget, angle);
+    dmg = applyCriticalDamage(dmg, isCrit);
     if (bestTargetIsPlayer) {
-      damagePlayerBoss(dmg, `${FACTION_META[shooterFaction].accent}`, '🔫', angle, shooterFaction);
+      damagePlayerBoss(dmg, `${FACTION_META[shooterFaction].accent}`, '🔫', angle, shooterFaction, isCrit);
     } else {
       const knockback =
         PISTOL.knockbackMin + Math.random() * (PISTOL.knockbackMax - PISTOL.knockbackMin);
@@ -413,7 +434,8 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
         isPlayerShooter ? '#fde047' : FACTION_META[shooterFaction].accent,
         '',
         angle,
-        shooterFaction
+        shooterFaction,
+        isCrit
       );
     }
   }
@@ -421,8 +443,8 @@ export function performBossPistolShot(shooter, isPlayerShooter, targetX, targetY
   return true;
 }
 
-export function damagePlayerBoss(dmg, textColor = '#f43f5e', suffix = '', hitAngle = null, killerFaction = null) {
-  return applyDamageToNpc(state.player, dmg, textColor, suffix, hitAngle, killerFaction);
+export function damagePlayerBoss(dmg, textColor = '#f43f5e', suffix = '', hitAngle = null, killerFaction = null, isCrit = false) {
+  return applyDamageToNpc(state.player, dmg, textColor, suffix, hitAngle, killerFaction, isCrit);
 }
 
 export function executeBuyArmorForFaction(faction) {

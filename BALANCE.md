@@ -33,9 +33,9 @@ Boss armor is bought separately; Underboss starts with armor.
 | Rank | HP | Armor | Blade dmg | Speed | Capture/tick | Radius | Hire | Upkeep/hr | Cap |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | Boss | 800 | 0 → 300 | 30–40 | 140 | 1 | 13.5 | — | — | 1 |
-| Underboss | 960 | 120 | 25–35 | 150 | 1 | 12.8 | $3,800 | $380 | ×1 grid side |
-| Captain | 680 | 0 | 20–30 | 150 | 0.5 | 12 | $2,200 | $220 | ×2 grid side |
-| Soldier | 360 | 0 | 15–25 | 150 | 0.2 | 11 | $1,200 | $120 | ×10 grid side |
+| Underboss | 800 | 120 | 25–35 | 150 | 1 | 12.8 | $4,000 | $600 | ×1 grid side |
+| Captain | 600 | 0 | 20–30 | 160 | 0.5 | 12 | $2,500 | $300 | ×2 grid side |
+| Soldier | 300 | 0 | 15–25 | 170 | 0.2 | 11 | $1,000 | $100 | ×10 grid side |
 
 Derived notes:
 
@@ -43,8 +43,8 @@ Derived notes:
   default tick that is 15 / 15 / 30 / 75 seconds.
 - Enemy turf cannot be captured while any living enemy unit stands on it; neutral turf
   (including a defeated faction's former turf) never resists.
-- HP per $1,000 hire: Soldier 300 · Captain 309.1 · Underboss 252.6.
-- Upkeep as % of hire per hour: Soldier 10% · Captain 10% · Underboss 10%.
+- HP per $1,000 hire: Soldier 300 · Captain 240 · Underboss 200.
+- Upkeep as % of hire per hour: Soldier 10% · Captain 12% · Underboss 15%.
 
 ## Rank caps
 
@@ -104,6 +104,21 @@ solid prop in the way means they hold fire instead of wasting rounds.
 | ≤ 500 px | 100% | 50% |
 | ≤ 600 px | 100% | 40% |
 | > 600 px | 0% | 0% |
+
+### Critical hits
+
+| Value | Current |
+|---|---|
+| Base chance | **5%** |
+| Back-hit bonus | **+15%** (20% total) |
+| Back cone | rear **120°** of the victim's facing |
+| Multiplier | **2×** damage |
+| Applies to | every melee and pistol hit, rolled per victim |
+
+Roll order: hit chance (pistol) → base damage roll → distance falloff (pistol) → critical
+roll → armor → HP. A miss can never crit. Each target of a cleave rolls separately. The
+back check uses the victim's facing against the incoming strike direction and costs one
+cosine per hit; it adds no raycast or allocation.
 
 ### Armor & sprint
 

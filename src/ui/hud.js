@@ -131,6 +131,29 @@ const hudEls = {
   totalNet: document.getElementById('mgmt-total-net'),
 };
 
+function syncRankAliveCounts() {
+  const myFac = getLocalFaction();
+  const counts = {
+    [UnitRank.SOLDIER]: 0,
+    [UnitRank.CAPTAIN]: 0,
+    [UnitRank.UNDERBOSS]: 0,
+  };
+  for (const unit of state.npcs) {
+    if (unit.faction === myFac && counts[unit.rank] !== undefined) counts[unit.rank]++;
+  }
+  for (const [key, rank] of [
+    ['soldier', UnitRank.SOLDIER],
+    ['captain', UnitRank.CAPTAIN],
+    ['underboss', UnitRank.UNDERBOSS],
+  ]) {
+    const el = document.getElementById(`mgmt-alive-${key}`);
+    if (!el) continue;
+    const alive = counts[rank];
+    el.textContent = `(${alive} alive)`;
+    el.classList.toggle('is-zero', alive === 0);
+  }
+}
+
 export function syncRecruitButtonLabels() {
   clampPlayerSpawnCaps();
   const myFac = getLocalFaction();
@@ -182,6 +205,7 @@ export function syncRecruitButtonLabels() {
   setCapLabel('underboss', UnitRank.UNDERBOSS, maxUnderbosses);
 
   syncCapButtons();
+  syncRankAliveCounts();
 }
 
 export function updateHUD() {
@@ -211,6 +235,7 @@ export function updateHUD() {
     : `$${myCash.toLocaleString()}`;
   hudEls.cashText.classList.toggle('is-negative', myCash < 0);
   syncCapButtons();
+  syncRankAliveCounts();
 
   if (myBoss.sprintCooldown > 0) {
     setBarFill(

@@ -266,7 +266,7 @@ remote-human preferences to the configured range; every faction (human or AI) st
 full quota until the player lowers a slider. It emits `unit:recruited`;
 `render/recruitFx.js` draws the `+RANK ($cost)` text. Rival bosses controlled by a human
 peer have `humanPeerId`; all bosses use speed `140` (AI and human), while non-boss AI ranks
-use `150`. Same-faction units may push through each other (boss included); other factions
+use their per-rank speeds (`150` Underboss, `160` Captain, `170` Soldier). Same-faction units may push through each other (boss included); other factions
 always collide.
 
 ### Combat
@@ -274,7 +274,8 @@ always collide.
 (`damagePlayerBoss` delegates to `applyDamageToNpc`), death/elimination, one
 `performSlash` pipeline with player/rival/AI wrappers that share one knockback while
 keeping per-rank reach, arc and cooldowns, a pistol raycast with distance accuracy/damage
-bands and magazine reload, and
+bands and magazine reload, a per-hit critical roll (5% base, +15% from the rear cone, 2×
+damage), and
 point-blank damage falloff, and armor purchases (player, rival AI). It emits facts only;
 `render/combatFx.js` draws blood/corpses/text/arcs/tracers and `audio/combatSfx.js` plays
 the combat SFX. The host's `shot:fired` subscriber broadcasts ephemeral tracers to guests.
@@ -300,8 +301,8 @@ subscribe in `main.js`.
 AI/human speed, radius, capture points per tick, cost/upkeep), `UNIT_CAPS`, `CORRUPTION`, `SLASH`
 profiles, and
 `PISTOL` stats + accuracy bands. `config/constants.js` owns world/map defaults, sprint,
-pistol range, hit flash, the fixed sim step and catch-up limits. Non-boss AI ranks share a
-`150` base speed; bosses use `140` for both AI and human control, so sprint is the boss
+pistol range, hit flash, the fixed sim step and catch-up limits. Non-boss AI ranks use
+their rank speed (Underboss `150`, Captain `160`, Soldier `170`); bosses use `140` for both AI and human control, so sprint is the boss
 mobility advantage. Local and remote humans and AI bosses share one `SLASH.humanBoss`/`SLASH.aiBoss`
 rule set; crew melee reads `SLASH.aiMeleeByRank` for per-rank reach, arc and cooldown. The local player's HP, damage, speed and
 radius derive from `RANK_STATS.BOSS`. Systems read the tables at spawn/attack time and copy
@@ -391,8 +392,8 @@ distance from the camera.
 
 ## UI
 
-- `ui/hud.js`: primary boss/economy status, collapsible crew management panel (caps,
-  recruit costs, turf/crew/gross/upkeep/net totals), collapsible faction leaderboard
+- `ui/hud.js`: primary boss/economy status, collapsible crew management panel (per-rank
+  living counts, caps, recruit costs, turf/crew/gross/upkeep/net totals), collapsible faction leaderboard
   (turf, kills, deaths).
 - `ui/actionBar.js`: bottom-center combat bar. Slash/pistol/armor/sprint show ready/cooling
   states, cooldown overlays, costs and shortcuts; the pistol badge shows rounds left and

@@ -114,13 +114,13 @@ test('hud: updateHUD writes HP, armor, cash, clock and territory stats', () => {
       const stats = document.getElementById('stats-badge').textContent;
       assert(stats.includes('Turf: 1/2'), stats);
       assert(stats.includes('Crew: 2'), stats);
-      assertEqual(document.getElementById('mgmt-total-upkeep').textContent, '-$120/hr');
+      assertEqual(document.getElementById('mgmt-total-upkeep').textContent, '-$100/hr');
       assertEqual(document.getElementById('mgmt-total-gross').textContent, '+$1,000/hr');
       assertEqual(document.getElementById('mgmt-total-turf').textContent, '1/2');
       assertEqual(document.getElementById('mgmt-total-crew').textContent, '2');
       assertEqual(document.getElementById('mgmt-total-corruption').textContent, '$0 (0%)');
       assertEqual(document.getElementById('mgmt-corruption-breakdown').textContent, 'Turf 0% · Crew 0%');
-      assertEqual(document.getElementById('mgmt-total-net').textContent, '+$880/hr');
+      assertEqual(document.getElementById('mgmt-total-net').textContent, '+$900/hr');
       const board = document.getElementById('faction-board').textContent;
       assert(board.includes('Cosa Nostra'), board);
       assert(board.includes('(You)'), board);
@@ -198,10 +198,10 @@ test('hud: corruption breakdown combines turf and crew penalties', () => {
       assertEqual(document.getElementById('mgmt-total-turf').textContent, '10/10');
       assertEqual(document.getElementById('mgmt-total-crew').textContent, '25');
       assertEqual(document.getElementById('mgmt-total-gross').textContent, '+$1,000/hr');
-      assertEqual(document.getElementById('mgmt-total-upkeep').textContent, '-$2,880/hr');
+      assertEqual(document.getElementById('mgmt-total-upkeep').textContent, '-$2,400/hr');
       assertEqual(document.getElementById('mgmt-total-corruption').textContent, '-$20 (2%)');
       assertEqual(document.getElementById('mgmt-corruption-breakdown').textContent, 'Turf 1% · Crew 1%');
-      assertEqual(document.getElementById('mgmt-total-net').textContent, '-$1,900/hr');
+      assertEqual(document.getElementById('mgmt-total-net').textContent, '-$1,420/hr');
     }
   );
 });
@@ -239,6 +239,26 @@ test('hud: a dead local boss shows zero HP and no armor', () => {
     assertEqual(document.getElementById('hp-text').textContent, '0/800');
     assert(document.getElementById('armor-hud-box').classList.contains('hidden'));
   });
+});
+
+test('hud: rank headers show living crew counts', () => {
+  withHudState(
+    {
+      npcs: [
+        { faction: Faction.PLAYER, rank: UnitRank.SOLDIER },
+        { faction: Faction.PLAYER, rank: UnitRank.SOLDIER },
+        { faction: Faction.PLAYER, rank: UnitRank.SOLDIER },
+        { faction: Faction.PLAYER, rank: UnitRank.CAPTAIN },
+        { faction: Faction.RIVAL_1, rank: UnitRank.SOLDIER },
+      ],
+    },
+    () => {
+      updateHUD();
+      assertEqual(document.getElementById('mgmt-alive-soldier').textContent, '(3 alive)');
+      assertEqual(document.getElementById('mgmt-alive-captain').textContent, '(1 alive)');
+      assertEqual(document.getElementById('mgmt-alive-underboss').textContent, '(0 alive)');
+    }
+  );
 });
 
 test('hud: recruit labels reflect toggles and caps', () => {

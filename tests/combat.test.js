@@ -7,6 +7,7 @@ import {
   MAX_BOSS_ARMOR,
   COST_BOSS_ARMOR,
   PISTOL,
+  CRITICAL,
   SLASH,
 } from '../src/config/balance.js';
 import { FACTION_META } from '../src/config/organizations.js';
@@ -39,6 +40,8 @@ import {
   getPistolAim,
   performBossPistolShot,
   tickWeapon,
+  isBackHit,
+  rollCriticalHit,
   damagePlayerBoss,
   executeBuyArmorForFaction,
   buyBossArmor,
@@ -55,6 +58,16 @@ function withFixedRandom(value, fn) {
     return fn();
   } finally {
     Math.random = original;
+  }
+}
+
+function withCritConfig(patch, fn) {
+  const saved = { ...CRITICAL };
+  Object.assign(CRITICAL, patch);
+  try {
+    return fn();
+  } finally {
+    Object.assign(CRITICAL, saved);
   }
 }
 
@@ -261,6 +274,101 @@ test('combat: damage rolls stay inside the requested range', () => {
     assert(dmg >= 10 && dmg <= 20, `roll out of range: ${dmg}`);
   }
 });
+
+test('combat: critical chance is 5% base and 20% from behind', () => {
+  const target = { facing: 0 };
+  assertEqual(isBackHit(target, 0), true, 'attacking from behind');
+  assertEqual(isBackHit(target, Math.PI), false, 'attacking from the front');
+  assertEqual(isBackHit(target, Math.PI / 2), false, 'flank is not a back hit');
+
+  withFixedRandom(0.19, () => {
+    assertEqual(rollCriticalHit(target, 0), true, '19% is a back crit');
+    assertEqual(rollCriticalHit(target, Math.PI), false, '19% is above the base roll');
+  });
+  withFixedRandom(0.049, () => {
+    assertEqual(rollCriticalHit(target, Math.PI), true, 'below 5% is a base crit');
+  });
+  withFixedRandom(0.05, () => {
+    assertEqual(rollCriticalHit(target, Math.PI), false, '5% boundary is not a crit');
+  });
+  withFixedRandom(0.2, () => {
+    assertEqual(rollCriticalHit(target, 0), false, '20% boundary is not a crit');
+  });
+});
+
+test('combat: melee critical hits double damage and flag the event', () => {
+  withCombatState(
+    {
+      player: makePlayer({ facing: 0, minDmg: 10, maxDmg: 10 }),
+      npcs: [makeNpc({ x: 20, y: 0, hp: 100, maxHp: 100, facing: Math.PI })],
+    },
+    ({ events }) => {
+      withCritConfig({ chance: 1 }, () => {
+        withFixedRandom(0.99, () => performKnifeSlash());
+      });
+      const target = state.npcs[0];
+      assertEqual(target.hp, 80, '10 damage doubled to 20');
+      const hit = eventsOf(events, 'unit:damaged')[0];
+      assertEqual(hit.payload.amount, 20);
+      assertEqual(hit.payload.isCrit, true);
+    }
+  );
+});
+
+test('combat: pistol critical hits double the post-falloff damage', () => {
+  withCombatState(
+    {
+      player: makePlayer(),
+      npcs: [makeNpc({ x: 200, y: 0, hp: 500, maxHp: 500, facing: Math.PI })],
+    },
+    ({ events }) => {
+      withCritConfig({ chance: 1 }, () => {
+        withFixedRandom(0.99, () => performBossPistolShot(state.player, true, 200, 0));
+      });
+      // max roll 80 * .9 falloff = 72, doubled to 144
+      assertEqual(state.npcs[0].hp, 356);
+      const hit = eventsOf(events, 'unit:damaged')[0];
+      assertEqual(hit.payload.amount, 144);
+      assertEqual(hit.payload.isCrit, true);
+    }
+  );
+});
+
+test('combat: back hits apply the extra critical chance with both weapons', () => {
+  withCombatState(
+    {
+      player: makePlayer({ facing: 0, minDmg: 10, maxDmg: 10 }),
+      npcs: [makeNpc({ x: 20, y: 0, hp: 100, maxHp: 100, facing: 0 })],
+    },
+    () => {
+      withCritConfig({ chance: 0, backBonus: 1 }, () => {
+        withFixedRandom(0.99, () => performKnifeSlash());
+      });
+      assertEqual(state.npcs[0].hp, 80, 'melee back hit should crit');
+    }
+  );
+
+  withCombatState(
+    {
+      player: makePlayer(),
+      npcs: [makeNpc({ x: 200, y: 0, hp: 500, maxHp: 500, facing: 0 })],
+    },
+    () => {
+      withCritConfig({ chance: 0, backBonus: 1 }, () => {
+        withFixedRandom(0.99, () => performBossPistolShot(state.player, true, 200, 0));
+      });
+      assertEqual(state.npcs[0].hp, 356, 'pistol back hit should crit');
+    }
+  );
+});
+
+test('combat: critical config is locked to 5% base, +15% back, 2x damage', () => {
+  assertEqual(CRITICAL.chance, 0.05);
+  assertEqual(CRITICAL.backBonus, 0.15);
+  assertEqual(CRITICAL.multiplier, 2);
+  assertEqual(CRITICAL.backArcCos, 0.5);
+});
+
 
 test('combat: raycast reports clear paths and building impacts', () => {
   withCombatState({ world: makeWorld() }, () => {

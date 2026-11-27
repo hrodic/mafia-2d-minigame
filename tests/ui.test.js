@@ -1,6 +1,6 @@
 // Static UI integration checks for index.html (zero dependencies, no network beyond
 // fetching the page itself). Guards the Ko-fi support button and the modal header.
-import { test, assert, assertEqual } from './harness.js';
+import { test, assert, assertEqual, assertDeepEqual } from './harness.js';
 import { GAME_VERSION } from '../src/config/version.js';
 
 async function fetchIndexHtml() {
@@ -183,6 +183,10 @@ test('ui: hierarchy manual is a scannable rank table', async () => {
   assert(table, 'hierarchy rank table missing');
   assert(table.textContent.includes('Don · Pakhan'), 'rank table should keep per-syndicate titles');
   assert(table.textContent.includes('Sottocapo · Avtoritet'), 'underboss titles missing');
+  assert(panel.textContent.includes('Critical hits'), 'critical-hit explanation missing');
+  assert(panel.textContent.includes('20%'), 'back-hit critical chance missing');
+  const pistolIcon = panel.querySelector('.manual-card-amber .manual-card-icon');
+  assertEqual(pistolIcon.textContent.trim(), '⌖', 'pistol card should use the crosshair icon');
   assertEqual(table.querySelectorAll('tbody tr').length, 4);
 
   const headers = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim().toLowerCase());
@@ -191,7 +195,7 @@ test('ui: hierarchy manual is a scannable rank table', async () => {
   }
 
   const text = table.textContent;
-  for (const value of ['$3,800', '$2,200', '$1,200', '960', '680', '360', '×1', '×2', '×10']) {
+  for (const value of ['$4,000', '$2,500', '$1,000', '800', '600', '300', '×1', '×2', '×10']) {
     assert(text.includes(value), `rank table should show ${value}`);
   }
 
@@ -329,10 +333,17 @@ test('ui: crew totals, collapsible leaderboard and expandable radar', async () =
   }
   assert(totals.textContent.includes('Gross'), 'gross total label missing');
   assert(totals.textContent.includes('Corruption'), 'corruption total label missing');
+  const corruption = totals.querySelector('.mgmt-total-corruption');
+  const corruptionHead = corruption.querySelector('.mgmt-total-head').textContent;
+  assert(corruptionHead.includes('Turf 0% · Crew 0%'), 'corruption breakdown should sit beside the title');
+  assert(!corruptionHead.includes('$0 (0%)'), 'corruption money should not sit beside the title');
+  assertEqual(corruption.querySelector('#mgmt-total-corruption').textContent, '$0 (0%)');
+  const labels = [...totals.querySelectorAll('.mgmt-total-label')].map((el) => el.textContent.trim());
+  assertDeepEqual(labels, ['Turf', 'Crew', 'Upkeep', 'Corruption', 'Gross', 'Net']);
 
   const css = await (await fetch('../styles.css', { cache: 'no-store' })).text();
   assert(/#radar-panel\.is-expanded canvas/s.test(css), 'expanded radar sizing missing');
-  assert(/\.mgmt-total-net\s*\{[^}]*grid-column/s.test(css), 'net total should span the row');
+  assert(!/\.mgmt-total-net\s*\{[^}]*grid-column/s.test(css), 'net total should share the last row');
 });
 
 test('ui: critical HUD values are tabular and bars are transform-driven', async () => {

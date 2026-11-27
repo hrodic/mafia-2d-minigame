@@ -116,6 +116,7 @@
             <div class="mgmt-tier-title">
               <span id="mgmt-rank-soldier" class="mgmt-rank-name">Soldato</span>
               <span id="mgmt-auto-soldier" class="mgmt-auto-label">ON</span>
+              <span id="mgmt-alive-soldier" class="mgmt-alive-count">(0 alive)</span>
             </div>
             <button id="btn-toggle-soldier" type="button" role="switch" aria-checked="true"
                     class="mgmt-switch" aria-label="Auto-spawn Soldier"
@@ -125,8 +126,8 @@
           </div>
           <div class="mgmt-tier-meta">
             <div class="mgmt-tier-economy">
-              <span id="mgmt-price-soldier" class="mgmt-price">$1,200</span>
-              <span id="mgmt-upkeep-soldier" class="mgmt-upkeep-cost">-$120/hr upkeep</span>
+              <span id="mgmt-price-soldier" class="mgmt-price">$1,000</span>
+              <span id="mgmt-upkeep-soldier" class="mgmt-upkeep-cost">-$100/hr upkeep</span>
             </div>
             <div class="mgmt-caps" title="Target Soldier spawn cap">
               <button id="btn-cap-soldier-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Soldier cap to minimum">MIN</button>
@@ -143,6 +144,7 @@
             <div class="mgmt-tier-title">
               <span id="mgmt-rank-captain" class="mgmt-rank-name">Caporegime</span>
               <span id="mgmt-auto-captain" class="mgmt-auto-label">ON</span>
+              <span id="mgmt-alive-captain" class="mgmt-alive-count">(0 alive)</span>
             </div>
             <button id="btn-toggle-captain" type="button" role="switch" aria-checked="true"
                     class="mgmt-switch" aria-label="Auto-spawn Captain"
@@ -152,8 +154,8 @@
           </div>
           <div class="mgmt-tier-meta">
             <div class="mgmt-tier-economy">
-              <span id="mgmt-price-captain" class="mgmt-price">$2,200</span>
-              <span id="mgmt-upkeep-captain" class="mgmt-upkeep-cost">-$220/hr upkeep</span>
+              <span id="mgmt-price-captain" class="mgmt-price">$2,500</span>
+              <span id="mgmt-upkeep-captain" class="mgmt-upkeep-cost">-$300/hr upkeep</span>
             </div>
             <div class="mgmt-caps" title="Target Captain spawn cap">
               <button id="btn-cap-captain-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Captain cap to minimum">MIN</button>
@@ -170,6 +172,7 @@
             <div class="mgmt-tier-title">
               <span id="mgmt-rank-underboss" class="mgmt-rank-name">Sottocapo</span>
               <span id="mgmt-auto-underboss" class="mgmt-auto-label">ON</span>
+              <span id="mgmt-alive-underboss" class="mgmt-alive-count">(0 alive)</span>
             </div>
             <button id="btn-toggle-underboss" type="button" role="switch" aria-checked="true"
                     class="mgmt-switch" aria-label="Auto-spawn Underboss"
@@ -179,8 +182,8 @@
           </div>
           <div class="mgmt-tier-meta">
             <div class="mgmt-tier-economy">
-              <span id="mgmt-price-underboss" class="mgmt-price">$3,800</span>
-              <span id="mgmt-upkeep-underboss" class="mgmt-upkeep-cost">-$380/hr upkeep</span>
+              <span id="mgmt-price-underboss" class="mgmt-price">$4,000</span>
+              <span id="mgmt-upkeep-underboss" class="mgmt-upkeep-cost">-$600/hr upkeep</span>
             </div>
             <div class="mgmt-caps" title="Target Underboss spawn cap">
               <button id="btn-cap-underboss-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Underboss cap to minimum">MIN</button>
@@ -202,19 +205,19 @@
             <span id="mgmt-total-crew" class="mgmt-total-value hud-num">0</span>
           </div>
           <div class="mgmt-total">
-            <span class="mgmt-total-label">Gross</span>
-            <span id="mgmt-total-gross" class="mgmt-total-value hud-num">+$0/hr</span>
-          </div>
-          <div class="mgmt-total">
             <span class="mgmt-total-label">Upkeep</span>
             <span id="mgmt-total-upkeep" class="mgmt-total-value hud-num">$0/hr</span>
           </div>
-          <div class="mgmt-total mgmt-total-wide mgmt-total-corruption">
+          <div class="mgmt-total mgmt-total-corruption">
             <div class="mgmt-total-head">
               <span class="mgmt-total-label">Corruption</span>
-              <span id="mgmt-total-corruption" class="mgmt-total-value hud-num">-0%</span>
+              <span id="mgmt-corruption-breakdown" class="mgmt-total-sub hud-num">Turf 0% · Crew 0%</span>
             </div>
-            <span id="mgmt-corruption-breakdown" class="mgmt-total-sub hud-num">Turf 0% · Crew 0%</span>
+            <span id="mgmt-total-corruption" class="mgmt-total-value hud-num">$0 (0%)</span>
+          </div>
+          <div class="mgmt-total">
+            <span class="mgmt-total-label">Gross</span>
+            <span id="mgmt-total-gross" class="mgmt-total-value hud-num">+$0/hr</span>
           </div>
           <div class="mgmt-total mgmt-total-net">
             <span class="mgmt-total-label">Net</span>
@@ -768,7 +771,7 @@
 
                 <div class="manual-card manual-card-amber">
                   <div class="manual-card-head">
-                    <span class="manual-card-icon">🔫</span>
+                    <span class="manual-card-icon manual-card-icon-symbol">⌖</span>
                     <div class="min-w-0">
                       <div class="manual-card-title">9mm Pistol</div>
                       <div class="manual-card-sub">50–80 dmg · 600px</div>
@@ -801,10 +804,14 @@
                     </table>
                   </div>
                   <p class="manual-note">
-                    Only bosses and underbosses carry it. AI holds fire when a building blocks the shot.
+                    Only bosses and underbosses carry it; AI holds fire when a building blocks the shot.
                   </p>
                 </div>
               </div>
+              <p class="manual-crit-note">
+                <span class="manual-crit-title">Critical hits</span>
+                Every weapon rolls a <span class="text-white">5%</span> critical chance, or <span class="text-white">20%</span> when striking the victim's back (rear 120°). A critical deals <span class="text-white">2× damage</span>; armor still absorbs first, and a miss can never crit.
+              </p>
             </div>
 
             <div class="manual-section">
@@ -852,10 +859,10 @@
                           <span class="rank-alias">Sottocapo · Avtoritet · Wakagashira · Fu Shan Chu · Contabile · Lugarteniente</span>
                         </span>
                       </th>
-                      <td class="stat-cell"><span class="stat-main">960</span><span class="stat-sub">+120 armor</span></td>
+                      <td class="stat-cell"><span class="stat-main">800</span><span class="stat-sub">+120 armor</span></td>
                       <td class="stat-cell"><span class="stat-main">25–35</span><span class="stat-sub">blade</span></td>
-                      <td class="stat-cell"><span class="stat-main money">$3,800</span></td>
-                      <td class="stat-cell"><span class="stat-main">$380</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="stat-main money">$4,000</span></td>
+                      <td class="stat-cell"><span class="stat-main">$600</span><span class="stat-sub">/ hr</span></td>
                       <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×1">×1</span></td>
                     </tr>
                     <tr class="tier-silver">
@@ -866,10 +873,10 @@
                           <span class="rank-alias">Caporegime · Brigadier · Shateigashira · Hung Kwan · Caposocietà · Jefe de Plaza</span>
                         </span>
                       </th>
-                      <td class="stat-cell"><span class="stat-main">680</span></td>
+                      <td class="stat-cell"><span class="stat-main">600</span></td>
                       <td class="stat-cell"><span class="stat-main">20–30</span><span class="stat-sub">blade</span></td>
-                      <td class="stat-cell"><span class="stat-main money">$2,200</span></td>
-                      <td class="stat-cell"><span class="stat-main">$220</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="stat-main money">$2,500</span></td>
+                      <td class="stat-cell"><span class="stat-main">$300</span><span class="stat-sub">/ hr</span></td>
                       <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×2">×2</span></td>
                     </tr>
                     <tr class="tier-copper">
@@ -880,10 +887,10 @@
                           <span class="rank-alias">Soldato · Boyevik · Kobun · Sei Kau Tsai · Picciotto · Sicario</span>
                         </span>
                       </th>
-                      <td class="stat-cell"><span class="stat-main">360</span></td>
+                      <td class="stat-cell"><span class="stat-main">300</span></td>
                       <td class="stat-cell"><span class="stat-main">15–25</span><span class="stat-sub">blade</span></td>
-                      <td class="stat-cell"><span class="stat-main money">$1,200</span></td>
-                      <td class="stat-cell"><span class="stat-main">$120</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="stat-main money">$1,000</span></td>
+                      <td class="stat-cell"><span class="stat-main">$100</span><span class="stat-sub">/ hr</span></td>
                       <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×10">×10</span></td>
                     </tr>
                   </tbody>
@@ -900,8 +907,8 @@
                   <ul class="space-y-0.5">
                     <li>Boss: 140 px/s · 1 capture point/tick · radius 13.5</li>
                     <li>Underboss: 150 px/s · 1 capture point/tick · radius 12.8</li>
-                    <li>Captain: 150 px/s · 0.5 capture point/tick · radius 12</li>
-                    <li>Soldier: 150 px/s · 0.2 capture point/tick · radius 11</li>
+                    <li>Captain: 160 px/s · 0.5 capture point/tick · radius 12</li>
+                    <li>Soldier: 170 px/s · 0.2 capture point/tick · radius 11</li>
                     <li>Contested turf: capture resets while any enemy unit stands on it; neutral turf never resists.</li>
                   </ul>
                 </div>

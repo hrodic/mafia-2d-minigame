@@ -14,7 +14,7 @@ import {
 } from './effects.js';
 
 export function onUnitDamaged(event) {
-  const { unit, absorbed, remaining, isPlayer, isKill, hitAngle, textColor, suffix } = event;
+  const { unit, absorbed, remaining, isPlayer, isKill, isCrit, hitAngle, textColor, suffix } = event;
 
   if (remaining > 0) {
     const intensity = isPlayer ? 1.35 : unit.rank === UnitRank.BOSS ? 1.45 : 1.2;
@@ -24,17 +24,19 @@ export function onUnitDamaged(event) {
   }
 
   const yOffset = isPlayer ? 30 : 28;
+  const crit = isCrit && remaining > 0 ? 'CRIT! ' : '';
+  const color = isCrit && remaining > 0 ? '#fde047' : textColor;
   if (absorbed > 0 && remaining === 0) {
     addFloatingText(unit.x, unit.y - yOffset, `-${absorbed} 🛡️`, '#38bdf8');
   } else if (absorbed > 0 && remaining > 0) {
     addFloatingText(
       unit.x,
       unit.y - yOffset,
-      `-${absorbed}🛡️ -${remaining} ${suffix}`.trim(),
-      textColor
+      `${crit}-${absorbed}🛡️ -${remaining} ${suffix}`.trim(),
+      color
     );
   } else {
-    addFloatingText(unit.x, unit.y - yOffset, `-${remaining} ${suffix}`.trim(), textColor);
+    addFloatingText(unit.x, unit.y - yOffset, `${crit}-${remaining} ${suffix}`.trim(), color);
   }
 }
 
