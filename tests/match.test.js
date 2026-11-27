@@ -2,6 +2,7 @@
 import { test, assert, assertEqual, assertDeepEqual } from './harness.js';
 import { Faction, UnitRank } from '../src/config/enums.js';
 import { INCOME_TIERS } from '../src/config/balance.js';
+import { TILE_SIZE } from '../src/config/constants.js';
 import { FACTION_META, ORGANIZATIONS } from '../src/config/organizations.js';
 import { state } from '../src/core/state.js';
 import { on } from '../src/core/events.js';
@@ -130,8 +131,8 @@ test('match: the player boss is reset and spawns at the top-left corner', () => 
     assertEqual(state.player.armor, 0);
     assertEqual(state.player.alive, true);
     assertEqual(state.player.attackCooldown, 0);
-    assertEqual(state.player.x, 1.5 * 44);
-    assertEqual(state.player.y, 1.5 * 44);
+    assertEqual(state.player.x, 1.5 * TILE_SIZE);
+    assertEqual(state.player.y, 1.5 * TILE_SIZE);
     assertEqual(state.gameStarted, true);
     assertEqual(state.gameOver, false);
     assertEqual(state.victoryShown, false);
@@ -272,8 +273,8 @@ test('match: initWorld resets stale flags, timers, economy, caps and player stat
     assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 5);
     assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 3);
 
-    assertEqual(state.player.x, 1.5 * 44);
-    assertEqual(state.player.y, 1.5 * 44);
+    assertEqual(state.player.x, 1.5 * TILE_SIZE);
+    assertEqual(state.player.y, 1.5 * TILE_SIZE);
     assertEqual(state.player.targetX, null);
     assertEqual(state.player.targetY, null);
     assertEqual(state.player.path, null);

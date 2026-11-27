@@ -95,9 +95,11 @@
   <!-- Main Canvas Container -->
   <main class="relative flex-1 w-full h-full overflow-hidden">
     <canvas id="gameCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+    <!-- HUD overlay: empty margins pass pointer input through to the canvas. -->
+    <div id="hud-overlay" class="hud-overlay">
     <!-- Crew Management (secondary controls) -->
     <section id="management-panel"
-             class="glass-panel management-panel absolute top-4 left-4 z-10 w-[300px] max-w-[calc(100vw-2rem)] p-3 rounded-xl text-xs">
+             class="glass-panel hud-interactive management-panel absolute top-4 left-4 z-10 w-[300px] max-w-[calc(100vw-2rem)] p-3 rounded-xl text-xs">
       <div class="mgmt-header">
         <div class="mgmt-header-copy">
           <span class="mgmt-title">Crew Management</span>
@@ -198,7 +200,7 @@
     </section>
 
     <!-- Combat Action Bar (bottom-center) -->
-    <div id="action-bar" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-stretch gap-1.5 p-1.5 rounded-2xl glass-panel max-w-[calc(100vw-1rem)]">
+    <div id="action-bar" class="hud-interactive absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-stretch gap-1.5 p-1.5 rounded-2xl glass-panel max-w-[calc(100vw-1rem)]">
       <button id="btn-slash" type="button" class="action-btn action-rose" data-tip="Knife slash — up to 3 targets in front (Space / F)" aria-label="Slash (F)">
         <span class="action-icon">🔪</span>
         <span class="action-label">Slash</span>
@@ -236,7 +238,7 @@
     </div>
 
     <!-- Spectator Mode Pill (Shown when spectating after defeat) -->
-    <div id="spectator-banner" class="hidden glass-panel fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full border border-amber-500/60 flex items-center gap-3 text-xs z-20">
+    <div id="spectator-banner" class="hud-interactive hidden glass-panel fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full border border-amber-500/60 flex items-center gap-3 text-xs z-20">
       <span class="flex items-center gap-1.5 font-bold text-amber-400 uppercase tracking-wider">
         <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
         Spectator Mode
@@ -253,12 +255,13 @@
     </div>
 
     <!-- City Radar Minimap (Bottom-Right) -->
-    <div class="glass-panel absolute bottom-4 right-4 p-2.5 rounded-xl z-10 flex flex-col gap-1.5">
+    <div id="radar-panel" class="glass-panel hud-interactive absolute bottom-4 right-4 p-2.5 rounded-xl z-10 flex flex-col gap-1.5">
       <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-zinc-400">
         <span>City Radar</span>
         <span id="minimap-coords" class="font-mono hud-num text-zinc-300 text-right">(0, 0)</span>
       </div>
       <canvas id="minimapCanvas" width="168" height="168" class="rounded-lg border border-zinc-800 cursor-crosshair"></canvas>
+    </div>
     </div>
 
     <!-- Pre-Game Setup, Multiplayer Lobby & Field Manual Modal -->

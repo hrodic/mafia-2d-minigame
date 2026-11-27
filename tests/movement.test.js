@@ -2,7 +2,7 @@
 // and NPC boss sprint state.
 import { test, assert, assertEqual, assertClose } from './harness.js';
 import { Faction, UnitRank } from '../src/config/enums.js';
-import { CHUNK_PX, SPRINT_COOLDOWN_DURATION, SPRINT_MAX_DURATION } from '../src/config/constants.js';
+import { CHUNK_PX, TILE_SIZE, SPRINT_COOLDOWN_DURATION, SPRINT_MAX_DURATION } from '../src/config/constants.js';
 import { state } from '../src/core/state.js';
 import { packChunkKey } from '../src/world/city.js';
 import {
@@ -359,18 +359,18 @@ test('movement: remote waypoints path around walls instead of getting stuck', ()
     income: 1000,
   };
   const world = {
-    canMoveTo: (wx, wy) => !blocked.has(`${Math.floor(wx / 44)},${Math.floor(wy / 44)}`),
+    canMoveTo: (wx, wy) => !blocked.has(`${Math.floor(wx / TILE_SIZE)},${Math.floor(wy / TILE_SIZE)}`),
     isTileNavigable: (gx, gy) => !blocked.has(`${gx},${gy}`),
     findNearestWalkablePoint: (wx, wy) => ({ x: wx, y: wy }),
     worldToTile: (wx, wy) => {
-      const gx = Math.floor(wx / 44);
-      const gy = Math.floor(wy / 44);
+      const gx = Math.floor(wx / TILE_SIZE);
+      const gy = Math.floor(wy / TILE_SIZE);
       return { cx: Math.floor(gx / 15), cy: Math.floor(gy / 15), lx: gx % 15, ly: gy % 15 };
     },
     getChunk: () => chunk,
     chunks: new Map([['0,0', chunk]]),
   };
-  const boss = makeRemoteBoss({ x: 2.5 * 44, y: 5.5 * 44, targetX: 10.5 * 44, targetY: 5.5 * 44 });
+  const boss = makeRemoteBoss({ x: 2.5 * TILE_SIZE, y: 5.5 * TILE_SIZE, targetX: 10.5 * TILE_SIZE, targetY: 5.5 * TILE_SIZE });
   withState(
     basePatch({ world, player: { x: -1000, y: -1000, alive: false }, spatialBuckets: new Map() }),
     () => {
@@ -380,7 +380,7 @@ test('movement: remote waypoints path around walls instead of getting stuck', ()
         if (boss.y > 400) detoured = true;
       }
       assert(detoured, 'boss should detour through the wall gap (y around 462)');
-      const dist = Math.hypot(10.5 * 44 - boss.x, 5.5 * 44 - boss.y);
+      const dist = Math.hypot(10.5 * TILE_SIZE - boss.x, 5.5 * TILE_SIZE - boss.y);
       assert(dist < 60, `boss should reach the waypoint, distance=${dist.toFixed(1)}`);
     }
   );

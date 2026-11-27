@@ -273,6 +273,38 @@ test('ui: settings cards are grouped by priority with the seed last', async () =
   assert(summary.querySelector('#match-impact-text').textContent.includes('15s ticks'));
 });
 
+test('ui: floating HUD panels use noir glass and pass map clicks through', async () => {
+  const html = await fetchIndexHtml();
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const overlay = doc.getElementById('hud-overlay');
+  assert(overlay, 'hud overlay wrapper missing');
+  assert(!overlay.contains(doc.getElementById('gameCanvas')), 'canvas must stay outside the HUD overlay');
+  assert(overlay.querySelector('#management-panel'), 'crew panel should live in the HUD overlay');
+  assert(overlay.querySelector('#action-bar'), 'action bar should live in the HUD overlay');
+  assert(overlay.querySelector('#radar-panel'), 'radar should live in the HUD overlay');
+  assertEqual(doc.querySelectorAll('.hud-interactive').length, 4);
+
+  const css = await (await fetch('../styles.css', { cache: 'no-store' })).text();
+  assert(
+    /\.glass-panel\s*\{[^}]*background:\s*rgba\(15,\s*18,\s*24,\s*0\.82\)/s.test(css),
+    'floating panels need the dark noir surface'
+  );
+  assert(/\.glass-panel\s*\{[^}]*backdrop-filter:\s*blur\(8px\)/s.test(css), 'floating panels need blur');
+  assert(
+    /\.glass-panel\s*\{[^}]*border:\s*1px solid rgba\(255,\s*255,\s*255,\s*0\.12\)/s.test(css),
+    'floating panels need the light hairline border'
+  );
+  assert(/\.hud-overlay\s*\{[^}]*pointer-events:\s*none/s.test(css), 'HUD overlay must not block the map');
+  assert(/\.hud-interactive\s*\{[^}]*pointer-events:\s*auto/s.test(css), 'interactive panels must accept input');
+});
+
+test('ui: weather is normal gameplay without a Noir toggle', async () => {
+  const html = await fetchIndexHtml();
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  assertEqual(doc.getElementById('btn-toggle-noir'), null);
+  assertEqual(doc.querySelectorAll('#hud-zone-right .hud-util-btn').length, 3);
+});
+
 test('ui: critical HUD values are tabular and bars are transform-driven', async () => {
   const html = await fetchIndexHtml();
   const doc = new DOMParser().parseFromString(html, 'text/html');

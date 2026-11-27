@@ -58,8 +58,9 @@ src/
     mpNet.js               composition root for host + guest multiplayer
   render/
     canvas.js              shared canvas/context references (guarded for tests)
-    renderer.js            frame orchestration: culling, depth sort, layers
-    world.js               buildings/props
+    renderer.js            frame orchestration: culling, depth sort, layers, ground LRU cache
+    world.js               cached building sprites, roof details, window lights, props
+    weather.js             day/night lamps, ambient tint, capped noir rain
     characters.js          characters + corpses
     effects.js             blood/decals/tracers/casings/sparks/floating text
     backdrop.js            subtle city pattern outside the playable chunks
@@ -357,7 +358,14 @@ and characters into a depth-sorted list, and draws layers: a subtle world-space 
 backdrop (outside the playable chunks), ground + faction tint, capture bars, turf income
 labels, blood decals/corpses, waypoint and muzzle-accurate aim/reticle UI, characters (with
 HP/armor bars and rank labels), then effects (slash arcs, muzzle flashes, tracers, blood,
-sparks, casings, floating text).
+sparks, casings, floating text). Static ground is cached per visible chunk in an LRU of
+offscreen canvases (asphalt grain, curbs, markings); building walls/roofs/roof props are
+cached per building sprite and drawn in the same depth order, with dynamically lit facade
+windows layered on top. `render/weather.js` draws the capped diagonal rain pass in screen
+space whenever the day/night schedule says rain. Rain is re-decided only when the
+day/night period flips (25% day, 50% night). The same continuous hour drives the lamp
+intensity (off 08–21, on 22–07, one-hour dusk/dawn fades) and a screen-space ambient tint:
+warm sunny light by day, cool blue by night.
 `render/minimap.js` caches the faction territory layer and overlays units, the boss, the
 camera rect and chunk coordinates; `render/minimapLayout.js` owns the shared bounds/cell/
 offset and world<->map mapping (also used by radar clicks). The radar canvas is 168px and

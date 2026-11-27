@@ -5,8 +5,10 @@ import { TileType, PropType, Faction } from '../config/enums.js';
 import { INCOME_TIERS } from '../config/balance.js';
 import { ALL_FACTION_SLOTS } from '../config/organizations.js';
 import { hashChunkSeed, createMulberry32 } from '../core/rng.js';
+import { getCarFootprint } from './geometry.js';
 
 const CAR_PALETTE = ['#18181b', '#27272a', '#e4e4e7', '#1e293b', '#3f3f46', '#7f1d1d'];
+export const ASPHALT_COLOR = '#111318';
 
 
 export class DistrictChunk {
@@ -64,6 +66,7 @@ export class DistrictChunk {
             sortY: wy + TILE_SIZE,
             wx,
             wy,
+            seed: this.generation.seed ?? 0,
             elev: this.elevation[ly][lx],
             style: this.buildingStyle[ly][lx],
             hasSouthBuilding: ly + 1 < CHUNK_SIZE && this.ground[ly + 1][lx] === TileType.BUILDING,
@@ -76,11 +79,17 @@ export class DistrictChunk {
         if (prop !== PropType.NONE) {
           let propSortY = wy + TILE_SIZE * 0.72;
           if (prop === PropType.CAR) {
-            propSortY = this.propVertical[ly][lx] ? wy + 39 : wy + 28;
+            const carRect = getCarFootprint(
+              wx,
+              wy,
+              this.propVertical[ly][lx],
+              this.propCurbSide[ly][lx]
+            );
+            propSortY = carRect.y + carRect.h;
           } else if (prop === PropType.STREETLIGHT || prop === PropType.TREE) {
-            propSortY = wy + 26;
+            propSortY = wy + TILE_SIZE * 0.6;
           } else if (prop === PropType.DUMPSTER) {
-            propSortY = wy + 32;
+            propSortY = wy + TILE_SIZE * 0.72;
           }
           this.propRenderList.push({
             type: 'prop',
@@ -104,7 +113,7 @@ export class DistrictChunk {
         const g = this.ground[ly][lx];
         const p = this.props[ly][lx];
         this.solidMask[idx] =
-          g === TileType.BUILDING || p === PropType.CAR || p === PropType.DUMPSTER ? 1 : 0;
+          g === TileType.BUILDING || p === PropType.CAR ? 1 : 0;
       }
     }
   }
@@ -118,7 +127,10 @@ export class DistrictChunk {
     return Faction.NEUTRAL;
   }
 
-  drawGroundDirect(targetCtx, originX, originY, viewLeft, viewRight, viewTop, viewBottom) {
+  drawGroundDirect(targetCtx, originX, originY, viewLeft, viewRight, viewTop, viewBottom, grainTile = null) {
+    const grainPattern = grainTile && targetCtx.createPattern
+      ? targetCtx.createPattern(grainTile, 'repeat')
+      : null;
     const minLx = Math.max(0, Math.floor((viewLeft - originX) / TILE_SIZE));
     const maxLx = Math.min(CHUNK_SIZE - 1, Math.floor((viewRight - originX) / TILE_SIZE));
     const minLy = Math.max(0, Math.floor((viewTop - originY) / TILE_SIZE));
@@ -132,8 +144,12 @@ export class DistrictChunk {
         const wy = originY + ly * TILE_SIZE;
 
         if (tile === TileType.ASPHALT) {
-          targetCtx.fillStyle = '#18181b';
+          targetCtx.fillStyle = ASPHALT_COLOR;
           targetCtx.fillRect(wx, wy, TILE_SIZE, TILE_SIZE);
+          if (grainPattern) {
+            targetCtx.fillStyle = grainPattern;
+            targetCtx.fillRect(wx, wy, TILE_SIZE, TILE_SIZE);
+          }
 
           if ((ly === 0 || ly === CHUNK_SIZE - 1) && lx > 1 && lx < CHUNK_SIZE - 2 && lx % 2 === 0) {
             targetCtx.fillStyle = '#ca8a04';
@@ -153,11 +169,9 @@ export class DistrictChunk {
 
           if (this.props[ly][lx] === PropType.CAR) {
             const side = this.propCurbSide[ly][lx];
+            const rect = getCarFootprint(wx, wy, this.propVertical[ly][lx], side);
             targetCtx.fillStyle = 'rgba(9, 9, 11, 0.45)';
-            if (side === 'N') targetCtx.fillRect(wx + 2, wy + 18, TILE_SIZE - 4, 24);
-            else if (side === 'S') targetCtx.fillRect(wx + 2, wy + 2, TILE_SIZE - 4, 24);
-            else if (side === 'W') targetCtx.fillRect(wx + 18, wy + 2, 24, TILE_SIZE - 4);
-            else if (side === 'E') targetCtx.fillRect(wx + 2, wy + 2, 24, TILE_SIZE - 4);
+            targetCtx.fillRect(rect.x + 2, rect.y + 3, rect.w, rect.h);
           }
         } else {
           const curbLift = 4;
@@ -310,11 +324,18 @@ export class DistrictChunk {
       }
     }
 
+    const nextToBuilding = (x, y) => (
+      (x + 1 < CHUNK_SIZE && this.ground[y][x + 1] === TileType.BUILDING)
+      || (x - 1 >= 0 && this.ground[y][x - 1] === TileType.BUILDING)
+      || (y + 1 < CHUNK_SIZE && this.ground[y + 1][x] === TileType.BUILDING)
+      || (y - 1 >= 0 && this.ground[y - 1][x] === TileType.BUILDING)
+    );
+
     for (let ly = 1; ly < LAST; ly++) {
       for (let lx = 1; lx < LAST; lx++) {
         if (this.props[ly][lx] !== PropType.NONE) continue;
         const g = this.ground[ly][lx];
-        if (g === TileType.ALLEY && rng() < 0.07) {
+        if (g === TileType.ALLEY && nextToBuilding(lx, ly) && rng() < 0.07) {
           this.props[ly][lx] = PropType.DUMPSTER;
         } else if (
           (g === TileType.SIDEWALK || g === TileType.PLAZA) &&

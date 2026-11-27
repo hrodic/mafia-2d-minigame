@@ -97,7 +97,7 @@ test('world: solid mask matches buildings and blocking props', () => {
       const ground = chunk.ground[ly][lx];
       const prop = chunk.props[ly][lx];
       const expected =
-        ground === TileType.BUILDING || prop === PropType.CAR || prop === PropType.DUMPSTER ? 1 : 0;
+        ground === TileType.BUILDING || prop === PropType.CAR ? 1 : 0;
       assertEqual(chunk.solidMask[ly * CHUNK_SIZE + lx], expected, `tile ${lx},${ly}`);
     }
   }
@@ -138,7 +138,7 @@ test('world: walkability and navigation distinguish buildings from streets', () 
   assertEqual(map.canMoveTo(b.x, b.y, 11), false);
 });
 
-test('world: canMoveTo allows a clear road tile and blocks per props', () => {
+test('world: canMoveTo allows a clear road, cars block and containers do not', () => {
   const map = new CityMap(GENERATION);
   const chunk = map.generateChunk(0, 0);
   const corner = tileCenterWorld(map, 0, 0, 0, 0);
@@ -148,7 +148,16 @@ test('world: canMoveTo allows a clear road tile and blocks per props', () => {
   const dumpster = findTile(chunk, (ground, prop) => prop === PropType.DUMPSTER);
   if (dumpster) {
     const d = tileCenterWorld(map, 0, 0, dumpster.lx, dumpster.ly);
-    assertEqual(map.canMoveTo(d.x, d.y, 11), false);
+    assertEqual(map.canMoveTo(d.x, d.y, 11), true);
+    const nearBuilding = [
+      [1, 0], [-1, 0], [0, 1], [0, -1],
+    ].some(([dx, dy]) => {
+      const nx = dumpster.lx + dx;
+      const ny = dumpster.ly + dy;
+      return nx >= 0 && ny >= 0 && nx < CHUNK_SIZE && ny < CHUNK_SIZE
+        && chunk.ground[ny][nx] === TileType.BUILDING;
+    });
+    assert(nearBuilding, 'containers should sit next to a building');
   }
 });
 

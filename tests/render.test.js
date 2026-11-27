@@ -2,16 +2,32 @@
 import { test, assert, assertEqual } from './harness.js';
 import { Faction, UnitRank } from '../src/config/enums.js';
 import { ALL_FACTION_SLOTS } from '../src/config/organizations.js';
+import { TILE_SIZE, CHUNK_PX } from '../src/config/constants.js';
 import { state } from '../src/core/state.js';
 import { CityMap } from '../src/world/city.js';
-import { canvas, minimapCanvas } from '../src/render/canvas.js';
+import { ASPHALT_COLOR } from '../src/world/chunk.js';
+import { canvas, ctx, minimapCanvas } from '../src/render/canvas.js';
 import { resetEffects } from '../src/render/effects.js';
 import { resizeCanvas, render } from '../src/render/renderer.js';
-import { drawBuilding, drawProp } from '../src/render/world.js';
+import { drawBuilding, drawProp, drawStreetlightGlows, isWindowLit, windowLightAlpha } from '../src/render/world.js';
+import { updateAndDrawRain, updateRainSchedule, resetWeather, isRaining, isDayHour, rainChanceForHour, lampIntensityAt, sunIntensityAt, drawAmbientLight } from '../src/render/weather.js';
 import { drawCharacter, drawDeadBody } from '../src/render/characters.js';
 import { renderMinimap } from '../src/render/minimap.js';
 
-const STATE_KEYS = ['world', 'player', 'camera', 'npcs', 'mouse', 'minimapCacheTimer', 'floatingTexts', 'net'];
+const STATE_KEYS = [
+  'world',
+  'player',
+  'camera',
+  'npcs',
+  'mouse',
+  'minimapCacheTimer',
+  'floatingTexts',
+  'net',
+  'currentWorldSeed',
+  'gameHour',
+  'tickTimer',
+  'tickDuration',
+];
 const GENERATION = {
   seed: 5150,
   gridSize: 15,
@@ -60,6 +76,10 @@ function withRenderState(opts, fn) {
   state.minimapCacheTimer = 1.0;
   state.floatingTexts = [];
   state.net = null;
+  state.currentWorldSeed = 5150;
+  state.gameHour = 12;
+  state.tickTimer = 0;
+  state.tickDuration = 15;
   resetEffects();
 
   try {
@@ -100,6 +120,168 @@ test('render: buildings and every prop type draw without throwing', () => {
       }
     }
   );
+});
+
+test('render: streetlight glows and dark asphalt establish ambient contrast', () => {
+  assertEqual(ASPHALT_COLOR, '#111318');
+  withRenderState({}, () => {
+    const x = 120;
+    const y = 120;
+    state.gameHour = 23;
+    state.tickTimer = 0;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const before = ctx.getImageData(x, y, 1, 1).data;
+    drawStreetlightGlows([{ wx: x - 22, wy: y - 26 }]);
+    const after = ctx.getImageData(x, y, 1, 1).data;
+    const beforeSum = before[0] + before[1] + before[2] + before[3];
+    const afterSum = after[0] + after[1] + after[2] + after[3];
+    assert(afterSum > beforeSum, 'lamp glow should warm the ground pixels at night');
+  });
+});
+
+test('render: lamps turn off by day and ambient light turns sunny', () => {
+  assertEqual(lampIntensityAt(7), 1);
+  assertEqual(lampIntensityAt(7.5), 0.5);
+  assertEqual(lampIntensityAt(8), 0);
+  assertEqual(lampIntensityAt(12), 0);
+  assertEqual(lampIntensityAt(21), 0);
+  assertEqual(lampIntensityAt(21.5), 0.5);
+  assertEqual(lampIntensityAt(22), 1);
+  assertEqual(lampIntensityAt(2), 1);
+  assertEqual(sunIntensityAt(12), 1);
+
+  const fills = [];
+  const fakeCtx = {
+    fillStyle: '',
+    globalCompositeOperation: 'source-over',
+    save() {},
+    restore() {},
+    fillRect() { fills.push(this.fillStyle); },
+  };
+  drawAmbientLight(fakeCtx, 800, 600, 12);
+  assertEqual(fills.length, 1);
+  assert(fills[0].startsWith('rgba(255, 214, 160'), fills[0]);
+  fills.length = 0;
+  drawAmbientLight(fakeCtx, 800, 600, 23);
+  assertEqual(fills.length, 1);
+  assert(fills[0].startsWith('rgba(18, 30, 52'), fills[0]);
+
+  withRenderState({}, () => {
+    const x = 120;
+    const y = 120;
+    state.gameHour = 12;
+    state.tickTimer = 0;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawStreetlightGlows([{ wx: x - 22, wy: y - 26 }]);
+    assertEqual(ctx.getImageData(x, y, 1, 1).data[3], 0, 'daytime lamps should not glow');
+    state.gameHour = 23;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawStreetlightGlows([{ wx: x - 22, wy: y - 26 }]);
+    assert(ctx.getImageData(x, y, 1, 1).data[3] > 0, 'night lamps should glow');
+  });
+});
+
+test('render: chunk ground layers and building sprites are cached', () => {
+  withRenderState(
+    {
+      prepareMap: (map) => {
+        map.generateChunk(0, 0);
+      },
+    },
+    ({ map }) => {
+      const chunk = map.getChunk(0, 0);
+      const building = chunk.buildingRenderList[0];
+      drawBuilding(building);
+      assert(building.sprite, 'building sprite should be cached');
+      const firstSprite = building.sprite;
+      drawBuilding(building);
+      assertEqual(building.sprite, firstSprite, 'building sprite should be reused');
+
+      render();
+      assert(chunk.groundCache, 'ground cache should be built on first render');
+      const firstGround = chunk.groundCache;
+      render();
+      assertEqual(chunk.groundCache, firstGround, 'ground cache should be reused');
+    }
+  );
+});
+
+test('render: facade window lighting stays between 15 and 25 percent', () => {
+  let lit = 0;
+  for (let i = 0; i < 500; i++) {
+    if (isWindowLit(5150, i * TILE_SIZE, (i % 7) * TILE_SIZE, i % 5, i % 3, 0)) lit++;
+  }
+  assert(lit >= 75 && lit <= 125, `lit windows ${lit}/500`);
+  for (let i = 0; i < 20; i++) {
+    const alpha = windowLightAlpha(i * 97, i % 24, i / 3);
+    assert(alpha >= 0.35 && alpha <= 0.85, `window alpha ${alpha}`);
+  }
+  const slowA = windowLightAlpha(12345, 0, 0, 15);
+  const slowB = windowLightAlpha(12345, 0, 10, 15);
+  assert(Math.abs(slowA - slowB) < 0.01, 'window flicker should take about 10 seconds');
+});
+
+test('render: rain covers both halves of the viewport', () => {
+  const xs = [];
+  const fakeCtx = {
+    strokeStyle: '',
+    lineWidth: 1,
+    save() {},
+    restore() {},
+    beginPath() {},
+    stroke() {},
+    moveTo(x) { xs.push(x); },
+    lineTo() {},
+  };
+  for (let frame = 0; frame < 300; frame++) {
+    xs.length = 0;
+    updateAndDrawRain(fakeCtx, 800, 600, 1 / 60, true);
+  }
+  const left = xs.filter((x) => x < 400).length;
+  const right = xs.filter((x) => x >= 400).length;
+  assert(left >= 20 && right >= 20, `rain distribution left=${left} right=${right}`);
+});
+
+test('render: rain decisions happen only at day/night boundaries', () => {
+  assert(isDayHour(8) && isDayHour(21));
+  assert(!isDayHour(22) && !isDayHour(7));
+  assertEqual(rainChanceForHour(12), 0.25);
+  assertEqual(rainChanceForHour(23), 0.5);
+
+  let changes = 0;
+  for (let seed = 0; seed < 30; seed++) {
+    resetWeather(seed);
+    const day = updateRainSchedule(8);
+    assertEqual(updateRainSchedule(9), day);
+    assertEqual(updateRainSchedule(21), day);
+    const night = updateRainSchedule(22);
+    assertEqual(updateRainSchedule(23), night);
+    assertEqual(updateRainSchedule(7), night);
+    assertEqual(isRaining(), night);
+    if (day !== night) changes++;
+  }
+  assert(changes > 0, 'night decisions should sometimes differ from day decisions');
+});
+
+test('render: rain overlay is capped and can be suppressed by the schedule flag', () => {
+  const counts = { moves: 0, lines: 0 };
+  const fakeCtx = {
+    strokeStyle: '',
+    lineWidth: 1,
+    save() {},
+    restore() {},
+    beginPath() {},
+    moveTo() { counts.moves++; },
+    lineTo() { counts.lines++; },
+    stroke() {},
+  };
+  let segments = 0;
+  for (let i = 0; i < 120; i++) {
+    segments = updateAndDrawRain(fakeCtx, 800, 600, 1 / 60, true);
+  }
+  assert(segments >= 60 && segments <= 80, `rain segments ${segments}`);
+  assertEqual(counts.moves, counts.lines);
+  assertEqual(updateAndDrawRain(fakeCtx, 800, 600, 1 / 60, false), 0);
 });
 
 test('render: characters draw in all visual states and corpses do not throw', () => {
@@ -229,7 +411,7 @@ test('render: the radar follows the boss into another chunk', () => {
         map.generateChunk(0, 0);
         map.generateChunk(1, 0);
       },
-      player: makePlayer({ x: 700, y: 100 }),
+      player: makePlayer({ x: CHUNK_PX + 50, y: 100 }),
     },
     () => {
       renderMinimap();

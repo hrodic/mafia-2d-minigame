@@ -2,7 +2,7 @@
 // Pure constants: no imports, no side effects.
 
 export const CHUNK_SIZE = 15;
-export const TILE_SIZE = 44;
+export const TILE_SIZE = 66;
 export const CHUNK_PX = CHUNK_SIZE * TILE_SIZE;
 
 export const DEFAULT_GRID_SIZE = 15;

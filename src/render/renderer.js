@@ -1,7 +1,7 @@
 // Frame renderer: viewport culling, depth sorting, world/character/effect layers.
 
 import { CHUNK_PX, TILE_SIZE, MAX_PISTOL_RANGE } from '../config/constants.js';
-import { Faction, UnitRank } from '../config/enums.js';
+import { Faction, UnitRank, PropType } from '../config/enums.js';
 import { FACTION_META } from '../config/organizations.js';
 import { state, getLocalFaction, getLocalBoss, isLocalBossAlive } from '../core/state.js';
 import { getPistolAccuracyInfo, getPistolAim } from '../sim/combat.js';
@@ -16,10 +16,11 @@ import {
   shellCasings,
 } from './effects.js';
 import { canvas, ctx } from './canvas.js';
-import { drawBuilding, drawProp } from './world.js';
+import { drawBuilding, drawProp, drawStreetlightGlows, createAsphaltGrainTile } from './world.js';
 import { drawCharacter, drawDeadBody } from './characters.js';
 import { drawCityBackdrop } from './backdrop.js';
 import { renderMinimap } from './minimap.js';
+import { updateAndDrawRain, updateRainSchedule, isRaining, drawAmbientLight } from './weather.js';
 
 
 export function resizeCanvas() {
@@ -35,6 +36,39 @@ export function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 
 const renderables = [];
+const ambientLamps = [];
+const groundCacheQueue = [];
+const MAX_GROUND_CACHES = 16;
+let grainTile = null;
+let grainTileSeed = null;
+
+function getGrainTile() {
+  const seed = state.currentWorldSeed ?? 0;
+  if (seed !== grainTileSeed) {
+    grainTileSeed = seed;
+    grainTile = createAsphaltGrainTile(seed);
+  }
+  return grainTile;
+}
+
+/** Cache one visible chunk's ground as a single offscreen image, with an LRU cap. */
+function getChunkGroundCache(chunk) {
+  if (chunk.groundCache) return chunk.groundCache;
+  if (typeof document === 'undefined') return null;
+  const cache = document.createElement('canvas');
+  cache.width = CHUNK_PX;
+  cache.height = CHUNK_PX;
+  const g = cache.getContext('2d');
+  if (!g) return null;
+  chunk.drawGroundDirect(g, 0, 0, 0, CHUNK_PX, 0, CHUNK_PX, getGrainTile());
+  chunk.groundCache = cache;
+  groundCacheQueue.push(chunk);
+  if (groundCacheQueue.length > MAX_GROUND_CACHES) {
+    const oldest = groundCacheQueue.shift();
+    if (oldest && oldest !== chunk) oldest.groundCache = null;
+  }
+  return cache;
+}
 
 export function render(dt = 1 / 60) {
   resizeCanvas();
@@ -60,6 +94,7 @@ export function render(dt = 1 / 60) {
   const maxCy = Math.floor(camBottom / CHUNK_PX) + 1;
 
   renderables.length = 0;
+  ambientLamps.length = 0;
 
   // 1. Ground tiles + Faction territory overlays & borders
   for (let cy = minCy; cy <= maxCy; cy++) {
@@ -69,7 +104,9 @@ export function render(dt = 1 / 60) {
       const ox = cx * CHUNK_PX;
       const oy = cy * CHUNK_PX;
 
-      chunk.drawGroundDirect(ctx, ox, oy, camLeft, camRight, camTop, camBottom);
+      const groundCache = getChunkGroundCache(chunk);
+      if (groundCache) ctx.drawImage(groundCache, ox, oy);
+      else chunk.drawGroundDirect(ctx, ox, oy, camLeft, camRight, camTop, camBottom);
 
       const meta = FACTION_META[chunk.faction] || FACTION_META[Faction.NEUTRAL];
       if (chunk.faction !== Faction.NEUTRAL) {
@@ -90,18 +127,22 @@ export function render(dt = 1 / 60) {
 
       for (let i = 0; i < chunk.buildingRenderList.length; i++) {
         const b = chunk.buildingRenderList[i];
-        if (b.wx + TILE_SIZE >= camLeft && b.wx <= camRight && b.wy + TILE_SIZE >= camTop && b.wy - 44 <= camBottom) {
+        if (b.wx + TILE_SIZE >= camLeft && b.wx <= camRight && b.wy + TILE_SIZE >= camTop && b.wy - TILE_SIZE * 1.5 <= camBottom) {
           renderables.push(b);
         }
       }
       for (let i = 0; i < chunk.propRenderList.length; i++) {
         const p = chunk.propRenderList[i];
-        if (p.wx + TILE_SIZE >= camLeft && p.wx <= camRight && p.wy + TILE_SIZE >= camTop && p.wy - 30 <= camBottom) {
+        if (p.wx + TILE_SIZE >= camLeft && p.wx <= camRight && p.wy + TILE_SIZE >= camTop && p.wy - TILE_SIZE <= camBottom) {
+          if (p.prop === PropType.STREETLIGHT) ambientLamps.push(p);
           renderables.push(p);
         }
       }
     }
   }
+
+  // 1b. Warm lamp pools stay under buildings, props and units for ambient depth.
+  drawStreetlightGlows(ambientLamps);
 
   // 2. Ground blood decals & persistent dead bodies
   for (let i = 0; i < bloodDecals.length; i++) {
@@ -275,9 +316,16 @@ export function render(dt = 1 / 60) {
       const centerX = cx * CHUNK_PX + CHUNK_PX / 2;
       const labelY = cy * CHUNK_PX + 29;
       const halfWidth = ctx.measureText(label).width / 2;
-      ctx.fillStyle = 'rgba(9, 9, 11, 0.72)';
-      ctx.fillRect(centerX - halfWidth - 4, labelY - 7, halfWidth * 2 + 8, 14);
-      ctx.fillStyle = chunk.faction === Faction.NEUTRAL ? '#a1a1aa' : meta.accent;
+      const pillW = halfWidth * 2 + 12;
+      const pillH = 16;
+      ctx.beginPath();
+      ctx.roundRect(centerX - pillW / 2, labelY - pillH / 2, pillW, pillH, 5);
+      ctx.fillStyle = 'rgba(9, 9, 11, 0.82)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.34)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = chunk.faction === Faction.NEUTRAL ? '#d4d4d8' : meta.accent;
       ctx.fillText(label, centerX, labelY);
     }
   }
@@ -383,5 +431,9 @@ export function render(dt = 1 / 60) {
   }
 
   ctx.restore();
+  const atmosphereHour = (state.gameHour || 0) + (state.tickTimer || 0) / (state.tickDuration || 15);
+  drawAmbientLight(ctx, viewW, viewH, atmosphereHour);
+  updateRainSchedule(state.gameHour || 0);
+  updateAndDrawRain(ctx, viewW, viewH, dt, isRaining());
   renderMinimap(dt);
 }

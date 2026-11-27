@@ -9,9 +9,20 @@
       display: block;
     }
     .glass-panel {
-      background: rgba(9, 9, 11, 0.92);
-      border: 1px solid rgba(63, 63, 70, 0.78);
+      background: rgba(15, 18, 24, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       box-shadow: 0 10px 26px rgba(0, 0, 0, 0.58);
+    }
+    .hud-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .hud-interactive {
+      pointer-events: auto;
     }
     .font-display-mafia {
       font-family: Impact, 'Arial Narrow Bold', 'Inter', sans-serif;
@@ -219,6 +230,7 @@
       color: #d4d4d8;
       font-size: 11px;
       font-weight: 700;
+      white-space: nowrap;
       cursor: pointer;
       transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
     }
@@ -253,9 +265,6 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       filter: drop-shadow(0 2px 10px rgba(245, 158, 11, 0.35));
-    }
-    #management-panel {
-      backdrop-filter: blur(8px);
     }
     .mgmt-header {
       display: flex;
