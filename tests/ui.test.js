@@ -282,7 +282,7 @@ test('ui: floating HUD panels use noir glass and pass map clicks through', async
   assert(overlay.querySelector('#management-panel'), 'crew panel should live in the HUD overlay');
   assert(overlay.querySelector('#action-bar'), 'action bar should live in the HUD overlay');
   assert(overlay.querySelector('#radar-panel'), 'radar should live in the HUD overlay');
-  assertEqual(doc.querySelectorAll('.hud-interactive').length, 4);
+  assertEqual(doc.querySelectorAll('.hud-interactive').length, 5);
 
   const css = await (await fetch('../styles.css', { cache: 'no-store' })).text();
   assert(
@@ -303,6 +303,30 @@ test('ui: weather is normal gameplay without a Noir toggle', async () => {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   assertEqual(doc.getElementById('btn-toggle-noir'), null);
   assertEqual(doc.querySelectorAll('#hud-zone-right .hud-util-btn').length, 3);
+});
+
+test('ui: crew totals, collapsible leaderboard and expandable radar', async () => {
+  const html = await fetchIndexHtml();
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const board = doc.getElementById('faction-board');
+  assert(board, 'faction board missing');
+  assert(board.classList.contains('hud-interactive'));
+  assert(board.contains(doc.getElementById('btn-faction-collapse')), 'leaderboard collapse button missing');
+  assert(doc.getElementById('faction-board-body'), 'leaderboard body missing');
+
+  const radar = doc.getElementById('radar-panel');
+  assert(radar.contains(doc.getElementById('btn-radar-expand')), 'radar expand button missing');
+
+  const totals = doc.querySelector('.mgmt-totals');
+  assert(totals, 'crew totals missing');
+  for (const id of ['mgmt-total-turf', 'mgmt-total-crew', 'mgmt-total-gross', 'mgmt-total-upkeep', 'mgmt-total-net']) {
+    assert(totals.querySelector(`#${id}`), `${id} missing`);
+  }
+  assert(totals.textContent.includes('Gross'), 'gross total label missing');
+
+  const css = await (await fetch('../styles.css', { cache: 'no-store' })).text();
+  assert(/#radar-panel\.is-expanded canvas/s.test(css), 'expanded radar sizing missing');
+  assert(/\.mgmt-total-net\s*\{[^}]*grid-column/s.test(css), 'net total should span the row');
 });
 
 test('ui: critical HUD values are tabular and bars are transform-driven', async () => {

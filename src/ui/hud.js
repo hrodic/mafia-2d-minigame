@@ -75,6 +75,22 @@ export function setRecruitCapMax(rank) {
   syncRecruitButtonLabels();
 }
 
+/** Collapse/expand the faction leaderboard while keeping its header visible. */
+export function toggleFactionBoard(forceCollapsed) {
+  const panel = document.getElementById('faction-board');
+  const body = document.getElementById('faction-board-body');
+  const button = document.getElementById('btn-faction-collapse');
+  if (!panel || !body || !button) return;
+  const collapsed = typeof forceCollapsed === 'boolean'
+    ? forceCollapsed
+    : !body.classList.contains('hidden');
+  body.classList.toggle('hidden', collapsed);
+  panel.classList.toggle('is-collapsed', collapsed);
+  button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  button.setAttribute('aria-label', collapsed ? 'Expand faction leaderboard' : 'Collapse faction leaderboard');
+  button.textContent = collapsed ? '▾' : '▴';
+}
+
 /** Collapse/expand the crew panel while keeping its summary visible. */
 export function toggleCrewPanel(forceCollapsed) {
   const panel = document.getElementById('management-panel');
@@ -104,7 +120,13 @@ const hudEls = {
   sprintBar: document.getElementById('sprint-bar-fill'),
   sprintText: document.getElementById('sprint-text'),
   factionBoard: document.getElementById('faction-board'),
+  factionBoardBody: document.getElementById('faction-board-body'),
+  factionCountLabel: document.getElementById('faction-count-label'),
+  totalTurf: document.getElementById('mgmt-total-turf'),
+  totalCrew: document.getElementById('mgmt-total-crew'),
+  totalGross: document.getElementById('mgmt-total-gross'),
   totalUpkeep: document.getElementById('mgmt-total-upkeep'),
+  totalNet: document.getElementById('mgmt-total-net'),
 };
 
 export function syncRecruitButtonLabels() {
@@ -211,6 +233,9 @@ export function updateHUD() {
   if (hudEls.totalUpkeep) {
     hudEls.totalUpkeep.textContent = `$${(upkeepTotals[myFac] || 0).toLocaleString()}/hr`;
   }
+  if (hudEls.totalGross) {
+    hudEls.totalGross.textContent = `+$${(incomeTotals[myFac] || 0).toLocaleString()}/hr`;
+  }
   const blockCounts = {
     [Faction.PLAYER]: 0,
     [Faction.RIVAL_1]: 0,
@@ -234,21 +259,31 @@ export function updateHUD() {
 
   const totalBlocks = Math.max(1, state.world.chunks.size);
   const myNetIncome = (incomeTotals[myFac] || 0) - (upkeepTotals[myFac] || 0);
+  if (hudEls.totalTurf) {
+    hudEls.totalTurf.textContent = `${blockCounts[myFac] || 0}/${totalBlocks}`;
+  }
+  if (hudEls.totalCrew) {
+    hudEls.totalCrew.textContent = `${crewCounts[myFac] || 0}`;
+  }
+  if (hudEls.totalNet) {
+    hudEls.totalNet.textContent = `${myNetIncome >= 0 ? '+' : ''}$${myNetIncome.toLocaleString()}/hr`;
+    hudEls.totalNet.classList.toggle('is-positive', myNetIncome >= 0);
+    hudEls.totalNet.classList.toggle('is-negative', myNetIncome < 0);
+  }
   hudEls.statsBadge.textContent = `Turf: ${blockCounts[myFac] || 0}/${totalBlocks} | Crew: ${crewCounts[myFac] || 0} | Net: ${myNetIncome >= 0 ? '+' : ''}$${myNetIncome.toLocaleString()}/hr`;
 
+  if (hudEls.factionCountLabel) {
+    hudEls.factionCountLabel.textContent = `${state.activeFactions.length} syndicates`;
+  }
+
   let boardHtml = `
-    <div class="border-b border-zinc-800 pb-1.5">
-      <div class="flex items-center justify-between gap-2">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-zinc-300">Faction Leaderboard</span>
-        <span class="text-[9px] font-mono text-zinc-600">${state.activeFactions.length} syndicates</span>
-      </div>
       <div class="grid grid-cols-[1fr_2.6rem_2.4rem_2.4rem] gap-1 mt-1 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
         <span>Syndicate</span>
         <span class="text-right" title="Neighborhoods controlled">Turf</span>
         <span class="text-right" title="Living crew members">Crew</span>
         <span class="text-right" title="Enemy units killed">Kills</span>
       </div>
-    </div>`;
+    `;
   const ranked = [...state.activeFactions].sort(
     (a, b) =>
       (blockCounts[b] || 0) - (blockCounts[a] || 0) ||
@@ -274,5 +309,5 @@ export function updateHUD() {
       </div>
     `;
   });
-  hudEls.factionBoard.innerHTML = boardHtml;
+  if (hudEls.factionBoardBody) hudEls.factionBoardBody.innerHTML = boardHtml;
 }

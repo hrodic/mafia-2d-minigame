@@ -368,8 +368,8 @@ intensity (off 08–21, on 22–07, one-hour dusk/dawn fades) and a screen-space
 warm sunny light by day, cool blue by night.
 `render/minimap.js` caches the faction territory layer and overlays units, the boss, the
 camera rect and chunk coordinates; `render/minimapLayout.js` owns the shared bounds/cell/
-offset and world<->map mapping (also used by radar clicks). The radar canvas is 168px and
-uses slightly larger unit markers.
+offset and world<->map mapping (also used by radar clicks). The radar canvas is 168px by
+default and expands to 336px.
 
 ## Audio
 
@@ -380,8 +380,9 @@ distance from the camera.
 
 ## UI
 
-- `ui/hud.js`: primary boss/economy status, crew management panel (caps, recruit costs,
-  total upkeep), faction leaderboard (turf, crew, kills).
+- `ui/hud.js`: primary boss/economy status, collapsible crew management panel (caps,
+  recruit costs, turf/crew/gross/upkeep/net totals), collapsible faction leaderboard
+  (turf, crew, kills).
 - `ui/actionBar.js`: bottom-center combat bar. Slash/pistol/armor/sprint show ready/cooling
   states, cooldown overlays, costs and shortcuts; sprint is hold-to-run and guest input
   includes the held state.

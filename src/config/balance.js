@@ -42,7 +42,7 @@ export const RANK_STATS = {
     radius: 12.8,
     captureRate: 0.24,
     cost: 3800,
-    upkeep: 150,
+    upkeep: 300,
   },
   [UnitRank.CAPTAIN]: {
     hp: 340,
@@ -56,7 +56,7 @@ export const RANK_STATS = {
     radius: 12,
     captureRate: 0.18,
     cost: 2200,
-    upkeep: 100,
+    upkeep: 200,
   },
   [UnitRank.SOLDIER]: {
     hp: 180,
@@ -70,7 +70,7 @@ export const RANK_STATS = {
     radius: 11,
     captureRate: 0.12,
     cost: 1200,
-    upkeep: 50,
+    upkeep: 100,
   },
 };
 

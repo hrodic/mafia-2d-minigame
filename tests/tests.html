@@ -148,7 +148,14 @@
       <span id="cash-text"></span><span id="hour-text"></span>
       <div id="tick-bar-fill"></div>
       <div id="armor-hud-box"></div><div id="armor-bar-fill"></div><span id="armor-text"></span>
-      <div id="faction-board"></div>
+      <div id="faction-board">
+        <div class="faction-board-header">
+          <span>Faction Leaderboard</span>
+          <span id="faction-count-label"></span>
+          <button id="btn-faction-collapse" aria-expanded="true">▴</button>
+        </div>
+        <div id="faction-board-body"></div>
+      </div>
       <button id="btn-slash"><span id="cooldown-slash"></span><span id="action-status-slash"></span></button>
       <button id="btn-pistol"><span id="cooldown-pistol"></span><span id="action-status-pistol"></span></button>
       <button id="btn-buy-armor"><span id="cooldown-armor"></span><span id="action-status-armor"></span></button>
@@ -167,6 +174,10 @@
       <button id="btn-cap-underboss-min"></button><button id="btn-cap-underboss-dec"></button><button id="btn-cap-underboss-inc"></button><button id="btn-cap-underboss-max"></button>
       <span id="cap-soldier-label"></span><span id="cap-captain-label"></span><span id="cap-underboss-label"></span>
       <span id="mgmt-total-upkeep"></span>
+      <span id="mgmt-total-gross"></span>
+      <span id="mgmt-total-turf"></span>
+      <span id="mgmt-total-crew"></span>
+      <span id="mgmt-total-net"></span>
       <div id="toast"></div>
       <div id="defeat-banner" class="hidden"></div>
       <div id="victory-banner" class="hidden"></div>

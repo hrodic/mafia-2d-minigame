@@ -317,6 +317,42 @@
       color: #fbbf24;
       border-color: rgba(245, 158, 11, 0.5);
     }
+    .hud-icon-btn {
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      flex-shrink: 0;
+      border: 1px solid rgba(63, 63, 70, 0.9);
+      border-radius: 6px;
+      background: rgba(24, 24, 27, 0.92);
+      color: #a1a1aa;
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .hud-icon-btn:hover {
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.5);
+    }
+    .faction-board-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(63, 63, 70, 0.8);
+    }
+    .faction-board.is-collapsed .faction-board-header {
+      padding-bottom: 0;
+      border-bottom-color: transparent;
+    }
+    #radar-panel.is-expanded {
+      max-width: calc(100vw - 2rem);
+    }
+    #radar-panel.is-expanded canvas {
+      width: min(336px, calc(100vw - 2rem));
+      height: auto;
+    }
     .mgmt-body {
       display: flex;
       flex-direction: column;
@@ -500,27 +536,48 @@
       font-size: 10px;
       text-align: center;
     }
-    .mgmt-upkeep {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding-top: 6px;
+    .mgmt-totals {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      margin-top: 8px;
+      padding-top: 8px;
       border-top: 1px solid rgba(63, 63, 70, 0.8);
     }
-    .mgmt-upkeep-label {
+    .mgmt-total {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      padding: 5px 6px;
+      border: 1px solid rgba(63, 63, 70, 0.55);
+      border-radius: 7px;
+      background: rgba(24, 24, 27, 0.62);
+    }
+    .mgmt-total-label {
       color: #71717a;
-      font-size: 9px;
+      font-size: 8px;
       font-weight: 800;
       letter-spacing: 0.08em;
       text-transform: uppercase;
     }
-    .mgmt-upkeep-value {
-      color: #fbbf24;
+    .mgmt-total-value {
+      color: #e4e4e7;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 10px;
-      font-weight: 700;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.2;
     }
+    .mgmt-total-net {
+      grid-column: 1 / -1;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .mgmt-total-net .mgmt-total-value { font-size: 14px; }
+    #mgmt-total-gross { color: #34d399; }
+    #mgmt-total-upkeep { color: #fbbf24; }
+    #mgmt-total-net.is-positive { color: #34d399; }
+    #mgmt-total-net.is-negative { color: #fb7185; }
     /* Keep Ko-fi's popup, but hide its floating launcher; the top-bar Tip me button opens it. */
     .floatingchat-container-wrap,
     .floatingchat-container-wrap-mobi {

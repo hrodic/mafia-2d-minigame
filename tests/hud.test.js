@@ -7,6 +7,7 @@ import {
   updateHUD,
   syncRecruitButtonLabels,
   toggleCrewPanel,
+  toggleFactionBoard,
   setRecruitCapMin,
   setRecruitCapMax,
 } from '../src/ui/hud.js';
@@ -111,7 +112,11 @@ test('hud: updateHUD writes HP, armor, cash, clock and territory stats', () => {
       const stats = document.getElementById('stats-badge').textContent;
       assert(stats.includes('Turf: 1/2'), stats);
       assert(stats.includes('Crew: 2'), stats);
-      assertEqual(document.getElementById('mgmt-total-upkeep').textContent, '$50/hr');
+      assertEqual(document.getElementById('mgmt-total-upkeep').textContent, '$100/hr');
+      assertEqual(document.getElementById('mgmt-total-gross').textContent, '+$1,000/hr');
+      assertEqual(document.getElementById('mgmt-total-turf').textContent, '1/2');
+      assertEqual(document.getElementById('mgmt-total-crew').textContent, '2');
+      assertEqual(document.getElementById('mgmt-total-net').textContent, '+$900/hr');
       const board = document.getElementById('faction-board').textContent;
       assert(board.includes('Cosa Nostra'), board);
       assert(board.includes('(You)'), board);
@@ -149,6 +154,22 @@ test('hud: leaderboard escapes peer aliases instead of parsing HTML', () => {
     const board = document.getElementById('faction-board');
     assertEqual(board.querySelector('img'), null);
     assert(board.textContent.includes('<img src=x>'), board.textContent);
+  });
+});
+
+test('hud: faction leaderboard collapses to its header and restores', () => {
+  withHudState({}, () => {
+    updateHUD();
+    const body = document.getElementById('faction-board-body');
+    const button = document.getElementById('btn-faction-collapse');
+    toggleFactionBoard(true);
+    assert(body.classList.contains('hidden'));
+    assertEqual(button.getAttribute('aria-expanded'), 'false');
+    assertEqual(button.textContent, '▾');
+    toggleFactionBoard(false);
+    assert(!body.classList.contains('hidden'));
+    assertEqual(button.getAttribute('aria-expanded'), 'true');
+    assertEqual(button.textContent, '▴');
   });
 });
 

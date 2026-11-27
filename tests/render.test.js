@@ -12,7 +12,7 @@ import { resizeCanvas, render } from '../src/render/renderer.js';
 import { drawBuilding, drawProp, drawStreetlightGlows, isWindowLit, windowLightAlpha } from '../src/render/world.js';
 import { updateAndDrawRain, updateRainSchedule, resetWeather, isRaining, isDayHour, rainChanceForHour, lampIntensityAt, sunIntensityAt, drawAmbientLight } from '../src/render/weather.js';
 import { drawCharacter, drawDeadBody } from '../src/render/characters.js';
-import { renderMinimap } from '../src/render/minimap.js';
+import { renderMinimap, setMinimapExpanded } from '../src/render/minimap.js';
 
 const STATE_KEYS = [
   'world',
@@ -433,6 +433,17 @@ test('render: the radar follows the boss into another chunk', () => {
       assert(pixel[3] > 0, 'minimap should be painted');
     }
   );
+});
+
+test('render: radar expands to double size and shrinks back', () => {
+  assertEqual(setMinimapExpanded(false), false);
+  assertEqual(minimapCanvas.width, 168);
+  assertEqual(setMinimapExpanded(true), true);
+  assertEqual(minimapCanvas.width, 336);
+  assertEqual(minimapCanvas.height, 336);
+  assertEqual(setMinimapExpanded(false), false);
+  assertEqual(minimapCanvas.width, 168);
+  assertEqual(minimapCanvas.height, 168);
 });
 
 test('render: radar cache timer advances by the supplied frame dt', () => {

@@ -19,6 +19,31 @@ if (minimapCacheCanvas && minimapCanvas) {
 }
 const coordsEl = typeof document !== 'undefined' ? document.getElementById('minimap-coords') : null;
 let hoverCell = null;
+let minimapExpanded = false;
+
+/** Resize the radar between its default 168px and expanded 336px backing store. */
+export function setMinimapExpanded(expanded) {
+  minimapExpanded = Boolean(expanded);
+  const size = minimapExpanded ? 336 : 168;
+  if (minimapCanvas) {
+    minimapCanvas.width = size;
+    minimapCanvas.height = size;
+  }
+  if (minimapCacheCanvas) {
+    minimapCacheCanvas.width = size;
+    minimapCacheCanvas.height = size;
+  }
+  state.minimapCacheTimer = 1;
+  return minimapExpanded;
+}
+
+export function isMinimapExpanded() {
+  return minimapExpanded;
+}
+
+export function toggleMinimapExpanded() {
+  return setMinimapExpanded(!minimapExpanded);
+}
 
 /** Highlight one radar cell while the pointer is over the minimap. */
 export function setMinimapHover(cell) {

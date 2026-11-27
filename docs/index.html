@@ -126,7 +126,7 @@
           <div class="mgmt-tier-meta">
             <div class="mgmt-tier-economy">
               <span id="mgmt-price-soldier" class="mgmt-price">$1,200</span>
-              <span id="mgmt-upkeep-soldier" class="mgmt-upkeep-cost">$50/hr upkeep</span>
+              <span id="mgmt-upkeep-soldier" class="mgmt-upkeep-cost">$100/hr upkeep</span>
             </div>
             <div class="mgmt-caps" title="Target Soldato spawn cap">
               <button id="btn-cap-soldier-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Soldato cap to minimum">MIN</button>
@@ -153,7 +153,7 @@
           <div class="mgmt-tier-meta">
             <div class="mgmt-tier-economy">
               <span id="mgmt-price-captain" class="mgmt-price">$2,200</span>
-              <span id="mgmt-upkeep-captain" class="mgmt-upkeep-cost">$100/hr upkeep</span>
+              <span id="mgmt-upkeep-captain" class="mgmt-upkeep-cost">$200/hr upkeep</span>
             </div>
             <div class="mgmt-caps" title="Target Caporegime spawn cap">
               <button id="btn-cap-captain-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Caporegime cap to minimum">MIN</button>
@@ -180,7 +180,7 @@
           <div class="mgmt-tier-meta">
             <div class="mgmt-tier-economy">
               <span id="mgmt-price-underboss" class="mgmt-price">$3,800</span>
-              <span id="mgmt-upkeep-underboss" class="mgmt-upkeep-cost">$150/hr upkeep</span>
+              <span id="mgmt-upkeep-underboss" class="mgmt-upkeep-cost">$300/hr upkeep</span>
             </div>
             <div class="mgmt-caps" title="Target Sottocapo spawn cap">
               <button id="btn-cap-underboss-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Sottocapo cap to minimum">MIN</button>
@@ -192,9 +192,27 @@
           </div>
         </div>
 
-        <div class="mgmt-upkeep">
-          <span class="mgmt-upkeep-label">Total Upkeep</span>
-          <span id="mgmt-total-upkeep" class="mgmt-upkeep-value hud-num">$0/hr</span>
+        <div class="mgmt-totals" aria-label="Crew totals">
+          <div class="mgmt-total">
+            <span class="mgmt-total-label">Turf</span>
+            <span id="mgmt-total-turf" class="mgmt-total-value hud-num">0/0</span>
+          </div>
+          <div class="mgmt-total">
+            <span class="mgmt-total-label">Crew</span>
+            <span id="mgmt-total-crew" class="mgmt-total-value hud-num">0</span>
+          </div>
+          <div class="mgmt-total">
+            <span class="mgmt-total-label">Gross</span>
+            <span id="mgmt-total-gross" class="mgmt-total-value hud-num">+$0/hr</span>
+          </div>
+          <div class="mgmt-total">
+            <span class="mgmt-total-label">Upkeep</span>
+            <span id="mgmt-total-upkeep" class="mgmt-total-value hud-num">$0/hr</span>
+          </div>
+          <div class="mgmt-total mgmt-total-net">
+            <span class="mgmt-total-label">Net</span>
+            <span id="mgmt-total-net" class="mgmt-total-value hud-num">+$0/hr</span>
+          </div>
         </div>
       </div>
     </section>
@@ -250,15 +268,30 @@
     </div>
 
     <!-- Player & Faction Standings Panel (Top-Right) -->
-    <div id="faction-board" class="glass-panel absolute top-4 right-4 p-3 rounded-xl text-xs text-zinc-200 pointer-events-none space-y-1 min-w-[280px] z-10">
-      <!-- Populated dynamically via JS -->
+    <div id="faction-board" class="glass-panel hud-interactive absolute top-4 right-4 p-3 rounded-xl text-xs text-zinc-200 space-y-1 min-w-[280px] z-10">
+      <div class="faction-board-header">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-zinc-300">Faction Leaderboard</span>
+        <div class="flex items-center gap-1.5">
+          <span id="faction-count-label" class="text-[9px] font-mono text-zinc-600"></span>
+          <button id="btn-faction-collapse" type="button" class="hud-icon-btn"
+                  aria-expanded="true" aria-controls="faction-board-body"
+                  aria-label="Collapse faction leaderboard" title="Collapse / expand leaderboard">▴</button>
+        </div>
+      </div>
+      <div id="faction-board-body" class="space-y-1">
+        <!-- Populated dynamically via JS -->
+      </div>
     </div>
 
     <!-- City Radar Minimap (Bottom-Right) -->
     <div id="radar-panel" class="glass-panel hud-interactive absolute bottom-4 right-4 p-2.5 rounded-xl z-10 flex flex-col gap-1.5">
       <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-zinc-400">
         <span>City Radar</span>
-        <span id="minimap-coords" class="font-mono hud-num text-zinc-300 text-right">(0, 0)</span>
+        <div class="flex items-center gap-1.5">
+          <span id="minimap-coords" class="font-mono hud-num text-zinc-300 text-right">(0, 0)</span>
+          <button id="btn-radar-expand" type="button" class="hud-icon-btn"
+                  aria-expanded="false" aria-label="Expand radar" title="Expand / shrink radar">⤢</button>
+        </div>
       </div>
       <canvas id="minimapCanvas" width="168" height="168" class="rounded-lg border border-zinc-800 cursor-crosshair"></canvas>
     </div>
@@ -713,7 +746,7 @@
                       <td class="stat-cell"><span class="stat-main">480</span><span class="stat-sub">+120 armor</span></td>
                       <td class="stat-cell"><span class="stat-main">26–38</span><span class="stat-sub">blade</span></td>
                       <td class="stat-cell"><span class="stat-main money">$3,800</span></td>
-                      <td class="stat-cell"><span class="stat-main">$150</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="stat-main">$300</span><span class="stat-sub">/ hr</span></td>
                       <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×1">×1</span></td>
                     </tr>
                     <tr class="tier-silver">
@@ -727,7 +760,7 @@
                       <td class="stat-cell"><span class="stat-main">340</span></td>
                       <td class="stat-cell"><span class="stat-main">18–28</span><span class="stat-sub">blade</span></td>
                       <td class="stat-cell"><span class="stat-main money">$2,200</span></td>
-                      <td class="stat-cell"><span class="stat-main">$100</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="stat-main">$200</span><span class="stat-sub">/ hr</span></td>
                       <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×2">×2</span></td>
                     </tr>
                     <tr class="tier-copper">
@@ -741,7 +774,7 @@
                       <td class="stat-cell"><span class="stat-main">180</span></td>
                       <td class="stat-cell"><span class="stat-main">10–18</span><span class="stat-sub">blade</span></td>
                       <td class="stat-cell"><span class="stat-main money">$1,200</span></td>
-                      <td class="stat-cell"><span class="stat-main">$50</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="stat-main">$100</span><span class="stat-sub">/ hr</span></td>
                       <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×10">×10</span></td>
                     </tr>
                   </tbody>

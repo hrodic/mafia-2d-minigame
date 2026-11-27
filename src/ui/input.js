@@ -11,11 +11,12 @@ import {
 } from '../audio/engine.js';
 import { canvas, minimapCanvas } from '../render/canvas.js';
 import { getMinimapLayout, minimapToWorld, minimapCellAt } from '../render/minimapLayout.js';
-import { setMinimapHover } from '../render/minimap.js';
+import { setMinimapHover, toggleMinimapExpanded } from '../render/minimap.js';
 import { sendOrDispatchCommand } from './commandBridge.js';
 import {
   syncRecruitButtonLabels,
   toggleCrewPanel,
+  toggleFactionBoard,
   setRecruitCapMin,
   setRecruitCapMax,
 } from './hud.js';
@@ -224,6 +225,16 @@ bindCapPresets('captain', UnitRank.CAPTAIN);
 bindCapPresets('underboss', UnitRank.UNDERBOSS);
 
 document.getElementById('btn-management-collapse')?.addEventListener('click', () => toggleCrewPanel());
+document.getElementById('btn-faction-collapse')?.addEventListener('click', () => toggleFactionBoard());
+document.getElementById('btn-radar-expand')?.addEventListener('click', (e) => {
+  const expanded = toggleMinimapExpanded();
+  const panel = document.getElementById('radar-panel');
+  if (panel) panel.classList.toggle('is-expanded', expanded);
+  e.currentTarget.textContent = expanded ? '⤡' : '⤢';
+  e.currentTarget.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  e.currentTarget.setAttribute('aria-label', expanded ? 'Shrink radar' : 'Expand radar');
+  e.currentTarget.title = expanded ? 'Shrink radar' : 'Expand radar';
+});
 document.getElementById('btn-toggle-soldier').addEventListener('click', () => {
   state.autoRecruitSoldier = !state.autoRecruitSoldier;
   syncRecruitButtonLabels();
