@@ -1,3 +1,4 @@
+// @ts-check
 // Synchronous in-process event bus for simulation -> presentation facts.
 // Contract and catalog: EVENTS.md. Rules:
 // - handlers are isolated: a throw is caught + logged, never breaks the caller;
@@ -5,6 +6,7 @@
 // - events are past-tense facts; subscribers must not mutate gameplay state.
 // - sim/ emits events but never imports the subscribers (ui/render/audio/net).
 
+/** @type {Map<string, Set<(payload: any) => void>>} */
 const handlersByType = new Map();
 
 function assertType(type) {

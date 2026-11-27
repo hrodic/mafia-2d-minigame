@@ -16,6 +16,8 @@ $required = @(
   'tests/tests.html',
   'tests/runner.js',
   'tests/harness.js',
+  'jsconfig.json',
+  'tools/typecheck.ps1',
   'AGENTS.md'
 )
 foreach ($rel in $required) {

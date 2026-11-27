@@ -1,9 +1,17 @@
+// @ts-check
 // Fixed-step accumulator shared by the main loop. Pure: callers supply the step.
 
 /**
  * Consume accumulated frame time in fixed steps.
  * When the step cap is hit with time still queued, the backlog is dropped to
  * avoid a catch-up spiral after a long stall.
+ *
+ * @param {number} accumulator
+ * @param {number} frameDt
+ * @param {number} step
+ * @param {number} maxSteps
+ * @param {(dt: number) => void} onStep
+ * @returns {{ accumulator: number, steps: number, dropped: boolean }}
  */
 export function advanceFixedStep(accumulator, frameDt, step, maxSteps, onStep) {
   let remaining = accumulator + Math.max(0, frameDt);

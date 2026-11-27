@@ -94,8 +94,10 @@ docs/                      generated GitHub Pages artifact (never hand-edit)
 tools/
   serve.ps1                dependency-free PowerShell static server for local dev
   check.ps1                static health check (imports, test registry, duplicate ids)
+  typecheck.ps1            native tsc.exe check via jsconfig.json; compiler is ignored
   build-pages.ps1          minify src -> docs with esbuild (no bundling); binary is ignored
 .editorconfig              editor whitespace/line-ending rules
+jsconfig.json              editor type-check config (checkJs opt-in via // @ts-check)
 .nojekyll                  GitHub Pages: serve files untouched
 EVENTS.md                  event-bus contract (implemented)
 ARCHITECTURE.md            this document
@@ -395,8 +397,9 @@ distance from the camera.
 - Coverage includes config/RNG, transport API normalization (Trystero 0.27 vs local bus),
   protocol envelope/version/snapshot encoding, lobby seats/capacity/rosters, lobby DOM
   rendering/safe names, guest handshake/init routing, snapshot apply reuse/create/remove,
-  host admission/input/AI takeover, hidden-tab simulation fallback, event bus, state
-  selectors, chunk determinism, collision,
+  snapshot ordering/sender/malformed guards, unknown-chunk generation, host admission and
+  duplicate HELLO, remote command gating, AI takeover, hidden-tab simulation fallback,
+  event bus, state selectors, chunk determinism, collision,
   pathfinding (including wall detours and no corner cutting), units/recruitment, economy,
   territory, combat math/accuracy/armor/aim geometry, effects and casings, interpolation,
   match setup, fixed-step accumulation, command dispatch/equivalence, 600-step headless
@@ -410,11 +413,14 @@ distance from the camera.
   `.opencode/skills/<id>/SKILL.md` has valid frontmatter and existing references, the
   `sim/` headless ratchet, and that modules using `canvas.*` import the canvas singleton.
   `tests/runner.js` is the manifest — a new suite that is not imported there silently
-  does not run.
+  does not run. `tools/typecheck.ps1` downloads an ignored native TypeScript compiler and
+  checks the `jsconfig.json` program; only `// @ts-check` modules are type-checked.
 
 ## Conventions
 
 - Native ESM, relative `.js` imports, no bare specifiers, no npm.
+- Editor type checking uses `jsconfig.json`; clean modules opt in with `// @ts-check` and
+  JSDoc. There is no TypeScript build step or transpilation.
 - **SemVer:** `GAME_VERSION` in `config/version.js` is the single source. Every
   commit-sized step bumps PATCH (fix/refactor/docs/tests/perf) or MINOR (new capability);
   `1.0.0` is the first stable release. The same value gates multiplayer.
@@ -438,6 +444,9 @@ distance from the camera.
 - Phase 4 complete: `transport.js`, `protocol.js`, `lobby.js`, `ui/lobbyUI.js`, `guest.js`
   and `host.js` extracted; safe lobby/HUD peer names; O(n) snapshot apply; hidden-host
   simulation fallback.
-- Phase 5 next: broader tests, JSDoc/`jsconfig` typing, docs refresh.
+- Phase 5 complete: targeted tests and dedup, `jsconfig`/`// @ts-check` typing with
+  `tools/typecheck.ps1`, `docs/` deploy guidance and generated-artifact rules.
+- No active phase. Deployed Pages validation and optional netcode ideas are tracked under
+  FUTURE in `PLAN.md`.
 
-See `PLAN.md` for the step-by-step plan and `AGENTS.md` for the workflow contract.
+See `PLAN.md` for phase history and future ideas; `AGENTS.md` for the workflow contract.

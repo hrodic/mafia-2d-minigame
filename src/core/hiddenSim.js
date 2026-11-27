@@ -1,3 +1,4 @@
+// @ts-check
 // Hidden-tab host simulation fallback. Browsers throttle requestAnimationFrame in
 // background tabs, so the host can keep the authoritative simulation moving with a
 // timer while hidden. Rendering/HUD stay on the normal rAF path.
@@ -5,6 +6,21 @@
 import { MAX_FRAME_DELTA, SIM_DT, MAX_SIM_STEPS } from '../config/constants.js';
 import { advanceFixedStep } from './fixedStep.js';
 
+/**
+ * @typedef {Object} HiddenSimOptions
+ * @property {(dt: number) => void} update
+ * @property {() => boolean} isGameStarted
+ * @property {() => boolean} isGuest
+ * @property {number} [intervalMs]
+ * @property {() => number} [now]
+ * @property {(fn: () => void, ms: number) => any} [setIntervalFn]
+ * @property {(id: any) => void} [clearIntervalFn]
+ */
+
+/**
+ * @param {HiddenSimOptions} options
+ * @returns {{ start: () => boolean, stop: () => void, isRunning: () => boolean }}
+ */
 export function createHiddenSim({
   update,
   isGameStarted,
@@ -14,6 +30,7 @@ export function createHiddenSim({
   setIntervalFn = setInterval,
   clearIntervalFn = clearInterval,
 }) {
+  /** @type {any} */
   let timer = null;
   let lastTime = 0;
   let accumulator = 0;

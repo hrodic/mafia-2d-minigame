@@ -1,13 +1,50 @@
+// @ts-check
 // UI-agnostic lobby rules: host seat assignment, human capacity, roster snapshots
-// and guest seat lookup. DOM rendering stays in mpNet until ui/lobbyUI.js is
-// extracted.
+// and guest seat lookup. DOM rendering lives in ui/lobbyUI.js.
 
 import { ORGANIZATIONS, getActiveFactionSlots } from '../config/organizations.js';
 
+/**
+ * @typedef {Object} LobbyPeer
+ * @property {string} peerId
+ * @property {string} name
+ * @property {string|null} faction
+ * @property {number} slotIdx
+ * @property {boolean} isHost
+ */
+
+/**
+ * @typedef {Object} LobbyConfig
+ * @property {number} factionCount
+ * @property {string[]} orgRoster
+ */
+
+/**
+ * @typedef {Object} LobbyRosterEntry
+ * @property {string} peerId
+ * @property {string} name
+ * @property {string} faction
+ * @property {number} slotIdx
+ * @property {boolean} isHost
+ * @property {boolean} isAI
+ */
+
+/**
+ * @param {Map<string, LobbyPeer>} peers
+ * @returns {LobbyPeer[]}
+ */
 export function getSeatedPeers(peers) {
   return Array.from(peers.values()).filter((p) => p.faction !== null);
 }
 
+/**
+ * @param {Object} options
+ * @param {Map<string, LobbyPeer>} options.peers
+ * @param {string} options.selfPeerId
+ * @param {LobbyConfig} options.config
+ * @param {boolean[]} options.slotClosedAsAI
+ * @returns {string[]}
+ */
 export function reassignHostSeats({ peers, selfPeerId, config, slotClosedAsAI }) {
   const slots = getActiveFactionSlots(config.factionCount);
 
@@ -41,6 +78,11 @@ export function reassignHostSeats({ peers, selfPeerId, config, slotClosedAsAI })
   return slots;
 }
 
+/**
+ * @param {Pick<LobbyConfig, 'factionCount'>} config
+ * @param {boolean[]} slotClosedAsAI
+ * @returns {number}
+ */
 export function getOpenHumanCapacity(config, slotClosedAsAI) {
   let open = 1; // Host
   for (let idx = 1; idx < config.factionCount; idx++) {
@@ -49,6 +91,13 @@ export function getOpenHumanCapacity(config, slotClosedAsAI) {
   return open;
 }
 
+/**
+ * @param {Object} options
+ * @param {LobbyConfig} options.config
+ * @param {Map<string, LobbyPeer>} options.peers
+ * @param {boolean[]} options.slotClosedAsAI
+ * @returns {LobbyRosterEntry[]}
+ */
 export function buildLobbyRosterSnapshot({ config, peers, slotClosedAsAI }) {
   const slots = getActiveFactionSlots(config.factionCount);
   const seatedPeers = getSeatedPeers(peers);
@@ -61,7 +110,7 @@ export function buildLobbyRosterSnapshot({ config, peers, slotClosedAsAI }) {
       roster.push({
         peerId: occupant.peerId,
         name: occupant.name,
-        faction: occupant.faction,
+        faction: /** @type {string} */ (occupant.faction),
         slotIdx: occupant.slotIdx,
         isHost: occupant.isHost,
         isAI: false,
@@ -82,6 +131,11 @@ export function buildLobbyRosterSnapshot({ config, peers, slotClosedAsAI }) {
   return roster;
 }
 
+/**
+ * @param {LobbyRosterEntry[]} roster
+ * @param {string} selfPeerId
+ * @returns {LobbyRosterEntry | null}
+ */
 export function findGuestSeat(roster, selfPeerId) {
   return (
     roster.find((p) => p.peerId === selfPeerId) ||

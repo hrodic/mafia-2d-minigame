@@ -68,7 +68,9 @@ The script:
 - copies `index.html`, `styles.css` and `.nojekyll` into `docs/`,
 - does not copy tests or test pages.
 
-Commit `docs/` after rebuilding. GitHub Pages settings: Deploy from a branch, then your published branch, folder `/docs`. Rebuild and commit `docs/` whenever source changes.
+Commit `docs/` after rebuilding. **Never hand-edit `docs/`** — it is pure generated output.
+GitHub Pages settings: Deploy from a branch, then your published branch, folder `/docs`.
+Rebuild and commit `docs/` whenever source changes.
 published branch → `/docs`**. Rebuild and commit `docs/` whenever source changes.
 
 The game needs network access for the Tailwind CDN and, for cross-machine multiplayer, the
@@ -88,7 +90,20 @@ DOM ids):
 
 ```sh
 powershell -ExecutionPolicy Bypass -File tools/check.ps1
+powershell -ExecutionPolicy Bypass -File tools/typecheck.ps1
 ```
+
+The full static gate is:
+
+1. `tools/check.ps1` — source health and generated `docs/` shape.
+2. `tools/typecheck.ps1` — native TypeScript compiler against `jsconfig.json`.
+3. `tests/tests.html` — runtime tests (`PASS`).
+4. `tools/build-pages.ps1` + `/docs/` smoke when source or shell files change.
+5. `tests/mp-harness.html` when `sim/`, `net/` or shared state changes.
+
+`tools/typecheck.ps1` downloads the native TypeScript compiler into the ignored
+`tools/typescript/` directory on first use, then checks the `jsconfig.json` program. No npm
+install or TypeScript build step is added.
 
 Manual checklist: `tests/SMOKE.md`. Deterministic two-tab multiplayer testing (local bus,
 no external relays): `tests/mp-harness.html`.

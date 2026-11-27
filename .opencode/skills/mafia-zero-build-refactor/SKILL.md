@@ -57,5 +57,6 @@ copied. Do not hand-edit `docs/`; rebuild it and smoke `http://localhost:8123/do
 
 ## Verify and report
 
-Run the `AGENTS.md` loop: static check -> tests -> game smoke -> MP check when
-`sim/`/`net/`/state changed. Report files + results; do not commit.
+Run the `AGENTS.md` loop: static check -> type check -> tests -> game smoke -> MP check when
+`sim/`/`net/`/state changed. Report files + results; do not commit. The type checker is a
+downloaded, git-ignored native `tsc.exe`; no npm or build step is added.

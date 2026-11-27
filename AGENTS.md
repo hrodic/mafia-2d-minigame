@@ -4,7 +4,7 @@ Rules for AI/human contributors. One source of truth per topic:
 
 - `README.md` — what the game is, controls, run/deploy.
 - `ARCHITECTURE.md` — layers, modules, data flow, invariants.
-- `PLAN.md` — phase status and the next step. **Current phase: Phase 5 (next).**
+- `PLAN.md` — phase status and future ideas. **Current phase: none (Phases 0–5 complete).**
 - `EVENTS.md` — event-bus contract (implemented).
 - `.opencode/skills/` — task skills (zero-build refactor, multiplayer debug).
 
@@ -24,12 +24,36 @@ command, number or test result; read the file or run the check.
    runs a local esbuild binary to minify each module **without bundling**. Never hand-edit
    `docs/`; rebuild it from `src/`.
 
+## Generated Pages artifact (`docs/`)
+
+`docs/` is **pure output** of `tools/build-pages.ps1` (esbuild minify, no bundling). It is
+not source. Never edit, add or delete anything under `docs/` by hand; never put tests there;
+never use it for debugging. Change `index.html`, `styles.css` or `src/`, run the build
+script, and commit the regenerated `docs/` directory. If the artifact is wrong, fix the
+source or build script and rebuild; do not patch `docs/`.
+
+## Static validation tooling
+
+Run these before every commit:
+
+1. `tools/check.ps1` — imports, test registry, DOM ids, skill metadata, `docs/` shape and
+   the `sim/` headless ratchet.
+2. `tools/typecheck.ps1` — native TypeScript compiler against `jsconfig.json`
+   (`// @ts-check` modules only).
+3. `tests/tests.html` — browser test suite; title must be `PASS`.
+4. `tools/build-pages.ps1` + `http://localhost:8123/docs/` — when `src/`, `index.html` or
+   `styles.css` changed.
+5. `tests/mp-harness.html` in two tabs — when `sim/`, `net/` or shared state changed.
+
 ## Versioning (SemVer)
 
 `GAME_VERSION` in `src/config/version.js` is the single source (`MAJOR.MINOR.PATCH`).
 
-- Every commit-sized step bumps the version in the same commit.
-- **MINOR** for a new user-visible capability; **PATCH** for fixes, refactors, docs, tests,
+- Every commit-sized step that changes source, tests, config or the shipped artifact bumps
+  the version in the same commit.
+- Planning/status documentation-only edits (`PLAN.md`, `AGENTS.md`, `ARCHITECTURE.md`, README
+  wording) do not bump the version.
+- **MINOR** for a new user-visible capability; **PATCH** for fixes, refactors, tests,
   performance or internal changes.
 - Intentional balance tuning updates `tests/balance.test.js` expected values in the same
   commit.
@@ -41,7 +65,9 @@ command, number or test result; read the file or run the check.
 
 | Task | Command / URL |
 |---|---|
+| Full static gate | `tools/check.ps1` + `tools/typecheck.ps1` + `tests/tests.html` |
 | Static check | `powershell -ExecutionPolicy Bypass -File tools/check.ps1` → `OK: ...` |
+| Type check | `powershell -ExecutionPolicy Bypass -File tools/typecheck.ps1` → `Type check OK` |
 | Build Pages artifact | `powershell -ExecutionPolicy Bypass -File tools/build-pages.ps1` → `Built docs/: ...` |
 | Dev server | `powershell -ExecutionPolicy Bypass -File tools/serve.ps1 -Port 8123` |
 | Tests | `http://localhost:8123/tests/tests.html` → title `PASS` |
@@ -53,15 +79,16 @@ command, number or test result; read the file or run the check.
 ## Verification (after every change)
 
 1. `tools/check.ps1` prints `OK: ...` (imports, runner manifest, DOM ids, skill
-   frontmatter, and the `sim/` layering ratchet).
-2. Tests page title is `PASS`; check the browser console, not just the summary.
-3. Game loads over http, starts, moves, slashes/shoots; no console errors.
-4. If `src/`, `index.html` or `styles.css` changed: run `tools/build-pages.ps1`, confirm
+   frontmatter, generated `docs/` shape and the `sim/` layering ratchet).
+2. `tools/typecheck.ps1` prints `Type check OK` (downloads the ignored native `tsc.exe`).
+3. Tests page title is `PASS`; check the browser console, not just the summary.
+4. Game loads over http, starts, moves, slashes/shoots; no console errors.
+5. If `src/`, `index.html` or `styles.css` changed: run `tools/build-pages.ps1`, confirm
    `Built docs/`, smoke `http://localhost:8123/docs/`, and verify `docs/` contains no tests.
-5. If `sim/`, `net/` or shared state changed: two-tab MP check (lobby, launch, guest
+6. If `sim/`, `net/` or shared state changed: two-tab MP check (lobby, launch, guest
    movement/commands, snapshots).
-6. Added a test file? Register it in `tests/runner.js`; the check script enforces this.
-7. Golden test failed after a refactor? Generation broke. Fix the code; update
+7. Added a test file? Register it in `tests/runner.js`; the check script enforces this.
+8. Golden test failed after a refactor? Generation broke. Fix the code; update
    `tests/world-golden.test.js` hashes only for an intentional generation change.
 
 ## Where to change what
