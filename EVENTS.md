@@ -46,7 +46,7 @@ Naming: `domain:pastTense` (`unit:damaged`, `chunk:captured`, `match:victory`).
 | `armor:equipped` | `{ unit, amount, faction, isPlayer, textOffset }` | combat |
 | `armor:broken` | `{ unit, isPlayer }` | combat |
 | `unit:recruited` | `{ unit, faction, rank, cost }` (silent recruits do not emit) | units/economy |
-| `hour:tick` | `{ hour, income, upkeep, treasuries }` | economy |
+| `hour:tick` | `{ hour, income, grossIncome, corruption, upkeep, treasuries }` | economy |
 | `match:victory` | `{ faction, blocks, totalBlocks, cash, crew }` | territory |
 | `match:defeat` | `{ faction }` | territory |
 | `ui:toast` | `{ message }` | any sim system |

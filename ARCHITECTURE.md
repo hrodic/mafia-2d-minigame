@@ -140,7 +140,8 @@ inside functions called after module evaluation (never at top level).
    timer without rendering; rAF resumes and the accumulator resets when visible. Guests
    never simulate. Browsers may still throttle background timers.
 6. Boots UI/input (`applyVersionLabels`, `initMenus`, `initInput`) and setup renderers.
-7. Detects `?room=&secret=` invite URLs and pre-fills the join panel.
+7. Reads short invite codes from the URL fragment (`#code=...`) and legacy
+   `?room=&secret=` links, then pre-fills the join panel.
 
 ### Net bridge
 
@@ -186,7 +187,7 @@ exported singleton with `Object.assign` — importers keep the same identity, an
 The match state holds:
 
 - world/entities: `world`, `npcs`, `floatingTexts`, `spatialBuckets`, `nextNpcId`
-- factions/economy: `treasuries`, `factionAlive`, `factionKills`
+- factions/economy: `treasuries`, `factionAlive`, `factionKills`, `factionDeaths`
 - local boss: `player` (unit identity fields `id`/`faction`/`rank`/`control`/`bodyRadius`),
   `camera`, `mouse`, `keys`
 - match config: `activeFactions`, `selectedFactionOrgs`, `activeFactionCount`,
@@ -277,9 +278,11 @@ point-blank damage falloff, and armor purchases (player, rival AI). It emits fac
 the combat SFX. The host's `shot:fired` subscriber broadcasts ephemeral tracers to guests.
 
 ### Economy
-`sim/economy.js`: income totals from owned chunks, upkeep per unit, the hourly tick
-(pay net, auto-recruit underbosses/captains/soldiers within caps), skipping dead factions.
-It emits `hour:tick` with `{ hour, income, upkeep, treasuries }`; the HUD subscribes.
+`sim/economy.js`: income totals from owned chunks, corruption penalties (1% per 10
+neighborhoods and 1% per 25 living units), upkeep per unit, the hourly tick (pay effective
+income minus upkeep, auto-recruit underbosses/captains/soldiers within caps), skipping dead
+factions. It emits `hour:tick` with `{ hour, income, grossIncome, corruption, upkeep,
+treasuries }`; the HUD subscribes.
 
 ### Territory
 `sim/territory.js`: capture starts/resets/completes at rank-based rates
@@ -290,7 +293,8 @@ subscribe in `main.js`.
 
 ### Balance data
 `config/balance.js` is the gameplay tuning surface: `RANK_STATS` (HP, armor, damage,
-AI/human speed, radius, capture rate, cost/upkeep), `UNIT_CAPS`, `SLASH` profiles, and
+AI/human speed, radius, capture rate, cost/upkeep), `UNIT_CAPS`, `CORRUPTION`, `SLASH`
+profiles, and
 `PISTOL` stats + accuracy bands. `config/constants.js` owns world/map defaults, sprint,
 pistol range, hit flash, the fixed sim step and catch-up limits. Non-boss AI ranks share a
 `150` base speed; bosses use `140` for both AI and human control, so sprint is the boss

@@ -114,11 +114,13 @@ test('hud: updateHUD writes HP, armor, cash, clock and territory stats', () => {
       const stats = document.getElementById('stats-badge').textContent;
       assert(stats.includes('Turf: 1/2'), stats);
       assert(stats.includes('Crew: 2'), stats);
-      assertEqual(document.getElementById('mgmt-total-upkeep').textContent, '$100/hr');
+      assertEqual(document.getElementById('mgmt-total-upkeep').textContent, '-$120/hr');
       assertEqual(document.getElementById('mgmt-total-gross').textContent, '+$1,000/hr');
       assertEqual(document.getElementById('mgmt-total-turf').textContent, '1/2');
       assertEqual(document.getElementById('mgmt-total-crew').textContent, '2');
-      assertEqual(document.getElementById('mgmt-total-net').textContent, '+$900/hr');
+      assertEqual(document.getElementById('mgmt-total-corruption').textContent, '$0 (0%)');
+      assertEqual(document.getElementById('mgmt-corruption-breakdown').textContent, 'Turf 0% · Crew 0%');
+      assertEqual(document.getElementById('mgmt-total-net').textContent, '+$880/hr');
       const board = document.getElementById('faction-board').textContent;
       assert(board.includes('Cosa Nostra'), board);
       assert(board.includes('(You)'), board);
@@ -175,6 +177,33 @@ test('hud: faction leaderboard collapses to its header and restores', () => {
     assertEqual(button.getAttribute('aria-expanded'), 'true');
     assertEqual(button.textContent, '▴');
   });
+});
+
+test('hud: corruption breakdown combines turf and crew penalties', () => {
+  const chunks = new Map();
+  for (let i = 0; i < 10; i++) {
+    chunks.set(`p${i}`, { faction: Faction.PLAYER, income: 100 });
+  }
+  withHudState(
+    {
+      world: { chunks },
+      npcs: Array.from({ length: 24 }, () => ({
+        faction: Faction.PLAYER,
+        rank: UnitRank.SOLDIER,
+      })),
+      treasuries: { [Faction.PLAYER]: 5000 },
+    },
+    () => {
+      updateHUD();
+      assertEqual(document.getElementById('mgmt-total-turf').textContent, '10/10');
+      assertEqual(document.getElementById('mgmt-total-crew').textContent, '25');
+      assertEqual(document.getElementById('mgmt-total-gross').textContent, '+$1,000/hr');
+      assertEqual(document.getElementById('mgmt-total-upkeep').textContent, '-$2,880/hr');
+      assertEqual(document.getElementById('mgmt-total-corruption').textContent, '-$20 (2%)');
+      assertEqual(document.getElementById('mgmt-corruption-breakdown').textContent, 'Turf 1% · Crew 1%');
+      assertEqual(document.getElementById('mgmt-total-net').textContent, '-$1,900/hr');
+    }
+  );
 });
 
 test('hud: negative cash is formatted and marked', () => {

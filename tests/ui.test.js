@@ -196,6 +196,9 @@ test('ui: hierarchy manual is a scannable rank table', async () => {
   const css = await (await fetch('../styles.css', { cache: 'no-store' })).text();
   assert(/\.manual-table\s*\{[^}]*border-collapse/s.test(css), 'rank table styling missing');
   assert(/\.manual-table-wrap\s*\{[^}]*overflow-x:\s*auto/s.test(css), 'rank table needs horizontal fallback');
+  for (const value of ['Mobility & Capture', 'Attack Timing', '0.375 capture/s', '0.34s cooldown', '1.6× for 2.0s']) {
+    assert(panel.textContent.includes(value), `manual should expose ${value}`);
+  }
 });
 
 test('ui: setup modal is top-aligned with a stable height', async () => {
@@ -268,7 +271,7 @@ test('ui: settings cards are grouped by priority with the seed last', async () =
   assertEqual(presets[1].getAttribute('aria-pressed'), 'true');
   assertEqual(doc.getElementById('tick-speed-slider').value, '15');
   assertEqual(doc.getElementById('tick-speed-display').textContent.trim(), '15s (Normal)');
-  assert(doc.getElementById('income-tier-display').textContent.includes('$500'));
+  assert(doc.getElementById('income-tier-display').textContent.includes('$1,000'));
   assert(doc.querySelector('.income-tier-btn[data-income="MID"]').className.includes('bg-emerald-500/20'));
   assert(summary.querySelector('#match-impact-text').textContent.includes('15s ticks'));
 });
@@ -319,10 +322,11 @@ test('ui: crew totals, collapsible leaderboard and expandable radar', async () =
 
   const totals = doc.querySelector('.mgmt-totals');
   assert(totals, 'crew totals missing');
-  for (const id of ['mgmt-total-turf', 'mgmt-total-crew', 'mgmt-total-gross', 'mgmt-total-upkeep', 'mgmt-total-net']) {
+  for (const id of ['mgmt-total-turf', 'mgmt-total-crew', 'mgmt-total-gross', 'mgmt-total-upkeep', 'mgmt-total-corruption', 'mgmt-corruption-breakdown', 'mgmt-total-net']) {
     assert(totals.querySelector(`#${id}`), `${id} missing`);
   }
   assert(totals.textContent.includes('Gross'), 'gross total label missing');
+  assert(totals.textContent.includes('Corruption'), 'corruption total label missing');
 
   const css = await (await fetch('../styles.css', { cache: 'no-store' })).text();
   assert(/#radar-panel\.is-expanded canvas/s.test(css), 'expanded radar sizing missing');

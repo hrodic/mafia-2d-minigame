@@ -51,7 +51,7 @@ export function createGameState(config = {}) {
   const factionDeaths = {};
   for (const faction of ALL_FACTION_SLOTS) {
     const isActive = activeFactions.includes(faction);
-    treasuries[faction] = isActive ? 3000 : 0;
+    treasuries[faction] = isActive ? 5000 : 0;
     factionAlive[faction] = isActive;
     factionKills[faction] = 0;
     factionDeaths[faction] = 0;

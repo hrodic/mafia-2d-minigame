@@ -113,8 +113,8 @@ test('match: initWorld configures a 2-faction 5x5 match deterministically', () =
 test('match: active factions get starting cash, inactive slots are dead', () => {
   withMatchState(() => {
     initWorld(5, false, 10, 'HIGH', 2, ['YAKUZA', 'TRIADS'], 7);
-    assertEqual(state.treasuries[Faction.PLAYER], 3000);
-    assertEqual(state.treasuries[Faction.RIVAL_3], 3000);
+    assertEqual(state.treasuries[Faction.PLAYER], 5000);
+    assertEqual(state.treasuries[Faction.RIVAL_3], 5000);
     assertEqual(state.treasuries[Faction.RIVAL_1], 0);
     assertEqual(state.treasuries[Faction.RIVAL_2], 0);
     assertEqual(state.factionAlive[Faction.PLAYER], true);
@@ -261,8 +261,8 @@ test('match: initWorld resets stale flags, timers, economy, caps and player stat
     assertEqual(state.nextNpcId, 1 + 1, 'one active rival boss should have spawned');
     assertEqual(state.astarBudgetThisFrame, 0);
 
-    assertEqual(state.treasuries[Faction.PLAYER], 3000);
-    assertEqual(state.treasuries[Faction.RIVAL_3], 3000);
+    assertEqual(state.treasuries[Faction.PLAYER], 5000);
+    assertEqual(state.treasuries[Faction.RIVAL_3], 5000);
     assertEqual(state.treasuries[Faction.RIVAL_1], 0);
     assertEqual(state.factionAlive[Faction.PLAYER], true);
     assertEqual(state.factionAlive[Faction.RIVAL_3], true);

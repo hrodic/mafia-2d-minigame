@@ -52,7 +52,7 @@
 
       <div class="hud-telemetry hud-telemetry-cash">
         <span class="hud-telemetry-label">Cash</span>
-        <span id="cash-text" class="hud-telemetry-value hud-num">$3,000</span>
+        <span id="cash-text" class="hud-telemetry-value hud-num">$5,000</span>
       </div>
 
       <div id="hour-hud-box" class="hud-telemetry hud-telemetry-hour"
@@ -126,12 +126,12 @@
           <div class="mgmt-tier-meta">
             <div class="mgmt-tier-economy">
               <span id="mgmt-price-soldier" class="mgmt-price">$1,200</span>
-              <span id="mgmt-upkeep-soldier" class="mgmt-upkeep-cost">$100/hr upkeep</span>
+              <span id="mgmt-upkeep-soldier" class="mgmt-upkeep-cost">-$120/hr upkeep</span>
             </div>
             <div class="mgmt-caps" title="Target Soldato spawn cap">
               <button id="btn-cap-soldier-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Soldato cap to minimum">MIN</button>
               <button id="btn-cap-soldier-dec" type="button" class="mgmt-cap-btn" aria-label="Decrease Soldato cap">−</button>
-              <span id="cap-soldier-label" class="mgmt-cap-value hud-num">96/192</span>
+              <span id="cap-soldier-label" class="mgmt-cap-value hud-num">75/150</span>
               <button id="btn-cap-soldier-inc" type="button" class="mgmt-cap-btn" aria-label="Increase Soldato cap">+</button>
               <button id="btn-cap-soldier-max" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Soldato cap to maximum">MAX</button>
             </div>
@@ -153,12 +153,12 @@
           <div class="mgmt-tier-meta">
             <div class="mgmt-tier-economy">
               <span id="mgmt-price-captain" class="mgmt-price">$2,200</span>
-              <span id="mgmt-upkeep-captain" class="mgmt-upkeep-cost">$200/hr upkeep</span>
+              <span id="mgmt-upkeep-captain" class="mgmt-upkeep-cost">-$220/hr upkeep</span>
             </div>
             <div class="mgmt-caps" title="Target Caporegime spawn cap">
               <button id="btn-cap-captain-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Caporegime cap to minimum">MIN</button>
               <button id="btn-cap-captain-dec" type="button" class="mgmt-cap-btn" aria-label="Decrease Caporegime cap">−</button>
-              <span id="cap-captain-label" class="mgmt-cap-value hud-num">11/22</span>
+              <span id="cap-captain-label" class="mgmt-cap-value hud-num">15/30</span>
               <button id="btn-cap-captain-inc" type="button" class="mgmt-cap-btn" aria-label="Increase Caporegime cap">+</button>
               <button id="btn-cap-captain-max" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Caporegime cap to maximum">MAX</button>
             </div>
@@ -180,12 +180,12 @@
           <div class="mgmt-tier-meta">
             <div class="mgmt-tier-economy">
               <span id="mgmt-price-underboss" class="mgmt-price">$3,800</span>
-              <span id="mgmt-upkeep-underboss" class="mgmt-upkeep-cost">$300/hr upkeep</span>
+              <span id="mgmt-upkeep-underboss" class="mgmt-upkeep-cost">-$380/hr upkeep</span>
             </div>
             <div class="mgmt-caps" title="Target Sottocapo spawn cap">
               <button id="btn-cap-underboss-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Sottocapo cap to minimum">MIN</button>
               <button id="btn-cap-underboss-dec" type="button" class="mgmt-cap-btn" aria-label="Decrease Sottocapo cap">−</button>
-              <span id="cap-underboss-label" class="mgmt-cap-value hud-num">6/11</span>
+              <span id="cap-underboss-label" class="mgmt-cap-value hud-num">8/15</span>
               <button id="btn-cap-underboss-inc" type="button" class="mgmt-cap-btn" aria-label="Increase Sottocapo cap">+</button>
               <button id="btn-cap-underboss-max" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Sottocapo cap to maximum">MAX</button>
             </div>
@@ -208,6 +208,13 @@
           <div class="mgmt-total">
             <span class="mgmt-total-label">Upkeep</span>
             <span id="mgmt-total-upkeep" class="mgmt-total-value hud-num">$0/hr</span>
+          </div>
+          <div class="mgmt-total mgmt-total-wide mgmt-total-corruption">
+            <div class="mgmt-total-head">
+              <span class="mgmt-total-label">Corruption</span>
+              <span id="mgmt-total-corruption" class="mgmt-total-value hud-num">-0%</span>
+            </div>
+            <span id="mgmt-corruption-breakdown" class="mgmt-total-sub hud-num">Turf 0% · Crew 0%</span>
           </div>
           <div class="mgmt-total mgmt-total-net">
             <span class="mgmt-total-label">Net</span>
@@ -472,7 +479,7 @@
             <div id="match-settings-wrapper" class="grid grid-cols-1 xl:grid-cols-2 gap-3">
               <div id="match-impact-summary" class="match-impact hud-num xl:col-span-2">
                 <span class="match-impact-label">YOUR SETUP</span>
-                <span id="match-impact-text">225 neighborhoods · 75 Street Enforcers · 15 Middle Management · 8 Second-in-Command · 15s ticks · $500–$1,000/tick</span>
+                <span id="match-impact-text">225 neighborhoods · 75 Street Enforcers · 15 Middle Management · 8 Second-in-Command · 15s ticks · $1,000–$1,500/tick</span>
                 <div class="match-presets" role="group" aria-label="Match presets">
                   <button type="button" class="match-preset" data-preset="turbo" aria-pressed="false" title="10×10 · 10s tick · High income">Turbo</button>
                   <button type="button" class="match-preset" data-preset="normal" aria-pressed="true" title="15×15 · 15s tick · Mid income">Normal</button>
@@ -601,21 +608,21 @@
                   <span class="text-xs font-bold uppercase tracking-wider text-zinc-300">
                     Neighborhood Income
                   </span>
-                  <span id="income-tier-display" class="font-mono text-xs font-bold text-emerald-400">$500–$1,000 / tick</span>
+                  <span id="income-tier-display" class="font-mono text-xs font-bold text-emerald-400">$1,000–$1,500 / tick</span>
                 </div>
 
                 <div class="grid grid-cols-3 gap-2">
                   <button type="button" data-income="LOW" class="income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition">
                     <div class="text-xs font-extrabold">Low</div>
-                    <div class="text-[10px] font-mono text-zinc-400">$250–$500</div>
+                    <div class="text-[10px] font-mono text-zinc-400">$500–$1,000</div>
                   </button>
                   <button type="button" data-income="MID" class="income-tier-btn bg-emerald-500/20 border border-emerald-500 text-emerald-300 py-2 px-2 rounded-lg text-center transition">
                     <div class="text-xs font-extrabold">Mid</div>
-                    <div class="text-[10px] font-mono text-emerald-200/80">$500–$1,000</div>
+                    <div class="text-[10px] font-mono text-emerald-200/80">$1,000–$1,500</div>
                   </button>
                   <button type="button" data-income="HIGH" class="income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition">
                     <div class="text-xs font-extrabold">High</div>
-                    <div class="text-[10px] font-mono text-zinc-400">$1,000–$1,500</div>
+                    <div class="text-[10px] font-mono text-zinc-400">$1,500–$2,000</div>
                   </button>
                 </div>
               </div>
@@ -692,7 +699,7 @@
               <div class="bg-zinc-900/90 border border-zinc-800/90 rounded-lg p-2">
                 <div class="font-bold text-amber-400 mb-0.5">🔫 9mm Pistol (<span class="text-zinc-200">Right-Click</span>)</div>
                 <p class="text-zinc-400 leading-relaxed">
-                  Fires up to <span class="text-white">1000px</span> (<span class="text-amber-300 font-semibold">40–80 dmg</span>). Point-blank deals <span class="text-white">-50%</span> (&lt;100px) or <span class="text-white">-75%</span> (≤50px); miss chance scales at <span class="text-white">250px (5%)</span>, <span class="text-white">500px (10%)</span>, <span class="text-white">750px (25%)</span>, and <span class="text-white">900px+ (50%)</span>.
+                  Fires up to <span class="text-white">1000px</span> (<span class="text-amber-300 font-semibold">40–80 dmg</span>). Point-blank deals <span class="text-white">-75%</span> damage (≤50px) or <span class="text-white">-50%</span> (≤100px). Hit chance is <span class="text-white">100%</span> to 250px, then <span class="text-white">95%</span> to 500px, <span class="text-white">90%</span> to 750px, <span class="text-white">75%</span> to 900px, and <span class="text-white">50%</span> to 1000px; beyond 1000px the shot misses.
                 </p>
               </div>
             </div>
@@ -717,7 +724,7 @@
                       <th scope="col" title="Blade damage per hit">Dmg</th>
                       <th scope="col" title="One-time recruitment cost">Hire</th>
                       <th scope="col" title="Paid every hour">Upkeep</th>
-                      <th scope="col" title="Maximum share of your crew">Cap</th>
+                      <th scope="col" title="Maximum per grid side">Cap</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -746,7 +753,7 @@
                       <td class="stat-cell"><span class="stat-main">480</span><span class="stat-sub">+120 armor</span></td>
                       <td class="stat-cell"><span class="stat-main">26–38</span><span class="stat-sub">blade</span></td>
                       <td class="stat-cell"><span class="stat-main money">$3,800</span></td>
-                      <td class="stat-cell"><span class="stat-main">$300</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="stat-main">$380</span><span class="stat-sub">/ hr</span></td>
                       <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×1">×1</span></td>
                     </tr>
                     <tr class="tier-silver">
@@ -760,7 +767,7 @@
                       <td class="stat-cell"><span class="stat-main">340</span></td>
                       <td class="stat-cell"><span class="stat-main">18–28</span><span class="stat-sub">blade</span></td>
                       <td class="stat-cell"><span class="stat-main money">$2,200</span></td>
-                      <td class="stat-cell"><span class="stat-main">$200</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="stat-main">$220</span><span class="stat-sub">/ hr</span></td>
                       <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×2">×2</span></td>
                     </tr>
                     <tr class="tier-copper">
@@ -774,7 +781,7 @@
                       <td class="stat-cell"><span class="stat-main">180</span></td>
                       <td class="stat-cell"><span class="stat-main">10–18</span><span class="stat-sub">blade</span></td>
                       <td class="stat-cell"><span class="stat-main money">$1,200</span></td>
-                      <td class="stat-cell"><span class="stat-main">$100</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="stat-main">$120</span><span class="stat-sub">/ hr</span></td>
                       <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×10">×10</span></td>
                     </tr>
                   </tbody>
@@ -782,8 +789,30 @@
               </div>
 
               <p class="text-[10px] text-zinc-500 leading-relaxed">
-                Hire is one-time; upkeep is paid every hour. Caps scale with the city grid: Underbosses ×1, Captains ×2, Soldiers ×10 (15×15 allows 15 / 30 / 150). Minimums are 1 / 2 / 10. Lower each tier's ceiling in Crew Limits before launch, then set your own target in Crew Management with MIN / − / + / MAX. Armor absorbs damage before HP. Everyone's pistol deals 40–80 at range.
+                Hire is one-time; upkeep is paid every hour. Caps scale with the city grid: Underbosses ×1, Captains ×2, Soldiers ×10 (15×15 allows 15 / 30 / 150). Minimums are 1 / 2 / 10. Lower each tier's ceiling in Crew Limits before launch, then set your own target in Crew Management with MIN / − / + / MAX. Corruption reduces income by 1% for every 10 neighborhoods and every 25 living units; the Crew Management totals show the Turf, Crew and total percentages. Armor absorbs damage before HP. Everyone's pistol deals 40–80 at range.
               </p>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2 border-t border-zinc-800/80">
+                <div class="text-[10px] text-zinc-400 leading-relaxed">
+                  <div class="font-bold text-zinc-200 uppercase tracking-wider mb-1">Mobility & Capture</div>
+                  <ul class="space-y-0.5">
+                    <li>Boss: 140 px/s · 0.375 capture/s · radius 13.5</li>
+                    <li>Second-in-Command: 150 px/s · 0.24 capture/s · radius 12.8</li>
+                    <li>Middle Management: 150 px/s · 0.18 capture/s · radius 12</li>
+                    <li>Street Enforcers: 150 px/s · 0.12 capture/s · radius 11</li>
+                  </ul>
+                </div>
+                <div class="text-[10px] text-zinc-400 leading-relaxed">
+                  <div class="font-bold text-zinc-200 uppercase tracking-wider mb-1">Attack Timing</div>
+                  <ul class="space-y-0.5">
+                    <li>Human slash: 0.34s cooldown · 3 targets · 52px reach</li>
+                    <li>Human pistol: 0.65s cooldown · 40–80 dmg · 1000px range</li>
+                    <li>AI attacks: 1.0s cooldown · melee ranks reach 46px</li>
+                    <li>Boss armor: $3,500 for +300 · once per hour</li>
+                    <li>Sprint: 1.6× for 2.0s · 4.0s cooldown</li>
+                  </ul>
+                </div>
+              </div>
             </div>
             </div>
           </div>

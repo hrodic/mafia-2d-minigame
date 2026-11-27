@@ -1,8 +1,8 @@
 // Faction economy: upkeep, hourly neighborhood income and the recruitment tick.
 
 import { Faction, UnitRank } from '../config/enums.js';
-import { UPKEEP_SOLDIER, UPKEEP_CAPTAIN, UPKEEP_UNDERBOSS } from '../config/balance.js';
-import { state } from '../core/state.js';
+import { UPKEEP_SOLDIER, UPKEEP_CAPTAIN, UPKEEP_UNDERBOSS, CORRUPTION } from '../config/balance.js';
+import { state, forEachUnit } from '../core/state.js';
 import { emit } from '../core/events.js';
 import { recruitUnit } from './units.js';
 
@@ -39,14 +39,50 @@ export function recalculateHourlyIncome() {
   return totals;
 }
 
+/** Corruption percentages from neighborhood count and living unit count. */
+export function calculateCorruption() {
+  const neighborhoods = {
+    [Faction.PLAYER]: 0,
+    [Faction.RIVAL_1]: 0,
+    [Faction.RIVAL_2]: 0,
+    [Faction.RIVAL_3]: 0,
+  };
+  const units = { ...neighborhoods };
+  for (const chunk of state.world.chunks.values()) {
+    if (neighborhoods[chunk.faction] !== undefined) neighborhoods[chunk.faction]++;
+  }
+  forEachUnit((unit) => {
+    if (units[unit.faction] !== undefined) units[unit.faction]++;
+  });
+
+  const result = {};
+  for (const faction of Object.keys(neighborhoods)) {
+    const turf = Math.floor(neighborhoods[faction] / CORRUPTION.neighborhoodsPerStep)
+      * CORRUPTION.percentPerStep;
+    const crew = Math.floor(units[faction] / CORRUPTION.unitsPerStep)
+      * CORRUPTION.percentPerStep;
+    result[faction] = { turf, crew, total: turf + crew };
+  }
+  return result;
+}
+
+/** Apply total corruption as an income penalty, rounded to whole dollars. */
+export function applyCorruption(income, totalPercent) {
+  const percent = Math.max(0, Math.min(100, totalPercent || 0));
+  return Math.round(income * (1 - percent / 100));
+}
+
 export function processHourlyTick() {
   state.gameHour = (state.gameHour + 1) % 24;
   const incomeTotals = recalculateHourlyIncome();
   const upkeepTotals = calculateFactionUpkeep();
+  const corruption = calculateCorruption();
+  const effectiveIncome = {};
 
   for (const f of state.activeFactions) {
     if (!state.factionAlive[f]) continue;
-    const net = (incomeTotals[f] || 0) - (upkeepTotals[f] || 0);
+    effectiveIncome[f] = applyCorruption(incomeTotals[f] || 0, corruption[f]?.total || 0);
+    const net = effectiveIncome[f] - (upkeepTotals[f] || 0);
     state.treasuries[f] += net;
   }
 
@@ -109,7 +145,9 @@ export function processHourlyTick() {
   state.minimapCacheTimer = 1.0;
   emit('hour:tick', {
     hour: state.gameHour,
-    income: incomeTotals,
+    income: effectiveIncome,
+    grossIncome: incomeTotals,
+    corruption,
     upkeep: upkeepTotals,
     treasuries: { ...state.treasuries },
   });

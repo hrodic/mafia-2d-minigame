@@ -15,7 +15,7 @@ import { SPRINT_MAX_DURATION, SPRINT_COOLDOWN_DURATION } from '../config/constan
 import { FACTION_META } from '../config/organizations.js';
 import { state, forEachUnit, getLocalFaction, getLocalBoss, isLocalBossAlive } from '../core/state.js';
 import { clampPlayerSpawnCaps, getUnitCaps, getUnitCapMin } from '../sim/units.js';
-import { calculateFactionUpkeep, recalculateHourlyIncome } from '../sim/economy.js';
+import { calculateFactionUpkeep, calculateCorruption, applyCorruption, recalculateHourlyIncome } from '../sim/economy.js';
 
 
 function escapeHtml(value) {
@@ -126,6 +126,8 @@ const hudEls = {
   totalCrew: document.getElementById('mgmt-total-crew'),
   totalGross: document.getElementById('mgmt-total-gross'),
   totalUpkeep: document.getElementById('mgmt-total-upkeep'),
+  totalCorruption: document.getElementById('mgmt-total-corruption'),
+  corruptionBreakdown: document.getElementById('mgmt-corruption-breakdown'),
   totalNet: document.getElementById('mgmt-total-net'),
 };
 
@@ -155,7 +157,7 @@ export function syncRecruitButtonLabels() {
     const price = document.getElementById(`mgmt-price-${key}`);
     const upkeepEl = document.getElementById(`mgmt-upkeep-${key}`);
     if (price) price.textContent = `$${cost.toLocaleString()}`;
-    if (upkeepEl) upkeepEl.textContent = `$${upkeep}/hr upkeep`;
+    if (upkeepEl) upkeepEl.textContent = `-$${upkeep}/hr upkeep`;
   };
   setEconomy('soldier', COST_SOLDIER, UPKEEP_SOLDIER);
   setEconomy('captain', COST_CAPTAIN, UPKEEP_CAPTAIN);
@@ -233,11 +235,27 @@ export function updateHUD() {
 
   const incomeTotals = recalculateHourlyIncome();
   const upkeepTotals = calculateFactionUpkeep();
+  const corruptionTotals = calculateCorruption();
+  const myCorruption = corruptionTotals[myFac] || { turf: 0, crew: 0, total: 0 };
+  const myEffectiveIncome = applyCorruption(incomeTotals[myFac] || 0, myCorruption.total);
+  const myCorruptionLoss = Math.max(0, (incomeTotals[myFac] || 0) - myEffectiveIncome);
   if (hudEls.totalUpkeep) {
-    hudEls.totalUpkeep.textContent = `$${(upkeepTotals[myFac] || 0).toLocaleString()}/hr`;
+    const upkeep = upkeepTotals[myFac] || 0;
+    hudEls.totalUpkeep.textContent = upkeep > 0
+      ? `-$${upkeep.toLocaleString()}/hr`
+      : '$0/hr';
   }
   if (hudEls.totalGross) {
     hudEls.totalGross.textContent = `+$${(incomeTotals[myFac] || 0).toLocaleString()}/hr`;
+  }
+  if (hudEls.totalCorruption) {
+    hudEls.totalCorruption.textContent = myCorruptionLoss > 0
+      ? `-$${myCorruptionLoss.toLocaleString()} (${myCorruption.total}%)`
+      : `$0 (${myCorruption.total}%)`;
+  }
+  if (hudEls.corruptionBreakdown) {
+    hudEls.corruptionBreakdown.textContent =
+      `Turf ${myCorruption.turf}% · Crew ${myCorruption.crew}%`;
   }
   const blockCounts = {
     [Faction.PLAYER]: 0,
@@ -262,7 +280,10 @@ export function updateHUD() {
   });
 
   const totalBlocks = Math.max(1, state.world.chunks.size);
-  const myNetIncome = (incomeTotals[myFac] || 0) - (upkeepTotals[myFac] || 0);
+  const myNetIncome = myEffectiveIncome - (upkeepTotals[myFac] || 0);
+  const netText = myNetIncome < 0
+    ? `-$${Math.abs(myNetIncome).toLocaleString()}/hr`
+    : `+$${myNetIncome.toLocaleString()}/hr`;
   if (hudEls.totalTurf) {
     hudEls.totalTurf.textContent = `${blockCounts[myFac] || 0}/${totalBlocks}`;
   }
@@ -270,11 +291,11 @@ export function updateHUD() {
     hudEls.totalCrew.textContent = `${crewCounts[myFac] || 0}`;
   }
   if (hudEls.totalNet) {
-    hudEls.totalNet.textContent = `${myNetIncome >= 0 ? '+' : ''}$${myNetIncome.toLocaleString()}/hr`;
+    hudEls.totalNet.textContent = netText;
     hudEls.totalNet.classList.toggle('is-positive', myNetIncome >= 0);
     hudEls.totalNet.classList.toggle('is-negative', myNetIncome < 0);
   }
-  hudEls.statsBadge.textContent = `Turf: ${blockCounts[myFac] || 0}/${totalBlocks} | Crew: ${crewCounts[myFac] || 0} | Net: ${myNetIncome >= 0 ? '+' : ''}$${myNetIncome.toLocaleString()}/hr`;
+  hudEls.statsBadge.textContent = `Turf: ${blockCounts[myFac] || 0}/${totalBlocks} | Crew: ${crewCounts[myFac] || 0} | Net: ${netText}`;
 
   if (hudEls.factionCountLabel) {
     hudEls.factionCountLabel.textContent = `${state.activeFactions.length} syndicates`;

@@ -6,9 +6,9 @@ import { UnitRank } from './enums.js';
 import { MAX_PISTOL_RANGE } from './constants.js';
 
 export const INCOME_TIERS = {
-  LOW: { label: 'Low', min: 250, max: 500 },
-  MID: { label: 'Mid', min: 500, max: 1000 },
-  HIGH: { label: 'High', min: 1000, max: 1500 },
+  LOW: { label: 'Low', min: 500, max: 1000 },
+  MID: { label: 'Mid', min: 1000, max: 1500 },
+  HIGH: { label: 'High', min: 1500, max: 2000 },
 };
 
 export const UNIT_ATTACK_COOLDOWN = 1.0;
@@ -42,7 +42,7 @@ export const RANK_STATS = {
     radius: 12.8,
     captureRate: 0.24,
     cost: 3800,
-    upkeep: 300,
+    upkeep: 380,
   },
   [UnitRank.CAPTAIN]: {
     hp: 340,
@@ -56,7 +56,7 @@ export const RANK_STATS = {
     radius: 12,
     captureRate: 0.18,
     cost: 2200,
-    upkeep: 200,
+    upkeep: 220,
   },
   [UnitRank.SOLDIER]: {
     hp: 180,
@@ -70,8 +70,14 @@ export const RANK_STATS = {
     radius: 11,
     captureRate: 0.12,
     cost: 1200,
-    upkeep: 100,
+    upkeep: 120,
   },
+};
+
+export const CORRUPTION = {
+  neighborhoodsPerStep: 10,
+  unitsPerStep: 25,
+  percentPerStep: 1,
 };
 
 export const UNIT_CAPS = {

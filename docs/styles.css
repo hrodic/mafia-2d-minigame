@@ -574,6 +574,19 @@
       align-items: center;
       justify-content: space-between;
     }
+    .mgmt-total-wide { grid-column: 1 / -1; }
+    .mgmt-total-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .mgmt-total-sub {
+      color: #71717a;
+      font-size: 8px;
+      line-height: 1.3;
+    }
+    .mgmt-total-corruption .mgmt-total-value { color: #fb923c; }
     .mgmt-total-net .mgmt-total-value { font-size: 14px; }
     #mgmt-total-gross { color: #34d399; }
     #mgmt-total-upkeep { color: #fbbf24; }

@@ -14,17 +14,20 @@ source module with esbuild (no bundling).
 - Procedural city of 5×5–25×25 district blocks (seeded, so multiplayer peers match).
 - 6 syndicate organizations, 2–4 per match, 4-tier hierarchy (Boss / Underboss /
   Captain / Soldier) with per-rank costs, upkeep, caps and weapons.
-- Hourly economy: neighborhood income, crew upkeep, auto-recruitment, treasury.
+- Hourly economy: neighborhood income, crew upkeep, corruption penalties, negative cash,
+  auto-recruitment and treasury.
 - Combat: knife slash (arc, up to 3 targets), 9 mm pistol with distance-based accuracy
   and damage falloff, kevlar armor, sprint.
 - Territory capture block by block; boss death eliminates a syndicate; victory/defeat
   with spectator mode.
 - Boss/economy HUD, crew management, bottom combat bar with cooldowns and a faction
-  leaderboard (turf, crew, kills).
-- City radar minimap (larger, easier to read).
+  leaderboard (turf, kills, deaths).
+- City radar minimap with a 168px default view and a 336px expanded view.
 - Synthesized Web Audio SFX and two procedural dark-noir music tracks.
-- Host-authoritative P2P multiplayer with lobby, invite links, human/AI seats, snapshot
-  interpolation and AI takeover on disconnect.
+- Host-authoritative P2P multiplayer with lobby, short invite codes/links, human/AI
+  seats, snapshot interpolation and AI takeover on disconnect.
+
+Full tuning surface: [`BALANCE.md`](BALANCE.md).
 
 ## Controls
 

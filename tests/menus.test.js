@@ -166,11 +166,11 @@ test('menus: match impact summary follows grid, tick and income choices', () => 
     assert(summary.includes('10 Middle Management'), summary);
     assert(summary.includes('5 Second-in-Command'), summary);
     assert(summary.includes('10s ticks'), summary);
-    assert(summary.includes('$1,000'), summary);
+    assert(summary.includes('$1,500'), summary);
 
     state.currentIncomeTier = 'LOW';
     updateMatchImpactSummary();
-    assert(document.getElementById('match-impact-summary').textContent.includes('$250'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('$500'));
   } finally {
     state.currentIncomeTier = savedTier;
     state.matchUnitCaps = savedCaps;
@@ -223,7 +223,7 @@ test('menus: presets apply grid, tick and income together', () => {
     assert(document.getElementById('match-impact-summary').textContent.includes('100 neighborhoods'));
     assert(document.getElementById('match-impact-summary').textContent.includes('50 Street Enforcers'));
     assert(document.getElementById('match-impact-summary').textContent.includes('10s ticks'));
-    assert(document.getElementById('match-impact-summary').textContent.includes('$1,000'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('$1,500'));
     assertEqual(
       document.querySelector('.match-preset[data-preset="turbo"]').getAttribute('aria-pressed'),
       'true'
@@ -238,7 +238,7 @@ test('menus: presets apply grid, tick and income together', () => {
     assert(document.getElementById('match-impact-summary').textContent.includes('75 Street Enforcers'));
     assert(document.getElementById('match-impact-summary').textContent.includes('8 Second-in-Command'));
     assert(document.getElementById('match-impact-summary').textContent.includes('15s ticks'));
-    assert(document.getElementById('match-impact-summary').textContent.includes('$500'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('$1,000'));
 
     applyMatchPreset('long');
     assertEqual(document.getElementById('map-size-slider').value, '20');
@@ -248,7 +248,7 @@ test('menus: presets apply grid, tick and income together', () => {
     assert(document.getElementById('match-impact-summary').textContent.includes('400 neighborhoods'));
     assert(document.getElementById('match-impact-summary').textContent.includes('100 Street Enforcers'));
     assert(document.getElementById('match-impact-summary').textContent.includes('25s ticks'));
-    assert(document.getElementById('match-impact-summary').textContent.includes('$250'));
+    assert(document.getElementById('match-impact-summary').textContent.includes('$500'));
     assertEqual(
       document.querySelector('.match-preset[data-preset="long"]').getAttribute('aria-pressed'),
       'true'

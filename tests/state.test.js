@@ -31,7 +31,7 @@ test('state: world starts empty and is assigned later by the game', () => {
 
 test('state: treasuries and factionAlive are initialized for all 4 slots', () => {
   for (const faction of [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3]) {
-    assertEqual(state.treasuries[faction], 3000);
+    assertEqual(state.treasuries[faction], 5000);
     assertEqual(state.factionAlive[faction], true);
   }
 });
@@ -337,8 +337,8 @@ test('state factory: applies and clamps match configuration', () => {
 
 test('state factory: active factions get cash and inactive slots are zeroed', () => {
   const fresh = createGameState({ factionCount: 2, orgRoster: ['COSA_NOSTRA', 'BRATVA'] });
-  assertEqual(fresh.treasuries[Faction.PLAYER], 3000);
-  assertEqual(fresh.treasuries[Faction.RIVAL_3], 3000);
+  assertEqual(fresh.treasuries[Faction.PLAYER], 5000);
+  assertEqual(fresh.treasuries[Faction.RIVAL_3], 5000);
   assertEqual(fresh.treasuries[Faction.RIVAL_1], 0);
   assertEqual(fresh.treasuries[Faction.RIVAL_2], 0);
   assertEqual(fresh.factionAlive[Faction.PLAYER], true);
@@ -390,7 +390,7 @@ test('state factory: each call returns independent nested containers', () => {
   first.player.hp = 1;
   first.npcs.push({ id: 1 });
   first.keys.add('w');
-  assertEqual(second.treasuries[Faction.PLAYER], 3000);
+  assertEqual(second.treasuries[Faction.PLAYER], 5000);
   assertEqual(second.player.hp, BOSS_MAX_HP);
   assertEqual(second.npcs.length, 0);
   assertEqual(second.keys.size, 0);

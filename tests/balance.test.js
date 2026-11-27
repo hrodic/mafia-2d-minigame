@@ -6,6 +6,8 @@ import { MAX_PISTOL_RANGE } from '../src/config/constants.js';
 import {
   RANK_STATS,
   UNIT_CAPS,
+  CORRUPTION,
+  INCOME_TIERS,
   SLASH,
   PISTOL,
   COST_SOLDIER,
@@ -50,7 +52,7 @@ const EXPECTED_RANKS = {
     radius: 12.8,
     captureRate: 0.24,
     cost: 3800,
-    upkeep: 300,
+    upkeep: 380,
   },
   [UnitRank.CAPTAIN]: {
     hp: 340,
@@ -64,7 +66,7 @@ const EXPECTED_RANKS = {
     radius: 12,
     captureRate: 0.18,
     cost: 2200,
-    upkeep: 200,
+    upkeep: 220,
   },
   [UnitRank.SOLDIER]: {
     hp: 180,
@@ -78,7 +80,7 @@ const EXPECTED_RANKS = {
     radius: 11,
     captureRate: 0.12,
     cost: 1200,
-    upkeep: 100,
+    upkeep: 120,
   },
 };
 
@@ -156,6 +158,19 @@ test('balance: non-boss AI ranks use 150, bosses use 140 for sprint headroom', (
     assertEqual(RANK_STATS[rank].speedHuman, expected, `${rank}.speedHuman`);
     assertEqual(RANK_STATS[rank].speedJitter, 0, `${rank}.speedJitter`);
   }
+});
+
+test('balance: income tiers and corruption steps are locked', () => {
+  assertDeepEqual(INCOME_TIERS, {
+    LOW: { label: 'Low', min: 500, max: 1000 },
+    MID: { label: 'Mid', min: 1000, max: 1500 },
+    HIGH: { label: 'High', min: 1500, max: 2000 },
+  });
+  assertDeepEqual(CORRUPTION, {
+    neighborhoodsPerStep: 10,
+    unitsPerStep: 25,
+    percentPerStep: 1,
+  });
 });
 
 test('balance: one human slash rule, distinct AI slash rules', () => {
