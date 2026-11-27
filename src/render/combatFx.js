@@ -53,8 +53,8 @@ export function onArmorEquipped({ unit, amount, textOffset = 34 }) {
   addFloatingText(unit.x, unit.y - textOffset, `+${amount} ARMOR 🛡️`, '#38bdf8');
 }
 
-export function onSlashPerformed({ x, y, facing, color, hitCount, isPlayer }) {
-  spawnSlashArc(x, y, facing, color);
+export function onSlashPerformed({ x, y, facing, color, hitCount, isPlayer, arc }) {
+  spawnSlashArc(x, y, facing, color, arc);
   if (isPlayer && hitCount === 0) {
     addFloatingText(
       x + Math.cos(facing) * 20,

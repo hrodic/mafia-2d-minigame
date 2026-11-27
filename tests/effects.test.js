@@ -1,5 +1,5 @@
 // Visual effects tests: spawn counts, caps, lifetimes and reset behaviour.
-import { test, assert, assertEqual } from './harness.js';
+import { test, assert, assertEqual, assertClose } from './harness.js';
 import { Faction, UnitRank } from '../src/config/enums.js';
 import { state } from '../src/core/state.js';
 import {
@@ -93,6 +93,9 @@ test('effects: sparks, slash arcs and muzzle flashes spawn with lifetimes', () =
   spawnSlashArc(1, 2, 0.5, '#fff');
   assertEqual(slashArcs.length, 1);
   assertEqual(slashArcs[0].life, 0.22);
+  assertClose(slashArcs[0].halfArc, Math.PI * (150 / 360), 1e-9);
+  spawnSlashArc(1, 2, 0.5, '#fff', 90 / 360);
+  assertClose(slashArcs[1].halfArc, Math.PI * (90 / 360), 1e-9);
   spawnMuzzleFlash(1, 2, 0.5);
   assertEqual(muzzleFlashes.length, 1);
   assertEqual(muzzleFlashes[0].life, 0.11);

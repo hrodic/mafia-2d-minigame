@@ -136,34 +136,40 @@ export function defaultMatchUnitCaps(gridSize, fraction = UNIT_CAPS.humanCapFrac
   };
 }
 
+// Every slash shares one knockback and one swing animation. Reach, target count,
+// frontal arc and cooldown differ by tier. `arc` is the cone's half-angle as a
+// fraction of 180 degrees, so the full cone is 2 x arc x 180 degrees.
+const SLASH_COMMON = {
+  knockback: 10,
+  anim: 0.18,
+};
+
 export const SLASH = {
-  // One rule set for every human-controlled boss (local player or remote guest).
   humanBoss: {
     reach: 52,
     maxTargets: 3,
-    arc: 0.42,
-    closeRange: 30,
-    knockback: 14,
-    cooldown: 0.34,
-    anim: 0.18,
+    arc: 150 / 360,
+    ...SLASH_COMMON,
+    cooldown: 0.8,
   },
   aiBoss: {
     reach: 52,
     maxTargets: 3,
-    arc: null,
-    closeRange: null,
-    knockback: 12,
-    cooldown: UNIT_ATTACK_COOLDOWN,
-    anim: 0.18,
+    arc: 150 / 360,
+    ...SLASH_COMMON,
+    cooldown: 0.8,
   },
   aiMelee: {
     reach: 46,
     maxTargets: 1,
-    arc: null,
-    closeRange: null,
-    knockback: 0,
-    cooldown: UNIT_ATTACK_COOLDOWN,
-    anim: 0.18,
+    arc: 90 / 360,
+    ...SLASH_COMMON,
+    cooldown: 1.5,
+  },
+  aiMeleeByRank: {
+    [UnitRank.UNDERBOSS]: { reach: 50, maxTargets: 3, arc: 120 / 360, ...SLASH_COMMON, cooldown: 1.0 },
+    [UnitRank.CAPTAIN]: { reach: 48, maxTargets: 2, arc: 100 / 360, ...SLASH_COMMON, cooldown: 1.2 },
+    [UnitRank.SOLDIER]: { reach: 46, maxTargets: 1, arc: 90 / 360, ...SLASH_COMMON, cooldown: 1.5 },
   },
 };
 

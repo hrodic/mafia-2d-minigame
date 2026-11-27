@@ -2,6 +2,7 @@
 
 import { CHUNK_PX, TILE_SIZE, MAX_PISTOL_RANGE } from '../config/constants.js';
 import { Faction, UnitRank, PropType } from '../config/enums.js';
+import { SLASH } from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
 import { state, getLocalFaction, getLocalBoss, isLocalBossAlive } from '../core/state.js';
 import { getPistolAccuracyInfo, getPistolAim } from '../sim/combat.js';
@@ -264,6 +265,7 @@ export function render(dt = 1 / 60) {
         isBoss: true,
         isAttacking: state.player.slashAnimTimer > 0,
         slashProgress: state.player.slashAnimTimer > 0 ? 1 - state.player.slashAnimTimer / 0.18 : 0,
+        slashArc: SLASH.humanBoss.arc,
         isShooting: state.player.muzzleFlashTimer > 0,
         hitFlash: state.player.hitFlashTimer > 0,
       });
@@ -271,6 +273,9 @@ export function render(dt = 1 / 60) {
       const u = item.unit;
       const meta = FACTION_META[u.faction] || FACTION_META[Faction.NEUTRAL];
       const isBoss = u.rank === UnitRank.BOSS;
+      const slashProfile = isBoss
+        ? SLASH.humanBoss
+        : SLASH.aiMeleeByRank[u.rank] || SLASH.aiMelee;
       const isMyRemoteBoss = isBoss && u.faction === getLocalFaction();
       const alias = isBoss && state.net && state.net.isActive() ? state.net.getAliasForFaction(u.faction) : null;
       const rankName = meta.ranks[u.rank] || u.rank;
@@ -296,6 +301,7 @@ export function render(dt = 1 / 60) {
         isCaptain: u.rank === UnitRank.CAPTAIN,
         isAttacking: u.slashAnimTimer > 0,
         slashProgress: u.slashAnimTimer > 0 ? 1 - u.slashAnimTimer / 0.18 : 0,
+        slashArc: slashProfile.arc,
         isShooting: u.muzzleFlashTimer > 0,
         hitFlash: u.hitFlashTimer > 0,
       });
@@ -342,14 +348,14 @@ export function render(dt = 1 / 60) {
     ctx.strokeStyle = s.color;
     ctx.lineWidth = 1.4;
     ctx.beginPath();
-    ctx.arc(0, 0, 20, -0.75, 0.75);
+    ctx.arc(0, 0, 20, -s.halfArc, s.halfArc);
     ctx.stroke();
 
     ctx.globalAlpha = t * 0.55;
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 0.9;
     ctx.beginPath();
-    ctx.arc(0, 0, 22, -0.6, 0.6);
+    ctx.arc(0, 0, 22, -s.halfArc * 0.8, s.halfArc * 0.8);
     ctx.stroke();
     ctx.restore();
   }

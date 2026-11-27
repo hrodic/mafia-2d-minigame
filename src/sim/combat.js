@@ -113,11 +113,11 @@ function collectSlashTargets(attacker, profile, explicitTargets = null) {
     const dist = Math.hypot(dx, dy);
     if (dist > profile.reach) return;
 
-    if (profile.arc != null && profile.closeRange != null) {
+    if (profile.arc != null) {
       const angleToTarget = Math.atan2(dy, dx);
       let angleDiff = Math.abs(angleToTarget - attacker.facing);
       if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
-      if (angleDiff > Math.PI * profile.arc && dist >= profile.closeRange) return;
+      if (angleDiff > Math.PI * profile.arc) return;
     }
 
     candidates.push({ entity, isPlayer: entity === state.player, dist, dx, dy });
@@ -158,6 +158,7 @@ export function performSlash(attacker, params = {}) {
       x: attacker.x,
       y: attacker.y,
       facing: attacker.facing,
+      arc: profile.arc,
       color: params.eventColor ?? (isPlayer ? '#f43f5e' : FACTION_META[attacker.faction].accent),
       hitCount,
       isPlayer,

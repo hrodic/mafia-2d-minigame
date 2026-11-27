@@ -100,7 +100,7 @@ export function updateNpcAi(u, dt) {
 
   const isRangedShooter = u.rank === UnitRank.BOSS || u.rank === UnitRank.UNDERBOSS;
   const aggroRange = isRangedShooter ? 680 : 480;
-  const melee = SLASH.aiMelee;
+  const melee = SLASH.aiMeleeByRank[u.rank] || SLASH.aiMelee;
 
   if (nearestEnemy && nearestEnemyDist <= aggroRange) {
     u.goalX = nearestEnemy.x;

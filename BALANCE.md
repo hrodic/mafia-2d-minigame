@@ -65,11 +65,21 @@ AI factions start at the full ceiling.
 
 ### Knife slash
 
-| Profile | Reach | Targets | Arc | Close range | Knockback | Cooldown |
-|---|---:|---:|---:|---:|---:|---:|
-| Human Boss | 52 px | 3 | 0.42 rad | 30 px | 14 | 0.34 s |
-| AI Boss | 52 px | 3 | — | — | 12 | 1.0 s |
-| AI melee ranks | 46 px | 1 | — | — | 0 | 1.0 s |
+| Unit | Reach | Targets | Arc | Knockback | Cooldown |
+|---|---:|---:|---:|---:|---:|
+| Boss (human + AI) | 52 px | 3 | 150° | 10 | 0.8 s |
+| Tier 3 - Underboss | 50 px | 3 | 120° | 10 | 1.0 s |
+| Tier 2 - Captain | 48 px | 2 | 100° | 10 | 1.2 s |
+| Tier 1 - Soldier | 46 px | 1 | 90° | 10 | 1.5 s |
+
+`arc` is stored as a fraction of 180° (a 150° cone is `150 / 360`). The cone is centered on
+facing and always applies at any distance inside reach: there is no point-blank
+forgiveness, so an enemy behind the attacker is never hit. Positioning and aim decide a
+melee fight. AI units turn to face their target before swinging. The residual slash arc
+drawn on screen uses the same per-tier value, so the visible sweep matches the hit cone.
+
+Targets are sorted nearest-first and only the first `maxTargets` are damaged, so bosses and
+underbosses cleave up to 3, captains up to 2, and soldiers hit 1.
 
 ### 9 mm pistol
 

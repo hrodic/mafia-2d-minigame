@@ -40,7 +40,7 @@ Naming: `domain:pastTense` (`unit:damaged`, `chunk:captured`, `match:victory`).
 | `unit:died` | `{ unit, faction, rank, x, y, facing, fallAngle, isBoss, isPlayer }` | combat |
 | `faction:eliminated` | `{ faction }` | territory |
 | `chunk:captured` | `{ chunk, faction }` | territory |
-| `slash:performed` | `{ x, y, facing, color, hitCount, isPlayer }` | combat |
+| `slash:performed` | `{ x, y, facing, arc, color, hitCount, isPlayer }` | combat |
 | `shot:started` | `{ shooter, shooterX, shooterY, muzzleX, muzzleY, angle, shooterFaction, isPlayerShooter }` | combat |
 | `shot:fired` | `{ shooterFaction, isPlayerShooter, x1, y1, x2, y2, color, missed, targetX, targetY, impact: { blocked, x, y } }` | combat |
 | `armor:equipped` | `{ unit, amount, faction, isPlayer, textOffset }` | combat |

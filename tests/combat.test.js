@@ -7,6 +7,7 @@ import {
   MAX_BOSS_ARMOR,
   COST_BOSS_ARMOR,
   UNIT_ATTACK_COOLDOWN,
+  SLASH,
 } from '../src/config/balance.js';
 import { FACTION_META } from '../src/config/organizations.js';
 import { state } from '../src/core/state.js';
@@ -32,6 +33,7 @@ import {
   executeBossSlashForFaction,
   performKnifeSlash,
   performBossKnifeSlash,
+  performSlash,
   traceBulletRay,
   getPistolAccuracyInfo,
   getPistolAim,
@@ -521,7 +523,7 @@ test('combat: player slash damages targets in front and respects cooldown', () =
       const npc = state.npcs[0];
       performKnifeSlash();
       assert(npc.hp < 100, `npc should be hit, hp=${npc.hp}`);
-      assertEqual(state.player.attackCooldown, 0.34);
+      assertEqual(state.player.attackCooldown, 0.8);
       const hp = npc.hp;
       performKnifeSlash();
       assertEqual(npc.hp, hp, 'second slash during cooldown must not hit');
@@ -549,6 +551,34 @@ test('combat: player slash ignores targets out of reach', () => {
   );
 });
 
+test('combat: knife never hits a target behind the attacker, even point blank', () => {
+  withCombatState(
+    { player: makePlayer({ facing: 0 }), npcs: [makeNpc({ x: -20, y: 0, hp: 100, maxHp: 100 })] },
+    ({ events }) => {
+      performKnifeSlash();
+      assertEqual(state.npcs[0].hp, 100);
+      assertEqual(eventsOf(events, 'unit:damaged').length, 0);
+      assertEqual(eventsOf(events, 'slash:performed')[0].payload.hitCount, 0);
+    }
+  );
+
+  withCombatState(
+    {
+      player: makePlayer({ x: 1000, y: 0 }),
+      npcs: [
+        makeNpc({ id: 40, rank: UnitRank.SOLDIER, faction: Faction.RIVAL_1, x: 0, y: 0, facing: 0 }),
+        makeNpc({ id: 41, faction: Faction.RIVAL_2, x: -20, y: 0, hp: 100, maxHp: 100 }),
+      ],
+    },
+    () => {
+      const attacker = state.npcs.find((n) => n.id === 40);
+      const behind = state.npcs.find((n) => n.id === 41);
+      performSlash(attacker, { profile: SLASH.aiMeleeByRank[UnitRank.SOLDIER], targets: [behind] });
+      assertEqual(behind.hp, 100, 'AI melee must not hit behind itself');
+    }
+  );
+});
+
 test('combat: rival boss slash uses the shared cooldown and hits the player', () => {
   withCombatState(
     {
@@ -559,7 +589,7 @@ test('combat: rival boss slash uses the shared cooldown and hits the player', ()
       const boss = state.npcs[0];
       assertEqual(performBossKnifeSlash(boss), true);
       assert(state.player.hp < BOSS_MAX_HP);
-      assertEqual(boss.attackCooldown, UNIT_ATTACK_COOLDOWN);
+      assertEqual(boss.attackCooldown, 0.8);
     }
   );
 });
@@ -667,7 +697,7 @@ test('combat: faction slash delegates to boss melee and triggers the player path
     ({ events }) => {
       executeBossSlashForFaction(Faction.RIVAL_1);
       assert(state.player.hp < BOSS_MAX_HP);
-      assertEqual(state.npcs[0].attackCooldown, 0.34);
+      assertEqual(state.npcs[0].attackCooldown, 0.8);
       const rivalSlashes = eventsOf(events, 'slash:performed');
       assertEqual(rivalSlashes.length, 1);
       assertEqual(rivalSlashes[0].payload.isPlayer, false);
@@ -698,8 +728,8 @@ test('combat: player slash keeps its arc, knockback, cooldown and presentation',
       const behind = state.npcs.find((n) => n.id === 2);
       assert(front.hp < 100, `front target should be hit, hp=${front.hp}`);
       assertEqual(behind.hp, 100);
-      assertEqual(front.x, 44, 'knockback must stay at 14');
-      assertEqual(state.player.attackCooldown, 0.34);
+      assertEqual(front.x, 40, 'knockback must stay at 10');
+      assertEqual(state.player.attackCooldown, 0.8);
       assertEqual(state.player.slashAnimTimer, 0.18);
 
       const hit = eventsOf(events, 'unit:damaged')[0];
@@ -707,31 +737,32 @@ test('combat: player slash keeps its arc, knockback, cooldown and presentation',
       assertEqual(hit.payload.suffix, '');
       const slash = eventsOf(events, 'slash:performed')[0];
       assertEqual(slash.payload.color, '#f43f5e');
+      assertEqual(slash.payload.arc, SLASH.humanBoss.arc);
       assertEqual(slash.payload.hitCount, 1);
       assertEqual(slash.payload.isPlayer, true);
     }
   );
 });
 
-test('combat: remote faction slash uses the shared human arc and close range', () => {
+test('combat: remote faction slash uses the shared human arc, never the back', () => {
   withCombatState(
     {
       player: makePlayer({ x: 1000, y: 0 }),
       npcs: [
         makeNpc({ id: 10, rank: UnitRank.BOSS, faction: Faction.RIVAL_1, x: 0, y: 0, facing: 0 }),
         makeNpc({ id: 11, faction: Faction.RIVAL_2, x: 0, y: 35, hp: 100, maxHp: 100 }),
-        makeNpc({ id: 12, faction: Faction.RIVAL_2, x: 0, y: 31, hp: 100, maxHp: 100 }),
-        makeNpc({ id: 13, faction: Faction.RIVAL_2, x: 0, y: 29, hp: 100, maxHp: 100 }),
+        makeNpc({ id: 12, faction: Faction.RIVAL_2, x: 0, y: 25, hp: 100, maxHp: 100 }),
+        makeNpc({ id: 13, faction: Faction.RIVAL_2, x: 30, y: 0, hp: 100, maxHp: 100 }),
       ],
     },
     ({ events }) => {
       executeBossSlashForFaction(Faction.RIVAL_1);
       const boss = state.npcs.find((n) => n.id === 10);
       assertEqual(state.npcs.find((n) => n.id === 11).hp, 100, '90deg at range 35 is outside the human arc');
-      assertEqual(state.npcs.find((n) => n.id === 12).hp, 100, 'range 31 is outside the shared 30 close range');
-      assert(state.npcs.find((n) => n.id === 13).hp < 100, 'range 29 is inside the shared 30 close range');
-      assertEqual(boss.attackCooldown, 0.34);
-
+      assertEqual(state.npcs.find((n) => n.id === 12).hp, 100, 'range 25 is still behind the arc');
+      assert(state.npcs.find((n) => n.id === 13).hp < 100, 'in-front target at range 30 is hit');
+      assertEqual(boss.attackCooldown, 0.8);
+      assertEqual(eventsOf(events, 'unit:damaged').length, 1);
       const hit = eventsOf(events, 'unit:damaged')[0];
       assertEqual(hit.payload.textColor, FACTION_META[Faction.RIVAL_1].accent);
       assertEqual(hit.payload.suffix, '');
@@ -756,7 +787,7 @@ test('combat: local and remote humans use identical slash rules', () => {
     ({ events }) => {
       performKnifeSlash();
       assertEqual(state.npcs[0].hp, 100, 'local human must miss at 78deg and range 40');
-      assertEqual(state.player.attackCooldown, 0.34);
+      assertEqual(state.player.attackCooldown, 0.8);
       assertEqual(eventsOf(events, 'slash:performed')[0].payload.hitCount, 0);
     }
   );
@@ -772,28 +803,93 @@ test('combat: local and remote humans use identical slash rules', () => {
     ({ events }) => {
       executeBossSlashForFaction(Faction.RIVAL_1);
       assertEqual(state.npcs.find((n) => n.id === 2).hp, 100, 'remote human must miss at the same angle');
-      assertEqual(state.npcs.find((n) => n.id === 1).attackCooldown, 0.34);
+      assertEqual(state.npcs.find((n) => n.id === 1).attackCooldown, 0.8);
       assertEqual(eventsOf(events, 'slash:performed')[0].payload.hitCount, 0);
     }
   );
 });
 
-test('combat: AI boss slash ignores the arc, faces its target and uses the knife suffix', () => {
+test('combat: underboss cleaves 3, captain 2 and soldier 1 in one swing', () => {
+  const cases = [
+    [UnitRank.UNDERBOSS, 3],
+    [UnitRank.CAPTAIN, 2],
+    [UnitRank.SOLDIER, 1],
+  ];
+  for (const [rank, expectedHits] of cases) {
+    withCombatState(
+      {
+        player: makePlayer({ x: 1000, y: 1000 }),
+        npcs: [
+          makeNpc({ id: 100, rank, faction: Faction.RIVAL_1, x: 0, y: 0, facing: 0 }),
+          makeNpc({ id: 101, faction: Faction.RIVAL_2, x: 20, y: 0, hp: 100, maxHp: 100 }),
+          makeNpc({ id: 102, faction: Faction.RIVAL_2, x: 22, y: 0, hp: 100, maxHp: 100 }),
+          makeNpc({ id: 103, faction: Faction.RIVAL_2, x: 24, y: 0, hp: 100, maxHp: 100 }),
+        ],
+      },
+      () => {
+        const attacker = state.npcs.find((n) => n.id === 100);
+        performSlash(attacker, { profile: SLASH.aiMeleeByRank[rank] });
+        const hits = state.npcs.filter((n) => n.id > 100 && n.hp < 100).length;
+        assertEqual(hits, expectedHits, `${rank} should hit ${expectedHits} target(s)`);
+      }
+    );
+  }
+});
+
+test('combat: crew slash arcs narrow by tier', () => {
+  function targetHits(rank, degrees) {
+    const angle = (degrees * Math.PI) / 180;
+    let hit = null;
+    withCombatState(
+      {
+        player: makePlayer({ x: 1000, y: 1000 }),
+        npcs: [
+          makeNpc({ id: 100, rank, faction: Faction.RIVAL_1, x: 0, y: 0, facing: 0 }),
+          makeNpc({
+            id: 101,
+            faction: Faction.RIVAL_2,
+            x: Math.cos(angle) * 20,
+            y: Math.sin(angle) * 20,
+            hp: 100,
+            maxHp: 100,
+          }),
+        ],
+      },
+      () => {
+        const attacker = state.npcs.find((n) => n.id === 100);
+        const target = state.npcs.find((n) => n.id === 101);
+        performSlash(attacker, {
+          profile: SLASH.aiMeleeByRank[rank],
+          targets: [target],
+        });
+        hit = target.hp < 100;
+      }
+    );
+    return hit;
+  }
+
+  assertEqual(targetHits(UnitRank.UNDERBOSS, 55), true, '120° cone hits at 55°');
+  assertEqual(targetHits(UnitRank.CAPTAIN, 55), false, '100° cone misses at 55°');
+  assertEqual(targetHits(UnitRank.SOLDIER, 55), false, '90° cone misses at 55°');
+  assertEqual(targetHits(UnitRank.SOLDIER, 40), true, '90° cone hits at 40°');
+});
+
+test('combat: AI boss slash faces a target inside the arc and uses the knife suffix', () => {
   withCombatState(
     {
       player: makePlayer({ x: 1000, y: 0 }),
       npcs: [
         makeNpc({ id: 20, rank: UnitRank.BOSS, faction: Faction.RIVAL_1, x: 0, y: 0, facing: 0 }),
-        makeNpc({ id: 21, faction: Faction.RIVAL_2, x: 0, y: 30, hp: 100, maxHp: 100 }),
+        makeNpc({ id: 21, faction: Faction.RIVAL_2, x: 25, y: 25, hp: 100, maxHp: 100 }),
       ],
     },
     ({ events }) => {
       const boss = state.npcs.find((n) => n.id === 20);
       assertEqual(performBossKnifeSlash(boss), true);
       const target = state.npcs.find((n) => n.id === 21);
-      assert(target.hp < 100, `AI boss should hit without an arc, hp=${target.hp}`);
-      assertEqual(boss.facing, Math.PI / 2);
-      assertEqual(boss.attackCooldown, 1.0);
+      assert(target.hp < 100, `AI boss should hit its target, hp=${target.hp}`);
+      assertEqual(boss.facing, Math.PI / 4);
+      assertEqual(boss.attackCooldown, 0.8);
 
       const hit = eventsOf(events, 'unit:damaged')[0];
       assertEqual(hit.payload.textColor, FACTION_META[Faction.RIVAL_1].accent);
@@ -814,7 +910,7 @@ test('combat: AI boss slash with no target still starts cooldown and stays silen
     ({ events }) => {
       const boss = state.npcs[0];
       assertEqual(performBossKnifeSlash(boss), false);
-      assertEqual(boss.attackCooldown, 1.0);
+      assertEqual(boss.attackCooldown, 0.8);
       assertEqual(eventsOf(events, 'slash:performed').length, 0);
     }
   );

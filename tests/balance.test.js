@@ -173,33 +173,15 @@ test('balance: income tiers and corruption steps are locked', () => {
   });
 });
 
-test('balance: one human slash rule, distinct AI slash rules', () => {
-  assertDeepEqual(SLASH.humanBoss, {
-    reach: 52,
-    maxTargets: 3,
-    arc: 0.42,
-    closeRange: 30,
-    knockback: 14,
-    cooldown: 0.34,
-    anim: 0.18,
-  });
-  assertDeepEqual(SLASH.aiBoss, {
-    reach: 52,
-    maxTargets: 3,
-    arc: null,
-    closeRange: null,
-    knockback: 12,
-    cooldown: 1.0,
-    anim: 0.18,
-  });
-  assertDeepEqual(SLASH.aiMelee, {
-    reach: 46,
-    maxTargets: 1,
-    arc: null,
-    closeRange: null,
-    knockback: 0,
-    cooldown: 1.0,
-    anim: 0.18,
+test('balance: knife rules tier reach, targets, arcs and cooldowns', () => {
+  const common = { knockback: 10, anim: 0.18 };
+  assertDeepEqual(SLASH.humanBoss, { reach: 52, maxTargets: 3, arc: 150 / 360, ...common, cooldown: 0.8 });
+  assertDeepEqual(SLASH.aiBoss, { reach: 52, maxTargets: 3, arc: 150 / 360, ...common, cooldown: 0.8 });
+  assertDeepEqual(SLASH.aiMelee, { reach: 46, maxTargets: 1, arc: 90 / 360, ...common, cooldown: 1.5 });
+  assertDeepEqual(SLASH.aiMeleeByRank, {
+    [UnitRank.UNDERBOSS]: { reach: 50, maxTargets: 3, arc: 120 / 360, ...common, cooldown: 1.0 },
+    [UnitRank.CAPTAIN]: { reach: 48, maxTargets: 2, arc: 100 / 360, ...common, cooldown: 1.2 },
+    [UnitRank.SOLDIER]: { reach: 46, maxTargets: 1, arc: 90 / 360, ...common, cooldown: 1.5 },
   });
   assertEqual(SLASH.player, undefined);
   assertEqual(SLASH.rivalBoss, undefined);

@@ -145,7 +145,7 @@ test('ai: melee soldier attacks an adjacent player with accent color and full co
       () => {
         updateNpcAi(unit, 0.016);
         assert(state.player.hp < 400, `player should be slashed, hp=${state.player.hp}`);
-        assertEqual(unit.attackCooldown, 1.0);
+        assertEqual(unit.attackCooldown, 1.5);
         assertEqual(unit.slashAnimTimer, 0.18);
         assertEqual(events.length, 2);
         assertEqual(events[0].type, 'slash:performed');

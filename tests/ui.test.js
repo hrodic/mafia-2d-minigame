@@ -196,7 +196,7 @@ test('ui: hierarchy manual is a scannable rank table', async () => {
   const css = await (await fetch('../styles.css', { cache: 'no-store' })).text();
   assert(/\.manual-table\s*\{[^}]*border-collapse/s.test(css), 'rank table styling missing');
   assert(/\.manual-table-wrap\s*\{[^}]*overflow-x:\s*auto/s.test(css), 'rank table needs horizontal fallback');
-  for (const value of ['Mobility & Capture', 'Attack Timing', '0.375 capture/s', '0.34s cooldown', '1.6× for 2.0s']) {
+  for (const value of ['Mobility & Capture', 'Attack Timing', '0.375 capture/s', '0.8s cooldown', '1.6× for 2.0s']) {
     assert(panel.textContent.includes(value), `manual should expose ${value}`);
   }
 });

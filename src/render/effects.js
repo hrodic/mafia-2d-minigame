@@ -83,12 +83,13 @@ export function spawnDeadBody(x, y, faction, rank, facing, fallAngle = facing) {
   }
 }
 
-export function spawnSlashArc(x, y, facing, color = '#f43f5e') {
+export function spawnSlashArc(x, y, facing, color = '#f43f5e', arc = 150 / 360) {
   slashArcs.push({
     x,
     y: y - 13,
     facing,
     color,
+    halfArc: Math.PI * arc,
     life: 0.22,
     maxLife: 0.22,
   });

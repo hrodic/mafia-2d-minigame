@@ -170,7 +170,7 @@ test('commands: SLASH routes through the player and remote boss paths', () => {
       state.player.facing = 0;
       assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'SLASH' }), true);
       assert(state.npcs[0].hp < 100, `target should be slashed, hp=${state.npcs[0].hp}`);
-      assertEqual(state.player.attackCooldown, 0.34);
+      assertEqual(state.player.attackCooldown, 0.8);
     }
   );
 
@@ -179,7 +179,7 @@ test('commands: SLASH routes through the player and remote boss paths', () => {
     () => {
       assertEqual(dispatchCommand(Faction.RIVAL_1, { cmd: 'SLASH' }), true);
       assert(state.player.hp < 400, `player should be slashed, hp=${state.player.hp}`);
-      assertEqual(state.npcs[0].attackCooldown, 0.34);
+      assertEqual(state.npcs[0].attackCooldown, 0.8);
     }
   );
 });

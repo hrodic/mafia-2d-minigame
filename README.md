@@ -124,7 +124,7 @@ no external relays): `tests/mp-harness.html`.
 Gameplay and feel tuning is split by concern:
 
 - **`src/config/balance.js`** — `RANK_STATS` (HP, armor, damage, AI/human speed, radius,
-  capture rate, cost/upkeep), `UNIT_CAPS`, `SLASH` (`humanBoss`/`aiBoss`/`aiMelee`),
+  capture rate, cost/upkeep), `UNIT_CAPS`, `SLASH` (`humanBoss`/`aiBoss`/`aiMelee`/`aiMeleeByRank`),
   `PISTOL` (damage, cooldown, knockback, accuracy bands) and `INCOME_TIERS`.
 - **`src/config/constants.js`** — world/map defaults, sprint tuning, pistol range, hit-flash
   duration, fixed simulation step and catch-up limits.

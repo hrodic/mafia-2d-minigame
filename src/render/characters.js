@@ -87,6 +87,7 @@ export function drawCharacter(x, y, config) {
     isCaptain = false,
     isAttacking = false,
     slashProgress = 0,
+    slashArc = 150 / 360,
     isShooting = false,
     hitFlash = false,
   } = config;
@@ -203,8 +204,9 @@ export function drawCharacter(x, y, config) {
   // and re-equip the pistol immediately after the slash completes.
   const hasPistolMain = isBoss || isUnderboss;
   if (isAttacking) {
-    // Sweep machete coherently along the exact slash arc (facing - 0.95 -> facing + 0.95)
-    const swingAngle = facing - 0.95 + slashProgress * 1.9;
+    // Sweep the machete across the attacker's exact hit arc (facing ± halfArc).
+    const halfArc = Math.PI * slashArc;
+    const swingAngle = facing - halfArc + slashProgress * halfArc * 2;
     ctx.save();
     ctx.translate(0, -17);
     ctx.rotate(swingAngle);

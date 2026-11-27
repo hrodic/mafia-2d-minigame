@@ -271,8 +271,8 @@ always collide.
 ### Combat
 `sim/combat.js`: one armor→HP damage pipeline for units and the player
 (`damagePlayerBoss` delegates to `applyDamageToNpc`), death/elimination, one
-`performSlash` pipeline with player/rival/AI wrappers that preserve their
-arc/knockback/cooldown differences, a pistol raycast with distance accuracy bands and
+`performSlash` pipeline with player/rival/AI wrappers that share one knockback while
+keeping per-tier reach, arc and cooldowns, a pistol raycast with distance accuracy bands and
 point-blank damage falloff, and armor purchases (player, rival AI). It emits facts only;
 `render/combatFx.js` draws blood/corpses/text/arcs/tracers and `audio/combatSfx.js` plays
 the combat SFX. The host's `shot:fired` subscriber broadcasts ephemeral tracers to guests.
@@ -298,8 +298,8 @@ profiles, and
 `PISTOL` stats + accuracy bands. `config/constants.js` owns world/map defaults, sprint,
 pistol range, hit flash, the fixed sim step and catch-up limits. Non-boss AI ranks share a
 `150` base speed; bosses use `140` for both AI and human control, so sprint is the boss
-mobility advantage. Local and remote humans share one `SLASH.humanBoss` profile, while AI
-keeps its own no-arc/longer-cooldown profiles. The local player's HP, damage, speed and
+mobility advantage. Local and remote humans and AI bosses share one `SLASH.humanBoss`/`SLASH.aiBoss`
+rule set; crew melee reads `SLASH.aiMeleeByRank` for per-tier reach, arc and cooldown. The local player's HP, damage, speed and
 radius derive from `RANK_STATS.BOSS`. Systems read the tables at spawn/attack time and copy
 derived stats onto units (state is snapshotted). Presentation feel and AI decision
 thresholds are deliberately not here.
