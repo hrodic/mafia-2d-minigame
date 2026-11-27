@@ -703,6 +703,115 @@
       border-color: #fde047;
       box-shadow: 0 0 18px rgba(253, 224, 71, 0.35);
     }
+    .orders-strip {
+      position: absolute;
+      left: 50%;
+      bottom: 6.5rem;
+      transform: translateX(-50%);
+    }
+    .order-slot {
+      position: relative;
+    }
+    .order-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(63, 63, 70, 0.9);
+      background: rgba(9, 9, 11, 0.9);
+      color: #e4e4e7;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+    }
+    .order-btn:hover:not(.is-disabled) {
+      border-color: rgba(251, 191, 36, 0.65);
+      background: rgba(24, 24, 27, 0.95);
+    }
+    .order-btn.is-disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .order-scope {
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #71717a;
+    }
+    .order-value {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .order-btn[data-state='defend'] .order-value { color: #fbbf24; }
+    .order-btn[data-state='expand'] .order-value { color: #34d399; }
+    .order-btn[data-state='guard'] .order-value { color: #38bdf8; }
+    .order-btn[data-state='attack'] .order-value { color: #fb7185; }
+    .order-key,
+    .order-option-key {
+      font-size: 8px;
+      font-weight: 800;
+      color: #f4f4f5;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 3px;
+      padding: 0 3px;
+      line-height: 1.4;
+    }
+    .orders-menu {
+      position: absolute;
+      left: 0;
+      bottom: calc(100% + 6px);
+      width: 196px;
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid rgba(63, 63, 70, 0.9);
+      background: rgba(9, 9, 11, 0.97);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+      z-index: 30;
+    }
+    #orders-local-menu {
+      left: auto;
+      right: 0;
+    }
+    .orders-menu.hidden {
+      display: none;
+    }
+    .order-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 7px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: #e4e4e7;
+      text-align: left;
+      cursor: pointer;
+    }
+    .order-option:hover {
+      background: rgba(39, 39, 42, 0.85);
+      border-color: rgba(161, 161, 170, 0.25);
+    }
+    .order-option-label {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .order-option-sub {
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: none;
+      color: #71717a;
+    }
     .action-icon {
       font-size: 15px;
       line-height: 1;
@@ -1445,5 +1554,6 @@
     }
     @media (max-width: 640px) {
       .action-btn { width: 60px; min-height: 68px; }
+      .orders-strip { bottom: 6rem; }
     }
   

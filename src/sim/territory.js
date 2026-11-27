@@ -20,7 +20,7 @@ export function getCapturePerTick(rank) {
 }
 
 /** Any living unit of another faction standing on the chunk? */
-function hasLivingEnemyOnChunk(chunk, faction) {
+export function hasLivingEnemyOnChunk(chunk, faction) {
   const buckets = state.spatialBuckets;
   if (buckets && typeof buckets.get === 'function') {
     // Production path: the per-step spatial hash is authoritative, including empty chunks.

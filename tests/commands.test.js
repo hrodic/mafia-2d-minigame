@@ -3,6 +3,7 @@ import { test, assert, assertEqual } from './harness.js';
 import { Faction, UnitRank, PropType } from '../src/config/enums.js';
 import { CHUNK_SIZE } from '../src/config/constants.js';
 import { PISTOL, MP9, COST_BOSS_ARMOR, COST_BOSS_GLOCK, COST_BOSS_MP9, COST_BOSS_AMMO } from '../src/config/balance.js';
+import { GLOBAL_STANCE, LOCAL_ORDER, createFactionTactics } from '../src/config/tactics.js';
 import { state } from '../src/core/state.js';
 import { dispatchCommand } from '../src/sim/commands.js';
 import { tickWeapon } from '../src/sim/combat.js';
@@ -37,6 +38,7 @@ const STATE_KEYS = [
   'playerSpawnCaps',
   'factionRecruitmentPrefs',
   'matchUnitCaps',
+  'factionTactics',
 ];
 
 function makeWorld(options = {}) {
@@ -167,6 +169,10 @@ function withCommandState(opts, fn) {
   state.playerSpawnCaps = { ...saved.playerSpawnCaps, ...(opts.playerSpawnCaps || {}) };
   state.factionRecruitmentPrefs = JSON.parse(JSON.stringify(saved.factionRecruitmentPrefs));
   state.matchUnitCaps = opts.matchUnitCaps ? { ...opts.matchUnitCaps } : null;
+  state.factionTactics = {};
+  for (const faction of [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3]) {
+    state.factionTactics[faction] = createFactionTactics();
+  }
 
   try {
     return fn();
@@ -458,6 +464,34 @@ test('commands: RECRUIT_PREF updates the player caps and remote faction prefs', 
     assertEqual(prefs.caps[UnitRank.SOLDIER], 50);
     assertEqual(prefs.caps[UnitRank.CAPTAIN], 10);
     assertEqual(prefs.caps[UnitRank.UNDERBOSS], 5);
+  });
+});
+
+test('commands: SET_GLOBAL_STANCE and SET_LOCAL_ORDER update the faction record', () => {
+  withCommandState({}, () => {
+    assertEqual(
+      dispatchCommand(Faction.PLAYER, { cmd: 'SET_GLOBAL_STANCE', stance: GLOBAL_STANCE.DEFEND }),
+      true
+    );
+    assertEqual(state.factionTactics[Faction.PLAYER].globalStance, GLOBAL_STANCE.DEFEND);
+    assertEqual(
+      dispatchCommand(Faction.PLAYER, { cmd: 'SET_GLOBAL_STANCE', stance: GLOBAL_STANCE.EXPAND }),
+      true
+    );
+    assertEqual(state.factionTactics[Faction.PLAYER].globalStance, GLOBAL_STANCE.EXPAND);
+    assertEqual(
+      dispatchCommand(Faction.RIVAL_1, { cmd: 'SET_LOCAL_ORDER', order: LOCAL_ORDER.GUARD }),
+      true
+    );
+    assertEqual(state.factionTactics[Faction.RIVAL_1].localOrder, LOCAL_ORDER.GUARD);
+    assertEqual(
+      dispatchCommand(Faction.RIVAL_1, { cmd: 'SET_LOCAL_ORDER', order: LOCAL_ORDER.ATTACK }),
+      true
+    );
+    assertEqual(state.factionTactics[Faction.RIVAL_1].localOrder, LOCAL_ORDER.ATTACK);
+
+    assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'SET_GLOBAL_STANCE', stance: 99 }), false);
+    assertEqual(dispatchCommand(Faction.PLAYER, { cmd: 'SET_LOCAL_ORDER', order: 'guard' }), false);
   });
 });
 

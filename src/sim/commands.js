@@ -18,6 +18,7 @@ import {
   switchBossWeapon,
 } from './combat.js';
 import { clampUnitCap } from './units.js';
+import { setGlobalStance, setLocalOrder } from './tactics.js';
 
 export function getBossForFaction(faction) {
   if (faction === Faction.PLAYER) return state.player;
@@ -127,6 +128,10 @@ export function dispatchCommand(faction, payload) {
     }
     case 'RECRUIT_PREF':
       return applyRecruitPrefs(faction, payload);
+    case 'SET_GLOBAL_STANCE':
+      return setGlobalStance(faction, payload.stance ?? payload.value);
+    case 'SET_LOCAL_ORDER':
+      return setLocalOrder(faction, payload.order ?? payload.value);
     default:
       return false;
   }

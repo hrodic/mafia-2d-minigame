@@ -1,10 +1,20 @@
 // Action bar tests: cooldown overlays, disabled states and secondary costs.
 import { test, assert, assertEqual } from './harness.js';
 import { Faction } from '../src/config/enums.js';
+import { GLOBAL_STANCE, LOCAL_ORDER, createFactionTactics } from '../src/config/tactics.js';
 import { state } from '../src/core/state.js';
 import { updateActionBar } from '../src/ui/actionBar.js';
 
-const STATE_KEYS = ['gameStarted', 'player', 'treasuries', 'factionAlive', 'net', 'tickDuration', 'world'];
+const STATE_KEYS = [
+  'gameStarted',
+  'player',
+  'treasuries',
+  'factionAlive',
+  'net',
+  'tickDuration',
+  'world',
+  'factionTactics',
+];
 
 function withActionState(opts, fn) {
   const saved = {};
@@ -18,6 +28,12 @@ function withActionState(opts, fn) {
   state.tickDuration = 10;
   state.factionAlive = { ...saved.factionAlive, [Faction.PLAYER]: true };
   state.treasuries = { ...saved.treasuries, [Faction.PLAYER]: opts.cash ?? 0 };
+  state.factionTactics = {
+    [Faction.PLAYER]: createFactionTactics(),
+    [Faction.RIVAL_1]: createFactionTactics(),
+    [Faction.RIVAL_2]: createFactionTactics(),
+    [Faction.RIVAL_3]: createFactionTactics(),
+  };
   state.player = {
     faction: Faction.PLAYER,
     alive: opts.alive ?? true,
@@ -229,8 +245,26 @@ test('action bar: full armor and death disable actions', () => {
   });
   withActionState({ alive: false }, () => {
     updateActionBar();
-    for (const id of ['btn-slash', 'btn-pistol', 'btn-buy-menu', 'btn-buy-ammo', 'btn-buy-glock', 'btn-buy-mp9', 'btn-buy-armor', 'btn-sprint']) {
+    for (const id of ['btn-slash', 'btn-pistol', 'btn-buy-menu', 'btn-buy-ammo', 'btn-buy-glock', 'btn-buy-mp9', 'btn-buy-armor', 'btn-sprint', 'btn-order-global', 'btn-order-local']) {
       assert($(id).classList.contains('is-disabled'), `${id} disabled when dead`);
     }
+  });
+});
+
+test('action bar: order buttons show the local faction posture', () => {
+  withActionState({}, () => {
+    updateActionBar();
+    assertEqual($('order-global-value').textContent, 'Expand');
+    assertEqual($('order-local-value').textContent, 'Attack');
+    assertEqual($('btn-order-global').dataset.state, 'expand');
+    assertEqual($('btn-order-local').dataset.state, 'attack');
+
+    state.factionTactics[Faction.PLAYER].globalStance = GLOBAL_STANCE.DEFEND;
+    state.factionTactics[Faction.PLAYER].localOrder = LOCAL_ORDER.GUARD;
+    updateActionBar();
+    assertEqual($('order-global-value').textContent, 'Defend');
+    assertEqual($('order-local-value').textContent, 'Guard');
+    assertEqual($('btn-order-global').dataset.state, 'defend');
+    assertEqual($('btn-order-local').dataset.state, 'guard');
   });
 });

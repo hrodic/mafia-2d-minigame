@@ -53,6 +53,8 @@ Full tuning surface: [`BALANCE.md`](BALANCE.md).
 | E or weapon button | Switch Glock 19 ↔ MP9 once both are owned |
 | B or Buy button | Open the shop (1 armor · 2 ammo · 3 Glock 19 · 4 MP9) |
 | 1 / 2 / 3 / 4 (shop open) | Buy armor / 20 rounds for the active gun / Glock 19 / MP9 |
+| G (global orders) | Global stance: 1 Defend · 2 Expand (default Expand) |
+| L (local orders) | Local order: 1 Guard · 2 Attack (default Attack) |
 | Q or B → 1 | Quick-buy kevlar armor |
 | T or B → 2 | Quick-buy 20 rounds of 9mm ammo for the active weapon |
 | Crew Management panel | Recruit toggles/caps |
@@ -175,6 +177,7 @@ Multiplayer requires both peers to run the same version.
 ## Documentation
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — layers, modules, data flow, netcode, testing.
+- [TACTICS.md](TACTICS.md) — current AI operational stance, directives and rules of engagement.
 - [EVENTS.md](EVENTS.md) — implemented event-bus contract (catalog + subscribers).
 - [PLAN.md](PLAN.md) — phased refactor plan and current status.
 - [AGENTS.md](AGENTS.md) — workflow contract for AI/human contributors.

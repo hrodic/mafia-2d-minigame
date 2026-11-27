@@ -324,6 +324,45 @@
       </div>
     </div>
 
+    <!-- Tactical Orders (above the combat action bar) -->
+    <div id="orders-strip" class="orders-strip hud-interactive flex items-stretch gap-1.5 z-20">
+      <div class="order-slot">
+        <button id="btn-order-global" type="button" class="order-btn" data-tip="Global stance — how crews outside your aura defend or expand [G]" aria-label="Global orders (G)" aria-expanded="false" aria-controls="orders-global-menu">
+          <span class="order-scope">Global</span>
+          <span id="order-global-value" class="order-value">Expand</span>
+          <kbd class="order-key">G</kbd>
+        </button>
+        <div id="orders-global-menu" class="orders-menu hidden" role="menu" aria-label="Global stance">
+          <button type="button" class="order-option" role="menuitem" data-order-scope="global" data-order-value="1">
+            <kbd class="order-option-key">1</kbd>
+            <span class="order-option-label">Defend<span class="order-option-sub">Hold owned turf</span></span>
+          </button>
+          <button type="button" class="order-option" role="menuitem" data-order-scope="global" data-order-value="2">
+            <kbd class="order-option-key">2</kbd>
+            <span class="order-option-label">Expand<span class="order-option-sub">Take the nearest turf</span></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="order-slot">
+        <button id="btn-order-local" type="button" class="order-btn" data-tip="Local order — how the crew inside your aura guards you or attacks [L]" aria-label="Local orders (L)" aria-expanded="false" aria-controls="orders-local-menu">
+          <span class="order-scope">Local</span>
+          <span id="order-local-value" class="order-value">Attack</span>
+          <kbd class="order-key">L</kbd>
+        </button>
+        <div id="orders-local-menu" class="orders-menu hidden" role="menu" aria-label="Local order">
+          <button type="button" class="order-option" role="menuitem" data-order-scope="local" data-order-value="1">
+            <kbd class="order-option-key">1</kbd>
+            <span class="order-option-label">Guard<span class="order-option-sub">Screen the boss</span></span>
+          </button>
+          <button type="button" class="order-option" role="menuitem" data-order-scope="local" data-order-value="2">
+            <kbd class="order-option-key">2</kbd>
+            <span class="order-option-label">Attack<span class="order-option-sub">Press the threat</span></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Spectator Mode Pill (Shown when spectating after defeat) -->
     <div id="spectator-banner" class="hud-interactive hidden glass-panel fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full border border-amber-500/60 flex items-center gap-3 text-xs z-20">
       <span class="flex items-center gap-1.5 font-bold text-amber-400 uppercase tracking-wider">
@@ -809,6 +848,16 @@
                       <th scope="row"><span class="manual-action action-violet">Buy MP9</span></th>
                       <td><span class="manual-key">B</span> <span class="manual-arrow">→</span> <span class="manual-key">4</span></td>
                       <td>$4,000 one-time after the Glock; sold empty, ammo is bought separately.</td>
+                    </tr>
+                    <tr>
+                      <th scope="row"><span class="manual-action action-sky">Global orders</span></th>
+                      <td><span class="manual-key">G</span> <span class="manual-arrow">→</span> <span class="manual-key">1</span>/<span class="manual-key">2</span></td>
+                      <td>Stance for crews outside your aura: <b>1 Defend</b> (hold owned turf) or <b>2 Expand</b> (take the nearest turf). Default Expand.</td>
+                    </tr>
+                    <tr>
+                      <th scope="row"><span class="manual-action action-rose">Local orders</span></th>
+                      <td><span class="manual-key">L</span> <span class="manual-arrow">→</span> <span class="manual-key">1</span>/<span class="manual-key">2</span></td>
+                      <td>Order for non-boss crew inside your aura: <b>1 Guard</b> (screen the boss) or <b>2 Attack</b> (press the threat). Default Attack.</td>
                     </tr>
                     <tr>
                       <th scope="row"><span class="manual-action action-emerald">Sprint</span></th>

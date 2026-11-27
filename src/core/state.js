@@ -24,6 +24,7 @@ import {
   ensureUniqueOrgs,
   getActiveFactionSlots,
 } from '../config/organizations.js';
+import { createFactionTactics } from '../config/tactics.js';
 
 const DEFAULT_ORG_ROSTER = ['COSA_NOSTRA', 'BRATVA', 'TRIADS', 'CARTEL'];
 
@@ -49,12 +50,14 @@ export function createGameState(config = {}) {
   const factionAlive = {};
   const factionKills = {};
   const factionDeaths = {};
+  const factionTactics = {};
   for (const faction of ALL_FACTION_SLOTS) {
     const isActive = activeFactions.includes(faction);
     treasuries[faction] = isActive ? 5000 : 0;
     factionAlive[faction] = isActive;
     factionKills[faction] = 0;
     factionDeaths[faction] = 0;
+    factionTactics[faction] = createFactionTactics();
   }
 
   const playerSpawnX = 1.5 * TILE_SIZE;
@@ -76,6 +79,7 @@ export function createGameState(config = {}) {
     factionAlive,
     factionKills,
     factionDeaths,
+    factionTactics,
 
     // --- local player boss --------------------------------------------------
     player: {
@@ -132,6 +136,7 @@ export function createGameState(config = {}) {
     aimWorldY: 0,
     aimInside: false,
     buyMenuOpen: false,
+    ordersMenu: null,
     keys: new Set(),
     sprintButtonHeld: false,
 
@@ -167,6 +172,7 @@ export function createGameState(config = {}) {
     gameHour: 19,
     hudUpdateTimer: 0,
     minimapCacheTimer: 1.0,
+    tacticsTimer: 0,
 
     // --- multiplayer bridge (assigned by main.js after mpNet init) ----------
     net: config.net ?? null,

@@ -4,6 +4,7 @@ import { test, assert, assertEqual, assertDeepEqual } from './harness.js';
 import { Faction, UnitRank } from '../src/config/enums.js';
 import { BOSS_MAX_HP, MAX_BOSS_ARMOR, RANK_STATS } from '../src/config/balance.js';
 import { DEFAULT_GRID_SIZE, DEFAULT_TICK_DURATION, TILE_SIZE } from '../src/config/constants.js';
+import { GLOBAL_STANCE, LOCAL_ORDER } from '../src/config/tactics.js';
 import {
   state,
   createGameState,
@@ -225,6 +226,10 @@ test('state factory: fresh default state matches the exported initial values', (
     Faction.RIVAL_3,
   ]);
   assertDeepEqual(fresh.selectedFactionOrgs, ['COSA_NOSTRA', 'BRATVA', 'TRIADS', 'CARTEL']);
+  for (const faction of fresh.activeFactions) {
+    assertEqual(fresh.factionTactics[faction].globalStance, GLOBAL_STANCE.EXPAND);
+    assertEqual(fresh.factionTactics[faction].localOrder, LOCAL_ORDER.ATTACK);
+  }
 });
 
 test('state factory: exported singleton is built from the same field set', () => {
@@ -379,6 +384,8 @@ test('state factory: each call returns independent nested containers', () => {
   assert(first.factionAlive !== second.factionAlive);
   assert(first.factionKills !== second.factionKills);
   assert(first.factionDeaths !== second.factionDeaths);
+  assert(first.factionTactics !== second.factionTactics);
+  assert(first.factionTactics[Faction.PLAYER] !== second.factionTactics[Faction.PLAYER]);
   assert(first.player !== second.player);
   assert(first.camera !== second.camera);
   assert(first.mouse !== second.mouse);

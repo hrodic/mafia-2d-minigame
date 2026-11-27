@@ -26,6 +26,7 @@ src/
     version.js             GAME_VERSION single source (title/labels/net handshake)
     enums.js               TileType, PropType, Faction, UnitRank
     balance.js             RANK_STATS, UNIT_CAPS, SLASH, PISTOL, MP9, income/cost tables
+    tactics.js             global stance / local order codes, aura radii, record factory
     organizations.js       6 organizations, FACTION_META, slot helpers, ensureUniqueOrgs
   core/
     rng.js                 mulberry32, chunk seed hashing, explicit per-chunk RNG
@@ -43,6 +44,7 @@ src/
     match.js               initWorld: city/factions/economy/bosses for a new match
     simulation.js          update(dt): headless host/single-player fixed sim step
     ai.js                  NPC perception, attacks, patrol goals, A* steering, capture
+    tactics.js             faction command facts: 250 ms boss danger/threat/focus/aura refresh
     movement.js            moveUnit/sprint, collision, remote-human boss, waypoint steering
     units.js               caps, spawning, recruitment
     combat.js              damage/armor, slashes, Glock/MP9 raycast, weapon purchases
@@ -252,6 +254,13 @@ Per-frame presentation stays state-driven: combat/capture/economy emit discrete 
 transitions only, never positions, timers or per-NPC updates.
 
 ### AI
+See **`TACTICS.md`** for the current operational stance and rules of engagement.
+`sim/tactics.js` owns the faction command layer: every 250 ms it refreshes boss
+position/danger, threatened owned chunks, the local focus target and each unit's
+`inBossAura` flag (480 px enter / 540 px exit). `state.factionTactics[faction]` stores the
+selected global stance (Defend/Expand) and local order (Guard/Attack); defaults are
+Expand/Attack. Orders travel through `SET_GLOBAL_STANCE` / `SET_LOCAL_ORDER` commands and
+compact snapshot codes. This module only reads sim facts; presentation reads the state.
 `sim/ai.js`: `scanNearby` (nearest enemy + ally/enemy counts in the 3×3 spatial buckets),
 a one-second boss equipment shop (Glock first, first ammo/reload, then MP9 once the
 syndicate has 5 living units and 3 blocks), boss armor purchase, melee for every rank and

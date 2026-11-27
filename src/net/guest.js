@@ -176,6 +176,16 @@ export function createGuestController(deps) {
       }
     }
 
+    if (snap.tactics) {
+      for (const f of state.activeFactions) {
+        const record = state.factionTactics[f];
+        const wire = snap.tactics[f];
+        if (!record || !Array.isArray(wire)) continue;
+        record.globalStance = wire[0];
+        record.localOrder = wire[1];
+      }
+    }
+
     if (snap.playerBoss) {
       const pb = snap.playerBoss;
       // Store the authoritative target; the guest update interpolates per frame.

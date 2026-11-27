@@ -179,6 +179,8 @@ cosine per hit; it adds no raycast or allocation.
 
 ### AI tactics
 
+See **`TACTICS.md`** for the full operational stance, directives and rules of engagement.
+
 | Value | Current |
 |---|---|
 | Boss retreat HP | **≤ 35%** |

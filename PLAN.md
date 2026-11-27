@@ -25,12 +25,13 @@ architecture description here.
 - **Phase 5 — DONE (`0.4.22`):** quality gates and docs; tests/typecheck/build tooling
   documented and enforced; deploy/smoke guidance refreshed. Deployed Pages validation moved
   to the future ideas section by owner decision.
-- **Current work — `0.7.0` branch (in progress):** setup tabs/presets, crew limits,
-  action dock, radar/leaderboard/crew UX, economy visibility, negative cash, deaths,
-  procedural depth/weather, and short invite codes. Version stays `0.7.0` for the whole
-  branch by owner decision.
+- **Current work — `0.8.0` branch (in progress):** boss survival priority, no ranged/melee
+  dead zone, Glock/MP9 shop, economy/music/blood tuning, and the tactical command layer.
+  Command-layer step 1 is live: faction global stance + local order state, Orders UI, commands
+  and snapshot sync, defaults **Expand + Attack**. Version stays `0.8.0` for the whole branch
+  by owner decision.
 
-Phases 3, 4 and 5 are complete. `refactor/phase-5-quality` has merged into `master`. `0.7.0`
+Phases 3, 4 and 5 are complete. `refactor/phase-5-quality` has merged into `master`. `0.8.0`
 is the active feature branch; future ideas and optional tasks are listed below.
 
 ## Phase 3 — DONE (`0.4.11`)

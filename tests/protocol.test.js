@@ -18,6 +18,11 @@ function makeState() {
     factionAlive: { PLAYER: true, RIVAL_1: false },
     factionKills: { PLAYER: 2 },
     factionDeaths: { PLAYER: 1, RIVAL_1: 4 },
+    activeFactions: ['PLAYER', 'RIVAL_1'],
+    factionTactics: {
+      PLAYER: { globalStance: 2, localOrder: 1 },
+      RIVAL_1: { globalStance: 1, localOrder: 2 },
+    },
     player: {
       x: 10.04,
       y: 20.05,
@@ -128,6 +133,7 @@ test('protocol: encodeSnapshot rounds and preserves the wire arrays', () => {
   assertDeepEqual(snap.factionAlive, { PLAYER: true, RIVAL_1: false });
   assertDeepEqual(snap.kills, { PLAYER: 2 });
   assertDeepEqual(snap.deaths, { PLAYER: 1, RIVAL_1: 4 });
+  assertDeepEqual(snap.tactics, { PLAYER: [2, 1], RIVAL_1: [1, 2] });
 
   assertDeepEqual(snap.playerBoss, {
     x: 10,

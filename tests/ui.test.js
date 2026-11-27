@@ -308,7 +308,8 @@ test('ui: floating HUD panels use noir glass and pass map clicks through', async
   assert(overlay.querySelector('#management-panel'), 'crew panel should live in the HUD overlay');
   assert(overlay.querySelector('#action-bar'), 'action bar should live in the HUD overlay');
   assert(overlay.querySelector('#radar-panel'), 'radar should live in the HUD overlay');
-  assertEqual(doc.querySelectorAll('.hud-interactive').length, 5);
+  assert(overlay.querySelector('#orders-strip'), 'orders strip should live in the HUD overlay');
+  assertEqual(doc.querySelectorAll('.hud-interactive').length, 6);
 
   const css = await (await fetch('../styles.css', { cache: 'no-store' })).text();
   assert(

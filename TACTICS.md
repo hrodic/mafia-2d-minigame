@@ -1,0 +1,238 @@
+# Tactics & Operational Stance
+
+**Status: current implementation.** This file is the single source for the
+high-level AI posture and rules of engagement. `BALANCE.md` owns tuning numbers,
+`ARCHITECTURE.md` owns module flow, and this file owns intent and behavior.
+
+## Bottom line
+
+There is a **faction command layer** for the human player, but every AI unit still acts as an
+independent agent with no squad coordination.
+
+The current command posture defaults to:
+
+> **GLOBAL: EXPAND · LOCAL: ATTACK**
+
+The current grand posture remains:
+
+> **Opportunistic local territorial creep with nearest-enemy skirmishing.**
+
+AI factions do not form fronts, mass forces, defend strategically, or coordinate attacks.
+They expand into whatever non-owned block is nearest, fight whatever enemy is nearest, and
+otherwise walk to a random point inside the target block and capture it.
+
+## Command layer
+
+Each faction carries `state.factionTactics[faction]`:
+
+| Field | Meaning |
+|---|---|
+| `globalStance` | **1 Defend** · **2 Expand** (default) |
+| `localOrder` | **1 Guard** · **2 Attack** (default) |
+| `bossInDanger` | Boss HP ≤ 35%, or ≥ 3 nearby enemies with more enemies than allies |
+| `threatenedChunks` | Owned chunks containing living enemies |
+| `localFocusId` | Nearest enemy on the boss chunk, else nearest within 360 px |
+| `updatedAt` | Accumulated simulation seconds of the last refresh |
+
+`sim/tactics.js` refreshes these facts every **250 ms** inside the fixed simulation step. It
+also sets per-unit `inBossAura` with hysteresis: **480 px enter / 540 px exit**.
+
+Scope split:
+
+- **Global stance** governs allies **outside** the boss aura.
+- **Local order** governs **non-boss allies inside** the aura.
+- The boss itself is never ordered; its own survival and combat logic always wins.
+
+Controls:
+
+- **G** opens the global menu; **1** Defend, **2** Expand.
+- **L** opens the local menu; **1** Guard, **2** Attack.
+- The shop (**B**) and order menus are mutually exclusive; selecting an order closes it.
+- Orders are host-authoritative commands and are mirrored to guests in snapshots.
+
+**Implementation status:** the command layer, UI, commands and snapshot sync are live.
+Defaults **Expand + Attack** preserve the pre-command behavior. The AI currently stores and
+publishes these facts but does not yet branch on Defend or Guard; those behavior steps come
+next and will be documented here first.
+
+## Operational directives
+
+### 1. Expand — nearest non-owned block
+
+When no enemy is in aggro range, each unit periodically picks a patrol target:
+
+- scans a **7×7 chunk neighborhood** around itself,
+- chooses the nearest chunk where `chunk.faction !== unit.faction`,
+- treats **neutral and enemy turf equally**,
+- walks to a **random walkable point** inside that chunk,
+- captures the chunk on arrival.
+
+If no non-owned chunk exists in that neighborhood, it falls back to the **first non-owned
+chunk in the global chunk map**, not the nearest one.
+
+Patrol retargeting happens every **1.6–3.4 s**.
+
+There is no preference for:
+
+- neutral over enemy turf,
+- high-income neighborhoods,
+- weakly defended blocks,
+- blocks adjacent to the current front,
+- or any strategic objective.
+
+### 2. Engage — nearest enemy only
+
+A unit engages when an enemy is inside its aggro range:
+
+- ranged ranks: **680 px**
+- melee ranks: **480 px**
+
+It always targets the **nearest** enemy. It does not prioritize:
+
+- the enemy boss,
+- low-HP enemies,
+- shooters,
+- capturers,
+- or units threatening owned turf.
+
+There is no focus fire between allies.
+
+### 3. Capture — stand on the block
+
+Capture progress advances while a non-retreating unit stands on a non-owned chunk.
+
+- **Neutral turf never resists**, even if enemies are standing on it.
+- **Enemy turf requires the chunk to be clear of living enemy units.**
+- Multiple friendly units stack capture points.
+- Capture points per tick: Boss/Underboss **1**, Captain **0.5**, Soldier **0.2**.
+- A retreating boss does not capture.
+- Units can keep capturing while fighting on the same chunk if the capture rule allows it.
+
+### 4. Survive — boss only
+
+Only the boss has a survival directive.
+
+Danger is:
+
+- **HP ≤ 35%**, or
+- **≥ 3 nearby enemies with more enemies than allies**.
+
+When in danger:
+
+- the boss retreats for **2.2 s** toward a point about **280 px** away,
+- prefers own turf when selecting the retreat point,
+- uses the boss sprint,
+- **armor does not cancel the retreat**,
+- the retreat re-commits while the danger persists.
+
+When healthy and not outnumbered:
+
+- inside **110 px** the boss commits to melee instead of kiting,
+- it may still fire while closing,
+- the knife takes over inside melee reach.
+
+Underbosses, captains and soldiers have no survival retreat. They fight until dead.
+
+### 5. Buy — boss only
+
+Only boss-rank units shop. Shopping requires friendly turf.
+
+AI boss equipment shop, once per second:
+
+1. **Glock 19** first.
+2. First **20 rounds** when dry, then reload.
+3. **MP9** after **5 living units** and **3 owned blocks** if $4,000 is available.
+
+Armor is a separate purchase: **Kevlar** when missing/low, affordable and off cooldown.
+
+Underbosses, captains and soldiers never shop.
+
+### 6. Reinforce — random owned block
+
+AI reinforcements spawn in a **random owned chunk**, then immediately follow the same
+independent patrol/engage directive.
+
+Player reinforcements prefer the boss's chunk when the boss is on owned turf; otherwise
+they also spawn in a random owned chunk.
+
+There is no “send reinforcements to the front” or “defend this block” order.
+
+### 7. Defend — incidental only
+
+There is no explicit defense directive.
+
+Units do not:
+
+- respond to an enemy capturing owned turf,
+- regroup to protect the boss,
+- guard chokepoints or buildings,
+- prioritize threatened blocks,
+- or return home to defend.
+
+Defense happens only when an enemy happens to enter a unit's local aggro range.
+
+## Per-rank directives
+
+| Rank | Primary posture | Engagement | Survival | Shopping / armor |
+|---|---|---|---|---|
+| **AI Boss** | Expand locally; survive when in danger | Gun from melee reach to weapon range; healthy boss commits to melee inside 110 px; knife inside reach | Retreats while HP ≤ 35% or outnumbered; armor does not cancel | Glock → ammo → MP9; buys armor |
+| **AI Underboss** | Expand locally; ranged skirmisher | Gun from melee reach to weapon range; fires while backing off below 110 px; knife inside 50 px | None | None |
+| **AI Captain** | Expand locally; melee | Knife only; 48 px, 2 targets | None | None |
+| **AI Soldier** | Expand locally; melee | Knife only; 46 px, 1 target | None | None |
+| **Local human Boss** | Player-controlled | Player aim and fire; point-blank allowed | Player decides | Manual shop |
+| **Remote human Boss** | Player-controlled over the network | Guest input; AI takes over on disconnect | Player decides | Manual shop |
+
+## Rules of engagement
+
+- **Target selection:** nearest enemy only.
+- **Ranged fire band:** melee reach → weapon range. There is no 110 px minimum.
+- **Underboss close range:** below 110 px, fire while backing off (80 px step, 0.6 s).
+- **Boss close range:** healthy and not outnumbered → commit to melee inside 110 px.
+- **Boss survival:** danger overrides melee commitment and kiting.
+- **Knife:** takes over inside actual melee reach.
+- **Friendly fire:** AI holds gun fire when an ally is in the bullet path; knives never hit
+  allies. Human players can still hit allies with guns.
+- **Firing line:** a blocked gun shooter sidesteps 90 px for 0.9 s; if both sides are
+  blocked, it backs off 72 px.
+- **Pathing:** A* to the goal, with a perpendicular dodge attempt when movement is blocked.
+
+## What is intentionally absent
+
+These are not implemented today and are the natural next iteration points:
+
+- AI stance director (AI factions do not choose Defend or Guard on their own),
+- Defend / Guard behavior wiring (the command state exists, the AI branches do not),
+- squad formation and cohesion,
+- escort/bodyguard behavior around the boss,
+- focus fire and target priority,
+- scouting and shared vision,
+- front-line or chokepoint control,
+- defend-owned-turf orders,
+- regroup, healing, cover-seeking and crew retreat,
+- guard posts and patrol routes,
+- coordinated multi-unit flanking,
+- role assignment (scout, guard, skirmisher, etc.),
+- unit-to-unit communication,
+- strategic target value (income, adjacency, threat, defenses).
+
+## Code map
+
+| Area | File |
+|---|---|
+| Perception, patrol, engagement, retreat, flank, backoff | `src/sim/ai.js` |
+| Movement, sprint, human-controlled rival boss | `src/sim/movement.js` |
+| Boss shop, armor, friendly-fire path checks, search-terrain shooting | `src/sim/combat.js` |
+| Faction command layer (stances, aura, danger, threats, focus) | `src/sim/tactics.js` |
+| Tactics constants (`AI_TACTICS`, MP9 thresholds) | `src/config/balance.js` |
+| Command codes, aura radii, record factory | `src/config/tactics.js` |
+| Capture rules and progress | `src/sim/territory.js` |
+| Recruitment and reinforcement spawn location | `src/sim/units.js` |
+| AI behavior tests | `tests/ai.test.js`, `tests/combat.test.js` |
+| Command-layer tests | `tests/tactics.test.js` |
+| Longer integration sanity | `tests/simulation-integration.test.js`, `tests/long-sim.html` |
+
+## Iteration rule
+
+Change the intended directive here **first**, then update constants/logic, tests and any
+affected docs in the same change. Keep this file as the high-level source of truth so the
+tactics can be reviewed without reverse-engineering `ai.js`.

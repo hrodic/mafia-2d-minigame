@@ -13,6 +13,7 @@ import {
   MAX_BOSS_ARMOR,
 } from '../config/balance.js';
 import { SPRINT_COOLDOWN_DURATION } from '../config/constants.js';
+import { GLOBAL_STANCE, GLOBAL_STANCE_LABELS, LOCAL_ORDER, LOCAL_ORDER_LABELS } from '../config/tactics.js';
 import { state, getLocalBoss, getLocalFaction, isLocalBossAlive } from '../core/state.js';
 import { isOnFriendlyTurf } from '../sim/combat.js';
 
@@ -43,6 +44,10 @@ const els = {
   glockStatus: document.getElementById('action-status-glock'),
   mp9Status: document.getElementById('action-status-mp9'),
   sprintStatus: document.getElementById('sprint-text'),
+  ordersGlobal: document.getElementById('btn-order-global'),
+  ordersLocal: document.getElementById('btn-order-local'),
+  orderGlobalValue: document.getElementById('order-global-value'),
+  orderLocalValue: document.getElementById('order-local-value'),
 };
 
 function setDisabled(el, disabled) {
@@ -250,4 +255,21 @@ export function updateActionBar() {
   setState(els.sprint, sprintState);
   setStatus(els.sprintStatus, sprintActive ? 'RUN' : sprintCd > 0 ? `${sprintCd.toFixed(1)}s` : 'RDY');
   if (els.sprint) els.sprint.classList.toggle('is-active', sprintActive);
+
+  const tactics = state.factionTactics ? state.factionTactics[getLocalFaction()] : null;
+  if (els.orderGlobalValue) {
+    els.orderGlobalValue.textContent = tactics ? GLOBAL_STANCE_LABELS[tactics.globalStance] : 'Expand';
+  }
+  if (els.orderLocalValue) {
+    els.orderLocalValue.textContent = tactics ? LOCAL_ORDER_LABELS[tactics.localOrder] : 'Attack';
+  }
+  setDisabled(els.ordersGlobal, !alive);
+  setDisabled(els.ordersLocal, !alive);
+  if (els.ordersGlobal) {
+    els.ordersGlobal.dataset.state =
+      tactics && tactics.globalStance === GLOBAL_STANCE.DEFEND ? 'defend' : 'expand';
+  }
+  if (els.ordersLocal) {
+    els.ordersLocal.dataset.state = tactics && tactics.localOrder === LOCAL_ORDER.GUARD ? 'guard' : 'attack';
+  }
 }

@@ -48,6 +48,22 @@ export function isVersionCompatible(env) {
 }
 
 /**
+ * Compact per-faction command posture: `{ FACTION: [globalStance, localOrder] }`.
+ * @param {any} state
+ * @returns {Record<string, number[]>}
+ */
+function encodeTactics(state) {
+  const out = {};
+  const factions = state.activeFactions || [];
+  const records = state.factionTactics || {};
+  for (const faction of factions) {
+    const record = records[faction];
+    if (record) out[faction] = [record.globalStance, record.localOrder];
+  }
+  return out;
+}
+
+/**
  * Host -> guest snapshot. Reads state but never mutates it.
  * @param {any} state
  * @returns {any}
@@ -89,6 +105,7 @@ export function encodeSnapshot(state) {
     factionAlive: { ...state.factionAlive },
     kills: { ...state.factionKills },
     deaths: { ...state.factionDeaths },
+    tactics: encodeTactics(state),
     playerBoss: {
       x: Math.round(state.player.x * 10) / 10,
       y: Math.round(state.player.y * 10) / 10,

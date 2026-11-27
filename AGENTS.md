@@ -4,6 +4,7 @@ Rules for AI/human contributors. One source of truth per topic:
 
 - `README.md` — what the game is, controls, run/deploy.
 - `ARCHITECTURE.md` — layers, modules, data flow, invariants.
+- `TACTICS.md` — current AI operational stance, directives and rules of engagement.
 - `PLAN.md` — phase status and future ideas. **Current phase: none (Phases 0–5 complete).**
 - `EVENTS.md` — event-bus contract (implemented).
 - `.opencode/skills/` — task skills (zero-build refactor, multiplayer debug).
@@ -109,6 +110,8 @@ Run these before every commit:
 | Player-count slot mapping | `src/config/organizations.js` (`getActiveFactionSlots`) |
 | Worldgen / props / collision | `src/world/chunk.js`, `src/world/city.js`, `src/world/geometry.js` |
 | AI behavior | `src/sim/ai.js` |
+| AI operational stance / directives | `TACTICS.md`, `src/sim/ai.js`, `src/config/balance.js` |
+| Global / local orders | `src/sim/tactics.js`, `src/config/tactics.js`, `src/ui/actionBar.js`, `src/ui/input.js` |
 | Combat / weapons / armor | `src/sim/combat.js` |
 | Combat presentation (effects / SFX) | `src/render/combatFx.js`, `src/audio/combatSfx.js` |
 | Capture / victory / defeat | `src/sim/territory.js` |

@@ -12,6 +12,7 @@ import {
 import { progressCapture, getCapturePerTick } from './territory.js';
 import { processHourlyTick } from './economy.js';
 import { updateNpcAi } from './ai.js';
+import { updateFactionTactics } from './tactics.js';
 import { performBossPistolShot, tickWeapon } from './combat.js';
 import { regenUnit } from './regen.js';
 
@@ -21,6 +22,7 @@ export function update(dt) {
 
   state.astarBudgetThisFrame = 0;
   rebuildSpatialBuckets();
+  updateFactionTactics(dt);
 
   if (state.player.attackCooldown > 0) state.player.attackCooldown = Math.max(0, state.player.attackCooldown - dt);
   tickWeapon(state.player, dt);

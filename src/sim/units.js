@@ -123,6 +123,7 @@ export function spawnUnitInChunk(faction, chunk, rank = UnitRank.SOLDIER) {
         path: null,
         pathTimer: 0,
         aiTimer: 0,
+        inBossAura: false,
         attackCooldown: 0,
         slashAnimTimer: 0,
         muzzleFlashTimer: 0,

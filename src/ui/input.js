@@ -1,6 +1,7 @@
 ﻿// Gameplay input: keyboard, mouse, minimap and HUD action buttons.
 
 import { UnitRank } from '../config/enums.js';
+import { GLOBAL_STANCE, LOCAL_ORDER } from '../config/tactics.js';
 import { state, getLocalBoss, isLocalBossAlive } from '../core/state.js';
 import { on } from '../core/events.js';
 import {
@@ -94,6 +95,7 @@ function requestSwitchWeapon() {
 
 function setBuyMenuOpen(open) {
   const next = Boolean(open && state.gameStarted);
+  if (next) setOrdersMenu(null);
   state.buyMenuOpen = next;
   const menu = document.getElementById('buy-menu');
   const button = document.getElementById('btn-buy-menu');
@@ -104,6 +106,34 @@ function setBuyMenuOpen(open) {
 function toggleBuyMenu() {
   if (!state.gameStarted) return;
   setBuyMenuOpen(!state.buyMenuOpen);
+}
+
+function setOrdersMenu(scope) {
+  const next = scope === 'global' || scope === 'local' ? scope : null;
+  state.ordersMenu = state.gameStarted ? next : null;
+  for (const name of ['global', 'local']) {
+    const open = state.ordersMenu === name;
+    const menu = document.getElementById(`orders-${name}-menu`);
+    const button = document.getElementById(`btn-order-${name}`);
+    if (menu) menu.classList.toggle('hidden', !open);
+    if (button) button.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+}
+
+function toggleOrdersMenu(scope) {
+  if (!state.gameStarted || !isLocalBossAlive()) return;
+  if (state.ordersMenu !== scope) setBuyMenuOpen(false);
+  setOrdersMenu(state.ordersMenu === scope ? null : scope);
+}
+
+function selectOrder(scope, value) {
+  if (!state.gameStarted || !isLocalBossAlive()) return;
+  if (scope === 'global') {
+    sendOrDispatchCommand({ cmd: 'SET_GLOBAL_STANCE', stance: value });
+  } else {
+    sendOrDispatchCommand({ cmd: 'SET_LOCAL_ORDER', order: value });
+  }
+  setOrdersMenu(null);
 }
 
 function buyFromMenu(action) {
@@ -130,6 +160,24 @@ window.addEventListener('keydown', (e) => {
   if (k === 'e' && !wasDown) requestSwitchWeapon();
   if (k === 'b' && !wasDown) {
     toggleBuyMenu();
+  } else if (k === 'g' && !wasDown) {
+    toggleOrdersMenu('global');
+  } else if (k === 'l' && !wasDown) {
+    toggleOrdersMenu('local');
+  } else if (state.ordersMenu && !wasDown) {
+    if (e.key === '1') {
+      selectOrder(
+        state.ordersMenu,
+        state.ordersMenu === 'global' ? GLOBAL_STANCE.DEFEND : LOCAL_ORDER.GUARD
+      );
+    } else if (e.key === '2') {
+      selectOrder(
+        state.ordersMenu,
+        state.ordersMenu === 'global' ? GLOBAL_STANCE.EXPAND : LOCAL_ORDER.ATTACK
+      );
+    } else {
+      setOrdersMenu(null);
+    }
   } else if (state.buyMenuOpen && !wasDown) {
     if (e.key === '1') buyFromMenu(requestBuyArmor);
     else if (e.key === '2') buyFromMenu(requestBuyAmmo);
@@ -395,6 +443,20 @@ document.getElementById('btn-buy-menu')?.addEventListener('click', () => {
   getAudioCtx();
   toggleBuyMenu();
 });
+document.getElementById('btn-order-global')?.addEventListener('click', () => {
+  getAudioCtx();
+  toggleOrdersMenu('global');
+});
+document.getElementById('btn-order-local')?.addEventListener('click', () => {
+  getAudioCtx();
+  toggleOrdersMenu('local');
+});
+for (const option of document.querySelectorAll('.order-option')) {
+  option.addEventListener('click', () => {
+    getAudioCtx();
+    selectOrder(option.dataset.orderScope, Number(option.dataset.orderValue));
+  });
+}
 document.getElementById('btn-slash').addEventListener('click', () => requestSlash());
 document.getElementById('btn-pistol').addEventListener('click', () => {
   getAudioCtx();
@@ -440,7 +502,10 @@ document.getElementById('btn-toggle-sound').addEventListener('click', (e) => {
   e.target.textContent = 'ðŸ”Š SFX: ' + (enabled ? 'ON' : 'OFF');
 });
 
-on('match:initialized', () => setBuyMenuOpen(false));
+on('match:initialized', () => {
+  setBuyMenuOpen(false);
+  setOrdersMenu(null);
+});
 }
 
 
