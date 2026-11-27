@@ -70,19 +70,20 @@ test('effects: kill splashes are bigger than normal hits', () => {
 
 test('effects: blood decals are capped', () => {
   fresh();
-  for (let i = 0; i < 60; i++) spawnBloodSplash(0, 0, 1, true);
+  for (let i = 0; i < 80; i++) spawnBloodSplash(0, 0, 1, true);
   assertEqual(bloodDecals.length, MAX_BLOOD_DECALS);
+  assertEqual(bloodDecals[0].life, 40);
   assert(bloodParticles.length > 0);
 });
 
 test('effects: dead bodies are capped', () => {
   fresh();
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < MAX_DEAD_BODIES + 10; i++) {
     spawnDeadBody(i, i, Faction.PLAYER, UnitRank.SOLDIER, 0);
   }
   assertEqual(deadBodies.length, MAX_DEAD_BODIES);
   const body = deadBodies[deadBodies.length - 1];
-  assertEqual(body.life, 14);
+  assertEqual(body.life, 30);
   assert(body.maxPoolRadius > body.poolRadius);
 });
 
@@ -136,7 +137,7 @@ test('effects: blood particles and decals expire at different rates', () => {
   assertEqual(bloodParticles.length, 0);
   assert(bloodDecals.length > 0, 'decals should outlive droplets');
 
-  updateVisualParticles(30);
+  updateVisualParticles(40);
   assertEqual(bloodDecals.length, 0);
 });
 
@@ -147,7 +148,7 @@ test('effects: dead bodies fade and their pool grows over time', () => {
   updateVisualParticles(0.5);
   const after = deadBodies[0].poolRadius;
   assert(after > before, `pool should grow: ${before} -> ${after}`);
-  updateVisualParticles(15);
+  updateVisualParticles(30);
   assertEqual(deadBodies.length, 0);
 });
 

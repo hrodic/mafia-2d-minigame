@@ -4,7 +4,7 @@ import { ctx } from './canvas.js';
 
 
 export function drawDeadBody(body) {
-  const alpha = Math.min(1, body.life / 2.5);
+  const alpha = Math.min(1, body.life / 3);
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(body.x, body.y);

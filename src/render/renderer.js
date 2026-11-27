@@ -150,7 +150,7 @@ export function render(dt = 1 / 60) {
     const d = bloodDecals[i];
     if (d.x < camLeft - 40 || d.x > camRight + 40 || d.y < camTop - 40 || d.y > camBottom + 40) continue;
     ctx.save();
-    ctx.globalAlpha = Math.min(1, d.life / 3.0);
+    ctx.globalAlpha = Math.min(1, d.life / 5.0);
     ctx.fillStyle = d.color;
     ctx.beginPath();
     ctx.ellipse(d.x, d.y, d.rx, d.ry, d.rot, 0, Math.PI * 2);
