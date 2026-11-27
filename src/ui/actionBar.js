@@ -29,7 +29,11 @@ function setDisabled(el, disabled) {
 function setCooldown(el, remaining, total) {
   if (!el) return;
   const ratio = total > 0 ? Math.max(0, Math.min(1, remaining / total)) : 0;
-  el.style.height = `${(ratio * 100).toFixed(1)}%`;
+  el.style.setProperty('--progress', ratio.toFixed(4));
+}
+
+function setState(el, state) {
+  if (el) el.dataset.state = state;
 }
 
 function setStatus(el, text) {
@@ -48,21 +52,42 @@ export function updateActionBar() {
   const armorVal = boss ? Math.max(0, boss.armor || 0) : 0;
   const armorFull = armorVal >= MAX_BOSS_ARMOR;
 
+  const attackState = !alive ? 'disabled' : attackCd > 0 ? 'cooldown' : 'ready';
   setDisabled(els.slash, !alive || attackCd > 0);
   setCooldown(els.slashCd, attackCd, SLASH.humanBoss.cooldown);
+  setState(els.slash, attackState);
   setStatus(els.slashStatus, attackCd > 0 ? `${attackCd.toFixed(1)}s` : 'READY');
 
   setDisabled(els.pistol, !alive || attackCd > 0);
   setCooldown(els.pistolCd, attackCd, PISTOL.cooldownHuman);
+  setState(els.pistol, attackState);
   setStatus(els.pistolStatus, attackCd > 0 ? `${attackCd.toFixed(1)}s` : 'READY');
 
+  const armorState = !alive
+    ? 'disabled'
+    : armorFull
+      ? 'full'
+      : armorCd > 0
+        ? 'cooldown'
+        : cash >= COST_BOSS_ARMOR
+          ? 'affordable'
+          : 'unaffordable';
   setDisabled(els.armor, !alive || armorFull || armorCd > 0 || cash < COST_BOSS_ARMOR);
   setCooldown(els.armorCd, armorCd, state.tickDuration);
+  setState(els.armor, armorState);
   setStatus(els.armorStatus, armorFull ? 'FULL' : `$${COST_BOSS_ARMOR.toLocaleString()}`);
 
   const sprintActive = Boolean(boss && boss.isSprinting);
+  const sprintState = !alive
+    ? 'disabled'
+    : sprintActive
+      ? 'active'
+      : sprintCd > 0
+        ? 'cooldown'
+        : 'ready';
   setDisabled(els.sprint, !alive);
   setCooldown(els.sprintCd, sprintCd, SPRINT_COOLDOWN_DURATION);
+  setState(els.sprint, sprintState);
   setStatus(els.sprintStatus, sprintActive ? 'RUN' : sprintCd > 0 ? `${sprintCd.toFixed(1)}s` : 'RDY');
   if (els.sprint) els.sprint.classList.toggle('is-active', sprintActive);
 }

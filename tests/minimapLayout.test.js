@@ -9,6 +9,7 @@ import {
   chunkToMinimap,
   worldToMinimap,
   minimapToWorld,
+  minimapCellAt,
 } from '../src/render/minimapLayout.js';
 
 function chunk(cx, cy) {
@@ -70,4 +71,27 @@ test('minimap layout: chunk and world mapping share one transform', () => {
 test('minimap layout: empty chunk sets produce no layout', () => {
   assertEqual(getMinimapLayout([], 140, 140), null);
   assertEqual(computeMinimapLayout(140, 140, null), null);
+});
+
+test('minimap layout: hover mapping snaps inside cells and rejects outside', () => {
+  const layout = computeMinimapLayout(140, 140, {
+    minCx: 1,
+    minCy: 2,
+    maxCx: 5,
+    maxCy: 6,
+    cols: 5,
+    rows: 5,
+  });
+  const topLeft = chunkToMinimap(layout, 1, 2);
+  const inside = minimapCellAt(layout, topLeft.x + layout.cellSize / 2, topLeft.y + layout.cellSize / 2);
+  assertEqual(inside.cx, 1);
+  assertEqual(inside.cy, 2);
+
+  const last = chunkToMinimap(layout, 5, 6);
+  const lastCell = minimapCellAt(layout, last.x + layout.cellSize / 2, last.y + layout.cellSize / 2);
+  assertEqual(lastCell.cx, 5);
+  assertEqual(lastCell.cy, 6);
+
+  assertEqual(minimapCellAt(layout, 0, 0), null);
+  assertEqual(minimapCellAt(layout, 139, 139), null);
 });

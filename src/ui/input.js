@@ -10,7 +10,8 @@ import {
   setSoundEnabled,
 } from '../audio/engine.js';
 import { canvas, minimapCanvas } from '../render/canvas.js';
-import { getMinimapLayout, minimapToWorld } from '../render/minimapLayout.js';
+import { getMinimapLayout, minimapToWorld, minimapCellAt } from '../render/minimapLayout.js';
+import { setMinimapHover } from '../render/minimap.js';
 import { sendOrDispatchCommand } from './commandBridge.js';
 import {
   syncRecruitButtonLabels,
@@ -144,6 +145,28 @@ canvas.addEventListener('mousedown', (e) => {
     showToast('Blocked by building');
   }
 });
+
+minimapCanvas.addEventListener('mousemove', (e) => {
+  if (!state.gameStarted || state.world.chunks.size === 0) {
+    setMinimapHover(null);
+    return;
+  }
+  const rect = minimapCanvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) {
+    setMinimapHover(null);
+    return;
+  }
+  const mx = (e.clientX - rect.left) * (minimapCanvas.width / rect.width);
+  const my = (e.clientY - rect.top) * (minimapCanvas.height / rect.height);
+  const layout = getMinimapLayout(
+    state.world.chunks.values(),
+    minimapCanvas.width,
+    minimapCanvas.height
+  );
+  setMinimapHover(minimapCellAt(layout, mx, my));
+});
+
+minimapCanvas.addEventListener('mouseleave', () => setMinimapHover(null));
 
 minimapCanvas.addEventListener('click', (e) => {
   getAudioCtx();

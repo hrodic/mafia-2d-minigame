@@ -230,7 +230,7 @@
         <kbd class="action-key">SHIFT</kbd>
         <span class="action-sub">Hold</span>
         <span id="sprint-text" class="action-status">RDY</span>
-        <div class="action-sprint-bar"><div id="sprint-bar-fill" class="hud-bar-fill" style="transform: scaleX(1)"></div></div>
+        <div class="action-sprint-bar"><div id="sprint-bar-fill" style="transform: scaleX(1)"></div></div>
         <span id="cooldown-sprint" class="action-cooldown" aria-hidden="true"></span>
       </button>
     </div>
@@ -256,9 +256,9 @@
     <div class="glass-panel absolute bottom-4 right-4 p-2.5 rounded-xl z-10 flex flex-col gap-1.5">
       <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-zinc-400">
         <span>City Radar</span>
-        <span id="minimap-coords" class="font-mono text-zinc-300">(0, 0)</span>
+        <span id="minimap-coords" class="font-mono hud-num text-zinc-300 text-right">(0, 0)</span>
       </div>
-      <canvas id="minimapCanvas" width="168" height="168" class="rounded-lg border border-zinc-800 cursor-pointer"></canvas>
+      <canvas id="minimapCanvas" width="168" height="168" class="rounded-lg border border-zinc-800 cursor-crosshair"></canvas>
     </div>
 
     <!-- Pre-Game Setup, Multiplayer Lobby & Field Manual Modal -->

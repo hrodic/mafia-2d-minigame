@@ -35,31 +35,56 @@ function withActionState(opts, fn) {
 
 const $ = (id) => document.getElementById(id);
 
-test('action bar: cooling abilities show overlays and disabled states', () => {
+function progress(id) {
+  return parseFloat($(id).style.getPropertyValue('--progress'));
+}
+
+test('action bar: cooling abilities use transform progress and cooldown state', () => {
   withActionState({ attackCooldown: 0.17, armorCooldown: 5, sprintCooldown: 2, cash: 0 }, () => {
     updateActionBar();
     assert($('btn-slash').classList.contains('is-disabled'), 'slash should be cooling');
-    assert(parseFloat($('cooldown-slash').style.height) > 0, 'slash cooldown overlay');
+    assert(progress('cooldown-slash') > 0, 'slash cooldown progress');
+    assertEqual($('cooldown-slash').style.height, '');
+    assertEqual($('btn-slash').dataset.state, 'cooldown');
     assert($('btn-pistol').classList.contains('is-disabled'), 'pistol should be cooling');
-    assert(parseFloat($('cooldown-pistol').style.height) > 0, 'pistol cooldown overlay');
+    assert(progress('cooldown-pistol') > 0, 'pistol cooldown progress');
+    assertEqual($('btn-pistol').dataset.state, 'cooldown');
     assert($('btn-buy-armor').classList.contains('is-disabled'), 'armor should be disabled');
-    assert(parseFloat($('cooldown-armor').style.height) > 0, 'armor cooldown overlay');
-    assert(parseFloat($('cooldown-sprint').style.height) > 0, 'sprint cooldown overlay');
+    assert(progress('cooldown-armor') > 0, 'armor cooldown progress');
+    assertEqual($('btn-buy-armor').dataset.state, 'cooldown');
+    assert(progress('cooldown-sprint') > 0, 'sprint cooldown progress');
+    assertEqual($('btn-sprint').dataset.state, 'cooldown');
     assert($('action-status-armor').textContent.includes('$3,500'), $('action-status-armor').textContent);
   });
 });
 
-test('action bar: ready abilities clear overlays and expose costs', () => {
+test('action bar: ready abilities clear progress, expose costs and affordable armor', () => {
   withActionState({ cash: 3500, armor: 0 }, () => {
     updateActionBar();
     assert(!$('btn-slash').classList.contains('is-disabled'), 'slash ready');
-    assertEqual($('cooldown-slash').style.height, '0%');
+    assertEqual(progress('cooldown-slash'), 0);
+    assertEqual($('btn-slash').dataset.state, 'ready');
     assert(!$('btn-pistol').classList.contains('is-disabled'), 'pistol ready');
-    assertEqual($('cooldown-pistol').style.height, '0%');
+    assertEqual(progress('cooldown-pistol'), 0);
+    assertEqual($('btn-pistol').dataset.state, 'ready');
     assert(!$('btn-buy-armor').classList.contains('is-disabled'), 'armor affordable');
+    assertEqual($('btn-buy-armor').dataset.state, 'affordable');
     assert($('action-status-armor').textContent.includes('$3,500'));
     assert(!$('btn-sprint').classList.contains('is-disabled'), 'sprint ready');
-    assertEqual($('cooldown-sprint').style.height, '0%');
+    assertEqual(progress('cooldown-sprint'), 0);
+    assertEqual($('btn-sprint').dataset.state, 'ready');
+  });
+});
+
+test('action bar: armor is unaffordable below cost and full at max armor', () => {
+  withActionState({ cash: 0, armor: 0 }, () => {
+    updateActionBar();
+    assertEqual($('btn-buy-armor').dataset.state, 'unaffordable');
+    assert($('btn-buy-armor').classList.contains('is-disabled'));
+  });
+  withActionState({ cash: 9999, armor: 300 }, () => {
+    updateActionBar();
+    assertEqual($('btn-buy-armor').dataset.state, 'full');
   });
 });
 

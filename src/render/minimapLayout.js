@@ -57,3 +57,20 @@ export function minimapToWorld(layout, mx, my) {
   const cy = layout.minCy + (my - layout.offsetY) / layout.cellSize;
   return { cx, cy, x: cx * CHUNK_PX, y: cy * CHUNK_PX };
 }
+
+/** Snap a radar pixel to a chunk cell, or null when outside the grid. */
+export function minimapCellAt(layout, mx, my) {
+  if (!layout) return null;
+  const { cx, cy } = minimapToWorld(layout, mx, my);
+  const cellCx = Math.floor(cx);
+  const cellCy = Math.floor(cy);
+  if (
+    cellCx < layout.minCx ||
+    cellCx > layout.maxCx ||
+    cellCy < layout.minCy ||
+    cellCy > layout.maxCy
+  ) {
+    return null;
+  }
+  return { cx: cellCx, cy: cellCy };
+}

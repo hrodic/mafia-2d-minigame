@@ -111,6 +111,21 @@ test('ui: crew panel exposes switches, cap hit targets and tier accents', async 
   assert(/\.mgmt-tier-underboss\s*\{[^}]*border-left-color:\s*#d4af37/s.test(css), 'underboss gold accent missing');
 });
 
+test('ui: action dock uses bottom keybinds and transform cooldown fills', async () => {
+  const html = await fetchIndexHtml();
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  assertEqual(doc.querySelectorAll('#action-bar .action-key').length, 4);
+  assertEqual(doc.querySelectorAll('#action-bar .action-cooldown').length, 4);
+
+  const cssResponse = await fetch('../styles.css', { cache: 'no-store' });
+  const css = await cssResponse.text();
+  assert(/\.action-key\s*\{[^}]*bottom:/s.test(css), 'keybinds must sit at the bottom');
+  assert(/\.action-cooldown\s*\{[^}]*transform:\s*scaleY\(var\(--progress/s.test(css), 'cooldown overlay must use --progress');
+  assert(/\.action-cooldown\s*\{[^}]*transform-origin:\s*bottom/s.test(css), 'cooldown overlay must grow from the bottom');
+  assert(/\.action-btn\[data-state='ready'\]/s.test(css), 'ready-state styling missing');
+  assert(/\.action-btn\[data-state='affordable'\]/s.test(css), 'affordable-state styling missing');
+});
+
 test('ui: critical HUD values are tabular and bars are transform-driven', async () => {
   const html = await fetchIndexHtml();
   const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -150,14 +165,15 @@ test('ui: removed build/border controls are not present', async () => {
   }
 });
 
-test('ui: radar canvas is larger and square', async () => {
+test('ui: radar canvas is larger, square and click-discoverable', async () => {
   const html = await fetchIndexHtml();
-  const match = html.match(/id="minimapCanvas"[^>]*width="(\d+)"[^>]*height="(\d+)"/);
-  assert(match, 'minimap canvas not found');
-  const width = Number(match[1]);
-  const height = Number(match[2]);
-  assertEqual(width, height);
-  assert(width >= 160, `radar should be at least 160px, got ${width}`);
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const canvas = doc.getElementById('minimapCanvas');
+  assert(canvas, 'minimap canvas not found');
+  assertEqual(canvas.width, canvas.height);
+  assert(canvas.width >= 160, `radar should be at least 160px, got ${canvas.width}`);
+  assert(canvas.classList.contains('cursor-crosshair'), 'radar should use a crosshair cursor');
+  assert(doc.getElementById('minimap-coords').classList.contains('hud-num'), 'radar coordinates must be tabular');
 });
 
 test('ui: setup modal shows the version in place of the old edition label', async () => {
