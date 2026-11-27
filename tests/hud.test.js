@@ -3,7 +3,13 @@ import { test, assert, assertEqual } from './harness.js';
 import { Faction, UnitRank } from '../src/config/enums.js';
 import { BOSS_MAX_HP } from '../src/config/balance.js';
 import { state } from '../src/core/state.js';
-import { updateHUD, syncRecruitButtonLabels } from '../src/ui/hud.js';
+import {
+  updateHUD,
+  syncRecruitButtonLabels,
+  toggleCrewPanel,
+  setRecruitCapMin,
+  setRecruitCapMax,
+} from '../src/ui/hud.js';
 
 const KEYS = [
   'world',
@@ -91,12 +97,15 @@ test('hud: updateHUD writes HP, armor, cash, clock and territory stats', () => {
     () => {
       updateHUD();
       assertEqual(document.getElementById('hp-text').textContent, '200/400');
-      assertEqual(document.getElementById('hp-bar-fill').style.width, '50%');
+      assertEqual(document.getElementById('hp-bar-fill').style.transform, 'scaleX(0.5)');
+      assertEqual(document.getElementById('hp-bar-fill').style.width, '');
       assertEqual(document.getElementById('armor-text').textContent, '100');
       assert(!document.getElementById('armor-hud-box').classList.contains('hidden'));
+      assertEqual(document.getElementById('armor-bar-fill').style.transform, 'scaleX(0.333333)');
       assertEqual(document.getElementById('cash-text').textContent, '$1,234');
       assertEqual(document.getElementById('hour-text').textContent, '05:00');
-      assertEqual(document.getElementById('tick-bar-fill').style.width, '50%');
+      assertEqual(document.getElementById('tick-bar-fill').style.transform, 'scaleX(0.5)');
+      assertEqual(document.getElementById('tick-bar-fill').style.width, '');
       const stats = document.getElementById('stats-badge').textContent;
       assert(stats.includes('Turf: 1/2'), stats);
       assert(stats.includes('Crew: 2'), stats);
@@ -146,7 +155,8 @@ test('hud: armor hides when depleted and sprint states are labelled', () => {
     updateHUD();
     assert(document.getElementById('armor-hud-box').classList.contains('hidden'));
     assertEqual(document.getElementById('sprint-text').textContent, '2.0s');
-    assertEqual(document.getElementById('sprint-bar-fill').style.width, '50%');
+    assertEqual(document.getElementById('sprint-bar-fill').style.transform, 'scaleX(0.5)');
+    assertEqual(document.getElementById('sprint-bar-fill').style.width, '');
   });
   withHudState({ player: makePlayer({ isSprinting: true, sprintTimer: 1 }) }, () => {
     updateHUD();
@@ -155,7 +165,7 @@ test('hud: armor hides when depleted and sprint states are labelled', () => {
   withHudState({}, () => {
     updateHUD();
     assertEqual(document.getElementById('sprint-text').textContent, 'RDY');
-    assertEqual(document.getElementById('sprint-bar-fill').style.width, '100%');
+    assertEqual(document.getElementById('sprint-bar-fill').style.transform, 'scaleX(1)');
   });
 });
 
@@ -179,12 +189,133 @@ test('hud: recruit labels reflect toggles and caps', () => {
     },
     () => {
       syncRecruitButtonLabels();
-      const soldier = document.getElementById('btn-toggle-soldier').textContent;
-      assert(soldier.includes('Soldato'), soldier);
-      assert(soldier.includes('ON'), soldier);
+      const soldier = document.getElementById('btn-toggle-soldier');
+      assertEqual(soldier.getAttribute('aria-checked'), 'true');
+      assert(soldier.classList.contains('is-on'));
+      assertEqual(document.getElementById('mgmt-rank-soldier').textContent, 'Soldato');
+      assertEqual(document.getElementById('mgmt-auto-soldier').textContent, 'ON');
       assertEqual(document.getElementById('cap-soldier-label').textContent, '11/192');
       assertEqual(document.getElementById('cap-captain-label').textContent, '2/22');
       assertEqual(document.getElementById('cap-underboss-label').textContent, '1/11');
+
+      state.autoRecruitSoldier = false;
+      syncRecruitButtonLabels();
+      assertEqual(soldier.getAttribute('aria-checked'), 'false');
+      assert(!soldier.classList.contains('is-on'));
+      assertEqual(document.getElementById('mgmt-auto-soldier').textContent, 'OFF');
     }
   );
+});
+
+test('hud: recruit cap controls disable at limits and when unaffordable', () => {
+  withHudState(
+    {
+      world: { chunks: { size: 225 } },
+      playerSpawnCaps: {
+        [UnitRank.SOLDIER]: 192,
+        [UnitRank.CAPTAIN]: 2,
+        [UnitRank.UNDERBOSS]: 1,
+      },
+      treasuries: { [Faction.PLAYER]: 1000 },
+    },
+    () => {
+      syncRecruitButtonLabels();
+      assertEqual(document.getElementById('btn-cap-soldier-inc').disabled, true);
+      assertEqual(document.getElementById('btn-cap-soldier-max').disabled, true);
+      assertEqual(document.getElementById('btn-cap-soldier-dec').disabled, false);
+      assertEqual(document.getElementById('btn-cap-soldier-min').disabled, false);
+      assertEqual(document.getElementById('btn-cap-captain-inc').disabled, false);
+      assertEqual(document.getElementById('btn-cap-captain-max').disabled, false);
+      assertEqual(document.getElementById('btn-cap-underboss-inc').disabled, false);
+      assertEqual(document.getElementById('btn-cap-underboss-max').disabled, false);
+      assertEqual(document.getElementById('btn-cap-underboss-dec').disabled, true);
+      assertEqual(document.getElementById('btn-cap-underboss-min').disabled, true);
+    }
+  );
+
+  withHudState(
+    {
+      world: { chunks: { size: 225 } },
+      playerSpawnCaps: {
+        [UnitRank.SOLDIER]: 11,
+        [UnitRank.CAPTAIN]: 2,
+        [UnitRank.UNDERBOSS]: 1,
+      },
+      treasuries: { [Faction.PLAYER]: 10000 },
+    },
+    () => {
+      syncRecruitButtonLabels();
+      assertEqual(document.getElementById('btn-cap-soldier-inc').disabled, false);
+      assertEqual(document.getElementById('btn-cap-captain-inc').disabled, false);
+      assertEqual(document.getElementById('btn-cap-underboss-inc').disabled, false);
+      assertEqual(document.getElementById('btn-cap-captain-dec').disabled, false);
+      assertEqual(document.getElementById('btn-cap-underboss-dec').disabled, true);
+    }
+  );
+});
+
+test('hud: cap controls ignore cash because they set target states', () => {
+  withHudState(
+    {
+      world: { chunks: { size: 225 } },
+      playerSpawnCaps: {
+        [UnitRank.SOLDIER]: 11,
+        [UnitRank.CAPTAIN]: 2,
+        [UnitRank.UNDERBOSS]: 1,
+      },
+      treasuries: { [Faction.PLAYER]: 0 },
+    },
+    () => {
+      syncRecruitButtonLabels();
+      assertEqual(document.getElementById('btn-cap-soldier-inc').disabled, false);
+      assertEqual(document.getElementById('btn-cap-captain-inc').disabled, false);
+      assertEqual(document.getElementById('btn-cap-underboss-inc').disabled, false);
+    }
+  );
+});
+
+test('hud: crew cap shortcuts jump to min and max in one action', () => {
+  withHudState(
+    {
+      world: { chunks: { size: 225 } },
+      playerSpawnCaps: {
+        [UnitRank.SOLDIER]: 11,
+        [UnitRank.CAPTAIN]: 2,
+        [UnitRank.UNDERBOSS]: 1,
+      },
+      treasuries: { [Faction.PLAYER]: 10000 },
+    },
+    () => {
+      setRecruitCapMin(UnitRank.SOLDIER);
+      assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 1);
+      assertEqual(document.getElementById('btn-cap-soldier-dec').disabled, true);
+      assertEqual(document.getElementById('btn-cap-soldier-min').disabled, true);
+
+      setRecruitCapMax(UnitRank.SOLDIER);
+      assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 192);
+      assertEqual(document.getElementById('btn-cap-soldier-inc').disabled, true);
+      assertEqual(document.getElementById('btn-cap-soldier-max').disabled, true);
+    }
+  );
+});
+
+test('hud: crew panel collapses to the summary line and restores', () => {
+  const panel = document.getElementById('management-panel');
+  const body = document.getElementById('management-body');
+  const button = document.getElementById('btn-management-collapse');
+
+  body.classList.remove('hidden');
+  panel.classList.remove('is-collapsed');
+  button.setAttribute('aria-expanded', 'true');
+  toggleCrewPanel(true);
+  assert(body.classList.contains('hidden'));
+  assert(panel.classList.contains('is-collapsed'));
+  assertEqual(button.getAttribute('aria-expanded'), 'false');
+  assertEqual(button.textContent, '▾');
+
+  toggleCrewPanel(false);
+  assert(!body.classList.contains('hidden'));
+  assert(!panel.classList.contains('is-collapsed'));
+  assertEqual(button.getAttribute('aria-expanded'), 'true');
+  assertEqual(button.textContent, '▴');
 });

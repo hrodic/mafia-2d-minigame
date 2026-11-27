@@ -28,6 +28,68 @@ function escapeHtml(value) {
   }[ch]));
 }
 
+function setBarFill(el, ratio) {
+  if (!el) return;
+  const value = Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0;
+  el.style.transform = `scaleX(${value})`;
+}
+
+function setCapButtonState(el, disabled) {
+  if (!el) return;
+  el.disabled = disabled;
+  el.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+}
+
+function syncCapButtons() {
+  const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
+  const entries = [
+    ['soldier', UnitRank.SOLDIER, maxSoldiers],
+    ['captain', UnitRank.CAPTAIN, maxCaptains],
+    ['underboss', UnitRank.UNDERBOSS, maxUnderbosses],
+  ];
+  for (const [key, rank, max] of entries) {
+    const value = state.playerSpawnCaps[rank];
+    const atMin = value <= 1;
+    const atMax = value >= max;
+    setCapButtonState(document.getElementById(`btn-cap-${key}-min`), atMin);
+    setCapButtonState(document.getElementById(`btn-cap-${key}-dec`), atMin);
+    setCapButtonState(document.getElementById(`btn-cap-${key}-max`), atMax);
+    setCapButtonState(document.getElementById(`btn-cap-${key}-inc`), atMax);
+  }
+}
+
+export function setRecruitCapMin(rank) {
+  state.playerSpawnCaps[rank] = 1;
+  syncRecruitButtonLabels();
+}
+
+export function setRecruitCapMax(rank) {
+  const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
+  const max = rank === UnitRank.SOLDIER
+    ? maxSoldiers
+    : rank === UnitRank.CAPTAIN
+      ? maxCaptains
+      : maxUnderbosses;
+  state.playerSpawnCaps[rank] = max;
+  syncRecruitButtonLabels();
+}
+
+/** Collapse/expand the crew panel while keeping its summary visible. */
+export function toggleCrewPanel(forceCollapsed) {
+  const panel = document.getElementById('management-panel');
+  const body = document.getElementById('management-body');
+  const button = document.getElementById('btn-management-collapse');
+  if (!panel || !body || !button) return;
+  const collapsed = typeof forceCollapsed === 'boolean'
+    ? forceCollapsed
+    : !body.classList.contains('hidden');
+  body.classList.toggle('hidden', collapsed);
+  panel.classList.toggle('is-collapsed', collapsed);
+  button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  button.setAttribute('aria-label', collapsed ? 'Expand crew management' : 'Collapse crew management');
+  button.textContent = collapsed ? '▾' : '▴';
+}
+
 const hudEls = {
   statsBadge: document.getElementById('stats-badge'),
   hpBarFill: document.getElementById('hp-bar-fill'),
@@ -49,19 +111,32 @@ export function syncRecruitButtonLabels() {
   const myFac = getLocalFaction();
   const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
   const pRanks = FACTION_META[myFac].ranks;
-  const btnS = document.getElementById('btn-toggle-soldier');
-  const btnC = document.getElementById('btn-toggle-captain');
-  const btnU = document.getElementById('btn-toggle-underboss');
-  btnS.textContent = `Auto ${pRanks.SOLDIER}: ${state.autoRecruitSoldier ? 'ON' : 'OFF'}`;
-  btnC.textContent = `Auto ${pRanks.CAPTAIN}: ${state.autoRecruitCaptain ? 'ON' : 'OFF'}`;
-  btnU.textContent = `Auto ${pRanks.UNDERBOSS}: ${state.autoRecruitUnderboss ? 'ON' : 'OFF'}`;
+  const setSwitch = (buttonId, labelId, on, rankName) => {
+    const button = document.getElementById(buttonId);
+    if (button) {
+      button.setAttribute('aria-checked', on ? 'true' : 'false');
+      button.classList.toggle('is-on', on);
+      button.setAttribute('aria-label', `Auto-spawn ${rankName}`);
+    }
+    const label = document.getElementById(labelId);
+    if (label) label.textContent = on ? 'ON' : 'OFF';
+  };
+  setSwitch('btn-toggle-soldier', 'mgmt-auto-soldier', state.autoRecruitSoldier, pRanks.SOLDIER);
+  setSwitch('btn-toggle-captain', 'mgmt-auto-captain', state.autoRecruitCaptain, pRanks.CAPTAIN);
+  setSwitch('btn-toggle-underboss', 'mgmt-auto-underboss', state.autoRecruitUnderboss, pRanks.UNDERBOSS);
+  document.getElementById('mgmt-rank-soldier').textContent = pRanks.SOLDIER;
+  document.getElementById('mgmt-rank-captain').textContent = pRanks.CAPTAIN;
+  document.getElementById('mgmt-rank-underboss').textContent = pRanks.UNDERBOSS;
 
-  const costS = document.getElementById('mgmt-cost-soldier');
-  const costC = document.getElementById('mgmt-cost-captain');
-  const costU = document.getElementById('mgmt-cost-underboss');
-  if (costS) costS.textContent = `$${COST_SOLDIER.toLocaleString()} · $${UPKEEP_SOLDIER}/hr upkeep`;
-  if (costC) costC.textContent = `$${COST_CAPTAIN.toLocaleString()} · $${UPKEEP_CAPTAIN}/hr upkeep`;
-  if (costU) costU.textContent = `$${COST_UNDERBOSS.toLocaleString()} · $${UPKEEP_UNDERBOSS}/hr upkeep`;
+  const setEconomy = (key, cost, upkeep) => {
+    const price = document.getElementById(`mgmt-price-${key}`);
+    const upkeepEl = document.getElementById(`mgmt-upkeep-${key}`);
+    if (price) price.textContent = `$${cost.toLocaleString()}`;
+    if (upkeepEl) upkeepEl.textContent = `$${upkeep}/hr upkeep`;
+  };
+  setEconomy('soldier', COST_SOLDIER, UPKEEP_SOLDIER);
+  setEconomy('captain', COST_CAPTAIN, UPKEEP_CAPTAIN);
+  setEconomy('underboss', COST_UNDERBOSS, UPKEEP_UNDERBOSS);
 
   document.getElementById('cap-soldier-label').textContent =
     `${state.playerSpawnCaps[UnitRank.SOLDIER]}/${maxSoldiers}`;
@@ -69,6 +144,8 @@ export function syncRecruitButtonLabels() {
     `${state.playerSpawnCaps[UnitRank.CAPTAIN]}/${maxCaptains}`;
   document.getElementById('cap-underboss-label').textContent =
     `${state.playerSpawnCaps[UnitRank.UNDERBOSS]}/${maxUnderbosses}`;
+
+  syncCapButtons();
 }
 
 export function updateHUD() {
@@ -78,14 +155,14 @@ export function updateHUD() {
 
   const hpVal = myAlive ? Math.max(0, Math.round(myBoss.hp)) : 0;
   const maxHpVal = myBoss.maxHp || BOSS_MAX_HP;
-  hudEls.hpBarFill.style.width = `${Math.round((hpVal / maxHpVal) * 100)}%`;
+  setBarFill(hudEls.hpBarFill, hpVal / maxHpVal);
   hudEls.hpText.textContent = `${hpVal}/${maxHpVal}`;
 
   const armorVal = myAlive ? Math.max(0, Math.round(myBoss.armor || 0)) : 0;
   if (armorVal > 0) {
     hudEls.armorBox.classList.remove('hidden');
     hudEls.armorBox.classList.add('flex');
-    hudEls.armorBarFill.style.width = `${Math.round((armorVal / MAX_BOSS_ARMOR) * 100)}%`;
+    setBarFill(hudEls.armorBarFill, armorVal / MAX_BOSS_ARMOR);
     hudEls.armorText.textContent = `${armorVal}`;
   } else {
     hudEls.armorBox.classList.add('hidden');
@@ -94,23 +171,28 @@ export function updateHUD() {
 
   const myCash = state.treasuries[myFac] || 0;
   hudEls.cashText.textContent = `$${myCash.toLocaleString()}`;
+  syncCapButtons();
 
   if (myBoss.sprintCooldown > 0) {
-    const pct = Math.round(((SPRINT_COOLDOWN_DURATION - myBoss.sprintCooldown) / SPRINT_COOLDOWN_DURATION) * 100);
-    hudEls.sprintBar.style.width = `${pct}%`;
+    setBarFill(
+      hudEls.sprintBar,
+      (SPRINT_COOLDOWN_DURATION - myBoss.sprintCooldown) / SPRINT_COOLDOWN_DURATION
+    );
     hudEls.sprintText.textContent = `${myBoss.sprintCooldown.toFixed(1)}s`;
   } else if (myBoss.isSprinting) {
-    const pct = Math.round(((SPRINT_MAX_DURATION - myBoss.sprintTimer) / SPRINT_MAX_DURATION) * 100);
-    hudEls.sprintBar.style.width = `${pct}%`;
+    setBarFill(
+      hudEls.sprintBar,
+      (SPRINT_MAX_DURATION - myBoss.sprintTimer) / SPRINT_MAX_DURATION
+    );
     hudEls.sprintText.textContent = 'RUN';
   } else {
-    hudEls.sprintBar.style.width = '100%';
+    setBarFill(hudEls.sprintBar, 1);
     hudEls.sprintText.textContent = 'RDY';
   }
 
   const hourStr = String(state.gameHour).padStart(2, '0') + ':00';
   hudEls.hourText.textContent = hourStr;
-  hudEls.tickBarFill.style.width = `${Math.min(100, Math.round((state.tickTimer / state.tickDuration) * 100))}%`;
+  setBarFill(hudEls.tickBarFill, state.tickTimer / (state.tickDuration || 1));
 
   const incomeTotals = recalculateHourlyIncome();
   const upkeepTotals = calculateFactionUpkeep();

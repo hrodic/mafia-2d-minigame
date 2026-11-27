@@ -12,7 +12,12 @@ import {
 import { canvas, minimapCanvas } from '../render/canvas.js';
 import { getMinimapLayout, minimapToWorld } from '../render/minimapLayout.js';
 import { sendOrDispatchCommand } from './commandBridge.js';
-import { syncRecruitButtonLabels } from './hud.js';
+import {
+  syncRecruitButtonLabels,
+  toggleCrewPanel,
+  setRecruitCapMin,
+  setRecruitCapMax,
+} from './hud.js';
 import { showToast } from './menus.js';
 
 export function initInput() {
@@ -181,6 +186,21 @@ function pushRecruitPrefs() {
   });
 }
 
+function bindCapPresets(key, rank) {
+  document.getElementById(`btn-cap-${key}-min`)?.addEventListener('click', () => {
+    setRecruitCapMin(rank);
+    pushRecruitPrefs();
+  });
+  document.getElementById(`btn-cap-${key}-max`)?.addEventListener('click', () => {
+    setRecruitCapMax(rank);
+    pushRecruitPrefs();
+  });
+}
+bindCapPresets('soldier', UnitRank.SOLDIER);
+bindCapPresets('captain', UnitRank.CAPTAIN);
+bindCapPresets('underboss', UnitRank.UNDERBOSS);
+
+document.getElementById('btn-management-collapse')?.addEventListener('click', () => toggleCrewPanel());
 document.getElementById('btn-toggle-soldier').addEventListener('click', () => {
   state.autoRecruitSoldier = !state.autoRecruitSoldier;
   syncRecruitButtonLabels();

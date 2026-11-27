@@ -9,73 +9,86 @@
 </head>
 <body class="w-screen h-screen flex flex-col">
 
-  <!-- Top HUD Header -->
-  <header class="bg-zinc-950 border-b border-zinc-800 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2 z-20 shadow-lg">
-    <div class="flex items-center gap-2.5 min-w-0">
-      <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 via-amber-600 to-rose-700 p-[1.5px] shadow-[0_0_12px_rgba(245,158,11,0.45)] flex-shrink-0">
-        <div class="w-full h-full bg-zinc-950 rounded-[6.5px] flex items-center justify-center font-display-mafia text-amber-400 text-base leading-none">
-          H
+  <!-- Top HUD Header: brand/meta / critical telemetry / session controls -->
+  <header id="hud-topbar" class="hud-topbar z-20">
+    <div id="hud-zone-left" class="hud-zone hud-zone-left">
+      <div class="hud-brand">
+        <div class="hud-logo">
+          <div class="hud-logo-inner">H</div>
+        </div>
+        <div class="flex items-baseline gap-1.5 min-w-0">
+          <h1 class="font-display-mafia text-xl sm:text-2xl tracking-wider title-gold-chrome leading-none">
+            HRODIC'S MAFIA
+          </h1>
         </div>
       </div>
-      <div class="flex items-baseline gap-1.5 min-w-0">
-        <h1 class="font-display-mafia text-xl sm:text-2xl tracking-wider title-gold-chrome leading-none">
-          HRODIC'S MAFIA
-        </h1>
-        <span class="text-[10px] font-extrabold uppercase tracking-widest bg-rose-600/20 border border-rose-500/50 text-rose-300 px-1.5 py-0.5 rounded">
-          2D
-        </span>
-        <span id="hud-version-label" class="text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-500/15 border border-amber-500/40 text-amber-300 px-1.5 py-0.5 rounded"></span>
-        <a id="btn-support" href="https://ko-fi.com/hrodic" target="_blank" rel="noopener noreferrer" aria-label="Tip me on Ko-fi" title="Tip me on Ko-fi" class="text-[9px] font-mono font-bold uppercase tracking-wider bg-rose-500/10 border border-rose-500/40 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200 px-1.5 py-0.5 rounded transition">☕ Tip me</a>
-        <span id="mp-hud-badge" class="hidden text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 px-1.5 py-0.5 rounded">
-          MP HOST
-        </span>
-        <button id="world-seed-hud" type="button" class="hidden text-[10px] font-mono font-bold uppercase tracking-wider bg-sky-500/10 border border-sky-500/40 text-sky-300 px-1.5 py-0.5 rounded cursor-pointer" title="World seed — click to copy"></button>
+
+      <span id="mp-hud-badge" class="hud-meta-badge hidden">MP HOST</span>
+
+      <button id="btn-hud-info" type="button" class="hud-info-btn" aria-label="Session information"
+              aria-expanded="false" aria-controls="hud-info-popover" title="Session information">i</button>
+
+      <a id="btn-support" href="https://ko-fi.com/hrodic" target="_blank" rel="noopener noreferrer"
+         aria-label="Tip me on Ko-fi" title="Tip me on Ko-fi" class="hud-tip-pill">☕ Tip me</a>
+    </div>
+
+    <div id="hud-zone-center" class="hud-zone hud-zone-center" aria-label="Critical gameplay telemetry">
+      <div class="hud-telemetry hud-telemetry-hp">
+        <span class="hud-telemetry-label">Boss HP</span>
+        <div class="hud-bar hud-bar-hp">
+          <div id="hp-bar-fill" class="hud-bar-fill bg-emerald-500" style="transform: scaleX(1)"></div>
+        </div>
+        <span id="hp-text" class="hud-telemetry-value hud-num">400/400</span>
+      </div>
+
+      <div id="armor-hud-box" class="hud-telemetry hud-telemetry-armor hidden"
+           title="Kevlar Armor absorbs incoming Boss damage until depleted">
+        <span class="hud-telemetry-label">Armor</span>
+        <div class="hud-bar hud-bar-armor">
+          <div id="armor-bar-fill" class="hud-bar-fill bg-sky-400" style="transform: scaleX(1)"></div>
+        </div>
+        <span id="armor-text" class="hud-telemetry-value hud-num">300</span>
+      </div>
+
+      <div class="hud-telemetry hud-telemetry-cash">
+        <span class="hud-telemetry-label">Cash</span>
+        <span id="cash-text" class="hud-telemetry-value hud-num">$3,000</span>
+      </div>
+
+      <div id="hour-hud-box" class="hud-telemetry hud-telemetry-hour"
+           title="Every 10 seconds an hour passes: blocks pay & toggled units spawn">
+        <span class="hud-telemetry-label">Hour</span>
+        <span id="hour-text" class="hud-telemetry-value hud-num">12:00</span>
+        <div class="hud-bar hud-bar-hour">
+          <div id="tick-bar-fill" class="hud-bar-fill bg-sky-400" style="transform: scaleX(0)"></div>
+        </div>
       </div>
     </div>
 
-    <!-- Primary status: boss + economy -->
-    <div class="flex items-center gap-2 text-xs flex-wrap">
-      <div class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg">
-        <span class="text-zinc-400 font-semibold">Boss HP:</span>
-        <div class="w-16 sm:w-24 h-2.5 bg-zinc-800 rounded-full overflow-hidden">
-          <div id="hp-bar-fill" class="h-full bg-emerald-500 transition-all duration-150" style="width: 100%"></div>
-        </div>
-        <span id="hp-text" class="font-mono font-bold text-emerald-400">400/400</span>
-      </div>
-
-      <div id="armor-hud-box" class="hidden items-center gap-1.5 bg-sky-950/80 border border-sky-500/50 px-2.5 py-1 rounded-lg" title="Kevlar Armor absorbs incoming Boss damage until depleted">
-        <span class="text-sky-300 font-semibold">🛡️ Armor:</span>
-        <div class="w-12 sm:w-16 h-2.5 bg-zinc-800 rounded-full overflow-hidden">
-          <div id="armor-bar-fill" class="h-full bg-sky-400 transition-all duration-150" style="width: 100%"></div>
-        </div>
-        <span id="armor-text" class="font-mono font-bold text-sky-300">300</span>
-      </div>
-
-      <div class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg">
-        <span class="text-zinc-400 font-semibold">Cash:</span>
-        <span id="cash-text" class="font-mono font-bold text-amber-400">$3,000</span>
-      </div>
-
-      <div id="hour-hud-box" class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg" title="Every 10 seconds an hour passes: blocks pay & toggled units spawn">
-        <span class="text-zinc-400 font-semibold">Hour:</span>
-        <span id="hour-text" class="font-mono font-bold text-sky-400">12:00</span>
-        <div class="w-10 h-2 bg-zinc-800 rounded-full overflow-hidden">
-          <div id="tick-bar-fill" class="h-full bg-sky-400" style="width: 0%"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Utilities -->
-    <div class="flex items-center gap-1.5 text-xs">
-      <button id="btn-toggle-music" class="bg-amber-950/80 hover:bg-amber-900/80 border border-amber-500/60 text-amber-200 font-semibold px-2.5 py-1.5 rounded-lg transition" title="Cycle Dark Noir Mafia Music Tracks (Track 1 / Track 2 / OFF)">
+    <div id="hud-zone-right" class="hud-zone hud-zone-right">
+      <button id="btn-toggle-music" class="hud-util-btn hud-util-music"
+              title="Cycle Dark Noir Mafia Music Tracks (Track 1 / Track 2 / OFF)">
         🎷 Noir I: ON
       </button>
-      <button id="btn-toggle-sound" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 px-2.5 py-1.5 rounded-lg transition" title="Toggle Sound Effects">
+      <button id="btn-toggle-sound" class="hud-util-btn" title="Toggle Sound Effects">
         🔊 SFX: ON
       </button>
-      <button id="btn-reset" class="bg-zinc-900 hover:bg-rose-950 border border-zinc-700 hover:border-rose-800 text-zinc-300 hover:text-rose-200 px-2.5 py-1.5 rounded-lg transition">
+      <button id="btn-reset" class="hud-util-btn hud-util-reset">
         New Game
       </button>
+    </div>
+
+    <div id="hud-info-popover" class="hud-info-popover hidden" hidden role="dialog"
+         aria-label="Session information">
+      <div class="hud-info-row">
+        <span class="hud-info-label">Build</span>
+        <span id="hud-version-label" class="hud-info-value hud-num"></span>
+      </div>
+      <div class="hud-info-row">
+        <span class="hud-info-label">Seed</span>
+        <button id="world-seed-hud" type="button" class="hud-info-value hud-seed-btn hidden"
+                title="World seed — click to copy"></button>
+      </div>
     </div>
   </header>
 
@@ -83,51 +96,104 @@
   <main class="relative flex-1 w-full h-full overflow-hidden">
     <canvas id="gameCanvas" class="w-full h-full block cursor-crosshair"></canvas>
     <!-- Crew Management (secondary controls) -->
-    <section id="management-panel" class="glass-panel absolute top-4 left-4 z-10 w-[300px] max-w-[calc(100vw-2rem)] p-3 rounded-xl text-xs space-y-2">
-      <div class="flex items-center justify-between gap-2 border-b border-zinc-800 pb-1.5">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Crew Management</span>
-        <span id="stats-badge" class="text-[9px] font-mono text-zinc-500 text-right leading-tight"></span>
+    <section id="management-panel"
+             class="glass-panel management-panel absolute top-4 left-4 z-10 w-[300px] max-w-[calc(100vw-2rem)] p-3 rounded-xl text-xs">
+      <div class="mgmt-header">
+        <div class="mgmt-header-copy">
+          <span class="mgmt-title">Crew Management</span>
+          <span id="stats-badge" class="mgmt-summary hud-num"></span>
+        </div>
+        <button id="btn-management-collapse" type="button" class="mgmt-collapse-btn"
+                aria-expanded="true" aria-controls="management-body"
+                aria-label="Collapse crew management" title="Collapse / expand crew management">▴</button>
       </div>
 
-      <div class="rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-2 py-1.5">
-        <div class="flex items-center justify-between gap-2">
-          <button id="btn-toggle-soldier" class="text-left font-bold text-emerald-200 hover:text-white transition" title="Auto-spawn Street Enforcers on every tick">Auto Soldato</button>
-          <div class="flex items-center gap-1 font-mono text-[10px] text-emerald-300/80" title="Target Enforcer Spawn Cap">
-            <button id="btn-cap-soldier-dec" class="text-zinc-500 hover:text-white px-1 font-bold">−</button>
-            <span id="cap-soldier-label" class="font-bold">96/192</span>
-            <button id="btn-cap-soldier-inc" class="text-zinc-500 hover:text-white px-1 font-bold">+</button>
+      <div id="management-body" class="mgmt-body">
+        <div class="mgmt-tier mgmt-tier-soldier rounded-lg border px-2 py-1.5">
+          <div class="mgmt-tier-head">
+            <div class="mgmt-tier-title">
+              <span id="mgmt-rank-soldier" class="mgmt-rank-name">Soldato</span>
+              <span id="mgmt-auto-soldier" class="mgmt-auto-label">ON</span>
+            </div>
+            <button id="btn-toggle-soldier" type="button" role="switch" aria-checked="true"
+                    class="mgmt-switch" aria-label="Auto-spawn Soldato"
+                    title="Auto-spawn Soldato on every tick">
+              <span class="mgmt-switch-knob" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="mgmt-tier-meta">
+            <div class="mgmt-tier-economy">
+              <span id="mgmt-price-soldier" class="mgmt-price">$1,200</span>
+              <span id="mgmt-upkeep-soldier" class="mgmt-upkeep-cost">$50/hr upkeep</span>
+            </div>
+            <div class="mgmt-caps" title="Target Soldato spawn cap">
+              <button id="btn-cap-soldier-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Soldato cap to minimum">MIN</button>
+              <button id="btn-cap-soldier-dec" type="button" class="mgmt-cap-btn" aria-label="Decrease Soldato cap">−</button>
+              <span id="cap-soldier-label" class="mgmt-cap-value hud-num">96/192</span>
+              <button id="btn-cap-soldier-inc" type="button" class="mgmt-cap-btn" aria-label="Increase Soldato cap">+</button>
+              <button id="btn-cap-soldier-max" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Soldato cap to maximum">MAX</button>
+            </div>
           </div>
         </div>
-        <div id="mgmt-cost-soldier" class="text-[9px] font-mono text-zinc-500 mt-0.5">$1,200 · $50/hr upkeep</div>
-      </div>
 
-      <div class="rounded-lg border border-indigo-400/30 bg-indigo-950/30 px-2 py-1.5">
-        <div class="flex items-center justify-between gap-2">
-          <button id="btn-toggle-captain" class="text-left font-bold text-indigo-200 hover:text-white transition" title="Auto-spawn Captains on every tick">Auto Caporegime</button>
-          <div class="flex items-center gap-1 font-mono text-[10px] text-indigo-300/80" title="Target Captain Spawn Cap">
-            <button id="btn-cap-captain-dec" class="text-zinc-500 hover:text-white px-1 font-bold">−</button>
-            <span id="cap-captain-label" class="font-bold">11/22</span>
-            <button id="btn-cap-captain-inc" class="text-zinc-500 hover:text-white px-1 font-bold">+</button>
+        <div class="mgmt-tier mgmt-tier-captain rounded-lg border px-2 py-1.5">
+          <div class="mgmt-tier-head">
+            <div class="mgmt-tier-title">
+              <span id="mgmt-rank-captain" class="mgmt-rank-name">Caporegime</span>
+              <span id="mgmt-auto-captain" class="mgmt-auto-label">ON</span>
+            </div>
+            <button id="btn-toggle-captain" type="button" role="switch" aria-checked="true"
+                    class="mgmt-switch" aria-label="Auto-spawn Caporegime"
+                    title="Auto-spawn Caporegime on every tick">
+              <span class="mgmt-switch-knob" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="mgmt-tier-meta">
+            <div class="mgmt-tier-economy">
+              <span id="mgmt-price-captain" class="mgmt-price">$2,200</span>
+              <span id="mgmt-upkeep-captain" class="mgmt-upkeep-cost">$100/hr upkeep</span>
+            </div>
+            <div class="mgmt-caps" title="Target Caporegime spawn cap">
+              <button id="btn-cap-captain-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Caporegime cap to minimum">MIN</button>
+              <button id="btn-cap-captain-dec" type="button" class="mgmt-cap-btn" aria-label="Decrease Caporegime cap">−</button>
+              <span id="cap-captain-label" class="mgmt-cap-value hud-num">11/22</span>
+              <button id="btn-cap-captain-inc" type="button" class="mgmt-cap-btn" aria-label="Increase Caporegime cap">+</button>
+              <button id="btn-cap-captain-max" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Caporegime cap to maximum">MAX</button>
+            </div>
           </div>
         </div>
-        <div id="mgmt-cost-captain" class="text-[9px] font-mono text-zinc-500 mt-0.5">$2,200 · $100/hr upkeep</div>
-      </div>
 
-      <div class="rounded-lg border border-purple-400/30 bg-purple-950/30 px-2 py-1.5">
-        <div class="flex items-center justify-between gap-2">
-          <button id="btn-toggle-underboss" class="text-left font-bold text-purple-200 hover:text-white transition" title="Auto-spawn Second-in-Command on every tick">Auto Sottocapo</button>
-          <div class="flex items-center gap-1 font-mono text-[10px] text-purple-300/80" title="Target 2IC Spawn Cap">
-            <button id="btn-cap-underboss-dec" class="text-zinc-500 hover:text-white px-1 font-bold">−</button>
-            <span id="cap-underboss-label" class="font-bold">6/11</span>
-            <button id="btn-cap-underboss-inc" class="text-zinc-500 hover:text-white px-1 font-bold">+</button>
+        <div class="mgmt-tier mgmt-tier-underboss rounded-lg border px-2 py-1.5">
+          <div class="mgmt-tier-head">
+            <div class="mgmt-tier-title">
+              <span id="mgmt-rank-underboss" class="mgmt-rank-name">Sottocapo</span>
+              <span id="mgmt-auto-underboss" class="mgmt-auto-label">ON</span>
+            </div>
+            <button id="btn-toggle-underboss" type="button" role="switch" aria-checked="true"
+                    class="mgmt-switch" aria-label="Auto-spawn Sottocapo"
+                    title="Auto-spawn Sottocapo on every tick">
+              <span class="mgmt-switch-knob" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="mgmt-tier-meta">
+            <div class="mgmt-tier-economy">
+              <span id="mgmt-price-underboss" class="mgmt-price">$3,800</span>
+              <span id="mgmt-upkeep-underboss" class="mgmt-upkeep-cost">$150/hr upkeep</span>
+            </div>
+            <div class="mgmt-caps" title="Target Sottocapo spawn cap">
+              <button id="btn-cap-underboss-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Sottocapo cap to minimum">MIN</button>
+              <button id="btn-cap-underboss-dec" type="button" class="mgmt-cap-btn" aria-label="Decrease Sottocapo cap">−</button>
+              <span id="cap-underboss-label" class="mgmt-cap-value hud-num">6/11</span>
+              <button id="btn-cap-underboss-inc" type="button" class="mgmt-cap-btn" aria-label="Increase Sottocapo cap">+</button>
+              <button id="btn-cap-underboss-max" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Sottocapo cap to maximum">MAX</button>
+            </div>
           </div>
         </div>
-        <div id="mgmt-cost-underboss" class="text-[9px] font-mono text-zinc-500 mt-0.5">$3,800 · $150/hr upkeep</div>
-      </div>
 
-      <div class="flex items-center justify-between border-t border-zinc-800 pt-1.5">
-        <span class="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Total Upkeep</span>
-        <span id="mgmt-total-upkeep" class="font-mono text-[10px] text-amber-300">$0/hr</span>
+        <div class="mgmt-upkeep">
+          <span class="mgmt-upkeep-label">Total Upkeep</span>
+          <span id="mgmt-total-upkeep" class="mgmt-upkeep-value hud-num">$0/hr</span>
+        </div>
       </div>
     </section>
 
@@ -164,7 +230,7 @@
         <kbd class="action-key">SHIFT</kbd>
         <span class="action-sub">Hold</span>
         <span id="sprint-text" class="action-status">RDY</span>
-        <div class="action-sprint-bar"><div id="sprint-bar-fill" style="width: 100%"></div></div>
+        <div class="action-sprint-bar"><div id="sprint-bar-fill" class="hud-bar-fill" style="transform: scaleX(1)"></div></div>
         <span id="cooldown-sprint" class="action-cooldown" aria-hidden="true"></span>
       </button>
     </div>

@@ -9,6 +9,7 @@ import {
   showVictoryBanner,
   showDefeatBanner,
   setWorldSeedDisplay,
+  toggleHudInfo,
 } from '../src/ui/menus.js';
 
 test('menus: showToast writes the message and makes it visible', () => {
@@ -16,6 +17,36 @@ test('menus: showToast writes the message and makes it visible', () => {
   const toast = document.getElementById('toast');
   assertEqual(toast.textContent, 'hello world');
   assertEqual(toast.style.opacity, '1');
+});
+
+test('menus: session info popover toggles visibility and aria-expanded', () => {
+  const button = document.createElement('button');
+  button.id = 'btn-hud-info';
+  button.setAttribute('aria-expanded', 'false');
+  const popover = document.createElement('div');
+  popover.id = 'hud-info-popover';
+  popover.className = 'hud-info-popover hidden';
+  popover.hidden = true;
+  document.body.append(button, popover);
+
+  try {
+    toggleHudInfo(false);
+    assert(popover.classList.contains('hidden'));
+    assertEqual(button.getAttribute('aria-expanded'), 'false');
+
+    toggleHudInfo(true);
+    assert(!popover.classList.contains('hidden'));
+    assertEqual(popover.hidden, false);
+    assertEqual(button.getAttribute('aria-expanded'), 'true');
+
+    toggleHudInfo();
+    assert(popover.classList.contains('hidden'));
+    assertEqual(popover.hidden, true);
+    assertEqual(button.getAttribute('aria-expanded'), 'false');
+  } finally {
+    button.remove();
+    popover.remove();
+  }
 });
 
 test('menus: resetMatchUI hides banners and sets the tick tooltip', () => {

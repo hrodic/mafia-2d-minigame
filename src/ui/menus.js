@@ -38,6 +38,19 @@ export function setWorldSeedDisplay(seed = state.currentWorldSeed) {
   if (last) last.textContent = `Last: ${seed ?? '—'}`;
 }
 
+/** Open/close the compact session-info popover. Pass a boolean to force state. */
+export function toggleHudInfo(forceOpen) {
+  const button = document.getElementById('btn-hud-info');
+  const popover = document.getElementById('hud-info-popover');
+  if (!button || !popover) return;
+  const open = typeof forceOpen === 'boolean'
+    ? forceOpen
+    : popover.classList.contains('hidden');
+  popover.classList.toggle('hidden', !open);
+  popover.hidden = !open;
+  button.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
 function fallbackCopy(value) {
   const textarea = document.createElement('textarea');
   textarea.value = value;
@@ -166,6 +179,7 @@ export function showDefeatBanner() {
 }
 
 export function initMenus() {
+document.getElementById('btn-hud-info')?.addEventListener('click', () => toggleHudInfo());
 document.getElementById('btn-random-seed')?.addEventListener('click', () => {
   const input = document.getElementById('world-seed-input');
   if (input) input.value = String(randomWorldSeed());
