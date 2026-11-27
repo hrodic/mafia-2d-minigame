@@ -1,7 +1,7 @@
 // City map: chunk storage, tile queries, collision and perimeter expansion.
 
 import { CHUNK_SIZE, TILE_SIZE } from '../config/constants.js';
-import { TileType } from '../config/enums.js';
+import { TileType, PropType } from '../config/enums.js';
 import { DistrictChunk } from './chunk.js';
 import { getPropFootprint, circleIntersectsRect } from './geometry.js';
 
@@ -129,7 +129,7 @@ export class CityMap {
         const lx = ((gx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
         const ly = ((gy % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
         const prop = chunk.props[ly][lx];
-        if (!prop) continue;
+        if (!prop || prop === PropType.DUMPSTER) continue;
         const rect = getPropFootprint(
           prop,
           gx * TILE_SIZE,

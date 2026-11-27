@@ -1,6 +1,6 @@
 // Combat: shared damage/armor pipeline, melee slashes, pistol raycast and armor purchases.
 
-import { Faction, UnitRank } from '../config/enums.js';
+import { Faction, UnitRank, PropType } from '../config/enums.js';
 import { CHUNK_SIZE, TILE_SIZE, MAX_PISTOL_RANGE, HIT_FLASH_DURATION } from '../config/constants.js';
 import { COST_BOSS_ARMOR, MAX_BOSS_ARMOR, PISTOL, SLASH } from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
@@ -18,6 +18,10 @@ export function rollDamage(min, max) {
 function creditKill(killerFaction, victimFaction) {
   if (!killerFaction || killerFaction === victimFaction) return;
   if (state.factionKills[killerFaction] !== undefined) state.factionKills[killerFaction]++;
+}
+
+function creditDeath(victimFaction) {
+  if (state.factionDeaths[victimFaction] !== undefined) state.factionDeaths[victimFaction]++;
 }
 
 export function applyDamageToNpc(
@@ -76,6 +80,7 @@ export function applyDamageToNpc(
     }
 
     creditKill(killerFaction, deadFaction);
+    creditDeath(deadFaction);
     if (deadIdx !== -1) state.npcs.splice(deadIdx, 1);
     emit('unit:died', {
       unit: target,
@@ -223,7 +228,7 @@ export function traceBulletRay(x0, y0, angle, maxDist) {
     const chunk = state.world.getChunk(cx, cy);
     if (!chunk) return { blocked: true, dist: d, x: px, y: py };
     const prop = chunk.props[ly][lx];
-    if (!prop) continue;
+    if (!prop || prop === PropType.DUMPSTER) continue;
     const rect = getPropFootprint(
       prop,
       (cx * CHUNK_SIZE + lx) * TILE_SIZE,

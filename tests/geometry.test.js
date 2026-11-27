@@ -12,15 +12,15 @@ import {
 } from '../src/world/geometry.js';
 
 test('geometry: car footprints follow orientation and curb side', () => {
-  assertDeepEqual(getCarFootprint(100, 200, false, 'N'), { x: 105, y: 221, w: 34, h: 18 });
-  assertDeepEqual(getCarFootprint(100, 200, false, 'S'), { x: 105, y: 205, w: 34, h: 18 });
-  assertDeepEqual(getCarFootprint(100, 200, true, 'W'), { x: 121, y: 205, w: 18, h: 34 });
-  assertDeepEqual(getCarFootprint(100, 200, true, 'E'), { x: 105, y: 205, w: 18, h: 34 });
+  assertDeepEqual(getCarFootprint(100, 200, false, 'N'), { x: 99, y: 225, w: 68, h: 36 });
+  assertDeepEqual(getCarFootprint(100, 200, false, 'S'), { x: 99, y: 205, w: 68, h: 36 });
+  assertDeepEqual(getCarFootprint(100, 200, true, 'W'), { x: 125, y: 199, w: 36, h: 68 });
+  assertDeepEqual(getCarFootprint(100, 200, true, 'E'), { x: 105, y: 199, w: 36, h: 68 });
 });
 
-test('geometry: dumpster footprint matches the drawn/blocking rect', () => {
-  assertDeepEqual(getDumpsterFootprint(100, 200), { x: 109, y: 210, w: 26, h: 22 });
-  assertDeepEqual(getPropFootprint(PropType.DUMPSTER, 100, 200), { x: 109, y: 210, w: 26, h: 22 });
+test('geometry: dumpster footprint is smaller and matches the drawn rect', () => {
+  assertDeepEqual(getDumpsterFootprint(100, 200), { x: 124, y: 226.5, w: 18, h: 13 });
+  assertDeepEqual(getPropFootprint(PropType.DUMPSTER, 100, 200), { x: 124, y: 226.5, w: 18, h: 13 });
   assertEqual(getPropFootprint(PropType.TREE, 100, 200), null);
   assertEqual(getPropFootprint(PropType.NONE, 100, 200), null);
 });

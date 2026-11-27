@@ -9,33 +9,27 @@ import {
   executeBuyArmorForFaction,
   performBossPistolShot,
 } from './combat.js';
-import { getUnitCaps } from './units.js';
+import { clampUnitCap } from './units.js';
 
 export function getBossForFaction(faction) {
   if (faction === Faction.PLAYER) return state.player;
   return state.npcs.find((n) => n.faction === faction && n.rank === UnitRank.BOSS) || null;
 }
 
-function clampCap(value, max) {
-  return Math.max(1, Math.min(max, value));
-}
-
 function applyRecruitPrefs(faction, payload) {
-  const { maxSoldiers, maxCaptains, maxUnderbosses } = getUnitCaps();
-
   if (faction === Faction.PLAYER) {
     if (typeof payload.autoSoldier === 'boolean') state.autoRecruitSoldier = payload.autoSoldier;
     if (typeof payload.autoCaptain === 'boolean') state.autoRecruitCaptain = payload.autoCaptain;
     if (typeof payload.autoUnderboss === 'boolean') state.autoRecruitUnderboss = payload.autoUnderboss;
     if (payload.caps && typeof payload.caps === 'object') {
       if (typeof payload.caps[UnitRank.SOLDIER] === 'number') {
-        state.playerSpawnCaps[UnitRank.SOLDIER] = clampCap(payload.caps[UnitRank.SOLDIER], maxSoldiers);
+        state.playerSpawnCaps[UnitRank.SOLDIER] = clampUnitCap(UnitRank.SOLDIER, payload.caps[UnitRank.SOLDIER]);
       }
       if (typeof payload.caps[UnitRank.CAPTAIN] === 'number') {
-        state.playerSpawnCaps[UnitRank.CAPTAIN] = clampCap(payload.caps[UnitRank.CAPTAIN], maxCaptains);
+        state.playerSpawnCaps[UnitRank.CAPTAIN] = clampUnitCap(UnitRank.CAPTAIN, payload.caps[UnitRank.CAPTAIN]);
       }
       if (typeof payload.caps[UnitRank.UNDERBOSS] === 'number') {
-        state.playerSpawnCaps[UnitRank.UNDERBOSS] = clampCap(payload.caps[UnitRank.UNDERBOSS], maxUnderbosses);
+        state.playerSpawnCaps[UnitRank.UNDERBOSS] = clampUnitCap(UnitRank.UNDERBOSS, payload.caps[UnitRank.UNDERBOSS]);
       }
     }
     return true;
@@ -48,13 +42,13 @@ function applyRecruitPrefs(faction, payload) {
   if (typeof payload.autoUnderboss === 'boolean') prefs.autoUnderboss = payload.autoUnderboss;
   if (payload.caps && typeof payload.caps === 'object') {
     if (typeof payload.caps[UnitRank.SOLDIER] === 'number') {
-      prefs.caps[UnitRank.SOLDIER] = clampCap(payload.caps[UnitRank.SOLDIER], maxSoldiers);
+      prefs.caps[UnitRank.SOLDIER] = clampUnitCap(UnitRank.SOLDIER, payload.caps[UnitRank.SOLDIER]);
     }
     if (typeof payload.caps[UnitRank.CAPTAIN] === 'number') {
-      prefs.caps[UnitRank.CAPTAIN] = clampCap(payload.caps[UnitRank.CAPTAIN], maxCaptains);
+      prefs.caps[UnitRank.CAPTAIN] = clampUnitCap(UnitRank.CAPTAIN, payload.caps[UnitRank.CAPTAIN]);
     }
     if (typeof payload.caps[UnitRank.UNDERBOSS] === 'number') {
-      prefs.caps[UnitRank.UNDERBOSS] = clampCap(payload.caps[UnitRank.UNDERBOSS], maxUnderbosses);
+      prefs.caps[UnitRank.UNDERBOSS] = clampUnitCap(UnitRank.UNDERBOSS, payload.caps[UnitRank.UNDERBOSS]);
     }
   }
   return true;

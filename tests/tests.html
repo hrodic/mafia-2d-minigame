@@ -123,22 +123,61 @@
       <input id="map-size-slider" type="range" />
       <span id="map-size-display"></span>
       <div id="map-cap-preview"></div>
+      <div id="match-impact-summary"></div>
+      <input id="tick-speed-slider" type="range" min="10" max="30" value="10" />
+      <span id="tick-speed-display"></span>
+      <span id="income-tier-display"></span>
+      <button type="button" class="income-tier-btn" data-income="LOW"></button>
+      <button type="button" class="income-tier-btn" data-income="MID"></button>
+      <button type="button" class="income-tier-btn" data-income="HIGH"></button>
+      <button type="button" class="match-preset" data-preset="turbo" aria-pressed="false"></button>
+      <button type="button" class="match-preset" data-preset="normal" aria-pressed="false"></button>
+      <button type="button" class="match-preset" data-preset="long" aria-pressed="false"></button>
+      <input id="setup-cap-soldier" type="range" min="10" max="150" value="150" />
+      <input id="setup-cap-captain" type="range" min="2" max="30" value="30" />
+      <input id="setup-cap-underboss" type="range" min="1" max="15" value="15" />
+      <span id="setup-cap-soldier-value"></span>
+      <span id="setup-cap-captain-value"></span>
+      <span id="setup-cap-underboss-value"></span>
+      <span id="setup-cap-soldier-ceiling"></span>
+      <span id="setup-cap-captain-ceiling"></span>
+      <span id="setup-cap-underboss-ceiling"></span>
       <div id="faction-slots-container"></div>
       <span id="stats-badge"></span>
       <div id="hp-bar-fill"></div><span id="hp-text"></span>
       <span id="cash-text"></span><span id="hour-text"></span>
       <div id="tick-bar-fill"></div>
       <div id="armor-hud-box"></div><div id="armor-bar-fill"></div><span id="armor-text"></span>
-      <div id="faction-board"></div>
+      <div id="faction-board">
+        <div class="faction-board-header">
+          <span>Faction Leaderboard</span>
+          <span id="faction-count-label"></span>
+          <button id="btn-faction-collapse" aria-expanded="true">▴</button>
+        </div>
+        <div id="faction-board-body"></div>
+      </div>
       <button id="btn-slash"><span id="cooldown-slash"></span><span id="action-status-slash"></span></button>
       <button id="btn-pistol"><span id="cooldown-pistol"></span><span id="action-status-pistol"></span></button>
       <button id="btn-buy-armor"><span id="cooldown-armor"></span><span id="action-status-armor"></span></button>
       <button id="btn-sprint"><span id="cooldown-sprint"></span><span id="action-status-sprint"></span><div id="sprint-bar-fill"></div><span id="sprint-text"></span></button>
+      <section id="management-panel">
+        <div id="management-body"></div>
+        <button id="btn-management-collapse" aria-expanded="true"></button>
+      </section>
       <button id="btn-toggle-soldier"></button>
       <button id="btn-toggle-captain"></button>
       <button id="btn-toggle-underboss"></button>
+      <span id="mgmt-rank-soldier"></span><span id="mgmt-rank-captain"></span><span id="mgmt-rank-underboss"></span>
+      <span id="mgmt-auto-soldier"></span><span id="mgmt-auto-captain"></span><span id="mgmt-auto-underboss"></span>
+      <button id="btn-cap-soldier-min"></button><button id="btn-cap-soldier-dec"></button><button id="btn-cap-soldier-inc"></button><button id="btn-cap-soldier-max"></button>
+      <button id="btn-cap-captain-min"></button><button id="btn-cap-captain-dec"></button><button id="btn-cap-captain-inc"></button><button id="btn-cap-captain-max"></button>
+      <button id="btn-cap-underboss-min"></button><button id="btn-cap-underboss-dec"></button><button id="btn-cap-underboss-inc"></button><button id="btn-cap-underboss-max"></button>
       <span id="cap-soldier-label"></span><span id="cap-captain-label"></span><span id="cap-underboss-label"></span>
       <span id="mgmt-total-upkeep"></span>
+      <span id="mgmt-total-gross"></span>
+      <span id="mgmt-total-turf"></span>
+      <span id="mgmt-total-crew"></span>
+      <span id="mgmt-total-net"></span>
       <div id="toast"></div>
       <div id="defeat-banner" class="hidden"></div>
       <div id="victory-banner" class="hidden"></div>

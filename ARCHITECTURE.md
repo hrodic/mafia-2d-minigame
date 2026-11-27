@@ -58,8 +58,9 @@ src/
     mpNet.js               composition root for host + guest multiplayer
   render/
     canvas.js              shared canvas/context references (guarded for tests)
-    renderer.js            frame orchestration: culling, depth sort, layers
-    world.js               buildings/props
+    renderer.js            frame orchestration: culling, depth sort, layers, ground LRU cache
+    world.js               cached building sprites, roof details, window lights, props
+    weather.js             day/night lamps, ambient tint, capped noir rain
     characters.js          characters + corpses
     effects.js             blood/decals/tracers/casings/sparks/floating text
     backdrop.js            subtle city pattern outside the playable chunks
@@ -80,7 +81,7 @@ src/
     actionBar.js           bottom combat bar: readiness, cooldowns, costs
     hudCadence.js          presentation cadence (4 Hz HUD refresh) driven by main.js
     version.js             applies GAME_VERSION to title + HUD/modal labels
-    menus.js               setup modal, lobby buttons, banners, toast, map-size controls
+    menus.js               setup modal tabs, crew limits, lobby buttons, toast, map-size controls
     input.js               keyboard/mouse/minimap + HUD action bindings
     commandBridge.js       input boundary: guests stream, host/single dispatch
     support.js             top-bar Tip me -> Ko-fi popup (fallback link)
@@ -253,9 +254,13 @@ orchestration loop; presentation is separate.
 ## Systems
 
 ### Units and recruitment
-`sim/units.js` owns per-rank caps (5% underbosses, 10% captains, rest soldiers, minimum
-25 blocks), unit stat tables (inline ternaries today), spawning near the boss/owned turf,
-and recruitment (cost, caps, treasury, cached counts). It emits `unit:recruited`;
+`sim/units.js` owns per-rank caps scaled by the grid side (underbosses ×1, captains ×2,
+soldiers ×10; selectable minimums 1/2/10), unit stat tables (inline ternaries today),
+spawning near the boss/owned turf, and recruitment (cost, caps, treasury, cached counts).
+Setup lets the player lower each tier's maximum under the grid ceiling; `state.matchUnitCaps`
+carries that choice into the match and multiplayer host/guest init. Caps clamp player and
+remote-human preferences to the configured range; defaults give human factions 50% and AI
+the full quota. It emits `unit:recruited`;
 `render/recruitFx.js` draws the `+RANK ($cost)` text. Rival bosses controlled by a human
 peer have `humanPeerId`; all bosses use speed `140` (AI and human), while non-boss AI ranks
 use `150`. Same-faction units may push through each other (boss included); other factions
@@ -353,11 +358,18 @@ and characters into a depth-sorted list, and draws layers: a subtle world-space 
 backdrop (outside the playable chunks), ground + faction tint, capture bars, turf income
 labels, blood decals/corpses, waypoint and muzzle-accurate aim/reticle UI, characters (with
 HP/armor bars and rank labels), then effects (slash arcs, muzzle flashes, tracers, blood,
-sparks, casings, floating text).
+sparks, casings, floating text). Static ground is cached per visible chunk in an LRU of
+offscreen canvases (asphalt grain, curbs, markings); building walls/roofs/roof props are
+cached per building sprite and drawn in the same depth order, with dynamically lit facade
+windows layered on top. `render/weather.js` draws the capped diagonal rain pass in screen
+space whenever the day/night schedule says rain. Rain is re-decided only when the
+day/night period flips (25% day, 50% night). The same continuous hour drives the lamp
+intensity (off 08–21, on 22–07, one-hour dusk/dawn fades) and a screen-space ambient tint:
+warm sunny light by day, cool blue by night.
 `render/minimap.js` caches the faction territory layer and overlays units, the boss, the
 camera rect and chunk coordinates; `render/minimapLayout.js` owns the shared bounds/cell/
-offset and world<->map mapping (also used by radar clicks). The radar canvas is 168px and
-uses slightly larger unit markers.
+offset and world<->map mapping (also used by radar clicks). The radar canvas is 168px by
+default and expands to 336px.
 
 ## Audio
 
@@ -368,13 +380,15 @@ distance from the camera.
 
 ## UI
 
-- `ui/hud.js`: primary boss/economy status, crew management panel (caps, recruit costs,
-  total upkeep), faction leaderboard (turf, crew, kills).
+- `ui/hud.js`: primary boss/economy status, collapsible crew management panel (caps,
+  recruit costs, turf/crew/gross/upkeep/net totals), collapsible faction leaderboard
+  (turf, kills, deaths).
 - `ui/actionBar.js`: bottom-center combat bar. Slash/pistol/armor/sprint show ready/cooling
   states, cooldown overlays, costs and shortcuts; sprint is hold-to-run and guest input
   includes the held state.
 - `ui/hudCadence.js`: 4 Hz HUD refresh from the main loop.
-- `ui/menus.js`: setup modal, lobby buttons, start-game flow, `openSetupMenu`, banners and
+- `ui/menus.js`: setup modal tabs (Field Manual first, then Single/Host/Join), grid-derived
+  crew-limit sliders, lobby buttons, start-game flow, `openSetupMenu`, banners and
   toasts; exports `initMenus`.
 - `ui/input.js`: keyboard/mouse/minimap handlers, HUD action buttons; releases held keys
   on blur/visibility loss; exports `initInput`.

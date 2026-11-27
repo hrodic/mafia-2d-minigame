@@ -146,6 +146,7 @@ const STATE_KEYS = [
   'treasuries',
   'factionAlive',
   'factionKills',
+  'factionDeaths',
   'gameOver',
   'victoryShown',
   'activeFactions',
@@ -186,6 +187,7 @@ function withCombatState(opts, fn) {
   state.treasuries = { ...saved.treasuries, ...(opts.treasuries || {}) };
   state.factionAlive = { ...saved.factionAlive, ...(opts.factionAlive || {}) };
   state.factionKills = { ...saved.factionKills, ...(opts.factionKills || {}) };
+  state.factionDeaths = { ...saved.factionDeaths, ...(opts.factionDeaths || {}) };
   state.gameOver = false;
   state.victoryShown = false;
   state.activeFactions = [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3];
@@ -322,6 +324,8 @@ test('combat: kills credit the attacking faction', () => {
     applyDamageToNpc(enemy, 50, '#fbbf24', '', null, Faction.PLAYER);
     assertEqual(state.factionKills[Faction.PLAYER], 1);
     assertEqual(state.factionKills[Faction.RIVAL_1], 0);
+    assertEqual(state.factionDeaths[Faction.RIVAL_1], 1);
+    assertEqual(state.factionDeaths[Faction.PLAYER], 0);
   });
 });
 

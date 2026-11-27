@@ -1,1 +1,1 @@
-const o="0.4.22";export{o as GAME_VERSION};
+const o="0.6.2";export{o as GAME_VERSION};

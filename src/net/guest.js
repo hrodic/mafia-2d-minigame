@@ -164,6 +164,7 @@ export function createGuestController(deps) {
 
     if (snap.treasuries) Object.assign(state.treasuries, snap.treasuries);
     if (snap.kills) Object.assign(state.factionKills, snap.kills);
+    if (snap.deaths) Object.assign(state.factionDeaths, snap.deaths);
     if (snap.factionAlive) {
       for (const f of state.activeFactions) {
         const wasAlive = state.factionAlive[f];

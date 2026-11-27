@@ -19,6 +19,7 @@ import * as combatFx from './render/combatFx.js';
 import * as recruitFx from './render/recruitFx.js';
 import * as territoryFx from './render/territoryFx.js';
 import { updateHUD, syncRecruitButtonLabels } from './ui/hud.js';
+import { resetWeather } from './render/weather.js';
 import {
   initMenus,
   showToast,
@@ -105,6 +106,7 @@ on('match:victory', ({ faction, blocks, totalBlocks, cash, crew }) => {
 on('match:defeat', () => showDefeatBanner());
 on('match:defeat', updateHUD);
 on('match:initialized', resetEffects);
+on('match:initialized', () => resetWeather(state.currentWorldSeed ?? 1));
 on('match:initialized', ({ tickDuration }) => resetMatchUI(tickDuration));
 on('match:initialized', ({ worldSeed }) => setWorldSeedDisplay(worldSeed));
 on('match:initialized', syncRecruitButtonLabels);

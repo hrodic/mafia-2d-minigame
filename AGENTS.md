@@ -51,6 +51,8 @@ Run these before every commit:
 
 - Every commit-sized step that changes source, tests, config or the shipped artifact bumps
   the version in the same commit.
+- Do not bump for intermediate iterations within the same branch/commit-sized change. Bump
+  once when the change is ready to commit/merge.
 - Planning/status documentation-only edits (`PLAN.md`, `AGENTS.md`, `ARCHITECTURE.md`, README
   wording) do not bump the version.
 - **MINOR** for a new user-visible capability; **PATCH** for fixes, refactors, tests,

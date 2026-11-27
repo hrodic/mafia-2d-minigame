@@ -63,7 +63,7 @@ test('state: collections and match flags have the expected initial values', () =
   assertEqual(state.gameStarted, false);
   assertEqual(state.gameOver, false);
   assertEqual(state.victoryShown, false);
-  assertEqual(state.gameHour, 12);
+  assertEqual(state.gameHour, 19);
   assertEqual(state.tickTimer, 0);
   assertEqual(state.nextNpcId, 1);
   assertEqual(state.currentGridSize, DEFAULT_GRID_SIZE);
@@ -73,10 +73,25 @@ test('state: collections and match flags have the expected initial values', () =
   assertDeepEqual(state.activeFactions, [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3]);
 });
 
+test('state: match unit caps are clamped between tier minimums and the grid ceiling', () => {
+  const fresh = createGameState({
+    gridSize: 10,
+    unitCaps: { maxSoldiers: 80, maxCaptains: 99, maxUnderbosses: 4 },
+  });
+  assertDeepEqual(fresh.matchUnitCaps, {
+    maxSoldiers: 80,
+    maxCaptains: 20,
+    maxUnderbosses: 4,
+  });
+  assertEqual(fresh.playerSpawnCaps[UnitRank.SOLDIER], 40);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.CAPTAIN], 10);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.UNDERBOSS], 2);
+});
+
 test('state: spawn caps and recruitment prefs are initialized', () => {
-  assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 96);
-  assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 11);
-  assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 6);
+  assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 75);
+  assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 15);
+  assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 8);
   for (const faction of [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3]) {
     assert(state.factionRecruitmentPrefs[faction], `missing prefs for ${faction}`);
   }
@@ -195,7 +210,7 @@ test('state factory: fresh default state matches the exported initial values', (
   assertEqual(fresh.gameOver, false);
   assertEqual(fresh.victoryShown, false);
   assertEqual(fresh.tickTimer, 0);
-  assertEqual(fresh.gameHour, 12);
+  assertEqual(fresh.gameHour, 19);
   assertEqual(fresh.hudUpdateTimer, 0);
   assertEqual(fresh.minimapCacheTimer, 1.0);
   assertEqual(fresh.currentGridSize, DEFAULT_GRID_SIZE);
@@ -332,14 +347,15 @@ test('state factory: active factions get cash and inactive slots are zeroed', ()
   assertEqual(fresh.factionAlive[Faction.RIVAL_2], false);
   for (const faction of [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3]) {
     assertEqual(fresh.factionKills[faction], 0);
+    assertEqual(fresh.factionDeaths[faction], 0);
   }
 });
 
 test('state factory: caps and recruitment preferences reset to defaults', () => {
   const fresh = createGameState();
-  assertEqual(fresh.playerSpawnCaps[UnitRank.SOLDIER], 96);
-  assertEqual(fresh.playerSpawnCaps[UnitRank.CAPTAIN], 11);
-  assertEqual(fresh.playerSpawnCaps[UnitRank.UNDERBOSS], 6);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.SOLDIER], 75);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.CAPTAIN], 15);
+  assertEqual(fresh.playerSpawnCaps[UnitRank.UNDERBOSS], 8);
   for (const faction of [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3]) {
     const prefs = fresh.factionRecruitmentPrefs[faction];
     assert(prefs, `missing prefs for ${faction}`);
@@ -362,6 +378,7 @@ test('state factory: each call returns independent nested containers', () => {
   assert(first.treasuries !== second.treasuries);
   assert(first.factionAlive !== second.factionAlive);
   assert(first.factionKills !== second.factionKills);
+  assert(first.factionDeaths !== second.factionDeaths);
   assert(first.player !== second.player);
   assert(first.camera !== second.camera);
   assert(first.mouse !== second.mouse);

@@ -47,7 +47,7 @@ export function processHourlyTick() {
   for (const f of state.activeFactions) {
     if (!state.factionAlive[f]) continue;
     const net = (incomeTotals[f] || 0) - (upkeepTotals[f] || 0);
-    state.treasuries[f] = Math.max(0, state.treasuries[f] + net);
+    state.treasuries[f] += net;
   }
 
   const cachedCounts = {};

@@ -18,6 +18,9 @@ import {
   BOSS_MAX_HP,
   MAX_BOSS_ARMOR,
   UNIT_ATTACK_COOLDOWN,
+  getGridUnitCaps,
+  clampMatchUnitCaps,
+  defaultMatchUnitCaps,
 } from '../src/config/balance.js';
 
 const EXPECTED_RANKS = {
@@ -47,7 +50,7 @@ const EXPECTED_RANKS = {
     radius: 12.8,
     captureRate: 0.24,
     cost: 3800,
-    upkeep: 150,
+    upkeep: 300,
   },
   [UnitRank.CAPTAIN]: {
     hp: 340,
@@ -61,7 +64,7 @@ const EXPECTED_RANKS = {
     radius: 12,
     captureRate: 0.18,
     cost: 2200,
-    upkeep: 100,
+    upkeep: 200,
   },
   [UnitRank.SOLDIER]: {
     hp: 180,
@@ -75,7 +78,7 @@ const EXPECTED_RANKS = {
     radius: 11,
     captureRate: 0.12,
     cost: 1200,
-    upkeep: 50,
+    upkeep: 100,
   },
 };
 
@@ -99,12 +102,49 @@ test('balance: cost/upkeep/HP aliases derive from rank stats', () => {
   assertEqual(COST_BOSS_ARMOR, 3500);
 });
 
-test('balance: unit caps and attack pacing are unchanged', () => {
+test('balance: unit caps scale by grid side and tier minimums are locked', () => {
   assertDeepEqual(UNIT_CAPS, {
-    minNeighborhoods: 25,
-    underbossFraction: 0.05,
-    captainFraction: 0.1,
+    underbossPerSide: 1,
+    captainPerSide: 2,
+    soldierPerSide: 10,
+    minUnderbosses: 1,
+    minCaptains: 2,
+    minSoldiers: 10,
     humanCapFraction: 0.5,
+  });
+  assertDeepEqual(getGridUnitCaps(5), {
+    maxUnderbosses: 5,
+    maxCaptains: 10,
+    maxSoldiers: 50,
+  });
+  assertDeepEqual(getGridUnitCaps(15), {
+    maxUnderbosses: 15,
+    maxCaptains: 30,
+    maxSoldiers: 150,
+  });
+  assertDeepEqual(getGridUnitCaps(25), {
+    maxUnderbosses: 25,
+    maxCaptains: 50,
+    maxSoldiers: 250,
+  });
+  assertDeepEqual(clampMatchUnitCaps(15, { maxSoldiers: 140 }), {
+    maxUnderbosses: 15,
+    maxCaptains: 30,
+    maxSoldiers: 140,
+  });
+  assertDeepEqual(
+    clampMatchUnitCaps(15, { maxSoldiers: 999, maxCaptains: 1, maxUnderbosses: 0 }),
+    { maxUnderbosses: 1, maxCaptains: 2, maxSoldiers: 150 }
+  );
+  assertDeepEqual(defaultMatchUnitCaps(10), {
+    maxSoldiers: 50,
+    maxCaptains: 10,
+    maxUnderbosses: 5,
+  });
+  assertDeepEqual(defaultMatchUnitCaps(15), {
+    maxSoldiers: 75,
+    maxCaptains: 15,
+    maxUnderbosses: 8,
   });
   assertEqual(UNIT_ATTACK_COOLDOWN, 1.0);
 });

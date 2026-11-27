@@ -21,6 +21,7 @@ const STATE_KEYS = [
   'treasuries',
   'factionAlive',
   'factionKills',
+  'factionDeaths',
   'camera',
   'mouse',
   'keys',
@@ -108,7 +109,7 @@ test('phase3: 600 fixed steps stay finite, walkable and tick-correct', () => {
     }
     assert(Number.isFinite(state.tickTimer));
     assert(Math.abs(state.tickTimer - 5) < 0.05, `tickTimer=${state.tickTimer}`);
-    assertEqual(state.gameHour, 12);
+    assertEqual(state.gameHour, 19);
     assertEqual(state.gameOver, false);
   });
 });

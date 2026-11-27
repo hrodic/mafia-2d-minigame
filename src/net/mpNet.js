@@ -3,6 +3,7 @@
 // continues the protocol/lobby/host/guest split.
 
 import { Faction } from '../config/enums.js';
+import { clampMatchUnitCaps } from '../config/balance.js';
 import { FACTION_META, ensureUniqueOrgs } from '../config/organizations.js';
 import { state, getLocalBoss } from '../core/state.js';
 import { initWorld } from '../sim/match.js';
@@ -36,12 +37,14 @@ export const mpNet = (() => {
   let guest = null;
 
   function getCurrentHostConfig() {
+    const gridSize = Number(document.getElementById('map-size-slider')?.value || 15);
     return {
-      gridSize: Number(document.getElementById('map-size-slider')?.value || 15),
+      gridSize,
       tickSeconds: Number(document.getElementById('tick-speed-slider')?.value || 10),
       incomeTier: state.currentIncomeTier,
       factionCount: state.activeFactionCount,
       orgRoster: ensureUniqueOrgs(state.selectedFactionOrgs),
+      unitCaps: clampMatchUnitCaps(gridSize, state.matchUnitCaps),
     };
   }
 
@@ -53,7 +56,8 @@ export const mpNet = (() => {
       payload.incomeTier,
       payload.factionCount,
       payload.orgRoster,
-      payload.worldSeed
+      payload.worldSeed,
+      payload.unitCaps
     );
   }
 
@@ -259,9 +263,9 @@ export const mpNet = (() => {
     }
   }
 
-  function launchMultiplayerMatch(gridSize, tickSeconds, incomeTier, factionCount, orgRoster, seedOverride = null) {
+  function launchMultiplayerMatch(gridSize, tickSeconds, incomeTier, factionCount, orgRoster, unitCaps, seedOverride = null) {
     if (host) {
-      host.launchMatch({ gridSize, tickSeconds, incomeTier, factionCount, orgRoster, seedOverride });
+      host.launchMatch({ gridSize, tickSeconds, incomeTier, factionCount, orgRoster, unitCaps, seedOverride });
     }
   }
 
@@ -327,32 +331,7 @@ export const mpNet = (() => {
       cleanup(false);
     }
     mode = newMode;
-    document.querySelectorAll('.game-mode-btn').forEach((btn) => {
-      const active = btn.getAttribute('data-mode') === newMode;
-      btn.className = active
-        ? 'game-mode-btn bg-amber-500/20 border border-amber-500 text-amber-300 py-2 px-3 rounded-lg text-xs font-extrabold uppercase tracking-wider transition'
-        : 'game-mode-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 py-2 px-3 rounded-lg text-xs font-extrabold uppercase tracking-wider transition';
-    });
-
-    const hostPanel = document.getElementById('mp-host-panel');
-    const joinPanel = document.getElementById('mp-join-panel');
-    const settingsWrap = document.getElementById('match-settings-wrapper');
-    const startBtn = document.getElementById('btn-start-game');
-
-    hostPanel.classList.toggle('hidden', newMode !== 'HOST');
-    joinPanel.classList.toggle('hidden', newMode !== 'JOIN');
-    settingsWrap.classList.toggle('hidden', newMode === 'JOIN');
-
-    if (newMode === 'SINGLE') {
-      startBtn.classList.remove('hidden');
-      startBtn.disabled = false;
-      startBtn.textContent = 'Launch Turf War';
-    } else if (newMode === 'HOST') {
-      startBtn.classList.remove('hidden');
-      updateHostLobbyUI();
-    } else if (newMode === 'JOIN') {
-      startBtn.classList.add('hidden');
-    }
+    if (newMode === 'HOST') updateHostLobbyUI();
   }
 
   host = createHostController({

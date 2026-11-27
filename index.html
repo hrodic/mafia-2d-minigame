@@ -9,130 +9,216 @@
 </head>
 <body class="w-screen h-screen flex flex-col">
 
-  <!-- Top HUD Header -->
-  <header class="bg-zinc-950 border-b border-zinc-800 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2 z-20 shadow-lg">
-    <div class="flex items-center gap-2.5 min-w-0">
-      <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 via-amber-600 to-rose-700 p-[1.5px] shadow-[0_0_12px_rgba(245,158,11,0.45)] flex-shrink-0">
-        <div class="w-full h-full bg-zinc-950 rounded-[6.5px] flex items-center justify-center font-display-mafia text-amber-400 text-base leading-none">
-          H
+  <!-- Top HUD Header: brand/meta / critical telemetry / session controls -->
+  <header id="hud-topbar" class="hud-topbar z-20">
+    <div id="hud-zone-left" class="hud-zone hud-zone-left">
+      <div class="hud-brand">
+        <div class="hud-logo">
+          <div class="hud-logo-inner">H</div>
+        </div>
+        <div class="flex items-baseline gap-1.5 min-w-0">
+          <h1 class="font-display-mafia text-xl sm:text-2xl tracking-wider title-gold-chrome leading-none">
+            HRODIC'S MAFIA
+          </h1>
         </div>
       </div>
-      <div class="flex items-baseline gap-1.5 min-w-0">
-        <h1 class="font-display-mafia text-xl sm:text-2xl tracking-wider title-gold-chrome leading-none">
-          HRODIC'S MAFIA
-        </h1>
-        <span class="text-[10px] font-extrabold uppercase tracking-widest bg-rose-600/20 border border-rose-500/50 text-rose-300 px-1.5 py-0.5 rounded">
-          2D
-        </span>
-        <span id="hud-version-label" class="text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-500/15 border border-amber-500/40 text-amber-300 px-1.5 py-0.5 rounded"></span>
-        <a id="btn-support" href="https://ko-fi.com/hrodic" target="_blank" rel="noopener noreferrer" aria-label="Tip me on Ko-fi" title="Tip me on Ko-fi" class="text-[9px] font-mono font-bold uppercase tracking-wider bg-rose-500/10 border border-rose-500/40 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200 px-1.5 py-0.5 rounded transition">☕ Tip me</a>
-        <span id="mp-hud-badge" class="hidden text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 px-1.5 py-0.5 rounded">
-          MP HOST
-        </span>
-        <button id="world-seed-hud" type="button" class="hidden text-[10px] font-mono font-bold uppercase tracking-wider bg-sky-500/10 border border-sky-500/40 text-sky-300 px-1.5 py-0.5 rounded cursor-pointer" title="World seed — click to copy"></button>
+
+      <span id="mp-hud-badge" class="hud-meta-badge hidden">MP HOST</span>
+
+      <button id="btn-hud-info" type="button" class="hud-info-btn" aria-label="Session information"
+              aria-expanded="false" aria-controls="hud-info-popover" title="Session information">i</button>
+
+      <a id="btn-support" href="https://ko-fi.com/hrodic" target="_blank" rel="noopener noreferrer"
+         aria-label="Tip me on Ko-fi" title="Tip me on Ko-fi" class="hud-tip-pill">☕ Tip me</a>
+    </div>
+
+    <div id="hud-zone-center" class="hud-zone hud-zone-center" aria-label="Critical gameplay telemetry">
+      <div class="hud-telemetry hud-telemetry-hp">
+        <span class="hud-telemetry-label">Boss HP</span>
+        <div class="hud-bar hud-bar-hp">
+          <div id="hp-bar-fill" class="hud-bar-fill bg-emerald-500" style="transform: scaleX(1)"></div>
+        </div>
+        <span id="hp-text" class="hud-telemetry-value hud-num">400/400</span>
+      </div>
+
+      <div id="armor-hud-box" class="hud-telemetry hud-telemetry-armor hidden"
+           title="Kevlar Armor absorbs incoming Boss damage until depleted">
+        <span class="hud-telemetry-label">Armor</span>
+        <div class="hud-bar hud-bar-armor">
+          <div id="armor-bar-fill" class="hud-bar-fill bg-sky-400" style="transform: scaleX(1)"></div>
+        </div>
+        <span id="armor-text" class="hud-telemetry-value hud-num">300</span>
+      </div>
+
+      <div class="hud-telemetry hud-telemetry-cash">
+        <span class="hud-telemetry-label">Cash</span>
+        <span id="cash-text" class="hud-telemetry-value hud-num">$3,000</span>
+      </div>
+
+      <div id="hour-hud-box" class="hud-telemetry hud-telemetry-hour"
+           title="Every 10 seconds an hour passes: blocks pay & toggled units spawn">
+        <span class="hud-telemetry-label">Hour</span>
+        <span id="hour-text" class="hud-telemetry-value hud-num">19:00</span>
+        <div class="hud-bar hud-bar-hour">
+          <div id="tick-bar-fill" class="hud-bar-fill bg-sky-400" style="transform: scaleX(0)"></div>
+        </div>
       </div>
     </div>
 
-    <!-- Primary status: boss + economy -->
-    <div class="flex items-center gap-2 text-xs flex-wrap">
-      <div class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg">
-        <span class="text-zinc-400 font-semibold">Boss HP:</span>
-        <div class="w-16 sm:w-24 h-2.5 bg-zinc-800 rounded-full overflow-hidden">
-          <div id="hp-bar-fill" class="h-full bg-emerald-500 transition-all duration-150" style="width: 100%"></div>
-        </div>
-        <span id="hp-text" class="font-mono font-bold text-emerald-400">400/400</span>
-      </div>
-
-      <div id="armor-hud-box" class="hidden items-center gap-1.5 bg-sky-950/80 border border-sky-500/50 px-2.5 py-1 rounded-lg" title="Kevlar Armor absorbs incoming Boss damage until depleted">
-        <span class="text-sky-300 font-semibold">🛡️ Armor:</span>
-        <div class="w-12 sm:w-16 h-2.5 bg-zinc-800 rounded-full overflow-hidden">
-          <div id="armor-bar-fill" class="h-full bg-sky-400 transition-all duration-150" style="width: 100%"></div>
-        </div>
-        <span id="armor-text" class="font-mono font-bold text-sky-300">300</span>
-      </div>
-
-      <div class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg">
-        <span class="text-zinc-400 font-semibold">Cash:</span>
-        <span id="cash-text" class="font-mono font-bold text-amber-400">$3,000</span>
-      </div>
-
-      <div id="hour-hud-box" class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg" title="Every 10 seconds an hour passes: blocks pay & toggled units spawn">
-        <span class="text-zinc-400 font-semibold">Hour:</span>
-        <span id="hour-text" class="font-mono font-bold text-sky-400">12:00</span>
-        <div class="w-10 h-2 bg-zinc-800 rounded-full overflow-hidden">
-          <div id="tick-bar-fill" class="h-full bg-sky-400" style="width: 0%"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Utilities -->
-    <div class="flex items-center gap-1.5 text-xs">
-      <button id="btn-toggle-music" class="bg-amber-950/80 hover:bg-amber-900/80 border border-amber-500/60 text-amber-200 font-semibold px-2.5 py-1.5 rounded-lg transition" title="Cycle Dark Noir Mafia Music Tracks (Track 1 / Track 2 / OFF)">
+    <div id="hud-zone-right" class="hud-zone hud-zone-right">
+      <button id="btn-toggle-music" class="hud-util-btn hud-util-music"
+              title="Cycle Dark Noir Mafia Music Tracks (Track 1 / Track 2 / OFF)">
         🎷 Noir I: ON
       </button>
-      <button id="btn-toggle-sound" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 px-2.5 py-1.5 rounded-lg transition" title="Toggle Sound Effects">
+      <button id="btn-toggle-sound" class="hud-util-btn" title="Toggle Sound Effects">
         🔊 SFX: ON
       </button>
-      <button id="btn-reset" class="bg-zinc-900 hover:bg-rose-950 border border-zinc-700 hover:border-rose-800 text-zinc-300 hover:text-rose-200 px-2.5 py-1.5 rounded-lg transition">
+      <button id="btn-reset" class="hud-util-btn hud-util-reset">
         New Game
       </button>
+    </div>
+
+    <div id="hud-info-popover" class="hud-info-popover hidden" hidden role="dialog"
+         aria-label="Session information">
+      <div class="hud-info-row">
+        <span class="hud-info-label">Build</span>
+        <span id="hud-version-label" class="hud-info-value hud-num"></span>
+      </div>
+      <div class="hud-info-row">
+        <span class="hud-info-label">Seed</span>
+        <button id="world-seed-hud" type="button" class="hud-info-value hud-seed-btn hidden"
+                title="World seed — click to copy"></button>
+      </div>
     </div>
   </header>
 
   <!-- Main Canvas Container -->
   <main class="relative flex-1 w-full h-full overflow-hidden">
     <canvas id="gameCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+    <!-- HUD overlay: empty margins pass pointer input through to the canvas. -->
+    <div id="hud-overlay" class="hud-overlay">
     <!-- Crew Management (secondary controls) -->
-    <section id="management-panel" class="glass-panel absolute top-4 left-4 z-10 w-[300px] max-w-[calc(100vw-2rem)] p-3 rounded-xl text-xs space-y-2">
-      <div class="flex items-center justify-between gap-2 border-b border-zinc-800 pb-1.5">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Crew Management</span>
-        <span id="stats-badge" class="text-[9px] font-mono text-zinc-500 text-right leading-tight"></span>
+    <section id="management-panel"
+             class="glass-panel hud-interactive management-panel absolute top-4 left-4 z-10 w-[300px] max-w-[calc(100vw-2rem)] p-3 rounded-xl text-xs">
+      <div class="mgmt-header">
+        <div class="mgmt-header-copy">
+          <span class="mgmt-title">Crew Management</span>
+          <span id="stats-badge" class="mgmt-summary hud-num"></span>
+        </div>
+        <button id="btn-management-collapse" type="button" class="mgmt-collapse-btn"
+                aria-expanded="true" aria-controls="management-body"
+                aria-label="Collapse crew management" title="Collapse / expand crew management">▴</button>
       </div>
 
-      <div class="rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-2 py-1.5">
-        <div class="flex items-center justify-between gap-2">
-          <button id="btn-toggle-soldier" class="text-left font-bold text-emerald-200 hover:text-white transition" title="Auto-spawn Street Enforcers on every tick">Auto Soldato</button>
-          <div class="flex items-center gap-1 font-mono text-[10px] text-emerald-300/80" title="Target Enforcer Spawn Cap">
-            <button id="btn-cap-soldier-dec" class="text-zinc-500 hover:text-white px-1 font-bold">−</button>
-            <span id="cap-soldier-label" class="font-bold">96/192</span>
-            <button id="btn-cap-soldier-inc" class="text-zinc-500 hover:text-white px-1 font-bold">+</button>
+      <div id="management-body" class="mgmt-body">
+        <div class="mgmt-tier mgmt-tier-soldier rounded-lg border px-2 py-1.5">
+          <div class="mgmt-tier-head">
+            <div class="mgmt-tier-title">
+              <span id="mgmt-rank-soldier" class="mgmt-rank-name">Soldato</span>
+              <span id="mgmt-auto-soldier" class="mgmt-auto-label">ON</span>
+            </div>
+            <button id="btn-toggle-soldier" type="button" role="switch" aria-checked="true"
+                    class="mgmt-switch" aria-label="Auto-spawn Soldato"
+                    title="Auto-spawn Soldato on every tick">
+              <span class="mgmt-switch-knob" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="mgmt-tier-meta">
+            <div class="mgmt-tier-economy">
+              <span id="mgmt-price-soldier" class="mgmt-price">$1,200</span>
+              <span id="mgmt-upkeep-soldier" class="mgmt-upkeep-cost">$100/hr upkeep</span>
+            </div>
+            <div class="mgmt-caps" title="Target Soldato spawn cap">
+              <button id="btn-cap-soldier-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Soldato cap to minimum">MIN</button>
+              <button id="btn-cap-soldier-dec" type="button" class="mgmt-cap-btn" aria-label="Decrease Soldato cap">−</button>
+              <span id="cap-soldier-label" class="mgmt-cap-value hud-num">96/192</span>
+              <button id="btn-cap-soldier-inc" type="button" class="mgmt-cap-btn" aria-label="Increase Soldato cap">+</button>
+              <button id="btn-cap-soldier-max" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Soldato cap to maximum">MAX</button>
+            </div>
           </div>
         </div>
-        <div id="mgmt-cost-soldier" class="text-[9px] font-mono text-zinc-500 mt-0.5">$1,200 · $50/hr upkeep</div>
-      </div>
 
-      <div class="rounded-lg border border-indigo-400/30 bg-indigo-950/30 px-2 py-1.5">
-        <div class="flex items-center justify-between gap-2">
-          <button id="btn-toggle-captain" class="text-left font-bold text-indigo-200 hover:text-white transition" title="Auto-spawn Captains on every tick">Auto Caporegime</button>
-          <div class="flex items-center gap-1 font-mono text-[10px] text-indigo-300/80" title="Target Captain Spawn Cap">
-            <button id="btn-cap-captain-dec" class="text-zinc-500 hover:text-white px-1 font-bold">−</button>
-            <span id="cap-captain-label" class="font-bold">11/22</span>
-            <button id="btn-cap-captain-inc" class="text-zinc-500 hover:text-white px-1 font-bold">+</button>
+        <div class="mgmt-tier mgmt-tier-captain rounded-lg border px-2 py-1.5">
+          <div class="mgmt-tier-head">
+            <div class="mgmt-tier-title">
+              <span id="mgmt-rank-captain" class="mgmt-rank-name">Caporegime</span>
+              <span id="mgmt-auto-captain" class="mgmt-auto-label">ON</span>
+            </div>
+            <button id="btn-toggle-captain" type="button" role="switch" aria-checked="true"
+                    class="mgmt-switch" aria-label="Auto-spawn Caporegime"
+                    title="Auto-spawn Caporegime on every tick">
+              <span class="mgmt-switch-knob" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="mgmt-tier-meta">
+            <div class="mgmt-tier-economy">
+              <span id="mgmt-price-captain" class="mgmt-price">$2,200</span>
+              <span id="mgmt-upkeep-captain" class="mgmt-upkeep-cost">$200/hr upkeep</span>
+            </div>
+            <div class="mgmt-caps" title="Target Caporegime spawn cap">
+              <button id="btn-cap-captain-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Caporegime cap to minimum">MIN</button>
+              <button id="btn-cap-captain-dec" type="button" class="mgmt-cap-btn" aria-label="Decrease Caporegime cap">−</button>
+              <span id="cap-captain-label" class="mgmt-cap-value hud-num">11/22</span>
+              <button id="btn-cap-captain-inc" type="button" class="mgmt-cap-btn" aria-label="Increase Caporegime cap">+</button>
+              <button id="btn-cap-captain-max" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Caporegime cap to maximum">MAX</button>
+            </div>
           </div>
         </div>
-        <div id="mgmt-cost-captain" class="text-[9px] font-mono text-zinc-500 mt-0.5">$2,200 · $100/hr upkeep</div>
-      </div>
 
-      <div class="rounded-lg border border-purple-400/30 bg-purple-950/30 px-2 py-1.5">
-        <div class="flex items-center justify-between gap-2">
-          <button id="btn-toggle-underboss" class="text-left font-bold text-purple-200 hover:text-white transition" title="Auto-spawn Second-in-Command on every tick">Auto Sottocapo</button>
-          <div class="flex items-center gap-1 font-mono text-[10px] text-purple-300/80" title="Target 2IC Spawn Cap">
-            <button id="btn-cap-underboss-dec" class="text-zinc-500 hover:text-white px-1 font-bold">−</button>
-            <span id="cap-underboss-label" class="font-bold">6/11</span>
-            <button id="btn-cap-underboss-inc" class="text-zinc-500 hover:text-white px-1 font-bold">+</button>
+        <div class="mgmt-tier mgmt-tier-underboss rounded-lg border px-2 py-1.5">
+          <div class="mgmt-tier-head">
+            <div class="mgmt-tier-title">
+              <span id="mgmt-rank-underboss" class="mgmt-rank-name">Sottocapo</span>
+              <span id="mgmt-auto-underboss" class="mgmt-auto-label">ON</span>
+            </div>
+            <button id="btn-toggle-underboss" type="button" role="switch" aria-checked="true"
+                    class="mgmt-switch" aria-label="Auto-spawn Sottocapo"
+                    title="Auto-spawn Sottocapo on every tick">
+              <span class="mgmt-switch-knob" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="mgmt-tier-meta">
+            <div class="mgmt-tier-economy">
+              <span id="mgmt-price-underboss" class="mgmt-price">$3,800</span>
+              <span id="mgmt-upkeep-underboss" class="mgmt-upkeep-cost">$300/hr upkeep</span>
+            </div>
+            <div class="mgmt-caps" title="Target Sottocapo spawn cap">
+              <button id="btn-cap-underboss-min" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Sottocapo cap to minimum">MIN</button>
+              <button id="btn-cap-underboss-dec" type="button" class="mgmt-cap-btn" aria-label="Decrease Sottocapo cap">−</button>
+              <span id="cap-underboss-label" class="mgmt-cap-value hud-num">6/11</span>
+              <button id="btn-cap-underboss-inc" type="button" class="mgmt-cap-btn" aria-label="Increase Sottocapo cap">+</button>
+              <button id="btn-cap-underboss-max" type="button" class="mgmt-cap-btn mgmt-cap-preset" aria-label="Set Sottocapo cap to maximum">MAX</button>
+            </div>
           </div>
         </div>
-        <div id="mgmt-cost-underboss" class="text-[9px] font-mono text-zinc-500 mt-0.5">$3,800 · $150/hr upkeep</div>
-      </div>
 
-      <div class="flex items-center justify-between border-t border-zinc-800 pt-1.5">
-        <span class="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Total Upkeep</span>
-        <span id="mgmt-total-upkeep" class="font-mono text-[10px] text-amber-300">$0/hr</span>
+        <div class="mgmt-totals" aria-label="Crew totals">
+          <div class="mgmt-total">
+            <span class="mgmt-total-label">Turf</span>
+            <span id="mgmt-total-turf" class="mgmt-total-value hud-num">0/0</span>
+          </div>
+          <div class="mgmt-total">
+            <span class="mgmt-total-label">Crew</span>
+            <span id="mgmt-total-crew" class="mgmt-total-value hud-num">0</span>
+          </div>
+          <div class="mgmt-total">
+            <span class="mgmt-total-label">Gross</span>
+            <span id="mgmt-total-gross" class="mgmt-total-value hud-num">+$0/hr</span>
+          </div>
+          <div class="mgmt-total">
+            <span class="mgmt-total-label">Upkeep</span>
+            <span id="mgmt-total-upkeep" class="mgmt-total-value hud-num">$0/hr</span>
+          </div>
+          <div class="mgmt-total mgmt-total-net">
+            <span class="mgmt-total-label">Net</span>
+            <span id="mgmt-total-net" class="mgmt-total-value hud-num">+$0/hr</span>
+          </div>
+        </div>
       </div>
     </section>
 
     <!-- Combat Action Bar (bottom-center) -->
-    <div id="action-bar" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-stretch gap-1.5 p-1.5 rounded-2xl glass-panel max-w-[calc(100vw-1rem)]">
+    <div id="action-bar" class="hud-interactive absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-stretch gap-1.5 p-1.5 rounded-2xl glass-panel max-w-[calc(100vw-1rem)]">
       <button id="btn-slash" type="button" class="action-btn action-rose" data-tip="Knife slash — up to 3 targets in front (Space / F)" aria-label="Slash (F)">
         <span class="action-icon">🔪</span>
         <span class="action-label">Slash</span>
@@ -164,13 +250,13 @@
         <kbd class="action-key">SHIFT</kbd>
         <span class="action-sub">Hold</span>
         <span id="sprint-text" class="action-status">RDY</span>
-        <div class="action-sprint-bar"><div id="sprint-bar-fill" style="width: 100%"></div></div>
+        <div class="action-sprint-bar"><div id="sprint-bar-fill" style="transform: scaleX(1)"></div></div>
         <span id="cooldown-sprint" class="action-cooldown" aria-hidden="true"></span>
       </button>
     </div>
 
     <!-- Spectator Mode Pill (Shown when spectating after defeat) -->
-    <div id="spectator-banner" class="hidden glass-panel fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full border border-amber-500/60 flex items-center gap-3 text-xs z-20">
+    <div id="spectator-banner" class="hud-interactive hidden glass-panel fixed top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full border border-amber-500/60 flex items-center gap-3 text-xs z-20">
       <span class="flex items-center gap-1.5 font-bold text-amber-400 uppercase tracking-wider">
         <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
         Spectator Mode
@@ -182,22 +268,38 @@
     </div>
 
     <!-- Player & Faction Standings Panel (Top-Right) -->
-    <div id="faction-board" class="glass-panel absolute top-4 right-4 p-3 rounded-xl text-xs text-zinc-200 pointer-events-none space-y-1 min-w-[280px] z-10">
-      <!-- Populated dynamically via JS -->
+    <div id="faction-board" class="glass-panel hud-interactive absolute top-4 right-4 p-3 rounded-xl text-xs text-zinc-200 space-y-1 min-w-[280px] z-10">
+      <div class="faction-board-header">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-zinc-300">Faction Leaderboard</span>
+        <div class="flex items-center gap-1.5">
+          <span id="faction-count-label" class="text-[9px] font-mono text-zinc-600"></span>
+          <button id="btn-faction-collapse" type="button" class="hud-icon-btn"
+                  aria-expanded="true" aria-controls="faction-board-body"
+                  aria-label="Collapse faction leaderboard" title="Collapse / expand leaderboard">▴</button>
+        </div>
+      </div>
+      <div id="faction-board-body" class="space-y-1">
+        <!-- Populated dynamically via JS -->
+      </div>
     </div>
 
     <!-- City Radar Minimap (Bottom-Right) -->
-    <div class="glass-panel absolute bottom-4 right-4 p-2.5 rounded-xl z-10 flex flex-col gap-1.5">
+    <div id="radar-panel" class="glass-panel hud-interactive absolute bottom-4 right-4 p-2.5 rounded-xl z-10 flex flex-col gap-1.5">
       <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-zinc-400">
         <span>City Radar</span>
-        <span id="minimap-coords" class="font-mono text-zinc-300">(0, 0)</span>
+        <div class="flex items-center gap-1.5">
+          <span id="minimap-coords" class="font-mono hud-num text-zinc-300 text-right">(0, 0)</span>
+          <button id="btn-radar-expand" type="button" class="hud-icon-btn"
+                  aria-expanded="false" aria-label="Expand radar" title="Expand / shrink radar">⤢</button>
+        </div>
       </div>
-      <canvas id="minimapCanvas" width="168" height="168" class="rounded-lg border border-zinc-800 cursor-pointer"></canvas>
+      <canvas id="minimapCanvas" width="168" height="168" class="rounded-lg border border-zinc-800 cursor-crosshair"></canvas>
+    </div>
     </div>
 
     <!-- Pre-Game Setup, Multiplayer Lobby & Field Manual Modal -->
-    <div id="setup-modal" class="fixed inset-0 bg-zinc-950/95 flex items-center justify-center z-40 p-3 sm:p-4">
-      <div class="bg-zinc-900 border border-amber-500/30 p-5 sm:p-6 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] max-w-4xl w-full max-h-[94vh] overflow-y-auto relative">
+    <div id="setup-modal" class="fixed inset-0 bg-zinc-950/95 flex items-start justify-center z-40 p-3 sm:p-4">
+      <div class="bg-zinc-900 border border-amber-500/30 p-5 sm:p-6 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] setup-modal-card overflow-hidden flex flex-col relative">
         <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-600"></div>
 
         <!-- Modal Header -->
@@ -214,24 +316,26 @@
           </span>
         </div>
 
-        <!-- Three Game Modes Selector -->
-        <div class="grid grid-cols-3 gap-2 mb-4 bg-zinc-950/90 p-1.5 rounded-xl border border-zinc-800">
-          <button type="button" data-mode="SINGLE" class="game-mode-btn bg-amber-500/20 border border-amber-500 text-amber-300 py-2 px-3 rounded-lg text-xs font-extrabold uppercase tracking-wider transition">
-            Single Player
-          </button>
-          <button type="button" data-mode="HOST" class="game-mode-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 py-2 px-3 rounded-lg text-xs font-extrabold uppercase tracking-wider transition">
-            Host Multiplayer
-          </button>
-          <button type="button" data-mode="JOIN" class="game-mode-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 py-2 px-3 rounded-lg text-xs font-extrabold uppercase tracking-wider transition">
-            Join Multiplayer
+        <!-- Setup sections: Field Manual first so new players land in the tutorial -->
+        <div class="setup-tabs" role="tablist" aria-label="Setup sections">
+          <button type="button" id="setup-tab-manual" class="setup-tab" data-setup-tab="manual" role="tab" aria-selected="true" aria-controls="setup-panel-manual">Field Manual</button>
+          <button type="button" id="setup-tab-single" class="setup-tab" data-setup-tab="single" role="tab" aria-selected="false" aria-controls="setup-panel-play">Single Player</button>
+          <button type="button" id="setup-tab-host" class="setup-tab" data-setup-tab="host" role="tab" aria-selected="false" aria-controls="setup-panel-play">Host Multiplayer</button>
+          <button type="button" id="setup-tab-join" class="setup-tab" data-setup-tab="join" role="tab" aria-selected="false" aria-controls="setup-panel-play">Join Multiplayer</button>
+        </div>
+
+        <div id="setup-scroll" class="setup-scroll flex-1 min-h-0 overflow-y-auto">
+        <div id="setup-cta-bar" class="setup-cta-bar hidden">
+          <button id="btn-start-game" class="w-full bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold py-3 rounded-xl shadow-lg border border-emerald-400/30 transition text-sm tracking-wide">
+            Launch Turf War
           </button>
         </div>
 
-        <!-- Two-Column Layout: Match Settings / Lobby (Left) + Detailed Instructions (Right) -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-5">
+        <!-- Full-width setup panels: one visible at a time -->
+        <div class="grid grid-cols-1 gap-4 mb-5">
 
-          <!-- Left Column: Match Configuration & Multiplayer Panels -->
-          <div class="lg:col-span-5 flex flex-col gap-3">
+          <!-- Play panel: single-player settings, host lobby + settings, or join form -->
+          <div id="setup-panel-play" class="hidden flex flex-col gap-3" role="tabpanel" aria-label="Game setup">
 
             <!-- HOST MULTIPLAYER LOBBY PANEL -->
             <div id="mp-host-panel" class="hidden bg-zinc-950/90 border border-emerald-500/40 rounded-xl p-3.5 space-y-2.5">
@@ -278,7 +382,7 @@
             </div>
 
             <!-- JOIN MULTIPLAYER LOBBY PANEL -->
-            <div id="mp-join-panel" class="hidden bg-zinc-950/90 border border-sky-500/40 rounded-xl p-3.5 space-y-2.5">
+            <div id="mp-join-panel" class="mx-auto w-full max-w-4xl bg-zinc-950/90 border border-sky-500/40 rounded-xl p-3.5 space-y-2.5">
               <div class="flex items-center justify-between">
                 <span class="text-xs font-bold uppercase tracking-wider text-sky-400">
                   Join Multiplayer Session
@@ -319,10 +423,63 @@
                   </button>
                 </div>
               </div>
+
+              <!-- Player-facing multiplayer guide -->
+              <div id="multiplayer-guide" class="border-t border-zinc-800 pt-3 space-y-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="font-bold text-sky-300 uppercase tracking-wider text-[10px]">
+                    How Multiplayer Works (2–4 Players)
+                  </div>
+                  <span class="text-[9px] font-mono text-zinc-500">EASY SETUP</span>
+                </div>
+                <p class="text-zinc-400 leading-relaxed">
+                  One player hosts the city and everyone else joins with an invite link. Each player controls their own Boss and fights for turf.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <div class="manual-step border border-emerald-500/25 bg-zinc-950/70 rounded-lg p-2">
+                    <div class="font-bold text-emerald-300 text-[11px] mb-0.5">1 · Host the game</div>
+                    <p class="text-zinc-400 leading-relaxed">
+                      Pick <span class="manual-chip">Host Multiplayer</span>, enter a Boss alias and press <span class="manual-chip">Create Room</span>. Choose the map, speed and income, then press <span class="manual-chip">Launch Turf War</span> when everyone is in.
+                    </p>
+                  </div>
+
+                  <div class="manual-step border border-sky-500/25 bg-zinc-950/70 rounded-lg p-2">
+                    <div class="font-bold text-sky-300 text-[11px] mb-0.5">2 · Invite your friends</div>
+                    <p class="text-zinc-400 leading-relaxed">
+                      Press <span class="manual-chip">Copy Invitation</span> and send the link in chat. Friends can open it straight away, or paste it into the Join screen.
+                    </p>
+                  </div>
+
+                  <div class="manual-step border border-amber-500/25 bg-zinc-950/70 rounded-lg p-2">
+                    <div class="font-bold text-amber-300 text-[11px] mb-0.5">3 · Join a game</div>
+                    <p class="text-zinc-400 leading-relaxed">
+                      Pick <span class="manual-chip">Join Multiplayer</span>, enter a Boss alias, paste the invite link and press <span class="manual-chip">Connect</span>. Wait in the lobby until the host launches.
+                    </p>
+                  </div>
+                </div>
+
+                <ul class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-zinc-400 leading-relaxed">
+                  <li>• Empty seats are filled by AI, so you can start with fewer friends.</li>
+                  <li>• The host is the referee: their map and match settings are used for everyone.</li>
+                  <li>• Keep the host's tab visible. Background tabs slow the game down.</li>
+                  <li>• Everyone needs the same game version to connect.</li>
+                </ul>
+              </div>
             </div>
 
             <!-- Match Settings Wrapper (Hidden for Guest Joiners) -->
-            <div id="match-settings-wrapper" class="flex flex-col gap-3">
+            <div id="match-settings-wrapper" class="grid grid-cols-1 xl:grid-cols-2 gap-3">
+              <div id="match-impact-summary" class="match-impact hud-num xl:col-span-2">
+                <span class="match-impact-label">YOUR SETUP</span>
+                <span id="match-impact-text">225 neighborhoods · 75 Street Enforcers · 15 Middle Management · 8 Second-in-Command · 15s ticks · $500–$1,000/tick</span>
+                <div class="match-presets" role="group" aria-label="Match presets">
+                  <button type="button" class="match-preset" data-preset="turbo" aria-pressed="false" title="10×10 · 10s tick · High income">Turbo</button>
+                  <button type="button" class="match-preset" data-preset="normal" aria-pressed="true" title="15×15 · 15s tick · Mid income">Normal</button>
+                  <button type="button" class="match-preset" data-preset="long" aria-pressed="false" title="20×20 · 25s tick · Low income">Long game</button>
+                </div>
+              </div>
+
               <!-- Syndicate Count & Organization Roster (2 to 4 Unique Factions) -->
               <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
                 <div class="flex items-center justify-between mb-2">
@@ -366,32 +523,50 @@
                   <button type="button" data-size="25" class="size-preset-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-1 rounded text-[11px] font-mono font-bold transition">25×25</button>
                 </div>
 
-                <div id="map-cap-preview" class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-zinc-800/90 pt-2">
-                  <span>225 Neighborhoods</span>
-                  <span class="font-mono text-emerald-400">Cap: 192S · 22C · 11U</span>
+                <div id="map-cap-preview" class="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-[11px] text-zinc-400 border-t border-zinc-800/90 pt-2">
+                  <span>225 neighborhoods</span>
+                  <span class="font-mono text-emerald-400">Max: 150 Street Enforcers · 30 Middle Management · 15 Second-in-Command</span>
                 </div>
               </div>
 
-              <!-- World Seed (SP + Host; guests adopt the host's seed) -->
-              <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5">
-                <div class="flex items-center justify-between mb-2">
-                  <label for="world-seed-input" class="text-xs font-bold uppercase tracking-wider text-sky-300">
-                    World Seed
-                  </label>
-                  <span id="last-world-seed" class="text-[10px] font-mono text-zinc-500">Last: —</span>
+              <!-- Crew Limits (player-configurable maxima under the grid ceiling) -->
+              <div id="crew-limits-card" class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5 xl:col-span-2">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-xs font-bold uppercase tracking-wider text-emerald-300">Crew Limits</span>
+                  <span class="text-[9px] font-mono text-zinc-500">MAX PER TIER</span>
                 </div>
-                <div class="flex gap-1.5">
-                  <input
-                    id="world-seed-input"
-                    type="text"
-                    inputmode="numeric"
-                    placeholder="Blank = random"
-                    class="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-sky-500 font-mono"
-                  />
-                  <button type="button" id="btn-random-seed" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-200 text-[11px] font-bold px-2 rounded-lg transition">Random</button>
-                  <button type="button" id="btn-copy-seed" class="bg-sky-900/60 hover:bg-sky-800/70 border border-sky-600/60 text-sky-200 text-[11px] font-bold px-2 rounded-lg transition">Copy</button>
+                <p class="text-[10px] text-zinc-500 leading-relaxed mb-2.5">
+                  Grid size sets the ceiling. Lower any tier to keep this match's crews smaller.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-bold text-[#e6b07c]">Street Enforcers</span>
+                      <span class="text-[11px] font-mono font-extrabold text-zinc-100"><span id="setup-cap-soldier-value">75</span><span id="setup-cap-soldier-max" class="text-zinc-500"> / 150</span></span>
+                    </div>
+                    <input id="setup-cap-soldier" type="range" min="10" max="150" value="75" step="1" class="w-full accent-emerald-400 cursor-pointer" aria-label="Maximum Street Enforcers" />
+                    <div class="flex justify-between text-[9px] font-mono text-zinc-500"><span>min 10</span><span id="setup-cap-soldier-ceiling">grid max 150</span></div>
+                  </div>
+
+                  <div>
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-bold text-[#e5e7eb]">Middle Management</span>
+                      <span class="text-[11px] font-mono font-extrabold text-zinc-100"><span id="setup-cap-captain-value">15</span><span id="setup-cap-captain-max" class="text-zinc-500"> / 30</span></span>
+                    </div>
+                    <input id="setup-cap-captain" type="range" min="2" max="30" value="15" step="1" class="w-full accent-zinc-300 cursor-pointer" aria-label="Maximum Middle Management" />
+                    <div class="flex justify-between text-[9px] font-mono text-zinc-500"><span>min 2</span><span id="setup-cap-captain-ceiling">grid max 30</span></div>
+                  </div>
+
+                  <div>
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-bold text-[#fcd34d]">Second-in-Command</span>
+                      <span class="text-[11px] font-mono font-extrabold text-zinc-100"><span id="setup-cap-underboss-value">8</span><span id="setup-cap-underboss-max" class="text-zinc-500"> / 15</span></span>
+                    </div>
+                    <input id="setup-cap-underboss" type="range" min="1" max="15" value="8" step="1" class="w-full accent-amber-400 cursor-pointer" aria-label="Maximum Second-in-Command" />
+                    <div class="flex justify-between text-[9px] font-mono text-zinc-500"><span>min 1</span><span id="setup-cap-underboss-ceiling">grid max 15</span></div>
+                  </div>
                 </div>
-                <p class="text-[10px] text-zinc-500 mt-1.5">The host or single-player chooses; guests adopt the host's seed.</p>
               </div>
 
               <!-- Seconds Per Tick Selector (10s Turbo to 30s Slow) -->
@@ -400,7 +575,7 @@
                   <label for="tick-speed-slider" class="text-xs font-bold uppercase tracking-wider text-zinc-300">
                     Seconds Per Tick
                   </label>
-                  <span id="tick-speed-display" class="font-mono text-sm font-extrabold text-sky-400">10s (Turbo)</span>
+                  <span id="tick-speed-display" class="font-mono text-sm font-extrabold text-sky-400">15s (Normal)</span>
                 </div>
 
                 <input
@@ -409,7 +584,7 @@
                   min="10"
                   max="30"
                   step="1"
-                  value="10"
+                  value="15"
                   class="w-full accent-sky-400 cursor-pointer mb-1.5"
                 />
 
@@ -426,7 +601,7 @@
                   <span class="text-xs font-bold uppercase tracking-wider text-zinc-300">
                     Neighborhood Income
                   </span>
-                  <span id="income-tier-display" class="font-mono text-xs font-bold text-emerald-400">$1,000–$1,500 / tick</span>
+                  <span id="income-tier-display" class="font-mono text-xs font-bold text-emerald-400">$500–$1,000 / tick</span>
                 </div>
 
                 <div class="grid grid-cols-3 gap-2">
@@ -434,29 +609,64 @@
                     <div class="text-xs font-extrabold">Low</div>
                     <div class="text-[10px] font-mono text-zinc-400">$250–$500</div>
                   </button>
-                  <button type="button" data-income="MID" class="income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition">
+                  <button type="button" data-income="MID" class="income-tier-btn bg-emerald-500/20 border border-emerald-500 text-emerald-300 py-2 px-2 rounded-lg text-center transition">
                     <div class="text-xs font-extrabold">Mid</div>
-                    <div class="text-[10px] font-mono text-zinc-400">$500–$1,000</div>
+                    <div class="text-[10px] font-mono text-emerald-200/80">$500–$1,000</div>
                   </button>
-                  <button type="button" data-income="HIGH" class="income-tier-btn bg-emerald-500/20 border border-emerald-500 text-emerald-300 py-2 px-2 rounded-lg text-center transition">
+                  <button type="button" data-income="HIGH" class="income-tier-btn bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 py-2 px-2 rounded-lg text-center transition">
                     <div class="text-xs font-extrabold">High</div>
-                    <div class="text-[10px] font-mono text-emerald-200/80">$1,000–$1,500</div>
+                    <div class="text-[10px] font-mono text-zinc-400">$1,000–$1,500</div>
                   </button>
                 </div>
+              </div>
+
+              <!-- World Seed (advanced, optional, last) -->
+              <div class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5 xl:col-span-2">
+                <div class="flex flex-col lg:flex-row lg:items-center gap-2">
+                  <div class="flex items-center justify-between lg:block lg:w-44 shrink-0">
+                    <label for="world-seed-input" class="text-xs font-bold uppercase tracking-wider text-sky-300">
+                      World Seed
+                    </label>
+                    <span id="last-world-seed" class="block text-[10px] font-mono text-zinc-500">Last: —</span>
+                  </div>
+                  <input
+                    id="world-seed-input"
+                    type="text"
+                    inputmode="numeric"
+                    placeholder="Blank = random"
+                    class="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-sky-500 font-mono"
+                  />
+                  <div class="flex gap-1.5 shrink-0">
+                    <button type="button" id="btn-random-seed" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-200 text-[11px] font-bold px-2.5 rounded-lg transition">Random</button>
+                    <button type="button" id="btn-copy-seed" class="bg-sky-900/60 hover:bg-sky-800/70 border border-sky-600/60 text-sky-200 text-[11px] font-bold px-2.5 rounded-lg transition">Copy</button>
+                  </div>
+                </div>
+                <p class="text-[10px] text-zinc-500 mt-1.5">Optional. The host or single-player chooses; guests adopt the host's seed.</p>
               </div>
             </div>
           </div>
 
-          <!-- Right Column: Detailed Controls, Mechanics & HUD Buttons Manual -->
-          <div class="lg:col-span-7 bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5 flex flex-col gap-3 text-[11px] text-zinc-300">
+          <!-- Field Manual panel: full width tutorial and reference -->
+          <div id="setup-panel-manual" class="bg-zinc-950/90 border border-zinc-800 rounded-xl p-3.5 flex flex-col gap-3 text-[11px] text-zinc-300" role="tabpanel" aria-labelledby="setup-tab-manual">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <div class="text-sm font-extrabold uppercase tracking-wider text-white">Field Manual</div>
+                <p class="text-[11px] text-zinc-400">Combat controls and crew tiers. Ready? Jump straight into a solo match.</p>
+              </div>
+              <button id="btn-manual-play" type="button" class="bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white font-extrabold px-6 py-2.5 rounded-xl shadow-lg border border-emerald-400/30 transition text-sm tracking-wide whitespace-nowrap">
+                Play
+              </button>
+            </div>
             <div class="flex items-center justify-between border-b border-zinc-800 pb-1.5">
               <span class="text-xs font-bold uppercase tracking-wider text-amber-400">
-                Syndicate Hierarchy & Combat Mechanics
+                Combat, Crews & Turf
               </span>
               <span class="text-[10px] font-mono text-zinc-500">FIELD MANUAL</span>
             </div>
 
+            <div class="manual-section">
             <!-- Controls & Weapons Grid -->
+            <div class="font-bold text-amber-400 uppercase tracking-wider text-[10px] mb-1.5">Combat & Controls</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div class="bg-zinc-900/90 border border-zinc-800/90 rounded-lg p-2">
                 <div class="font-bold text-white mb-0.5">🕹️ Movement & Navigation</div>
@@ -486,44 +696,100 @@
                 </p>
               </div>
             </div>
-
-            <!-- Syndicate Rules & 4-Tier Hierarchy -->
-            <div class="bg-zinc-900/70 border border-zinc-800/90 rounded-lg p-2.5 space-y-1.5">
-              <div class="font-bold text-emerald-400 uppercase tracking-wider text-[10px]">
-                4-Tier Crime Family Hierarchy, Upkeep & Recruitment Caps
-              </div>
-              <ul class="space-y-1 text-zinc-400 leading-relaxed">
-                <li>
-                  <span class="text-amber-300 font-semibold">• 1. Supreme Leader (Boss · 400 HP):</span> Don / Pakhan / Oyabun / Shan Chu / Capobastone / Patrón. Kevlar Armor (300 HP) costs <span class="text-sky-300 font-semibold">$3,500</span>.
-                </li>
-                <li>
-                  <span class="text-purple-300 font-semibold">• 2. Second-in-Command (Max 5%):</span> Sottocapo / Avtoritet / Wakagashira / Fu Shan Chu / Contabile / Lugarteniente (<span class="text-white">$3,800</span> · $150/hr upkeep · 480 HP + 120 Armor · <span class="text-amber-300">9mm Pistol + 26–38 Blade Slash</span>, 1.0s CD).
-                </li>
-                <li>
-                  <span class="text-indigo-300 font-semibold">• 3. Middle Management (Max 10%):</span> Caporegime / Brigadier / Shateigashira / Hung Kwan / Caposocietà / Jefe de Plaza (<span class="text-white">$2,200</span> · $100/hr upkeep · 340 HP · 18–28 dmg, 1.0s CD).
-                </li>
-                <li>
-                  <span class="text-emerald-300 font-semibold">• 4. Street Enforcers (Max 85%):</span> Soldato / Boyevik / Kobun / Sei Kau Tsai / Picciotto / Sicario (<span class="text-white">$1,200</span> · $50/hr upkeep · 180 HP · 10–18 dmg, 1.0s CD).
-                </li>
-              </ul>
             </div>
 
-            <!-- Multiplayer Architecture Note -->
-            <div class="bg-zinc-900/70 border border-zinc-800/90 rounded-lg p-2.5">
-              <div class="font-bold text-sky-300 uppercase tracking-wider text-[10px] mb-1">
-                Host-Authoritative P2P Multiplayer (2–4 Players)
+            <div class="manual-section">
+            <!-- Scannable rank table: cap, health, damage, hire and upkeep at a glance -->
+            <div class="bg-zinc-900/70 border border-zinc-800/90 rounded-lg p-2.5 space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <div class="font-bold text-emerald-400 uppercase tracking-wider text-[10px]">
+                  Crime Family Ranks
+                </div>
+                <span class="text-[9px] font-mono text-zinc-500">HIRE · UPKEEP · CAP</span>
               </div>
-              <p class="text-zinc-400 leading-relaxed">
-                The <span class="text-emerald-300 font-semibold">Host</span> simulates combat, AI, territory capture, and economy, broadcasting authoritative snapshots via encrypted WebRTC (<span class="text-zinc-200 font-mono">Trystero</span>) or multi-tab local bus. Each guest controls a rival Syndicate Boss directly.
+
+              <div class="manual-table-wrap">
+                <table class="manual-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Rank</th>
+                      <th scope="col" title="Health; armor absorbs damage first">HP</th>
+                      <th scope="col" title="Blade damage per hit">Dmg</th>
+                      <th scope="col" title="One-time recruitment cost">Hire</th>
+                      <th scope="col" title="Paid every hour">Upkeep</th>
+                      <th scope="col" title="Maximum share of your crew">Cap</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="tier-diamond">
+                      <th scope="row" class="rank-cell">
+                        <span class="rank-dot"></span>
+                        <span class="rank-names">
+                          <span class="rank-main">Supreme Leader</span>
+                          <span class="rank-alias">Don · Pakhan · Oyabun · Shan Chu · Capobastone · Patrón</span>
+                        </span>
+                      </th>
+                      <td class="stat-cell"><span class="stat-main">400</span><span class="stat-sub">+300 armor</span></td>
+                      <td class="stat-cell"><span class="stat-main">20–40</span><span class="stat-sub">blade</span></td>
+                      <td class="stat-cell"><span class="stat-main text-zinc-500">—</span><span class="stat-sub">armor $3,500</span></td>
+                      <td class="stat-cell"><span class="stat-main text-zinc-500">—</span></td>
+                      <td class="stat-cell"><span class="cap-pill">1</span></td>
+                    </tr>
+                    <tr class="tier-gold">
+                      <th scope="row" class="rank-cell">
+                        <span class="rank-dot"></span>
+                        <span class="rank-names">
+                          <span class="rank-main">Second-in-Command</span>
+                          <span class="rank-alias">Sottocapo · Avtoritet · Wakagashira · Fu Shan Chu · Contabile · Lugarteniente</span>
+                        </span>
+                      </th>
+                      <td class="stat-cell"><span class="stat-main">480</span><span class="stat-sub">+120 armor</span></td>
+                      <td class="stat-cell"><span class="stat-main">26–38</span><span class="stat-sub">blade</span></td>
+                      <td class="stat-cell"><span class="stat-main money">$3,800</span></td>
+                      <td class="stat-cell"><span class="stat-main">$300</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×1">×1</span></td>
+                    </tr>
+                    <tr class="tier-silver">
+                      <th scope="row" class="rank-cell">
+                        <span class="rank-dot"></span>
+                        <span class="rank-names">
+                          <span class="rank-main">Middle Management</span>
+                          <span class="rank-alias">Caporegime · Brigadier · Shateigashira · Hung Kwan · Caposocietà · Jefe de Plaza</span>
+                        </span>
+                      </th>
+                      <td class="stat-cell"><span class="stat-main">340</span></td>
+                      <td class="stat-cell"><span class="stat-main">18–28</span><span class="stat-sub">blade</span></td>
+                      <td class="stat-cell"><span class="stat-main money">$2,200</span></td>
+                      <td class="stat-cell"><span class="stat-main">$200</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×2">×2</span></td>
+                    </tr>
+                    <tr class="tier-copper">
+                      <th scope="row" class="rank-cell">
+                        <span class="rank-dot"></span>
+                        <span class="rank-names">
+                          <span class="rank-main">Street Enforcers</span>
+                          <span class="rank-alias">Soldato · Boyevik · Kobun · Sei Kau Tsai · Picciotto · Sicario</span>
+                        </span>
+                      </th>
+                      <td class="stat-cell"><span class="stat-main">180</span></td>
+                      <td class="stat-cell"><span class="stat-main">10–18</span><span class="stat-sub">blade</span></td>
+                      <td class="stat-cell"><span class="stat-main money">$1,200</span></td>
+                      <td class="stat-cell"><span class="stat-main">$100</span><span class="stat-sub">/ hr</span></td>
+                      <td class="stat-cell"><span class="cap-pill" title="Max = grid side ×10">×10</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <p class="text-[10px] text-zinc-500 leading-relaxed">
+                Hire is one-time; upkeep is paid every hour. Caps scale with the city grid: Underbosses ×1, Captains ×2, Soldiers ×10 (15×15 allows 15 / 30 / 150). Minimums are 1 / 2 / 10. Lower each tier's ceiling in Crew Limits before launch, then set your own target in Crew Management with MIN / − / + / MAX. Armor absorbs damage before HP. Everyone's pistol deals 40–80 at range.
               </p>
+            </div>
             </div>
           </div>
 
         </div>
-
-        <button id="btn-start-game" class="w-full bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold py-3 rounded-xl shadow-lg border border-emerald-400/30 transition text-sm tracking-wide">
-          Launch Turf War
-        </button>
+        </div>
       </div>
     </div>
 
@@ -607,5 +873,9 @@
       }
     });
   </script>
+
+  <!-- Privacy-friendly analytics; async so it never blocks rendering or gameplay. -->
+  <script data-goatcounter="https://hrodic.goatcounter.com/count"
+          async src="https://gc.zgo.at/count.js"></script>
 </body>
 </html>

@@ -2,6 +2,7 @@
 import { test, assert, assertEqual, assertDeepEqual } from './harness.js';
 import { Faction, UnitRank } from '../src/config/enums.js';
 import { INCOME_TIERS } from '../src/config/balance.js';
+import { TILE_SIZE } from '../src/config/constants.js';
 import { FACTION_META, ORGANIZATIONS } from '../src/config/organizations.js';
 import { state } from '../src/core/state.js';
 import { on } from '../src/core/events.js';
@@ -32,6 +33,7 @@ const STATE_KEYS = [
   'treasuries',
   'factionAlive',
   'factionKills',
+  'factionDeaths',
   'playerSpawnCaps',
   'factionRecruitmentPrefs',
   'player',
@@ -130,13 +132,13 @@ test('match: the player boss is reset and spawns at the top-left corner', () => 
     assertEqual(state.player.armor, 0);
     assertEqual(state.player.alive, true);
     assertEqual(state.player.attackCooldown, 0);
-    assertEqual(state.player.x, 1.5 * 44);
-    assertEqual(state.player.y, 1.5 * 44);
+    assertEqual(state.player.x, 1.5 * TILE_SIZE);
+    assertEqual(state.player.y, 1.5 * TILE_SIZE);
     assertEqual(state.gameStarted, true);
     assertEqual(state.gameOver, false);
     assertEqual(state.victoryShown, false);
     assertEqual(state.isSpectating, false);
-    assertEqual(state.gameHour, 12);
+    assertEqual(state.gameHour, 19);
     assertEqual(state.tickTimer, 0);
     assertEqual(state.nextNpcId, 1 + 3, 'three rival bosses should have spawned');
     assertEqual(state.camera.x, state.player.x);
@@ -253,7 +255,7 @@ test('match: initWorld resets stale flags, timers, economy, caps and player stat
     assertEqual(state.gameOver, false);
     assertEqual(state.victoryShown, false);
     assertEqual(state.tickTimer, 0);
-    assertEqual(state.gameHour, 12);
+    assertEqual(state.gameHour, 19);
     assertEqual(state.hudUpdateTimer, 0);
     assertEqual(state.minimapCacheTimer, 1.0);
     assertEqual(state.nextNpcId, 1 + 1, 'one active rival boss should have spawned');
@@ -267,13 +269,13 @@ test('match: initWorld resets stale flags, timers, economy, caps and player stat
     assertEqual(state.factionAlive[Faction.RIVAL_1], false);
     assertEqual(state.factionKills[Faction.PLAYER], 0);
 
-    // 5x5 = 25 blocks: 22 soldiers, 2 captains, 1 underboss; human caps are 50%.
-    assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 11);
-    assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 1);
-    assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 1);
+    // 5x5 grid: 50 soldiers, 10 captains, 5 underbosses; human caps are 50%.
+    assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 25);
+    assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 5);
+    assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 3);
 
-    assertEqual(state.player.x, 1.5 * 44);
-    assertEqual(state.player.y, 1.5 * 44);
+    assertEqual(state.player.x, 1.5 * TILE_SIZE);
+    assertEqual(state.player.y, 1.5 * TILE_SIZE);
     assertEqual(state.player.targetX, null);
     assertEqual(state.player.targetY, null);
     assertEqual(state.player.path, null);

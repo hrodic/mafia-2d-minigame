@@ -147,7 +147,11 @@ export function renderGuestLobby({ roster, settings, me }) {
   }
 
   if (settingsEl && settings) {
-    settingsEl.textContent = `Map: ${settings.gridSize}×${settings.gridSize} · Tick: ${settings.tickSeconds}s · Income: ${settings.incomeTier}`;
+    const caps = settings.unitCaps;
+    const capText = caps
+      ? ` · Crew max: ${caps.maxSoldiers}S/${caps.maxCaptains}C/${caps.maxUnderbosses}U`
+      : '';
+    settingsEl.textContent = `Map: ${settings.gridSize}×${settings.gridSize} · Tick: ${settings.tickSeconds}s · Income: ${settings.incomeTier}${capText}`;
   }
 
   if (!rosterEl) return;

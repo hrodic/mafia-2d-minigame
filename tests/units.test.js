@@ -30,6 +30,7 @@ const STATE_KEYS = [
   'player',
   'playerSpawnCaps',
   'factionRecruitmentPrefs',
+  'matchUnitCaps',
   'net',
   'currentGridSize',
   'floatingTexts',
@@ -51,6 +52,7 @@ function withUnitsState(opts, fn) {
   state.player = { ...saved.player, x: 0, y: 0, alive: false, ...(opts.player || {}) };
   state.playerSpawnCaps = { ...saved.playerSpawnCaps, ...(opts.playerSpawnCaps || {}) };
   state.factionRecruitmentPrefs = JSON.parse(JSON.stringify(saved.factionRecruitmentPrefs));
+  state.matchUnitCaps = opts.matchUnitCaps ? { ...opts.matchUnitCaps } : null;
   state.net = opts.net || null;
   state.currentGridSize = opts.currentGridSize ?? 15;
   state.floatingTexts = [];
@@ -85,9 +87,9 @@ test('units: caps scale with the number of neighborhoods', () => {
   withUnitsState({ map: { chunks: { size: 100 } } }, () => {
     assertDeepEqual(getUnitCaps(), {
       totalNeighborhoods: 100,
-      maxSoldiers: 85,
-      maxCaptains: 10,
-      maxUnderbosses: 5,
+      maxSoldiers: 100,
+      maxCaptains: 20,
+      maxUnderbosses: 10,
     });
   });
   withUnitsState({ map: { chunks: { size: 0 } }, currentGridSize: 10 }, () => {
@@ -98,6 +100,75 @@ test('units: caps scale with the number of neighborhoods', () => {
   });
 });
 
+test('units: tier caps scale by grid side with tier minimums', () => {
+  withUnitsState({ map: { chunks: { size: 25 } } }, () => {
+    assertDeepEqual(getUnitCaps(), {
+      totalNeighborhoods: 25,
+      maxSoldiers: 50,
+      maxCaptains: 10,
+      maxUnderbosses: 5,
+    });
+  });
+
+  withUnitsState({ map: { chunks: { size: 625 } } }, () => {
+    assertDeepEqual(getUnitCaps(), {
+      totalNeighborhoods: 625,
+      maxSoldiers: 250,
+      maxCaptains: 50,
+      maxUnderbosses: 25,
+    });
+  });
+
+  withUnitsState(
+    {
+      map: { chunks: { size: 25 } },
+      playerSpawnCaps: {
+        [UnitRank.SOLDIER]: 0,
+        [UnitRank.CAPTAIN]: 0,
+        [UnitRank.UNDERBOSS]: 0,
+      },
+    },
+    () => {
+      clampPlayerSpawnCaps();
+      assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 10);
+      assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 2);
+      assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 1);
+    }
+  );
+});
+
+test('units: match-configured caps lower the grid ceiling', () => {
+  withUnitsState(
+    {
+      map: { chunks: { size: 225 } },
+      matchUnitCaps: { maxSoldiers: 140, maxCaptains: 20, maxUnderbosses: 10 },
+    },
+    () => {
+      assertDeepEqual(getUnitCaps(), {
+        totalNeighborhoods: 225,
+        maxSoldiers: 140,
+        maxCaptains: 20,
+        maxUnderbosses: 10,
+      });
+    }
+  );
+
+  withUnitsState(
+    {
+      map: { chunks: { size: 225 } },
+      matchUnitCaps: { maxSoldiers: 999, maxCaptains: 999, maxUnderbosses: 999 },
+    },
+    () => {
+      assertDeepEqual(getUnitCaps(), {
+        totalNeighborhoods: 225,
+        maxSoldiers: 150,
+        maxCaptains: 30,
+        maxUnderbosses: 15,
+      });
+    }
+  );
+});
+
 test('units: clamp keeps player spawn caps within hard limits and above 1', () => {
   withUnitsState(
     {
@@ -106,8 +177,8 @@ test('units: clamp keeps player spawn caps within hard limits and above 1', () =
     },
     () => {
       clampPlayerSpawnCaps();
-      assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 85);
-      assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 1);
+      assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 100);
+      assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 2);
       assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 5);
     }
   );
@@ -121,16 +192,16 @@ test('units: default caps give humans half and AI the full quota', () => {
     },
     () => {
       resetDefaultPlayerSpawnCaps();
-      assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 43);
-      assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 5);
-      assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 3);
+      assertEqual(state.playerSpawnCaps[UnitRank.SOLDIER], 50);
+      assertEqual(state.playerSpawnCaps[UnitRank.CAPTAIN], 10);
+      assertEqual(state.playerSpawnCaps[UnitRank.UNDERBOSS], 5);
 
       const prefs = state.factionRecruitmentPrefs;
-      assertEqual(prefs[Faction.PLAYER].caps[UnitRank.SOLDIER], 43);
-      assertEqual(prefs[Faction.RIVAL_1].caps[UnitRank.SOLDIER], 43);
-      assertEqual(prefs[Faction.RIVAL_2].caps[UnitRank.SOLDIER], 85);
-      assertEqual(prefs[Faction.RIVAL_2].caps[UnitRank.CAPTAIN], 10);
-      assertEqual(prefs[Faction.RIVAL_2].caps[UnitRank.UNDERBOSS], 5);
+      assertEqual(prefs[Faction.PLAYER].caps[UnitRank.SOLDIER], 50);
+      assertEqual(prefs[Faction.RIVAL_1].caps[UnitRank.SOLDIER], 50);
+      assertEqual(prefs[Faction.RIVAL_2].caps[UnitRank.SOLDIER], 100);
+      assertEqual(prefs[Faction.RIVAL_2].caps[UnitRank.CAPTAIN], 20);
+      assertEqual(prefs[Faction.RIVAL_2].caps[UnitRank.UNDERBOSS], 10);
       assertEqual(prefs[Faction.RIVAL_3].autoSoldier, true);
     }
   );
@@ -247,12 +318,14 @@ test('units: recruitment refuses dead factions, poverty and no turf', () => {
 
 test('units: the player spawn cap stops recruitment', () => {
   withUnitsState(
-    { treasuries: { [Faction.PLAYER]: 10000 }, playerSpawnCaps: { [UnitRank.SOLDIER]: 1 } },
+    { treasuries: { [Faction.PLAYER]: 20000 }, playerSpawnCaps: { [UnitRank.SOLDIER]: 10 } },
     ({ map }) => {
       ownedChunk(map, Faction.PLAYER);
-      assertEqual(recruitUnit(Faction.PLAYER, UnitRank.SOLDIER), true);
+      for (let i = 0; i < 10; i++) {
+        assertEqual(recruitUnit(Faction.PLAYER, UnitRank.SOLDIER), true, `soldier ${i + 1}`);
+      }
       assertEqual(recruitUnit(Faction.PLAYER, UnitRank.SOLDIER), false);
-      assertEqual(state.treasuries[Faction.PLAYER], 10000 - COST_SOLDIER);
+      assertEqual(state.treasuries[Faction.PLAYER], 20000 - COST_SOLDIER * 10);
     }
   );
 });
@@ -260,13 +333,15 @@ test('units: the player spawn cap stops recruitment', () => {
 test('units: remote-human pref caps are honoured', () => {
   withUnitsState(
     {
-      treasuries: { [Faction.RIVAL_1]: 10000 },
+      treasuries: { [Faction.RIVAL_1]: 20000 },
       net: { isHumanFaction: (faction) => faction === Faction.RIVAL_1 },
     },
     ({ map }) => {
       ownedChunk(map, Faction.RIVAL_1, 14, 0);
-      state.factionRecruitmentPrefs[Faction.RIVAL_1].caps[UnitRank.SOLDIER] = 1;
-      assertEqual(recruitUnit(Faction.RIVAL_1, UnitRank.SOLDIER), true);
+      state.factionRecruitmentPrefs[Faction.RIVAL_1].caps[UnitRank.SOLDIER] = 10;
+      for (let i = 0; i < 10; i++) {
+        assertEqual(recruitUnit(Faction.RIVAL_1, UnitRank.SOLDIER), true, `soldier ${i + 1}`);
+      }
       assertEqual(recruitUnit(Faction.RIVAL_1, UnitRank.SOLDIER), false);
     }
   );

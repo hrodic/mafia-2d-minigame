@@ -10,9 +10,16 @@ import {
   setSoundEnabled,
 } from '../audio/engine.js';
 import { canvas, minimapCanvas } from '../render/canvas.js';
-import { getMinimapLayout, minimapToWorld } from '../render/minimapLayout.js';
+import { getMinimapLayout, minimapToWorld, minimapCellAt } from '../render/minimapLayout.js';
+import { setMinimapHover, toggleMinimapExpanded } from '../render/minimap.js';
 import { sendOrDispatchCommand } from './commandBridge.js';
-import { syncRecruitButtonLabels } from './hud.js';
+import {
+  syncRecruitButtonLabels,
+  toggleCrewPanel,
+  toggleFactionBoard,
+  setRecruitCapMin,
+  setRecruitCapMax,
+} from './hud.js';
 import { showToast } from './menus.js';
 
 export function initInput() {
@@ -140,6 +147,28 @@ canvas.addEventListener('mousedown', (e) => {
   }
 });
 
+minimapCanvas.addEventListener('mousemove', (e) => {
+  if (!state.gameStarted || state.world.chunks.size === 0) {
+    setMinimapHover(null);
+    return;
+  }
+  const rect = minimapCanvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) {
+    setMinimapHover(null);
+    return;
+  }
+  const mx = (e.clientX - rect.left) * (minimapCanvas.width / rect.width);
+  const my = (e.clientY - rect.top) * (minimapCanvas.height / rect.height);
+  const layout = getMinimapLayout(
+    state.world.chunks.values(),
+    minimapCanvas.width,
+    minimapCanvas.height
+  );
+  setMinimapHover(minimapCellAt(layout, mx, my));
+});
+
+minimapCanvas.addEventListener('mouseleave', () => setMinimapHover(null));
+
 minimapCanvas.addEventListener('click', (e) => {
   getAudioCtx();
   if (!state.gameStarted || state.world.chunks.size === 0) return;
@@ -181,6 +210,31 @@ function pushRecruitPrefs() {
   });
 }
 
+function bindCapPresets(key, rank) {
+  document.getElementById(`btn-cap-${key}-min`)?.addEventListener('click', () => {
+    setRecruitCapMin(rank);
+    pushRecruitPrefs();
+  });
+  document.getElementById(`btn-cap-${key}-max`)?.addEventListener('click', () => {
+    setRecruitCapMax(rank);
+    pushRecruitPrefs();
+  });
+}
+bindCapPresets('soldier', UnitRank.SOLDIER);
+bindCapPresets('captain', UnitRank.CAPTAIN);
+bindCapPresets('underboss', UnitRank.UNDERBOSS);
+
+document.getElementById('btn-management-collapse')?.addEventListener('click', () => toggleCrewPanel());
+document.getElementById('btn-faction-collapse')?.addEventListener('click', () => toggleFactionBoard());
+document.getElementById('btn-radar-expand')?.addEventListener('click', (e) => {
+  const expanded = toggleMinimapExpanded();
+  const panel = document.getElementById('radar-panel');
+  if (panel) panel.classList.toggle('is-expanded', expanded);
+  e.currentTarget.textContent = expanded ? '⤡' : '⤢';
+  e.currentTarget.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  e.currentTarget.setAttribute('aria-label', expanded ? 'Shrink radar' : 'Expand radar');
+  e.currentTarget.title = expanded ? 'Shrink radar' : 'Expand radar';
+});
 document.getElementById('btn-toggle-soldier').addEventListener('click', () => {
   state.autoRecruitSoldier = !state.autoRecruitSoldier;
   syncRecruitButtonLabels();

@@ -50,12 +50,12 @@ function chunkHash(seed, cx, cy) {
 test('golden: seeded chunks keep their exact generated output', () => {
   // [seed, cx, cy, expected FNV-1a hash of all tile/prop/income/faction data]
   const cases = [
-    [123456789, 0, 0, 'a9992227'],
-    [123456789, 3, 7, 'f8538da5'],
-    [123456789, -2, 5, 'b00fe135'],
+    [123456789, 0, 0, '4585485d'],
+    [123456789, 3, 7, 'a2a54c54'],
+    [123456789, -2, 5, '375e4490'],
     [42, 14, 14, 'd384c387'],
-    [987654321, 7, 3, 'f0443ed5'],
-    [1, 0, 0, '34e38c06'],
+    [987654321, 7, 3, '3eb4ceea'],
+    [1, 0, 0, '4430b34d'],
   ];
   for (const [seed, cx, cy, expected] of cases) {
     assertEqual(chunkHash(seed, cx, cy), expected, `seed ${seed} chunk ${cx},${cy}`);

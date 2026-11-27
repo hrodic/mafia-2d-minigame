@@ -18,6 +18,39 @@ if (minimapCacheCanvas && minimapCanvas) {
   minimapCacheCanvas.height = minimapCanvas.height;
 }
 const coordsEl = typeof document !== 'undefined' ? document.getElementById('minimap-coords') : null;
+let hoverCell = null;
+let minimapExpanded = false;
+
+/** Resize the radar between its default 168px and expanded 336px backing store. */
+export function setMinimapExpanded(expanded) {
+  minimapExpanded = Boolean(expanded);
+  const size = minimapExpanded ? 336 : 168;
+  if (minimapCanvas) {
+    minimapCanvas.width = size;
+    minimapCanvas.height = size;
+  }
+  if (minimapCacheCanvas) {
+    minimapCacheCanvas.width = size;
+    minimapCacheCanvas.height = size;
+  }
+  state.minimapCacheTimer = 1;
+  return minimapExpanded;
+}
+
+export function isMinimapExpanded() {
+  return minimapExpanded;
+}
+
+export function toggleMinimapExpanded() {
+  return setMinimapExpanded(!minimapExpanded);
+}
+
+/** Highlight one radar cell while the pointer is over the minimap. */
+export function setMinimapHover(cell) {
+  hoverCell = cell && Number.isFinite(cell.cx) && Number.isFinite(cell.cy)
+    ? { cx: cell.cx, cy: cell.cy }
+    : null;
+}
 
 
 export function renderMinimap(dt = 1 / 60) {
@@ -42,12 +75,44 @@ export function renderMinimap(dt = 1 / 60) {
       const rx = pos.x;
       const ry = pos.y;
       const meta = FACTION_META[chunk.faction] || FACTION_META[Faction.NEUTRAL];
-      minimapCacheCtx.fillStyle = chunk.faction === Faction.NEUTRAL ? '#27272a' : meta.badge;
-      minimapCacheCtx.fillRect(rx + 0.5, ry + 0.5, Math.max(1, cellSize - 1), Math.max(1, cellSize - 1));
+      minimapCacheCtx.fillStyle = chunk.faction === Faction.NEUTRAL ? '#34343a' : meta.badge;
+      minimapCacheCtx.fillRect(rx, ry, cellSize, cellSize);
     }
+
+    // Crisp 1px gridlines on top of the cached territory colors.
+    minimapCacheCtx.strokeStyle = 'rgba(255, 255, 255, 0.11)';
+    minimapCacheCtx.lineWidth = 1;
+    minimapCacheCtx.beginPath();
+    for (let i = 0; i <= layout.cols; i++) {
+      const x = Math.round(layout.offsetX + i * cellSize) + 0.5;
+      minimapCacheCtx.moveTo(x, layout.offsetY);
+      minimapCacheCtx.lineTo(x, layout.offsetY + layout.rows * cellSize);
+    }
+    for (let i = 0; i <= layout.rows; i++) {
+      const y = Math.round(layout.offsetY + i * cellSize) + 0.5;
+      minimapCacheCtx.moveTo(layout.offsetX, y);
+      minimapCacheCtx.lineTo(layout.offsetX + layout.cols * cellSize, y);
+    }
+    minimapCacheCtx.stroke();
   }
 
   minimapCtx.drawImage(minimapCacheCanvas, 0, 0);
+
+  if (hoverCell) {
+    const pos = chunkToMinimap(layout, hoverCell.cx, hoverCell.cy);
+    minimapCtx.save();
+    minimapCtx.fillStyle = 'rgba(251, 191, 36, 0.22)';
+    minimapCtx.fillRect(pos.x, pos.y, cellSize, cellSize);
+    minimapCtx.strokeStyle = 'rgba(251, 191, 36, 0.95)';
+    minimapCtx.lineWidth = 1;
+    minimapCtx.strokeRect(
+      Math.round(pos.x) + 0.5,
+      Math.round(pos.y) + 0.5,
+      Math.max(1, Math.round(cellSize) - 1),
+      Math.max(1, Math.round(cellSize) - 1)
+    );
+    minimapCtx.restore();
+  }
 
   // Draw unit & boss dots
   for (let i = 0; i < state.npcs.length; i++) {
@@ -64,13 +129,20 @@ export function renderMinimap(dt = 1 / 60) {
     const pos = worldToMinimap(layout, state.player.x, state.player.y);
     const px = pos.x;
     const py = pos.y;
-    minimapCtx.fillStyle = '#fef08a';
+    minimapCtx.save();
+    minimapCtx.shadowColor = '#fbbf24';
+    minimapCtx.shadowBlur = 10;
+    minimapCtx.fillStyle = '#fff7d6';
     minimapCtx.beginPath();
     minimapCtx.arc(px, py, 3.2, 0, Math.PI * 2);
     minimapCtx.fill();
+    minimapCtx.strokeStyle = '#fbbf24';
+    minimapCtx.lineWidth = 1.5;
+    minimapCtx.stroke();
+    minimapCtx.restore();
   }
 
-  // Camera viewport rectangle
+  // Camera viewport reticle: white core over a warm glow.
   const camTopLeft = worldToMinimap(
     layout,
     state.camera.x - canvas.width / 2,
@@ -78,9 +150,16 @@ export function renderMinimap(dt = 1 / 60) {
   );
   const camW = (canvas.width / CHUNK_PX) * cellSize;
   const camH = (canvas.height / CHUNK_PX) * cellSize;
-  minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+  minimapCtx.save();
+  minimapCtx.shadowColor = '#fbbf24';
+  minimapCtx.shadowBlur = 8;
+  minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+  minimapCtx.lineWidth = 1.5;
+  minimapCtx.strokeRect(camTopLeft.x, camTopLeft.y, camW, camH);
+  minimapCtx.strokeStyle = 'rgba(251, 191, 36, 0.75)';
   minimapCtx.lineWidth = 1;
   minimapCtx.strokeRect(camTopLeft.x, camTopLeft.y, camW, camH);
+  minimapCtx.restore();
 
   const localBoss = getLocalBoss();
   const bTile = state.world.worldToTile(localBoss.x, localBoss.y);
