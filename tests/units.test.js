@@ -372,6 +372,16 @@ test('units: defend reinforcements without a threat spawn on the nearest owned b
     assertEqual(spawn.cy, 0);
   });
 });
+test('units: spawning immediately indexes the new unit in spatial buckets', () => {
+  withUnitsState({}, ({ map }) => {
+    const chunk = ownedChunk(map, Faction.RIVAL_1, 0, 0);
+    const unit = spawnUnitInChunk(Faction.RIVAL_1, chunk, UnitRank.SOLDIER);
+    assert(unit, 'unit should spawn');
+    const bucket = state.spatialBuckets.get(packChunkKey(0, 0));
+    assert(bucket && bucket.includes(unit), 'new unit should be visible to same-step collision');
+  });
+});
+
 test('units: captain and underboss recruitment costs match the balance table', () => {
   withUnitsState({ treasuries: { [Faction.PLAYER]: 10000 } }, ({ map }) => {
     ownedChunk(map, Faction.PLAYER);

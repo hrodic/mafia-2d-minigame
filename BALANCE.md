@@ -205,6 +205,19 @@ See **`TACTICS.md`** for the full operational stance, directives and rules of en
 Gun shooters hold fire while any ally is in the bullet path. They sidestep to re-open the
 lane, then fire as soon as it is clear.
 
+### Push & separation
+
+| Value | Current |
+|---|---|
+| Friendly NPC spacing | **half** the radius sum |
+| Human boss spacing | full radius sum |
+| Push speed | **30%** of normal |
+| Boss push mass | **1.25**; all other ranks **1.0** |
+| Push chain | up to **3** allies; full rollback if any link is blocked |
+| Side-step | AI tries diagonal then pure side before pushing |
+| Depenetration | **2 Hz**, max **1 px** per unit per pass |
+| Human bosses | never pushed by allies |
+
 ### Armor & sprint
 
 | Value | Current |

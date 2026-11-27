@@ -329,6 +329,47 @@
         turf[chunk.faction] = (turf[chunk.faction] || 0) + 1;
       }
 
+      let overlapPairs = 0;
+      let maxOverlap = 0;
+      const overlapDetails = [];
+      for (let i = 0; i < units.length; i++) {
+        const a = units[i];
+        if (!a || a.hp <= 0) continue;
+        const ar = a.bodyRadius || 11;
+        for (let j = i + 1; j < units.length; j++) {
+          const b = units[j];
+          if (!b || b.hp <= 0 || b.faction !== a.faction) continue;
+          const br = b.bodyRadius || 11;
+          const humanBoss =
+            a === state.player ||
+            b === state.player ||
+            Boolean(a.humanPeerId) ||
+            Boolean(b.humanPeerId);
+          const minDist = humanBoss ? ar + br - 1 : (ar + br) * 0.5;
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const distSq = dx * dx + dy * dy;
+          if (distSq >= minDist * minDist) continue;
+          overlapPairs++;
+          const dist = Math.sqrt(distSq);
+          const overlap = minDist - dist;
+          if (overlap > maxOverlap) maxOverlap = overlap;
+          if (overlapDetails.length < 6) {
+            overlapDetails.push({
+              a: a.id,
+              aRank: a.rank,
+              b: b.id,
+              bRank: b.rank,
+              faction: a.faction,
+              x: Math.round(a.x),
+              y: Math.round(a.y),
+              dist: Math.round(dist * 10) / 10,
+              overlap: Math.round(overlap * 10) / 10,
+            });
+          }
+        }
+      }
+
       const bosses = [state.player, ...state.npcs.filter((unit) => unit.rank === UnitRank.BOSS)]
         .map((unit) => ({
           faction: unit.faction,
@@ -381,6 +422,9 @@
         tickTimer: Math.round(state.tickTimer * 1000) / 1000,
         invalid,
         invalidTreasury,
+        overlapPairs,
+        maxOverlap: Math.round(maxOverlap * 10) / 10,
+        overlapDetails,
         globalStance: state.factionTactics[state.activeFactions[0]].globalStance,
         localOrder: state.factionTactics[state.activeFactions[0]].localOrder,
         perf: perf.snapshot(),
@@ -417,6 +461,8 @@
         ['Hour', result.hour],
         ['Game over', result.gameOver ? 'yes' : 'no'],
         ['Invalid units', result.invalid.length],
+        ['Overlap pairs', result.overlapPairs ?? 0],
+        ['Max overlap', `${result.maxOverlap ?? 0} px`],
       ];
       meta.innerHTML = stats
         .map(([label, value]) => `<div class="stat"><span>${label}</span><b>${value}</b></div>`)

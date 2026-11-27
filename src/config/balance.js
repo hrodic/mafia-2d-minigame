@@ -96,6 +96,13 @@ export const AI_TACTICS = {
   meleeAggroRange: 500,
 };
 
+/** Bosses are 25% heavier when pushing/resisting pushes; every other rank is 1. */
+export function getPushMass(rank) {
+  return rank === UnitRank.BOSS ? 1.25 : 1;
+}
+
+export const PUSH_SPEED_FACTOR = 0.3;
+
 export const UNIT_CAPS = {
   underbossPerSide: 1,
   captainPerSide: 2,

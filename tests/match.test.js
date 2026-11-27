@@ -295,7 +295,8 @@ test('match: initWorld resets stale flags, timers, economy, caps and player stat
 
     assertEqual(state.floatingTexts.length, 0);
     assertEqual(state.bucketPool.length, 0);
-    assertEqual(state.spatialBuckets.size, 0);
+    assert(!state.spatialBuckets.has('stale'), 'stale bucket should be cleared');
+    assert(state.spatialBuckets.size > 0, 'newly spawned bosses are indexed immediately');
     assertEqual(state.keys.size, 0);
     assertEqual(state.mouse.inside, false);
   });

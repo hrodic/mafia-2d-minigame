@@ -173,6 +173,7 @@ export function createGameState(config = {}) {
     hudUpdateTimer: 0,
     minimapCacheTimer: 1.0,
     tacticsTimer: 0,
+    depenetrationTimer: 0,
 
     // --- multiplayer bridge (assigned by main.js after mpNet init) ----------
     net: config.net ?? null,

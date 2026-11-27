@@ -7,6 +7,7 @@ import { GLOBAL_STANCE } from '../config/tactics.js';
 import { ALL_FACTION_SLOTS } from '../config/organizations.js';
 import { state } from '../core/state.js';
 import { emit } from '../core/events.js';
+import { packChunkKey } from '../world/city.js';
 import { canOccupyPosition } from './movement.js';
 import { countLivingEnemiesOnChunk } from './territory.js';
 
@@ -160,6 +161,13 @@ export function spawnUnitInChunk(faction, chunk, rank = UnitRank.SOLDIER) {
         stuckTimer: 0,
       };
       state.npcs.push(unit);
+      const bucketKey = packChunkKey(Math.floor(wx / CHUNK_PX), Math.floor(wy / CHUNK_PX));
+      let bucket = state.spatialBuckets.get(bucketKey);
+      if (!bucket) {
+        bucket = state.bucketPool.pop() || [];
+        state.spatialBuckets.set(bucketKey, bucket);
+      }
+      bucket.push(unit);
       return unit;
     }
   }

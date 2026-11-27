@@ -226,6 +226,16 @@ labels, seed display and HUD.
   (`canMoveTo`), snaps to nearest walkable points, and expands perimeter rings.
   Each `DistrictChunk` precomputes its static car collision rectangles; `canMoveTo`
   uses them and still falls back to `getPropFootprint` for synthetic/test chunks.
+  `moveUnit` gathers the 3×3 neighbourhood once per step and reuses it for friendly
+  push detection and both axis-collision checks. Friendly NPCs use **half** the
+  radius-sum separation, so they fit tighter alleys; human-controlled bosses keep
+  full spacing. A moving AI first tries a diagonal/pure side-step around a friendly
+  blocker, then pushes. Pushing may chain through up to 3 allies and rolls back
+  atomically if any link is blocked. Human-controlled bosses are never pushed by
+  allies. Push speed is 30%; bosses have 1.25 push mass and resist pushes from
+  lighter ranks. A 2 Hz depenetration pass (max 1 px per unit) cleans any stale
+  friendly overlaps. `spawnUnitInChunk` adds new units to the spatial bucket
+  immediately so same-tick recruits cannot spawn on the same spot.
 - **Pathfinding** (`world/pathfinding.js`) is A* over tiles with a per-frame exploration
   budget (`MAX_ASTAR_PER_FRAME`). A fast DDA tile-line pre-check (`hasLineOfSight`) skips A*
   for clear short lines, and the open set is a binary min-heap. Blocked, too-long or
@@ -490,7 +500,8 @@ distance from the camera.
   two tabs for deterministic host/guest testing without external relays.
 - `tests/long-sim.html` is a standalone, slower sanity page: it runs 120 simulated seconds
   (14,400 fixed steps) with a patrolling, auto-shopping player (Glock, ammo, Kevlar, MP9 after
-  90 s), and reports unit/faction/boss, world sanity and optional perf counters. The setup is
+  90 s), and reports unit/faction/boss, world sanity, same-faction overlap pairs and optional
+  perf counters. The setup is
   configurable: grid **5–25**, tick **10–30 s**, income **Low/Mid/High**, and **2–4**
   factions. Default is **Turbo 10×10**; **Big Turbo 25×25** is the large stress preset. It
   is not part of `tests.html`; open it directly to run a longer headless game. Run it at

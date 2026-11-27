@@ -34,10 +34,16 @@ architecture description here.
   **Expand + Attack** preserve the pre-command behavior. A* quick wins are in:
   binary heap, 16-tile LOS pre-check, optional perf counters; `scanNearby` now uses
   squared distances and boss-only group counts. Collision safe pass is in: idle
-  `moveUnit` skips push/collision scans, body radii are cached, and car rects are
-  precomputed per chunk. Deeper collision work (shared neighbourhood scan, combined
-  X/Y check) is the next measured target. Version stays `0.8.0` for
-  the whole branch by owner decision.
+  `moveUnit` skips push/collision scans, body radii are cached, car rects are
+  precomputed per chunk, and `moveUnit` shares one 3×3 neighbourhood scan across
+  push and axis collision. Stage 1 push is in: same-faction units keep minimum
+  separation, a moving unit slowly pushes one ally, and a blocked ally blocks the
+  pusher. Stage 2 chain push is in: up to 3 allies are pushed as a chain with full
+  rollback if any link is blocked. Friendly NPC separation is halved for tighter
+  alleys, and AI units try a diagonal/pure side-step before pushing. Push speed is
+  30%; bosses have 1.25 push mass and resist pushes. Low-frequency depenetration
+  cleans stale overlaps. The push model is complete.
+  Version stays `0.8.0` for the whole branch by owner decision.
 
 Phases 3, 4 and 5 are complete. `refactor/phase-5-quality` has merged into `master`. `0.8.0`
 is the active feature branch; future ideas and optional tasks are listed below.

@@ -8,6 +8,7 @@ import {
   moveUnit,
   updateHumanControlledRivalBoss,
   computeSteeringPath,
+  separateStaleOverlaps,
 } from './movement.js';
 import { progressCapture, getCapturePerTick } from './territory.js';
 import { processHourlyTick } from './economy.js';
@@ -122,6 +123,9 @@ export function update(dt) {
 
   // Player regen after all NPC attacks, so a hit this frame suppresses it immediately.
   regenUnit(state.player, dt);
+
+  // Low-frequency cleanup for any stale friendly overlaps.
+  separateStaleOverlaps(dt);
 
   // Hourly Economy & Auto-Recruitment Tick
   state.tickTimer += dt;
