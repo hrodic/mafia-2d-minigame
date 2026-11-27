@@ -92,6 +92,8 @@ export const AI_TACTICS = {
   rangedBackoffStep: 80,
   rangedBackoffDuration: 0.6,
   bossMeleeCommitDistance: 110,
+  rangedAggroBuffer: 100,
+  meleeAggroRange: 500,
 };
 
 export const UNIT_CAPS = {

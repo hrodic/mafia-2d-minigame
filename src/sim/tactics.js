@@ -167,7 +167,7 @@ function refreshFaction(faction) {
     record.bossX = boss.x;
     record.bossY = boss.y;
     const hpFraction = boss.maxHp > 0 ? boss.hp / boss.maxHp : 0;
-    const scan = scanNearby(boss);
+    const scan = scanNearby(boss, true);
     record.bossInDanger =
       hpFraction <= AI_TACTICS.bossRetreatHpFraction ||
       (scan.nearbyEnemyCount >= AI_TACTICS.bossRetreatMinEnemies &&

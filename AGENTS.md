@@ -63,8 +63,9 @@ Run these before every commit:
 - `1.0.0` is the first stable release; while `0.x`, breaking changes may still land in a
   MINOR.
 - Peers must run the same `GAME_VERSION`: it gates the multiplayer handshake.
-- **Before pushing a MINOR version bump**, run the standalone 120s Turbo simulation in
-  `tests/long-sim.html` at least once and confirm `PASS`. It is recommended as the release
+- **Before pushing a MINOR version bump**, run the standalone 120s headless simulation in
+  `tests/long-sim.html` at least once and confirm `PASS`. Default is **Turbo 10×10**; use
+  the **Big Turbo 25×25** preset for a larger stress run. It is recommended as the release
   sanity check for each MINOR bump.
 
 ## Commands (Windows/PowerShell; `python`/`node` not assumed)
@@ -80,7 +81,7 @@ Run these before every commit:
 | Single-player smoke | `http://localhost:8123/` |
 | Built artifact smoke | `http://localhost:8123/docs/` |
 | Multiplayer smoke | `tests/mp-harness.html` in two tabs |
-| 120s turbo simulation | `http://localhost:8123/tests/long-sim.html` (standalone) |
+| 120s headless simulation | `http://localhost:8123/tests/long-sim.html` (grid/tick/income/factions selector) |
 | Manual checklist | `tests/SMOKE.md` |
 
 ## Verification (after every change)
@@ -97,8 +98,8 @@ Run these before every commit:
 7. Added a test file? Register it in `tests/runner.js`; the check script enforces this.
 8. Golden test failed after a refactor? Generation broke. Fix the code; update
    `tests/world-golden.test.js` hashes only for an intentional generation change.
-9. Before pushing a MINOR version bump, run `tests/long-sim.html` (120s Turbo) once and
-   confirm `PASS` alongside the normal gates.
+9. Before pushing a MINOR version bump, run `tests/long-sim.html` (120s headless; default
+   Turbo 10×10, optional Big Turbo 25×25) once and confirm `PASS` alongside the normal gates.
 
 ## Where to change what
 

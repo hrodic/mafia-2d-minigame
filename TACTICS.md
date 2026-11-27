@@ -127,6 +127,9 @@ selection with a scattered defensive ring around the boss.
   and return to their post once the fight ends.
 - A focus outside the **360 px** local focus radius is dropped and the guard returns to its
   post unless a nearer enemy is engaging it.
+- If a gunner's preferred target is blocked by the boss or an ally, it keeps the primary
+  target for movement but fires at the nearest **other** enemy with a clear line while it
+  repositions. It never shoots through the blocker.
 - Guard units do not patrol for new blocks. Automatic capture still runs if they happen to
   stand on non-owned turf.
 - The boss itself is never ordered; its own survival and combat logic remain in control.
@@ -165,8 +168,8 @@ clears.
 
 A unit engages when an enemy is inside its aggro range:
 
-- ranged ranks: **680 px**
-- melee ranks: **480 px**
+- ranged ranks: **weapon range + 100 px** (pistol **700 px**, MP9 **800 px**); unarmed ranks use melee aggro
+- melee ranks: **500 px**
 
 It always targets the **nearest** enemy. It does not prioritize:
 
@@ -285,6 +288,7 @@ in directive 3; combat behavior is otherwise unchanged.
 - **Local aura:** **325 px** enter / **360 px** exit for both Guard and Attack.
 - **Self-defense:** guards always engage the nearest enemy in their own aggro range, even without a focus.
 - **Self-defense priority:** an adjacent melee threat or a <180 px ranged threat overrides the shared focus.
+- **Blocked shot:** the gunner flanks and may fire at the nearest clear secondary target; it never shoots through allies.
 - **Focus debounce:** first focus and loss immediate; switches commit after **~0.5 s**.
 - **Attack danger collapse:** boss in danger → nearby Attack crews use the same Guard ring.
 - **Ranged fire band:** melee reach → weapon range. There is no 110 px minimum.

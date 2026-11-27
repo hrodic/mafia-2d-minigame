@@ -73,6 +73,26 @@ test('ai: scan finds the nearest enemy and counts allies/enemies', () => {
   );
 });
 
+test('ai: scan can skip group counts for non-boss callers', () => {
+  const unit = npc();
+  const ally = npc({ id: 2, x: 120, y: 100 });
+  const enemyNpc = npc({ id: 3, x: 110, y: 100, faction: Faction.RIVAL_2 });
+  withAiState(
+    {
+      player: { id: 0, faction: Faction.PLAYER, alive: true, x: 5000, y: 5000, hp: 400, maxHp: 400 },
+      npcs: [unit, ally, enemyNpc],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [unit, ally, enemyNpc]]]),
+    },
+    () => {
+      const scan = scanNearby(unit, false);
+      assertEqual(scan.nearbyAllyCount, 0);
+      assertEqual(scan.nearbyEnemyCount, 0);
+      assertEqual(scan.nearestEnemy.entity, enemyNpc);
+      assertEqual(scan.nearestEnemyDist, 20);
+    }
+  );
+});
+
 test('ai: a player is the nearest enemy when no rival is closer', () => {
   const unit = npc();
   withAiState(
@@ -967,6 +987,111 @@ test('ai: a non-assigned unit outside the aura follows the global order', () => 
   );
 });
 
+test('ai: ranged aggro is weapon range + 100 px', () => {
+  const makeBoss = (weapon, ammo) =>
+    npc({
+      id: 1,
+      rank: UnitRank.BOSS,
+      faction: Faction.RIVAL_1,
+      x: 0,
+      y: 0,
+      hp: 400,
+      maxHp: 400,
+      bodyRadius: 13.5,
+      speed: 130,
+      facing: 0,
+      aiTimer: 0,
+      pathTimer: 0,
+      dodgeDir: 1,
+      goalX: 0,
+      goalY: 0,
+      attackCooldown: 0,
+      shopTimer: 1,
+      weapon,
+      pistolOwned: true,
+      mp9Owned: weapon === 'mp9',
+      ammo,
+      pistolMags: 1,
+      mp9Mags: weapon === 'mp9' ? 1 : 0,
+      reloadTimer: 0,
+    });
+  const player = { id: 0, faction: Faction.PLAYER, alive: true, x: 5000, y: 5000, hp: 400, maxHp: 400 };
+  const enemyAt = (x) => npc({ id: 2, x, y: 0, faction: Faction.RIVAL_2, hp: 200 });
+
+  const mp9Boss = makeBoss('mp9', 20);
+  const enemy690 = enemyAt(690);
+  withAiState(
+    {
+      world: pistolTestWorld(Faction.RIVAL_1),
+      player,
+      npcs: [mp9Boss, enemy690],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [mp9Boss, enemy690]]]),
+    },
+    () => {
+      updateNpcAi(mp9Boss, 0.016);
+      assert(mp9Boss.ammo < 20, 'MP9 boss should fire at 690 px');
+    }
+  );
+
+  const mp9Far = makeBoss('mp9', 20);
+  const enemy790 = enemyAt(790);
+  withAiState(
+    {
+      world: pistolTestWorld(Faction.RIVAL_1),
+      player,
+      npcs: [mp9Far, enemy790],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [mp9Far, enemy790]]]),
+    },
+    () => {
+      updateNpcAi(mp9Far, 0.016);
+      assertEqual(mp9Far.ammo, 20, '790 px is inside 800 aggro but outside 700 weapon range');
+      assertEqual(mp9Far.goalX, 790, 'MP9 boss should close to weapon range');
+    }
+  );
+
+  const pistolBoss = makeBoss('pistol', 10);
+  const enemy690Pistol = enemyAt(690);
+  withAiState(
+    {
+      world: pistolTestWorld(Faction.RIVAL_1),
+      player,
+      npcs: [pistolBoss, enemy690Pistol],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [pistolBoss, enemy690Pistol]]]),
+    },
+    () => {
+      updateNpcAi(pistolBoss, 0.016);
+      assertEqual(pistolBoss.ammo, 10, '690 px is inside 700 pistol aggro but outside 600 range');
+      assertEqual(pistolBoss.goalX, 690, 'pistol boss should close to weapon range');
+    }
+  );
+});
+
+test('ai: melee aggro is 500 px', () => {
+  const soldier = npc({ id: 1, x: 0, y: 0, aiTimer: 0, goalX: 0, goalY: 0 });
+  const enemy = npc({ id: 2, x: 490, y: 0, faction: Faction.RIVAL_2, hp: 100 });
+  withAiState(
+    {
+      world: defendWorld([{ cx: 0, cy: 0, faction: Faction.RIVAL_1 }]),
+      player: { id: 0, faction: Faction.PLAYER, alive: true, x: 5000, y: 5000, hp: 400, maxHp: 400 },
+      npcs: [soldier, enemy],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [soldier, enemy]]]),
+    },
+    () => {
+      updateNpcAi(soldier, 0.016);
+      assertEqual(soldier.goalX, 490, '490 px is inside melee aggro');
+
+      soldier.goalX = 0;
+      soldier.goalY = 0;
+      soldier.aiTimer = 0;
+      soldier.path = null;
+      soldier.pathTimer = 0;
+      enemy.x = 510;
+      updateNpcAi(soldier, 0.016);
+      assertEqual(soldier.goalX, 0, '510 px is outside melee aggro');
+    }
+  );
+});
+
 test('ai: immediate self-defense overrides a distant shared focus', () => {
   const boss = guardBoss();
   const soldier = npc({ id: 2, x: 500, y: 600, aiTimer: 0, inBossAura: true, attackCooldown: 0 });
@@ -984,6 +1109,41 @@ test('ai: immediate self-defense overrides a distant shared focus', () => {
       updateNpcAi(soldier, 0.016);
       assertEqual(soldier.goalX, attacker.x, 'the adjacent attacker must be answered first');
       assertEqual(soldier.goalY, attacker.y);
+    }
+  );
+});
+
+test('ai: a blocked Guard underboss fires at a clear secondary target', () => {
+  const boss = guardBoss();
+  const ally = npc({ id: 5, x: 750, y: 500, hp: 180 });
+  const underboss = npc({
+    id: 3,
+    rank: UnitRank.UNDERBOSS,
+    x: 700,
+    y: 500,
+    aiTimer: 0,
+    inBossAura: true,
+    attackCooldown: 0,
+    weapon: 'pistol',
+    ammo: 10,
+  });
+  const primary = npc({ id: 4, x: 800, y: 500, faction: Faction.RIVAL_2, hp: 200 });
+  const secondary = npc({ id: 6, x: 700, y: 900, faction: Faction.RIVAL_2, hp: 200 });
+  withAiState(
+    {
+      world: pistolTestWorld(Faction.RIVAL_1),
+      player: { id: 0, faction: Faction.PLAYER, alive: true, x: 5000, y: 5000, hp: 400, maxHp: 400 },
+      npcs: [boss, ally, underboss, primary, secondary],
+      spatialBuckets: new Map([
+        [packChunkKey(0, 0), [boss, ally, underboss, primary, secondary]],
+      ]),
+    },
+    () => {
+      guardState();
+      updateNpcAi(underboss, 0.016);
+      assert(underboss.ammo < 10, 'underboss should fire at the clear secondary target');
+      assertEqual(ally.hp, 180, 'the blocking ally must not be shot');
+      assertEqual(primary.hp, 200, 'the blocked primary must not be hit through the ally');
     }
   );
 });

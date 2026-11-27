@@ -5,6 +5,7 @@ import { Faction, UnitRank } from '../config/enums.js';
 import { CHUNK_PX, SPRINT_MAX_DURATION, SPRINT_COOLDOWN_DURATION, SPRINT_SPEED_MULTIPLIER, WALK_PHASE_PER_PX } from '../config/constants.js';
 import { RANK_STATS } from '../config/balance.js';
 import { state } from '../core/state.js';
+import { perf } from '../core/perf.js';
 import { packChunkKey } from '../world/city.js';
 import { progressCapture, getCapturePerTick } from './territory.js';
 import { computeTilePath } from '../world/pathfinding.js';
@@ -15,21 +16,29 @@ export function getEntityCollisionRadius(rank) {
 }
 
 export function canOccupyPosition(wx, wy, radius, ignoreNpcId = -1, ignorePlayer = false, moverFaction = null) {
-  if (!state.world.canMoveTo(wx, wy, radius)) return false;
+  if (perf.enabled) perf.inc('collisionChecks');
+  if (!state.world.canMoveTo(wx, wy, radius)) {
+    if (perf.enabled) perf.inc('collisionRejectedWorld');
+    return false;
+  }
 
   if (!ignorePlayer && state.player.alive) {
     const sameFaction = moverFaction !== null && moverFaction === Faction.PLAYER;
     if (!sameFaction) {
-      const pRad = getEntityCollisionRadius(UnitRank.BOSS);
+      const pRad = state.player.bodyRadius ?? getEntityCollisionRadius(UnitRank.BOSS);
       const minDist = radius + pRad - 1.0;
       const dx = wx - state.player.x;
       const dy = wy - state.player.y;
-      if (dx * dx + dy * dy < minDist * minDist) return false;
+      if (dx * dx + dy * dy < minDist * minDist) {
+        if (perf.enabled) perf.inc('collisionRejectedUnit');
+        return false;
+      }
     }
   }
 
   const cx = Math.floor(wx / CHUNK_PX);
   const cy = Math.floor(wy / CHUNK_PX);
+  let candidates = 0;
 
   if (state.spatialBuckets.size > 0) {
     for (let dy = -1; dy <= 1; dy++) {
@@ -43,25 +52,35 @@ export function canOccupyPosition(wx, wy, radius, ignoreNpcId = -1, ignorePlayer
           // Same-faction units may push through each other (boss included);
           // other factions always block.
           if (sameFaction) continue;
-          const oRad = getEntityCollisionRadius(other.rank);
+          if (perf.enabled) candidates++;
+          const oRad = other.bodyRadius ?? getEntityCollisionRadius(other.rank);
           const minDist = radius + oRad - 1.0;
           const ox = wx - other.x;
           const oy = wy - other.y;
-          if (ox * ox + oy * oy < minDist * minDist) return false;
+          if (ox * ox + oy * oy < minDist * minDist) {
+            if (perf.enabled) {
+              perf.add('collisionUnitCandidates', candidates);
+              perf.inc('collisionRejectedUnit');
+            }
+            return false;
+          }
         }
       }
     }
   }
+  if (perf.enabled && candidates > 0) perf.add('collisionUnitCandidates', candidates);
   return true;
 }
 
 export function isPushingFriendly(wx, wy, radius, faction, ignoreNpcId = -1, ignorePlayer = false) {
+  if (perf.enabled) perf.inc('pushChecks');
   if (!ignorePlayer && state.player.alive && faction === Faction.PLAYER) {
-    const minDist = radius + getEntityCollisionRadius(UnitRank.BOSS);
+    const minDist = radius + (state.player.bodyRadius ?? getEntityCollisionRadius(UnitRank.BOSS));
     const dx = wx - state.player.x;
     const dy = wy - state.player.y;
     if (dx * dx + dy * dy < minDist * minDist) return true;
   }
+  if (state.spatialBuckets.size === 0) return false;
   const cx = Math.floor(wx / CHUNK_PX);
   const cy = Math.floor(wy / CHUNK_PX);
   for (let dy = -1; dy <= 1; dy++) {
@@ -71,7 +90,7 @@ export function isPushingFriendly(wx, wy, radius, faction, ignoreNpcId = -1, ign
       for (let i = 0; i < bucket.length; i++) {
         const other = bucket[i];
         if (other.id === ignoreNpcId || other.faction !== faction) continue;
-        const minDist = radius + getEntityCollisionRadius(other.rank);
+        const minDist = radius + (other.bodyRadius ?? getEntityCollisionRadius(other.rank));
         const ox = wx - other.x;
         const oy = wy - other.y;
         if (ox * ox + oy * oy < minDist * minDist) return true;
@@ -108,6 +127,7 @@ export function updateUnitSprint(unit, wantsSprint, dt) {
  * collision, friendly pushing and sprint are shared by the player, AI and guest bosses.
  */
 export function moveUnit(unit, input = {}, dt = 0) {
+  if (perf.enabled) perf.inc('moveUnitCalls');
   const startX = unit.x;
   const startY = unit.y;
   const rawX = input.mx || 0;
@@ -128,7 +148,10 @@ export function moveUnit(unit, input = {}, dt = 0) {
   const ignorePlayer = input.ignorePlayer ?? isPlayer;
   const ignoreNpcId = input.ignoreNpcId ?? (isPlayer ? -1 : unit.id);
 
-  const pushingCrew = isPushingFriendly(unit.x, unit.y, radius, faction, ignoreNpcId, ignorePlayer);
+  const pushingCrew = hasInput
+    ? isPushingFriendly(unit.x, unit.y, radius, faction, ignoreNpcId, ignorePlayer)
+    : false;
+  if (!hasInput && perf.enabled) perf.inc('moveUnitIdle');
   const speed = (pushingCrew ? unit.speed * 0.45 : unit.speed) * sprintMult;
 
   let moved = false;

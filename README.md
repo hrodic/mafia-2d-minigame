@@ -130,8 +130,10 @@ Manual checklist: `tests/SMOKE.md`. Deterministic two-tab multiplayer testing (l
 no external relays): `tests/mp-harness.html`.
 
 Longer standalone check (not part of the PASS suite): `tests/long-sim.html` runs 120
-simulated seconds in Turbo mode with a patrolling, auto-shopping player (Glock, ammo,
-Kevlar, MP9 after 90s) and reports world/faction/boss sanity. **Run it at least once before
+simulated seconds with a patrolling, auto-shopping player (Glock, ammo, Kevlar, MP9 after
+90s). The setup is selectable: grid size, economy tick, income tier and faction count.
+Default is **Turbo 10×10**; **Big Turbo 25×25** is the large stress preset. It reports
+world/faction/boss sanity and optional perf counters. **Run it at least once before
 pushing every MINOR version bump** and confirm `PASS`.
 
 ## Tech

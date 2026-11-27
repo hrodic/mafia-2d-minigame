@@ -189,6 +189,8 @@ See **`TACTICS.md`** for the full operational stance, directives and rules of en
 | Gun flank | **90 px** lateral sidestep, committed for **0.9 s** |
 | Flank fallback | back off 72 px when both sides are blocked |
 | Ranged fire band | **melee reach → weapon range** (no 110 px minimum) |
+| Ranged aggro | **weapon range + 100 px** (pistol **700 px**, MP9 **800 px**); unarmed ranks use melee aggro |
+| Melee aggro | **500 px** |
 | Underboss close-range gun | below **110 px**: fire while backing off; **80 px** step, **0.6 s** commits |
 | Boss close range | healthy and not outnumbered: commit to melee inside **110 px**, firing while closing |
 | Boss survival priority | low HP or outnumbered: retreat even with armor; melee only when healthy and not overwhelmed |

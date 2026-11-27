@@ -1,10 +1,11 @@
 // Movement/collision helper tests: entity radii, occupancy rules, friendly pushing
 // and NPC boss sprint state.
 import { test, assert, assertEqual, assertClose } from './harness.js';
-import { Faction, UnitRank } from '../src/config/enums.js';
+import { Faction, UnitRank, PropType } from '../src/config/enums.js';
 import { CHUNK_PX, TILE_SIZE, SPRINT_COOLDOWN_DURATION, SPRINT_MAX_DURATION } from '../src/config/constants.js';
 import { state } from '../src/core/state.js';
-import { packChunkKey } from '../src/world/city.js';
+import { perf } from '../src/core/perf.js';
+import { packChunkKey, CityMap } from '../src/world/city.js';
 import {
   getEntityCollisionRadius,
   canOccupyPosition,
@@ -207,6 +208,75 @@ test('movement: moveUnit normalizes diagonal input', () => {
     assertClose(unit.x, (200 * 0.1) / Math.SQRT2);
     assertClose(unit.y, (200 * 0.1) / Math.SQRT2);
   });
+});
+
+test('movement: idle moveUnit skips push and collision scans', () => {
+  const unit = makeMovableUnit({
+    id: 2,
+    faction: Faction.RIVAL_1,
+    rank: UnitRank.SOLDIER,
+    bodyRadius: 11,
+    speed: 150,
+  });
+  const ally = {
+    id: 3,
+    faction: Faction.RIVAL_1,
+    rank: UnitRank.SOLDIER,
+    bodyRadius: 11,
+    x: 0,
+    y: 0,
+  };
+  perf.enabled = true;
+  perf.reset();
+  try {
+    withState(
+      basePatch({
+        spatialBuckets: npcBucket([ally]),
+        player: { x: -1000, y: -1000, alive: false },
+      }),
+      () => {
+        moveUnit(unit, { mx: 0, my: 0 }, 0.1);
+      }
+    );
+    const snapshot = perf.snapshot();
+    assertEqual(snapshot.moveUnitIdle, 1);
+    assertEqual(snapshot.pushChecks || 0, 0);
+    assertEqual(snapshot.collisionChecks || 0, 0);
+  } finally {
+    perf.enabled = false;
+    perf.reset();
+  }
+});
+
+test('movement: generated chunks cache car collision rects', () => {
+  const map = new CityMap({
+    seed: 4242,
+    gridSize: 15,
+    incomeTier: 'HIGH',
+    activeFactions: [Faction.PLAYER],
+  });
+  let found = null;
+  for (let cy = 0; cy < 5 && !found; cy++) {
+    for (let cx = 0; cx < 5 && !found; cx++) {
+      const chunk = map.generateChunk(cx, cy);
+      for (let ly = 0; ly < chunk.props.length && !found; ly++) {
+        for (let lx = 0; lx < chunk.props[ly].length; lx++) {
+          if (chunk.props[ly][lx] === PropType.CAR) {
+            found = { chunk, ly, lx };
+            break;
+          }
+        }
+      }
+    }
+  }
+  assert(found, 'generated chunks should contain a car');
+  const rect = found.chunk.propRects[found.ly][found.lx];
+  assert(rect, 'car tile should have a cached collision rect');
+  assertEqual(
+    map.canMoveTo(rect.x + rect.w / 2, rect.y + rect.h / 2, 11),
+    false,
+    'the cached car rect should still block movement'
+  );
 });
 
 test('movement: moveUnit dodges perpendicular when blocked and dodge is enabled', () => {

@@ -7,6 +7,7 @@ import { SLASH, AI_TACTICS } from '../config/balance.js';
 import { GLOBAL_STANCE, LOCAL_ORDER, TACTICS } from '../config/tactics.js';
 import { FACTION_META } from '../config/organizations.js';
 import { state, getUnitById } from '../core/state.js';
+import { perf } from '../core/perf.js';
 import { emit } from '../core/events.js';
 import { packChunkKey } from '../world/city.js';
 import { computeTilePath, MAX_ASTAR_PER_FRAME } from '../world/pathfinding.js';
@@ -23,20 +24,31 @@ import {
   tryBuyNpcBossEquipment,
 } from './combat.js';
 
-/** Scan the 3x3 chunk neighbourhood for the nearest enemy and nearby counts. */
-export function scanNearby(u) {
+const NEARBY_ALLY_RADIUS_SQ = 360 * 360;
+const NEARBY_ENEMY_RADIUS_SQ = 420 * 420;
+
+/**
+ * Scan the 3x3 chunk neighbourhood for the nearest enemy and nearby counts.
+ *
+ * `includeCounts` is only needed by bosses (armor purchase and retreat danger).
+ * Non-boss callers skip same-faction distance checks and count work entirely.
+ */
+export function scanNearby(u, includeCounts = true) {
+  if (perf.enabled) perf.inc('scanNearbyCalls');
   const uCx = Math.floor(u.x / CHUNK_PX);
   const uCy = Math.floor(u.y / CHUNK_PX);
   let nearestEnemy = null;
-  let nearestEnemyDist = Infinity;
+  let nearestEnemySq = Infinity;
   let nearbyEnemyCount = 0;
   let nearbyAllyCount = 0;
 
   if (state.player.alive && state.player.faction !== u.faction && u.faction !== Faction.PLAYER) {
-    const d = Math.hypot(state.player.x - u.x, state.player.y - u.y);
-    if (d < 420) nearbyEnemyCount++;
-    if (d < nearestEnemyDist) {
-      nearestEnemyDist = d;
+    const pdx = state.player.x - u.x;
+    const pdy = state.player.y - u.y;
+    const distSq = pdx * pdx + pdy * pdy;
+    if (includeCounts && distSq < NEARBY_ENEMY_RADIUS_SQ) nearbyEnemyCount++;
+    if (distSq < nearestEnemySq) {
+      nearestEnemySq = distSq;
       nearestEnemy = { isPlayer: true, entity: state.player, x: state.player.x, y: state.player.y };
     }
   }
@@ -48,21 +60,34 @@ export function scanNearby(u) {
       for (let b = 0; b < bucket.length; b++) {
         const other = bucket[b];
         if (other.id === u.id) continue;
-        const d = Math.hypot(other.x - u.x, other.y - u.y);
         if (other.faction === u.faction) {
-          if (d < 360) nearbyAllyCount++;
-        } else {
-          if (d < 420) nearbyEnemyCount++;
-          if (d < nearestEnemyDist) {
-            nearestEnemyDist = d;
-            nearestEnemy = { isPlayer: false, entity: other, x: other.x, y: other.y };
-          }
+          if (!includeCounts) continue;
+          const adx = other.x - u.x;
+          const ady = other.y - u.y;
+          if (adx * adx + ady * ady < NEARBY_ALLY_RADIUS_SQ) nearbyAllyCount++;
+          continue;
+        }
+
+        const odx = other.x - u.x;
+        const ody = other.y - u.y;
+        const distSq = odx * odx + ody * ody;
+        if (includeCounts && distSq < NEARBY_ENEMY_RADIUS_SQ) nearbyEnemyCount++;
+        if (distSq < nearestEnemySq) {
+          nearestEnemySq = distSq;
+          nearestEnemy = { isPlayer: false, entity: other, x: other.x, y: other.y };
         }
       }
     }
   }
 
-  return { uCx, uCy, nearestEnemy, nearestEnemyDist, nearbyEnemyCount, nearbyAllyCount };
+  return {
+    uCx,
+    uCy,
+    nearestEnemy,
+    nearestEnemyDist: nearestEnemy ? Math.sqrt(nearestEnemySq) : Infinity,
+    nearbyEnemyCount,
+    nearbyAllyCount,
+  };
 }
 
 /** Pick the nearest non-owned chunk in a 7x7 neighborhood, with a global fallback. */
@@ -356,6 +381,58 @@ function chooseRetreatPoint(u, enemy) {
   return best;
 }
 
+/** Pick the nearest enemy with a clear shot while the preferred target is blocked. */
+function findClearSecondaryTarget(u, primaryEntity, range, uCx, uCy) {
+  let best = null;
+  let bestDist = Infinity;
+
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const bucket = state.spatialBuckets.get(packChunkKey(uCx + dx, uCy + dy));
+      if (!bucket) continue;
+      for (let i = 0; i < bucket.length; i++) {
+        const other = bucket[i];
+        if (
+          !other ||
+          other === u ||
+          other === primaryEntity ||
+          other.hp <= 0 ||
+          other.faction === u.faction
+        ) {
+          continue;
+        }
+        const dist = Math.hypot(other.x - u.x, other.y - u.y);
+        if (dist > range || dist >= bestDist) continue;
+        if (!hasClearShot(u, other.x, other.y)) continue;
+        if (hasFriendlyInShotPath(u, other.x, other.y)) continue;
+        best = other;
+        bestDist = dist;
+      }
+    }
+  }
+
+  const player = state.player;
+  if (
+    player &&
+    player !== u &&
+    player !== primaryEntity &&
+    player.alive &&
+    player.faction !== u.faction
+  ) {
+    const dist = Math.hypot(player.x - u.x, player.y - u.y);
+    if (
+      dist <= range &&
+      dist < bestDist &&
+      hasClearShot(u, player.x, player.y) &&
+      !hasFriendlyInShotPath(u, player.x, player.y)
+    ) {
+      best = player;
+    }
+  }
+
+  return best;
+}
+
 /** Pick a lateral point that leaves the current firing line. */
 function chooseFlankPoint(u, enemy) {
   if (!state.world.findNearestWalkablePoint) return null;
@@ -412,7 +489,7 @@ export function updateNpcAi(u, dt) {
     tryBuyNpcBossEquipment(u);
   }
 
-  const scan = scanNearby(u);
+  const scan = scanNearby(u, u.rank === UnitRank.BOSS);
   const { uCx, uCy, nearbyEnemyCount, nearbyAllyCount } = scan;
   let nearestEnemy = scan.nearestEnemy;
   let nearestEnemyDist = scan.nearestEnemyDist;
@@ -424,7 +501,9 @@ export function updateNpcAi(u, dt) {
   // Only bosses and underbosses carry a gun; captains and soldiers are knife-only.
   const isRangedShooter = u.rank === UnitRank.BOSS || u.rank === UnitRank.UNDERBOSS;
   const rangedWeapon = isRangedShooter ? getWeaponStats(u) : null;
-  const aggroRange = isRangedShooter ? 680 : 480;
+  const aggroRange = isRangedShooter && rangedWeapon
+    ? rangedWeapon.range + AI_TACTICS.rangedAggroBuffer
+    : AI_TACTICS.meleeAggroRange;
   const melee = SLASH.aiMeleeByRank[u.rank] || SLASH.aiMelee;
 
   let bossInDanger = false;
@@ -558,17 +637,29 @@ export function updateNpcAi(u, dt) {
       const friendBlocked = clear && hasFriendlyInShotPath(u, nearestEnemy.x, nearestEnemy.y);
       if (clear && !friendBlocked) {
         performBossPistolShot(u, false, nearestEnemy.x, nearestEnemy.y);
-      } else if (friendBlocked && !flanking && !backingOff) {
-        const point = chooseFlankPoint(u, nearestEnemy);
-        if (point) {
-          u.flankX = point.x;
-          u.flankY = point.y;
-          u.flankTimer = AI_TACTICS.flankDuration;
-          u.flankSide = point.side === 0 ? 1 : -point.side;
-          u.goalX = point.x;
-          u.goalY = point.y;
-          u.path = null;
-          u.pathTimer = 0;
+      } else {
+        if (guard) {
+          const alternate = findClearSecondaryTarget(
+            u,
+            nearestEnemy.entity,
+            rangedWeapon.range,
+            uCx,
+            uCy
+          );
+          if (alternate) performBossPistolShot(u, false, alternate.x, alternate.y);
+        }
+        if (friendBlocked && !flanking && !backingOff) {
+          const point = chooseFlankPoint(u, nearestEnemy);
+          if (point) {
+            u.flankX = point.x;
+            u.flankY = point.y;
+            u.flankTimer = AI_TACTICS.flankDuration;
+            u.flankSide = point.side === 0 ? 1 : -point.side;
+            u.goalX = point.x;
+            u.goalY = point.y;
+            u.path = null;
+            u.pathTimer = 0;
+          }
         }
       }
     }
@@ -603,13 +694,14 @@ export function updateNpcAi(u, dt) {
   let moveX = 0;
   let moveY = 0;
   if (distToGoal > 28) {
-    if (
-      (!u.path || u.path.length === 0 || u.pathTimer <= 0) &&
-      state.astarBudgetThisFrame < MAX_ASTAR_PER_FRAME
-    ) {
+    const needsPath = !u.path || u.path.length === 0 || u.pathTimer <= 0;
+    if (needsPath && perf.enabled) perf.inc('aiPathRequests');
+    if (needsPath && state.astarBudgetThisFrame < MAX_ASTAR_PER_FRAME) {
       state.astarBudgetThisFrame++;
       u.pathTimer = 0.85 + Math.random() * 0.45;
       u.path = computeTilePath(state.world, u.x, u.y, u.goalX, u.goalY, 160);
+    } else if (needsPath && perf.enabled) {
+      perf.inc('aiPathBudgetSkipped');
     }
 
     let steerX = u.goalX;

@@ -48,7 +48,7 @@
       align-items: center;
     }
     label { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
-    input {
+    input, select {
       width: 130px;
       border: 1px solid #3f3f46;
       border-radius: 8px;
@@ -105,16 +105,45 @@
 </head>
 <body>
   <main>
-    <h1>120-second Turbo Simulation</h1>
+    <h1>120-second Headless Simulation</h1>
     <p class="sub">
       Standalone sanity run — not part of <code>tests/tests.html</code>.
-      Turbo setup: <b>10×10</b> map, <b>10s</b> economy tick, <b>High</b> income, 4 factions.
+      Default: <b>Turbo</b> — <b>10×10</b> neighborhoods, <b>10s</b> economy tick,
+      <b>High</b> income, 4 factions. Pick a larger grid for a stress run.
     </p>
 
     <section class="panel">
       <div class="controls">
         <label for="seed">World seed</label>
         <input id="seed" value="4242" inputmode="numeric" />
+        <label for="grid-size">Grid</label>
+        <select id="grid-size">
+          <option value="5">5×5</option>
+          <option value="10" selected>10×10</option>
+          <option value="15">15×15</option>
+          <option value="20">20×20</option>
+          <option value="25">25×25</option>
+        </select>
+        <label for="tick-speed">Tick</label>
+        <select id="tick-speed">
+          <option value="10" selected>10s Turbo</option>
+          <option value="15">15s</option>
+          <option value="20">20s</option>
+          <option value="25">25s Long</option>
+          <option value="30">30s</option>
+        </select>
+        <label for="income-tier">Income</label>
+        <select id="income-tier">
+          <option value="LOW">Low</option>
+          <option value="MID">Mid</option>
+          <option value="HIGH" selected>High</option>
+        </select>
+        <label for="faction-count">Factions</label>
+        <select id="faction-count">
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+        </select>
         <label for="stance">Global stance</label>
         <select id="stance">
           <option value="2" selected>Expand</option>
@@ -126,14 +155,18 @@
           <option value="1">Guard</option>
         </select>
         <button id="run" type="button">Run 120s</button>
+        <button id="preset-big" type="button" class="secondary">Big Turbo 25×25</button>
         <button id="random" type="button" class="secondary">Random seed</button>
         <span id="badge" class="badge pending">NOT RUN</span>
       </div>
       <p class="hint">
-        Runs 14,400 fixed steps (120 simulated seconds). The player boss patrols between
-        chunk centers and auto-buys the Glock, ammo and Kevlar, then attempts the MP9 after
-        90 simulated seconds. <b>Global stance</b> and <b>local order</b> apply to every faction.
+        Runs 14,400 fixed steps (120 simulated seconds) with the selected grid, economy tick,
+        income tier and faction count. The player boss patrols between chunk centers and
+        auto-buys the Glock, ammo and Kevlar, then attempts the MP9 after 90 simulated seconds.
+        <b>Global stance</b> and <b>local order</b> apply to every faction.
+        Grid size is in neighborhoods; <b>25×25 = 375×375 tiles</b>.
         No rendering or real-time frame loop is involved.
+        <b>25×25 is a stress run</b> and can take tens of seconds.
         <b>Recommended before every MINOR version bump and push.</b>
       </p>
       <div id="meta" class="meta"></div>
@@ -161,6 +194,7 @@
     import { Faction, UnitRank } from '../src/config/enums.js';
     import { SIM_DT, CHUNK_PX } from '../src/config/constants.js';
     import { GLOBAL_STANCE, LOCAL_ORDER } from '../src/config/tactics.js';
+    import { perf } from '../src/core/perf.js';
     import { state } from '../src/core/state.js';
     import { CityMap } from '../src/world/city.js';
     import { initWorld } from '../src/sim/match.js';
@@ -196,7 +230,17 @@
       );
     }
 
-    function setup(seed, globalStance = GLOBAL_STANCE.EXPAND, localOrder = LOCAL_ORDER.ATTACK) {
+    function setup(
+      seed,
+      globalStance = GLOBAL_STANCE.EXPAND,
+      localOrder = LOCAL_ORDER.ATTACK,
+      gridSize = 10,
+      tickSeconds = 10,
+      incomeTier = 'HIGH',
+      factionCount = 4
+    ) {
+      perf.enabled = true;
+      perf.reset();
       state.world = new CityMap();
       state.npcs = [];
       state.floatingTexts = [];
@@ -208,7 +252,7 @@
       state.mouseFiring = false;
       state.aimInside = false;
       playerPurchases = [];
-      initWorld(10, true, 10, 'HIGH', 4, ORGS, seed);
+      initWorld(gridSize, true, tickSeconds, incomeTier, factionCount, ORGS, seed);
       state.net = null;
       for (const faction of state.activeFactions) {
         state.factionTactics[faction].globalStance = globalStance;
@@ -320,7 +364,11 @@
       return {
         status: pass ? 'PASS' : 'FAIL',
         seed,
-        mode: 'TURBO',
+        mode: 'HEADLESS',
+        gridSize: state.currentGridSize,
+        tickSeconds: state.tickDuration,
+        incomeTier: state.currentIncomeTier,
+        factionCount: state.activeFactions.length,
         steps: STEPS,
         simSeconds: 120,
         elapsedMs: Math.round(elapsedMs),
@@ -335,6 +383,7 @@
         invalidTreasury,
         globalStance: state.factionTactics[state.activeFactions[0]].globalStance,
         localOrder: state.factionTactics[state.activeFactions[0]].localOrder,
+        perf: perf.snapshot(),
         factions,
         bosses,
         playerPurchases,
@@ -348,6 +397,10 @@
 
       const stats = [
         ['Seed', result.seed],
+        ['Grid', result.gridSize ? `${result.gridSize}×${result.gridSize}` : '—'],
+        ['Tick', result.tickSeconds ? `${result.tickSeconds}s` : '—'],
+        ['Income', result.incomeTier || '—'],
+        ['Factions', result.factionCount || '—'],
         ['Stance', result.globalStance === GLOBAL_STANCE.DEFEND ? 'Defend' : 'Expand'],
         ['Local', result.localOrder === LOCAL_ORDER.GUARD ? 'Guard' : 'Attack'],
         ['Wall time', `${result.elapsedMs} ms`],
@@ -356,6 +409,11 @@
         ['Steps/sec', result.stepsPerSecond.toLocaleString()],
         ['Units', result.units],
         ['Peak units', result.maxUnits],
+        ['A* calls', (result.perf && result.perf.astarCalls) || 0],
+        ['A* searches', (result.perf && result.perf.astarSearches) || 0],
+        ['LOS hits', (result.perf && result.perf.losHits) || 0],
+        ['A* nodes', (result.perf && result.perf.astarNodes) || 0],
+        ['Collision checks', (result.perf && result.perf.collisionChecks) || 0],
         ['Hour', result.hour],
         ['Game over', result.gameOver ? 'yes' : 'no'],
         ['Invalid units', result.invalid.length],
@@ -404,16 +462,20 @@
 
     function run() {
       const seed = Number($('seed').value) || 4242;
+      const gridSize = Number($('grid-size').value) || 10;
+      const tickSeconds = Number($('tick-speed').value) || 10;
+      const incomeTier = $('income-tier').value || 'HIGH';
+      const factionCount = Number($('faction-count').value) || 4;
       const globalStance = Number($('stance').value) || GLOBAL_STANCE.EXPAND;
       const localOrder = Number($('local-order').value) || LOCAL_ORDER.ATTACK;
       runButton.disabled = true;
       badge.className = 'badge pending';
       badge.textContent = 'RUNNING…';
-      raw.textContent = `Running ${STEPS.toLocaleString()} fixed steps…`;
+      raw.textContent = `Running ${STEPS.toLocaleString()} fixed steps on ${gridSize}×${gridSize}…`;
 
       setTimeout(() => {
         try {
-          setup(seed, globalStance, localOrder);
+          setup(seed, globalStance, localOrder, gridSize, tickSeconds, incomeTier, factionCount);
           tryPlayerShopping(0);
           const started = performance.now();
           let maxUnits = 1;
@@ -443,6 +505,13 @@
     }
 
     runButton.addEventListener('click', run);
+    $('preset-big').addEventListener('click', () => {
+      $('grid-size').value = '25';
+      $('tick-speed').value = '10';
+      $('income-tier').value = 'HIGH';
+      $('faction-count').value = '4';
+      run();
+    });
     $('random').addEventListener('click', () => {
       $('seed').value = String(Math.floor(Math.random() * 900000000) + 1);
       run();

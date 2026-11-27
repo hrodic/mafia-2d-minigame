@@ -35,11 +35,12 @@ src/
     hiddenSim.js           hidden-tab host simulation fallback (no rendering)
     events.js              synchronous, isolated event bus (sim -> presentation facts)
     spatial.js             per-chunk spatial buckets for neighbour queries
+    perf.js                optional zero-cost-when-disabled performance counters
   world/
-    chunk.js               DistrictChunk: seeded 15×15 block generation
+    chunk.js               DistrictChunk: seeded 15×15 blocks, solid mask + car rect cache
     city.js                CityMap: chunk store, tile queries, collision, ring expansion
     geometry.js            prop footprints (collision + raycast + drawing source)
-    pathfinding.js         A* over tiles with a per-frame budget
+    pathfinding.js         A* over tiles: LOS pre-check, binary heap, per-frame budget
   sim/                     headless gameplay logic (no DOM, no audio)
     match.js               initWorld: city/factions/economy/bosses for a new match
     simulation.js          update(dt): headless host/single-player fixed sim step
@@ -95,7 +96,7 @@ tests/
   *.test.js                suites (config, state, world, sim, render, UI, net-adjacent)
   simulation-integration.test.js  real-map fixed-step integration suites
   mp-harness.html          iframe harness that forces the same-origin local bus
-  long-sim.html            standalone 120s turbo simulation (not in the PASS suite)
+  long-sim.html            standalone 120s headless simulation (configurable setup)
   SMOKE.md                 manual smoke checklist (per commit / per phase)
 docs/                      generated GitHub Pages artifact (never hand-edit)
 tools/
@@ -223,9 +224,15 @@ labels, seed display and HUD.
 - **CityMap** (`world/city.js`) stores chunks, answers tile queries
   (`worldToTile`, `isWalkable`, `isTileNavigable`), does radius collision
   (`canMoveTo`), snaps to nearest walkable points, and expands perimeter rings.
+  Each `DistrictChunk` precomputes its static car collision rectangles; `canMoveTo`
+  uses them and still falls back to `getPropFootprint` for synthetic/test chunks.
 - **Pathfinding** (`world/pathfinding.js`) is A* over tiles with a per-frame exploration
-  budget (`MAX_ASTAR_PER_FRAME`). It is used by the NPC AI and by waypoint movement
-  (local player and remote bosses).
+  budget (`MAX_ASTAR_PER_FRAME`). A fast DDA tile-line pre-check (`hasLineOfSight`) skips A*
+  for clear short lines, and the open set is a binary min-heap. Blocked, too-long or
+  corner-cutting lines fall back to A*. `core/perf.js` counters are disabled in normal play
+  and enabled by the long-sim harness to report LOS hits, A* searches, explored nodes and
+  collision volume. It is used by the NPC AI and by waypoint movement (local player and
+  remote bosses).
 - **Spatial index** (`core/spatial.js`) buckets entities by chunk; neighbors are scanned
   in a 3×3 chunk neighborhood.
 - **Prop geometry** (`world/geometry.js`) is the single source for car/dumpster footprints,
@@ -272,12 +279,15 @@ slots in all directions, guards chase the local focus or a self-defense target i
 normal aggro range up to a 1000 px recall radius, an adjacent threat overrides the shared
 focus, and Attack crews collapse into the same ring when the boss is in danger. A unit that
 was guarding keeps `guardAssigned` outside the 325/360 aura and returns to its post after
-combat instead of falling back to the global stance. Each guard
+combat instead of falling back to the global stance. When a guard gunner's preferred target
+is blocked by an ally, it keeps that target for movement but fires at the nearest clear
+secondary enemy while repositioning. Each guard
 caches a stable slot and holds inside a 14 px idle deadzone; posts rebuild only when the
 250 ms command layer increments its revision, and focus switches debounce for two refreshes.
 Blocked/off-map slots fall back to the nearest walkable ring direction that keeps at least
 60% of the intended range.
-`sim/ai.js`: `scanNearby` (nearest enemy + ally/enemy counts in the 3×3 spatial buckets),
+`sim/ai.js`: `scanNearby` (nearest enemy + ally/enemy counts in the 3×3 spatial buckets;
+squared distances, and counts are only computed for bosses that use them),
 a one-second boss equipment shop (Glock first, first ammo/reload, then MP9 once the
 syndicate has 5 living units and 3 blocks), boss armor purchase, melee for every rank and
 weapon fire for bosses/underbosses from **melee reach to weapon range** when the bullet
@@ -479,10 +489,12 @@ distance from the camera.
 - `tests/mp-harness.html` embeds the game in an iframe to force the local bus; open it in
   two tabs for deterministic host/guest testing without external relays.
 - `tests/long-sim.html` is a standalone, slower sanity page: it runs 120 simulated seconds
-  in Turbo mode (10×10, 10 s ticks, High income, 14,400 fixed steps) with a patrolling,
-  auto-shopping player (Glock, ammo, Kevlar, MP9 after 90 s), and reports unit/faction/boss
-  and world sanity. It is not part of `tests.html`; open it directly to run a longer
-  headless game. Run it at least once before pushing each MINOR version bump.
+  (14,400 fixed steps) with a patrolling, auto-shopping player (Glock, ammo, Kevlar, MP9 after
+  90 s), and reports unit/faction/boss, world sanity and optional perf counters. The setup is
+  configurable: grid **5–25**, tick **10–30 s**, income **Low/Mid/High**, and **2–4**
+  factions. Default is **Turbo 10×10**; **Big Turbo 25×25** is the large stress preset. It
+  is not part of `tests.html`; open it directly to run a longer headless game. Run it at
+  least once before pushing each MINOR version bump.
 - Coverage includes config/RNG, transport API normalization (Trystero 0.27 vs local bus),
   protocol envelope/version/snapshot encoding, lobby seats/capacity/rosters, lobby DOM
   rendering/safe names, guest handshake/init routing, snapshot apply reuse/create/remove,

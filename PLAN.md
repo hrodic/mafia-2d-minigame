@@ -31,7 +31,12 @@ architecture description here.
   snapshot sync, **Global Defend** (owned-turf patrol + safe reinforcement placement) and
   **Local Guard** (scattered 50–150 px melee / 200–300 px gunner ring, focus debounce,
   250 ms post cache, Attack danger collapse, self-defense, guard recall). Defaults
-  **Expand + Attack** preserve the pre-command behavior. Version stays `0.8.0` for
+  **Expand + Attack** preserve the pre-command behavior. A* quick wins are in:
+  binary heap, 16-tile LOS pre-check, optional perf counters; `scanNearby` now uses
+  squared distances and boss-only group counts. Collision safe pass is in: idle
+  `moveUnit` skips push/collision scans, body radii are cached, and car rects are
+  precomputed per chunk. Deeper collision work (shared neighbourhood scan, combined
+  X/Y check) is the next measured target. Version stays `0.8.0` for
   the whole branch by owner decision.
 
 Phases 3, 4 and 5 are complete. `refactor/phase-5-quality` has merged into `master`. `0.8.0`
