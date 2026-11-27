@@ -204,7 +204,10 @@ export function updateHUD() {
   }
 
   const myCash = state.treasuries[myFac] || 0;
-  hudEls.cashText.textContent = `$${myCash.toLocaleString()}`;
+  hudEls.cashText.textContent = myCash < 0
+    ? `-$${Math.abs(myCash).toLocaleString()}`
+    : `$${myCash.toLocaleString()}`;
+  hudEls.cashText.classList.toggle('is-negative', myCash < 0);
   syncCapButtons();
 
   if (myBoss.sprintCooldown > 0) {

@@ -173,6 +173,14 @@ test('hud: faction leaderboard collapses to its header and restores', () => {
   });
 });
 
+test('hud: negative cash is formatted and marked', () => {
+  withHudState({ treasuries: { [Faction.PLAYER]: -450 } }, () => {
+    updateHUD();
+    assertEqual(document.getElementById('cash-text').textContent, '-$450');
+    assert(document.getElementById('cash-text').classList.contains('is-negative'));
+  });
+});
+
 test('hud: armor hides when depleted and sprint states are labelled', () => {
   withHudState({ player: makePlayer({ armor: 0, sprintCooldown: 2 }) }, () => {
     updateHUD();

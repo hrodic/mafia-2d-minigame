@@ -12,6 +12,7 @@ import {
   recalculateHourlyIncome,
   processHourlyTick,
 } from '../src/sim/economy.js';
+import { recruitUnit } from '../src/sim/units.js';
 
 const STATE_KEYS = [
   'activeFactions',
@@ -243,6 +244,37 @@ test('economy: a faction with no turf earns nothing but still pays upkeep', () =
     () => {
       processHourlyTick();
       assertEqual(state.treasuries[Faction.PLAYER], 500 - UPKEEP_UNDERBOSS);
+    }
+  );
+});
+
+test('economy: upkeep can exceed shrinking income and push cash negative', () => {
+  withEconomyState(
+    {
+      prepareMap: (map) => withChunk(map, 0, 0, Faction.PLAYER, 100),
+      treasuries: { [Faction.PLAYER]: 0 },
+      npcs: [{ faction: Faction.PLAYER, rank: UnitRank.UNDERBOSS }],
+    },
+    () => {
+      processHourlyTick();
+      assertEqual(state.treasuries[Faction.PLAYER], 100 - UPKEEP_UNDERBOSS);
+      assert(state.treasuries[Faction.PLAYER] < 0, 'income below upkeep should push cash negative');
+    }
+  );
+});
+
+test('economy: negative cash is allowed and blocks purchases until positive', () => {
+  withEconomyState(
+    {
+      treasuries: { [Faction.PLAYER]: 100 },
+      npcs: [{ faction: Faction.PLAYER, rank: UnitRank.UNDERBOSS }],
+    },
+    () => {
+      processHourlyTick();
+      assertEqual(state.treasuries[Faction.PLAYER], 100 - UPKEEP_UNDERBOSS);
+      assert(state.treasuries[Faction.PLAYER] < 0, 'upkeep should be able to push cash negative');
+      assertEqual(recruitUnit(Faction.PLAYER, UnitRank.SOLDIER), false);
+      assertEqual(state.treasuries[Faction.PLAYER], 100 - UPKEEP_UNDERBOSS, 'failed purchase must not change cash');
     }
   );
 });

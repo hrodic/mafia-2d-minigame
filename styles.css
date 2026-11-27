@@ -198,6 +198,7 @@
     }
     .hud-telemetry-hp .hud-telemetry-value { color: #34d399; }
     .hud-telemetry-cash .hud-telemetry-value { color: #fbbf24; }
+    .hud-telemetry-cash .hud-telemetry-value.is-negative { color: #fb7185; }
     .hud-telemetry-hour .hud-telemetry-value { color: #38bdf8; }
     .hud-bar {
       position: relative;
