@@ -6,7 +6,6 @@
 // command layer never drives presentation.
 
 import { Faction, UnitRank } from '../config/enums.js';
-import { AI_TACTICS } from '../config/balance.js';
 import { CHUNK_PX } from '../config/constants.js';
 import {
   LOCAL_ORDER,
@@ -16,7 +15,7 @@ import {
 } from '../config/tactics.js';
 import { state, getUnitById } from '../core/state.js';
 import { packChunkKey } from '../world/city.js';
-import { scanNearby } from './ai.js';
+import { computeBossDanger } from './ai.js';
 import { hasLivingEnemyOnChunk } from './territory.js';
 
 function bossForFaction(faction) {
@@ -166,12 +165,8 @@ function refreshFaction(faction) {
     record.bossId = boss.id;
     record.bossX = boss.x;
     record.bossY = boss.y;
-    const hpFraction = boss.maxHp > 0 ? boss.hp / boss.maxHp : 0;
-    const scan = scanNearby(boss, true);
-    record.bossInDanger =
-      hpFraction <= AI_TACTICS.bossRetreatHpFraction ||
-      (scan.nearbyEnemyCount >= AI_TACTICS.bossRetreatMinEnemies &&
-        scan.nearbyEnemyCount > scan.nearbyAllyCount);
+    const danger = computeBossDanger(boss);
+    record.bossInDanger = danger.danger;
     const candidateId = findLocalFocus(boss);
     refreshLocalFocus(record, candidateId);
   } else {

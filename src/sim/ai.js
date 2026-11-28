@@ -90,6 +90,79 @@ export function scanNearby(u, includeCounts = true) {
   };
 }
 
+function threatWeapon(unit) {
+  if (!unit || (unit.weapon !== 'pistol' && unit.weapon !== 'mp9')) return null;
+  if (typeof unit.ammo === 'number' && unit.ammo <= 0) return null;
+  return getWeaponStats(unit);
+}
+
+function threatRange(weapon) {
+  return weapon ? weapon.range : AI_TACTICS.bossMeleeThreatRange;
+}
+
+/**
+ * Threat-aware danger scan for a boss. Ranged enemies only count when the
+ * boss is inside their weapon range and the shot line is clear. Allies count
+ * within the support radius. Turf ownership is intentionally irrelevant.
+ */
+export function scanBossThreats(boss) {
+  const bossCx = Math.floor(boss.x / CHUNK_PX);
+  const bossCy = Math.floor(boss.y / CHUNK_PX);
+  let threatCount = 0;
+  let supportCount = 0;
+
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const bucket = state.spatialBuckets.get(packChunkKey(bossCx + dx, bossCy + dy));
+      if (!bucket) continue;
+      for (let i = 0; i < bucket.length; i++) {
+        const other = bucket[i];
+        if (!other || other === boss || other.hp <= 0) continue;
+        const ox = other.x - boss.x;
+        const oy = other.y - boss.y;
+        const distSq = ox * ox + oy * oy;
+
+        if (other.faction === boss.faction) {
+          if (distSq <= AI_TACTICS.bossSupportRadius * AI_TACTICS.bossSupportRadius) {
+            supportCount++;
+          }
+          continue;
+        }
+
+        const weapon = threatWeapon(other);
+        const range = threatRange(weapon);
+        if (distSq > range * range) continue;
+        if (weapon && !hasClearShot(other, boss.x, boss.y)) continue;
+        threatCount++;
+      }
+    }
+  }
+
+  const player = state.player;
+  if (player && player !== boss && player.alive && player.faction !== boss.faction) {
+    const px = player.x - boss.x;
+    const py = player.y - boss.y;
+    const distSq = px * px + py * py;
+    const weapon = threatWeapon(player);
+    const range = threatRange(weapon);
+    if (distSq <= range * range && (!weapon || hasClearShot(player, boss.x, boss.y))) {
+      threatCount++;
+    }
+  }
+
+  return { threatCount, supportCount };
+}
+
+/** HP danger or threat-aware outnumbering. */
+export function computeBossDanger(boss) {
+  const hpCritical =
+    boss.maxHp > 0 && boss.hp / boss.maxHp <= AI_TACTICS.bossRetreatHpFraction;
+  const { threatCount, supportCount } = scanBossThreats(boss);
+  const outnumbered =
+    threatCount >= AI_TACTICS.bossRetreatMinEnemies && threatCount > supportCount;
+  return { danger: hpCritical || outnumbered, threatCount, supportCount };
+}
+
 /** Pick the nearest non-owned chunk in a 7x7 neighborhood, with a global fallback. */
 export function choosePatrolChunk(u, uCx, uCy) {  let targetChunk = null;
   let bestChunkDist = Infinity;
@@ -507,13 +580,16 @@ export function updateNpcAi(u, dt) {
   const melee = SLASH.aiMeleeByRank[u.rank] || SLASH.aiMelee;
 
   let bossInDanger = false;
-  if (u.rank === UnitRank.BOSS && nearestEnemy) {
-    const hpFraction = u.maxHp > 0 ? u.hp / u.maxHp : 1;
-    const critical = hpFraction <= AI_TACTICS.bossRetreatHpFraction;
-    const outnumbered =
-      nearbyEnemyCount >= AI_TACTICS.bossRetreatMinEnemies &&
-      nearbyEnemyCount > nearbyAllyCount;
-    bossInDanger = critical || outnumbered;
+  if (u.rank === UnitRank.BOSS) {
+    u.bossDangerTimer = Math.max(0, (u.bossDangerTimer || 0) - dt);
+    if (u.bossDangerTimer <= 0) {
+      u.bossDangerTimer = AI_TACTICS.bossDangerInterval;
+      const danger = computeBossDanger(u);
+      u.bossDanger = danger.danger;
+      u.bossThreatCount = danger.threatCount;
+      u.bossSupportCount = danger.supportCount;
+    }
+    bossInDanger = Boolean(u.bossDanger && nearestEnemy);
   }
 
   let retreating = u.rank === UnitRank.BOSS && u.retreatTimer > 0;

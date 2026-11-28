@@ -29,7 +29,7 @@ Each faction carries `state.factionTactics[faction]`:
 |---|---|
 | `globalStance` | **1 Defend** · **2 Expand** (default) |
 | `localOrder` | **1 Guard** · **2 Attack** (default) |
-| `bossInDanger` | Boss HP ≤ 35%, or ≥ 3 nearby enemies with more enemies than allies |
+| `bossInDanger` | Boss HP ≤ 35%, or ≥ 3 actual threats with more threats than nearby allies |
 | `threatenedChunks` | Owned chunks containing living enemies |
 | `localFocusId` | Nearest enemy on the boss chunk, else nearest within 360 px |
 | `updatedAt` | Accumulated simulation seconds of the last refresh |
@@ -199,7 +199,14 @@ Only the boss has a survival directive.
 Danger is:
 
 - **HP ≤ 35%**, or
-- **≥ 3 nearby enemies with more enemies than allies**.
+- **≥ 3 actual threats with more threats than nearby allies**:
+  - melee enemies within **420 px**,
+  - pistol enemies within **600 px**,
+  - MP9 enemies within **700 px**,
+  - ranged threats need ammo and a clear shot line,
+  - allies are counted within **500 px**.
+
+Turf ownership does not decide danger; it only biases the retreat destination. The AI boss refreshes its danger check every **200 ms**.
 
 When in danger:
 
@@ -266,7 +273,7 @@ Defense happens only when an enemy happens to enter a unit's local aggro range.
 
 | Rank | Primary posture | Engagement | Survival | Shopping / armor |
 |---|---|---|---|---|
-| **AI Boss** | Expand locally; survive when in danger | Gun from melee reach to weapon range; healthy boss commits to melee inside 110 px; knife inside reach | Retreats while HP ≤ 35% or outnumbered; armor does not cancel | Glock → ammo → MP9; buys armor |
+| **AI Boss** | Expand locally; survive when in danger | Gun from melee reach to weapon range; healthy boss commits to melee inside 110 px; knife inside reach | Retreats while HP ≤ 35% or threat-aware outnumbered; armor does not cancel | Glock → ammo → MP9; buys armor |
 | **AI Underboss** | Expand locally; ranged skirmisher | Gun from melee reach to weapon range; fires while backing off below 110 px; knife inside 50 px | None | None |
 | **AI Captain** | Expand locally; melee | Knife only; 48 px, 2 targets | None | None |
 | **AI Soldier** | Expand locally; melee | Knife only; 46 px, 1 target | None | None |
@@ -294,7 +301,7 @@ in directive 3; combat behavior is otherwise unchanged.
 - **Ranged fire band:** melee reach → weapon range. There is no 110 px minimum.
 - **Underboss close range:** below 110 px, fire while backing off (80 px step, 0.6 s).
 - **Boss close range:** healthy and not outnumbered → commit to melee inside 110 px.
-- **Boss survival:** danger overrides melee commitment and kiting.
+- **Boss survival:** threat-aware danger (melee 420 / pistol 600 / MP9 700, clear line; allies within 500) overrides melee commitment and kiting.
 - **Knife:** takes over inside actual melee reach.
 - **Friendly fire:** AI holds gun fire when an ally is in the bullet path; knives never hit
   allies. Human players can still hit allies with guns.

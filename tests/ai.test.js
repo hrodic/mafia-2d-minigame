@@ -478,6 +478,87 @@ test('ai: wounded unarmored bosses sprint away instead of suiciding', () => {
   );
 });
 
+test('ai: threat-aware danger counts ranged enemies beyond 420 px', () => {
+  const boss = madeBoss({ hp: 800, armor: 0, armorCooldown: 0, x: 0, y: 0 });
+  const squad = [remoteUnit(UnitRank.UNDERBOSS, 91), remoteUnit(UnitRank.UNDERBOSS, 92), remoteUnit(UnitRank.UNDERBOSS, 93)];
+  for (let i = 0; i < squad.length; i++) {
+    squad[i].faction = Faction.RIVAL_2;
+    squad[i].x = 550;
+    squad[i].y = -20 + i * 20;
+    squad[i].weapon = 'pistol';
+    squad[i].pistolOwned = true;
+    squad[i].ammo = 10;
+  }
+  withAiState(
+    {
+      world: pistolTestWorld(),
+      player: pistolTestPlayer({ x: -1000, y: -1000 }),
+      npcs: [boss, ...squad],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [boss, ...squad]]]),
+      treasuries: { [Faction.RIVAL_1]: 0 },
+    },
+    () => {
+      updateNpcAi(boss, 0.016);
+      assert(boss.retreatTimer > 0, 'three pistol threats at 550 px should trigger a retreat');
+      assertEqual(boss.bossThreatCount, 3);
+    }
+  );
+});
+
+test('ai: a wall blocks a ranged threat from counting', () => {
+  const boss = madeBoss({ hp: 800, armor: 0, armorCooldown: 0, x: 0, y: 0 });
+  const squad = [remoteUnit(UnitRank.UNDERBOSS, 94), remoteUnit(UnitRank.UNDERBOSS, 95), remoteUnit(UnitRank.UNDERBOSS, 96)];
+  for (let i = 0; i < squad.length; i++) {
+    squad[i].faction = Faction.RIVAL_2;
+    squad[i].x = 550;
+    squad[i].y = -20 + i * 20;
+    squad[i].weapon = 'pistol';
+    squad[i].pistolOwned = true;
+    squad[i].ammo = 10;
+  }
+  withAiState(
+    {
+      world: walledPistolTestWorld(),
+      player: pistolTestPlayer({ x: -1000, y: -1000 }),
+      npcs: [boss, ...squad],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [boss, ...squad]]]),
+      treasuries: { [Faction.RIVAL_1]: 0 },
+    },
+    () => {
+      updateNpcAi(boss, 0.016);
+      assertEqual(boss.retreatTimer, 0, 'blocked ranged threats should not count');
+      assertEqual(boss.bossThreatCount, 0);
+    }
+  );
+});
+
+test('ai: empty guns fall back to the melee threat range', () => {
+  const boss = madeBoss({ hp: 800, armor: 0, armorCooldown: 0, x: 0, y: 0 });
+  const squad = [remoteUnit(UnitRank.UNDERBOSS, 97), remoteUnit(UnitRank.UNDERBOSS, 98), remoteUnit(UnitRank.UNDERBOSS, 99)];
+  for (let i = 0; i < squad.length; i++) {
+    squad[i].faction = Faction.RIVAL_2;
+    squad[i].x = 550;
+    squad[i].y = -20 + i * 20;
+    squad[i].weapon = 'pistol';
+    squad[i].pistolOwned = true;
+    squad[i].ammo = 0;
+  }
+  withAiState(
+    {
+      world: pistolTestWorld(),
+      player: pistolTestPlayer({ x: -1000, y: -1000 }),
+      npcs: [boss, ...squad],
+      spatialBuckets: new Map([[packChunkKey(0, 0), [boss, ...squad]]]),
+      treasuries: { [Faction.RIVAL_1]: 0 },
+    },
+    () => {
+      updateNpcAi(boss, 0.016);
+      assertEqual(boss.retreatTimer, 0, 'dry guns at 550 px are not ranged threats');
+      assertEqual(boss.bossThreatCount, 0);
+    }
+  );
+});
+
 test('ai: outnumbered unarmored bosses retreat even at full HP', () => {
   const boss = madeBoss({ hp: 800, armor: 0, armorCooldown: 0 });
   const squad = [

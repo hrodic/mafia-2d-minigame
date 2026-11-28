@@ -154,6 +154,10 @@ export function spawnUnitInChunk(faction, chunk, rank = UnitRank.SOLDIER) {
               mp9Mags: 0,
               reloadTimer: 0,
               shopTimer: 0,
+              bossDangerTimer: 0,
+              bossDanger: false,
+              bossThreatCount: 0,
+              bossSupportCount: 0,
             }
           : {}),
         dodgeDir: Math.random() > 0.5 ? 1 : -1,

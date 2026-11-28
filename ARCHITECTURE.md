@@ -300,6 +300,9 @@ Blocked/off-map slots fall back to the nearest walkable ring direction that keep
 60% of the intended range.
 `sim/ai.js`: `scanNearby` (nearest enemy + ally/enemy counts in the 3×3 spatial buckets;
 squared distances, and counts are only computed for bosses that use them),
+`scanBossThreats`/`computeBossDanger` (threat-aware survival scan: melee 420 px, pistol
+600 px, MP9 700 px, ranged threats need ammo and a clear shot line, allies counted within
+500 px, refreshed every 200 ms),
 a one-second boss equipment shop (Glock first, first ammo/reload, then MP9 once the
 syndicate has 5 living units and 3 blocks), boss armor purchase, melee for every rank and
 weapon fire for bosses/underbosses from **melee reach to weapon range** when the bullet
@@ -309,8 +312,8 @@ the knife takes over inside melee reach; an MP9-equipped boss keeps its 0.1 s au
 cadence through the shared weapon cooldown,
 `choosePatrolChunk` (nearest non-owned chunk with
 a global fallback), A* path following/steering, obstacle dodge and capture. Wounded or
-outnumbered bosses buy armor when possible but still sprint to a retreat point while the
-danger persists; healthy, non-outnumbered bosses commit to melee instead of kiting, and
+threat-outnumbered bosses buy armor when possible but still sprint to a retreat point while
+the danger persists; healthy, non-outnumbered bosses commit to melee instead of kiting, and
 blocked gun shooters sidestep their firing lane, back off when both flanks are blocked,
 and always knife at close range (knives have no friendly-fire restriction). `updateNpcAi(u,
 dt)` is headless; remote-human bosses bypass it. `simulation.js` remains the fixed-step

@@ -94,6 +94,9 @@ export const AI_TACTICS = {
   bossMeleeCommitDistance: 110,
   rangedAggroBuffer: 100,
   meleeAggroRange: 500,
+  bossDangerInterval: 0.2,
+  bossMeleeThreatRange: 420,
+  bossSupportRadius: 500,
 };
 
 /** Bosses are 25% heavier when pushing/resisting pushes; every other rank is 1. */

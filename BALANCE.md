@@ -184,7 +184,8 @@ See **`TACTICS.md`** for the full operational stance, directives and rules of en
 | Value | Current |
 |---|---|
 | Boss retreat HP | **≤ 35%** |
-| Boss retreat trigger | **HP ≤ 35%** or **≥ 3 enemies with more enemies than allies** (armor does **not** cancel retreat) |
+| Boss retreat trigger | **HP ≤ 35%** or **≥ 3 actual threats with more threats than nearby allies** (armor does **not** cancel retreat) |
+| Boss threat scan | melee **420 px**, pistol **600 px**, MP9 **700 px**; ranged threats need ammo and a clear shot line; allies count within **500 px**; refreshed every **200 ms** |
 | Boss retreat | **2.2 s**, target 280 px away, sprint burst; repeats while the danger persists |
 | Gun flank | **90 px** lateral sidestep, committed for **0.9 s** |
 | Flank fallback | back off 72 px when both sides are blocked |
