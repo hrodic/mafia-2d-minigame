@@ -4,6 +4,7 @@ Rules for AI/human contributors. One source of truth per topic:
 
 - `README.md` — what the game is, controls, run/deploy.
 - `ARCHITECTURE.md` — layers, modules, data flow, invariants.
+- `TACTICS.md` — current AI operational stance, directives and rules of engagement.
 - `PLAN.md` — phase status and future ideas. **Current phase: none (Phases 0–5 complete).**
 - `EVENTS.md` — event-bus contract (implemented).
 - `.opencode/skills/` — task skills (zero-build refactor, multiplayer debug).
@@ -62,6 +63,10 @@ Run these before every commit:
 - `1.0.0` is the first stable release; while `0.x`, breaking changes may still land in a
   MINOR.
 - Peers must run the same `GAME_VERSION`: it gates the multiplayer handshake.
+- **Before pushing a MINOR version bump**, run the standalone 120s headless simulation in
+  `tests/long-sim.html` at least once and confirm `PASS`. Default is **Turbo 10×10**; use
+  the **Big Turbo 25×25** preset for a larger stress run. It is recommended as the release
+  sanity check for each MINOR bump.
 
 ## Commands (Windows/PowerShell; `python`/`node` not assumed)
 
@@ -76,6 +81,7 @@ Run these before every commit:
 | Single-player smoke | `http://localhost:8123/` |
 | Built artifact smoke | `http://localhost:8123/docs/` |
 | Multiplayer smoke | `tests/mp-harness.html` in two tabs |
+| 120s headless simulation | `http://localhost:8123/tests/long-sim.html` (grid/tick/income/factions selector) |
 | Manual checklist | `tests/SMOKE.md` |
 
 ## Verification (after every change)
@@ -92,6 +98,8 @@ Run these before every commit:
 7. Added a test file? Register it in `tests/runner.js`; the check script enforces this.
 8. Golden test failed after a refactor? Generation broke. Fix the code; update
    `tests/world-golden.test.js` hashes only for an intentional generation change.
+9. Before pushing a MINOR version bump, run `tests/long-sim.html` (120s headless; default
+   Turbo 10×10, optional Big Turbo 25×25) once and confirm `PASS` alongside the normal gates.
 
 ## Where to change what
 
@@ -103,6 +111,8 @@ Run these before every commit:
 | Player-count slot mapping | `src/config/organizations.js` (`getActiveFactionSlots`) |
 | Worldgen / props / collision | `src/world/chunk.js`, `src/world/city.js`, `src/world/geometry.js` |
 | AI behavior | `src/sim/ai.js` |
+| AI operational stance / directives | `TACTICS.md`, `src/sim/ai.js`, `src/config/balance.js` |
+| Global / local orders | `src/sim/tactics.js`, `src/config/tactics.js`, `src/ui/actionBar.js`, `src/ui/input.js` |
 | Combat / weapons / armor | `src/sim/combat.js` |
 | Combat presentation (effects / SFX) | `src/render/combatFx.js`, `src/audio/combatSfx.js` |
 | Capture / victory / defeat | `src/sim/territory.js` |
@@ -166,3 +176,4 @@ Run these before every commit:
 
 Static check OK, tests `PASS`, smoke clean, docs updated if structure changed, version
 bumped per policy. Report changed files and verification results. Do not commit.
+

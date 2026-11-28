@@ -2,11 +2,14 @@
 
 
 let soundEnabled = true;
-let musicEnabled = true;
+let musicEnabled = false;
 let currentMusicTrack = 0;
 let audioCtx = null;
 let masterGain = null;
 let musicGain = null;
+
+export const MASTER_VOLUME = 1.0;
+export const MUSIC_VOLUME = 0.5;
 
 export function ensureAudioContext() {
   if (!audioCtx) {
@@ -15,11 +18,11 @@ export function ensureAudioContext() {
     audioCtx = new AudioContextClass();
 
     masterGain = audioCtx.createGain();
-    masterGain.gain.value = 0.72;
+    masterGain.gain.value = MASTER_VOLUME;
     masterGain.connect(audioCtx.destination);
 
     musicGain = audioCtx.createGain();
-    musicGain.gain.value = musicEnabled ? 0.27 : 0.0;
+    musicGain.gain.value = musicEnabled ? MUSIC_VOLUME : 0.0;
     musicGain.connect(audioCtx.destination);
   }
   if (audioCtx.state === 'suspended') {
@@ -321,14 +324,14 @@ export function cycleMusicTrack() {
   } else {
     musicEnabled = true;
     currentMusicTrack = 0;
-    if (musicGain && audioCtx) musicGain.gain.value = 0.27;
+    if (musicGain && audioCtx) musicGain.gain.value = MUSIC_VOLUME;
     if (!musicEngine.isPlaying) musicEngine.start();
   }
   return getMusicState();
 }
 
 export function getMasterGainValue() {
-  return masterGain ? masterGain.gain.value : 0.72;
+  return masterGain ? masterGain.gain.value : MASTER_VOLUME;
 }
 
 export function getNoiseBuffer(ctx) {

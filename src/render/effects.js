@@ -14,16 +14,16 @@ export const sparks = [];
 export const slashArcs = [];
 export const muzzleFlashes = [];
 export const deadBodies = [];
-export const MAX_BLOOD_DECALS = 300;
+export const MAX_BLOOD_DECALS = 400;
 export const MAX_DEAD_BODIES = 200;
 const MAX_FLOATING_TEXTS = 48;
 
 export function spawnBloodSplash(x, y, intensity = 1, isKill = false, dirAngle = null) {
-  const count = isKill ? 26 : Math.round(12 * intensity);
+  const count = isKill ? 16 : Math.round(7 * intensity);
   for (let i = 0; i < count; i++) {
     const spread = dirAngle !== null ? (Math.random() - 0.5) * 1.35 : Math.random() * Math.PI * 2;
     const angle = dirAngle !== null ? dirAngle + spread : spread;
-    const speed = (isKill ? 75 : 48) + Math.random() * (isKill ? 185 : 110);
+    const speed = (isKill ? 70 : 44) + Math.random() * (isKill ? 160 : 100);
     const shadeRoll = Math.random();
     const color =
       shadeRoll > 0.55 ? '#ef4444' : shadeRoll > 0.22 ? '#b91c1c' : '#450a0a';
@@ -34,25 +34,26 @@ export function spawnBloodSplash(x, y, intensity = 1, isKill = false, dirAngle =
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       vz: 65 + Math.random() * 125,
-      radius: 1.6 + Math.random() * (isKill ? 3.4 : 2.3),
+      radius: 1.4 + Math.random() * (isKill ? 2.8 : 1.8),
       color,
       life: 0.55 + Math.random() * 0.45,
     });
   }
 
-  const poolCount = isKill ? 4 : 2;
+  const poolCount = isKill ? 6 : 3;
   for (let p = 0; p < poolCount; p++) {
-    const offsetDist = dirAngle !== null ? (6 + Math.random() * 18) : (Math.random() - 0.5) * (isKill ? 28 : 16);
+    const offsetDist = dirAngle !== null ? (6 + Math.random() * 22) : (Math.random() - 0.5) * (isKill ? 34 : 22);
     const offsetAng = dirAngle !== null ? dirAngle + (Math.random() - 0.5) * 0.8 : Math.random() * Math.PI * 2;
+    const life = isKill ? 80 : 50;
     bloodDecals.push({
       x: x + Math.cos(offsetAng) * offsetDist,
       y: y + Math.sin(offsetAng) * offsetDist * 0.72,
-      rx: (isKill ? 8.5 : 4.5) + Math.random() * (isKill ? 10 : 4.5),
-      ry: (isKill ? 5 : 2.6) + Math.random() * (isKill ? 5.5 : 2.6),
+      rx: (isKill ? 10 : 5) + Math.random() * (isKill ? 11 : 5),
+      ry: (isKill ? 5.5 : 3) + Math.random() * (isKill ? 6 : 3),
       rot: Math.random() * Math.PI,
       color: Math.random() > 0.38 ? 'rgba(127, 29, 29, 0.78)' : 'rgba(69, 10, 10, 0.85)',
-      life: 40,
-      maxLife: 40,
+      life,
+      maxLife: life,
     });
   }
   if (bloodDecals.length > MAX_BLOOD_DECALS) {
@@ -75,8 +76,8 @@ export function spawnDeadBody(x, y, faction, rank, facing, fallAngle = facing) {
     tiltAngle: (Math.random() - 0.5) * 0.42,
     poolRadius: 4,
     maxPoolRadius: rank === UnitRank.BOSS ? 22 : 16,
-    life: 30.0,
-    maxLife: 30.0,
+    life: 60.0,
+    maxLife: 60.0,
   });
   if (deadBodies.length > MAX_DEAD_BODIES) {
     deadBodies.shift();

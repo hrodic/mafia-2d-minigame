@@ -3,12 +3,12 @@
 // in their own modules. Characterisation tests lock the current values.
 
 import { UnitRank } from './enums.js';
-import { MAX_PISTOL_RANGE } from './constants.js';
+import { MAX_PISTOL_RANGE, MAX_MP9_RANGE } from './constants.js';
 
 export const INCOME_TIERS = {
-  LOW: { label: 'Low', min: 500, max: 1000 },
-  MID: { label: 'Mid', min: 1000, max: 1500 },
-  HIGH: { label: 'High', min: 1500, max: 2000 },
+  LOW: { label: 'Low', min: 250, max: 500 },
+  MID: { label: 'Mid', min: 500, max: 1000 },
+  HIGH: { label: 'High', min: 1000, max: 1500 },
 };
 
 // Non-boss AI ranks use per-rank speeds; human-controlled bosses still use speedHuman.
@@ -40,8 +40,8 @@ export const RANK_STATS = {
     radius: 12.8,
     capturePerTick: 1,
     regenPerSecond: 4,
-    cost: 4000,
-    upkeep: 600,
+    cost: 2000,
+    upkeep: 300,
   },
   [UnitRank.CAPTAIN]: {
     hp: 600,
@@ -55,8 +55,8 @@ export const RANK_STATS = {
     radius: 12,
     capturePerTick: 0.5,
     regenPerSecond: 2,
-    cost: 2500,
-    upkeep: 300,
+    cost: 1250,
+    upkeep: 150,
   },
   [UnitRank.SOLDIER]: {
     hp: 300,
@@ -70,8 +70,8 @@ export const RANK_STATS = {
     radius: 11,
     capturePerTick: 0.2,
     regenPerSecond: 1,
-    cost: 1000,
-    upkeep: 100,
+    cost: 500,
+    upkeep: 50,
   },
 };
 
@@ -88,7 +88,23 @@ export const AI_TACTICS = {
   bossRetreatDistance: 280,
   flankDistance: 90,
   flankDuration: 0.9,
+  rangedBackoffDistance: 110,
+  rangedBackoffStep: 80,
+  rangedBackoffDuration: 0.6,
+  bossMeleeCommitDistance: 110,
+  rangedAggroBuffer: 100,
+  meleeAggroRange: 500,
+  bossDangerInterval: 0.2,
+  bossMeleeThreatRange: 420,
+  bossSupportRadius: 500,
 };
+
+/** Bosses are 25% heavier when pushing/resisting pushes; every other rank is 1. */
+export function getPushMass(rank) {
+  return rank === UnitRank.BOSS ? 1.25 : 1;
+}
+
+export const PUSH_SPEED_FACTOR = 0.3;
 
 export const UNIT_CAPS = {
   underbossPerSide: 1,
@@ -192,6 +208,7 @@ export const PISTOL = {
   magazine: 10,
   fireCooldown: 0.2,
   reloadTime: 4,
+  range: MAX_PISTOL_RANGE,
   outOfRange: {
     failChance: 1,
     dmgMult: 0,
@@ -215,6 +232,37 @@ export const PISTOL = {
   ],
 };
 
+// Boss-only automatic SMG upgrade. Same damage as the pistol, double the
+// magazine and rate of fire, pistol accuracy to 600 px, then a low-probability
+// 600-700 px tail.
+export const MP9 = {
+  minDmg: PISTOL.minDmg,
+  maxDmg: PISTOL.maxDmg,
+  knockbackMin: PISTOL.knockbackMin,
+  knockbackMax: PISTOL.knockbackMax,
+  magazine: 20,
+  fireCooldown: 0.1,
+  reloadTime: 4,
+  range: MAX_MP9_RANGE,
+  outOfRange: { ...PISTOL.outOfRange },
+  accuracyBands: [
+    ...PISTOL.accuracyBands,
+    {
+      maxDist: MAX_MP9_RANGE,
+      inclusive: true,
+      failChance: 0.7,
+      dmgMult: 1,
+      label: '30% chance',
+      color: '#f43f5e',
+    },
+  ],
+};
+
+export const WEAPONS = {
+  pistol: PISTOL,
+  mp9: MP9,
+};
+
 export const CRITICAL = {
   // Base chance for every weapon. A hit from the target's rear 120° cone adds
   // backBonus to the chance. Critical damage is multiplied before armor absorbs.
@@ -224,7 +272,17 @@ export const CRITICAL = {
   multiplier: 2,
 };
 
-export const COST_BOSS_ARMOR = 3500;
+export const COST_BOSS_ARMOR = 2000;
+export const COST_BOSS_GLOCK = 1000;
+export const COST_BOSS_MP9 = 4000;
+export const COST_BOSS_AMMO = 20;
+export const AMMO_ROUNDS_PER_PURCHASE = 20;
+export const PISTOL_MAG_CAP = 20;
+export const MP9_MAG_CAP = 10;
+export const START_PISTOL_MAGS = 0;
+export const MP9_INCLUDED_MAGS = 0;
+export const AI_MP9_MIN_CREW = 5;
+export const AI_MP9_MIN_TURFS = 3;
 
 export const COST_SOLDIER = RANK_STATS[UnitRank.SOLDIER].cost;
 export const COST_CAPTAIN = RANK_STATS[UnitRank.CAPTAIN].cost;

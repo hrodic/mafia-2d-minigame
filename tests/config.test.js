@@ -7,6 +7,7 @@ import {
   DEFAULT_GRID_SIZE,
   DEFAULT_TICK_DURATION,
   MAX_PISTOL_RANGE,
+  MAX_MP9_RANGE,
   HIT_FLASH_DURATION,
   SIM_DT,
   MAX_FRAME_DELTA,
@@ -31,6 +32,7 @@ test('config: geometry constants are consistent', () => {
   assertEqual(DEFAULT_GRID_SIZE, 15);
   assertEqual(DEFAULT_TICK_DURATION, 10);
   assertEqual(MAX_PISTOL_RANGE, 600);
+  assertEqual(MAX_MP9_RANGE, 700);
   assertEqual(HIT_FLASH_DURATION, 0.16);
   assertEqual(SIM_DT, 1 / 120);
   assertEqual(MAX_FRAME_DELTA, 0.25);

@@ -12,7 +12,6 @@ import {
   BOSS_MAX_HP,
   INCOME_TIERS,
   MAX_BOSS_ARMOR,
-  PISTOL,
   RANK_STATS,
   UNIT_CAPS,
   clampMatchUnitCaps,
@@ -25,6 +24,7 @@ import {
   ensureUniqueOrgs,
   getActiveFactionSlots,
 } from '../config/organizations.js';
+import { createFactionTactics } from '../config/tactics.js';
 
 const DEFAULT_ORG_ROSTER = ['COSA_NOSTRA', 'BRATVA', 'TRIADS', 'CARTEL'];
 
@@ -50,12 +50,14 @@ export function createGameState(config = {}) {
   const factionAlive = {};
   const factionKills = {};
   const factionDeaths = {};
+  const factionTactics = {};
   for (const faction of ALL_FACTION_SLOTS) {
     const isActive = activeFactions.includes(faction);
     treasuries[faction] = isActive ? 5000 : 0;
     factionAlive[faction] = isActive;
     factionKills[faction] = 0;
     factionDeaths[faction] = 0;
+    factionTactics[faction] = createFactionTactics();
   }
 
   const playerSpawnX = 1.5 * TILE_SIZE;
@@ -69,6 +71,8 @@ export function createGameState(config = {}) {
     floatingTexts: [],
     spatialBuckets: new Map(),
     bucketPool: [],
+    collisionBuckets: new Map(),
+    collisionBucketPool: [],
     nextNpcId: 1,
     astarBudgetThisFrame: 0,
 
@@ -77,6 +81,7 @@ export function createGameState(config = {}) {
     factionAlive,
     factionKills,
     factionDeaths,
+    factionTactics,
 
     // --- local player boss --------------------------------------------------
     player: {
@@ -108,7 +113,15 @@ export function createGameState(config = {}) {
       slashAnimTimer: 0,
       muzzleFlashTimer: 0,
       hitFlashTimer: 0,
-      ammo: PISTOL.magazine,
+      weapon: 'none',
+      pistolOwned: false,
+      ammo: 0,
+      spareMags: 0,
+      pistolAmmo: 0,
+      pistolMags: 0,
+      mp9Owned: false,
+      mp9Ammo: 0,
+      mp9Mags: 0,
       reloadTimer: 0,
     },
     camera: {
@@ -120,6 +133,12 @@ export function createGameState(config = {}) {
       screenY: null,
       inside: false,
     },
+    mouseFiring: false,
+    aimWorldX: 0,
+    aimWorldY: 0,
+    aimInside: false,
+    buyMenuOpen: false,
+    ordersMenu: null,
     keys: new Set(),
     sprintButtonHeld: false,
 
@@ -155,6 +174,8 @@ export function createGameState(config = {}) {
     gameHour: 19,
     hudUpdateTimer: 0,
     minimapCacheTimer: 1.0,
+    tacticsTimer: 0,
+    depenetrationTimer: 0,
 
     // --- multiplayer bridge (assigned by main.js after mpNet init) ----------
     net: config.net ?? null,
@@ -209,6 +230,9 @@ const deadLocalBoss = {
   isSprinting: false,
   targetX: null,
   targetY: null,
+  weapon: 'none',
+  pistolOwned: false,
+  mp9Owned: false,
 };
 
 export function getLocalFaction() {

@@ -125,7 +125,7 @@ test('host: remote input is clamped and stored', () => {
   setMatchStarted(true);
 
   controller.handleInput(
-    { type: MSG.INPUT, payload: { mx: 5, my: -5, sprint: 1, facing: 2 } },
+    { type: MSG.INPUT, payload: { mx: 5, my: -5, sprint: 1, facing: 2, fire: 1 } },
     'g1'
   );
 
@@ -134,6 +134,7 @@ test('host: remote input is clamped and stored', () => {
   assertEqual(input.my, -1);
   assertEqual(input.sprint, true);
   assertEqual(input.facing, 2);
+  assertEqual(input.fire, true);
 });
 
 test('host: duplicate HELLO refreshes lobby state without duplicating the guest', () => {
@@ -184,11 +185,27 @@ test('host: commands from seated peers are dispatched; unknown peers are ignored
     assertEqual(state.npcs[0].targetY, 34);
 
     controller.handleCommand(
+      { type: MSG.CMD, seq: 1, payload: { cmd: 'MOVE_TO', x: 50, y: 50 } },
+      'g1'
+    );
+    assertEqual(state.npcs[0].targetX, 50);
+    controller.handleCommand(
+      { type: MSG.CMD, seq: 1, payload: { cmd: 'MOVE_TO', x: 99, y: 99 } },
+      'g1'
+    );
+    assertEqual(state.npcs[0].targetX, 50, 'duplicate command seq is ignored');
+    controller.handleCommand(
+      { type: MSG.CMD, seq: 2, payload: { cmd: 'MOVE_TO', x: 66, y: 66 } },
+      'g1'
+    );
+    assertEqual(state.npcs[0].targetX, 66);
+
+    controller.handleCommand(
       { type: MSG.CMD, payload: { cmd: 'MOVE_TO', x: 99, y: 99 } },
       'unknown-peer'
     );
-    assertEqual(state.npcs[0].targetX, 12);
-    assertEqual(state.npcs[0].targetY, 34);
+    assertEqual(state.npcs[0].targetX, 66);
+    assertEqual(state.npcs[0].targetY, 66);
   } finally {
     state.world = savedWorld;
     state.npcs = savedNpcs;

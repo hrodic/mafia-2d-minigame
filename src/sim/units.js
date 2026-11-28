@@ -2,11 +2,15 @@
 
 import { Faction, UnitRank } from '../config/enums.js';
 import { CHUNK_SIZE, CHUNK_PX, TILE_SIZE } from '../config/constants.js';
-import { RANK_STATS, PISTOL, UNIT_CAPS, clampMatchUnitCaps, defaultSpawnCaps } from '../config/balance.js';
+import { RANK_STATS, PISTOL, START_PISTOL_MAGS, UNIT_CAPS, clampMatchUnitCaps, defaultSpawnCaps } from '../config/balance.js';
+import { GLOBAL_STANCE } from '../config/tactics.js';
 import { ALL_FACTION_SLOTS } from '../config/organizations.js';
 import { state } from '../core/state.js';
 import { emit } from '../core/events.js';
+import { addUnitToCollisionBucket } from '../core/spatial.js';
+import { packChunkKey } from '../world/city.js';
 import { canOccupyPosition } from './movement.js';
+import { countLivingEnemiesOnChunk } from './territory.js';
 
 
 export function getUnitCaps() {
@@ -123,12 +127,38 @@ export function spawnUnitInChunk(faction, chunk, rank = UnitRank.SOLDIER) {
         path: null,
         pathTimer: 0,
         aiTimer: 0,
+        inBossAura: false,
+        guardAssigned: false,
+        guardSlotAngle: null,
+        guardSlotDistance: null,
+        guardPostX: 0,
+        guardPostY: 0,
+        guardPostRevision: null,
         attackCooldown: 0,
         slashAnimTimer: 0,
         muzzleFlashTimer: 0,
         hitFlashTimer: 0,
-        ...(rank === UnitRank.BOSS || rank === UnitRank.UNDERBOSS
-          ? { ammo: PISTOL.magazine, reloadTimer: 0 }
+        ...(rank === UnitRank.UNDERBOSS
+          ? { weapon: 'pistol', ammo: PISTOL.magazine, reloadTimer: 0, mp9Owned: false }
+          : {}),
+        ...(rank === UnitRank.BOSS
+          ? {
+              weapon: 'none',
+              pistolOwned: false,
+              mp9Owned: false,
+              ammo: 0,
+              spareMags: START_PISTOL_MAGS,
+              pistolAmmo: 0,
+              pistolMags: START_PISTOL_MAGS,
+              mp9Ammo: 0,
+              mp9Mags: 0,
+              reloadTimer: 0,
+              shopTimer: 0,
+              bossDangerTimer: 0,
+              bossDanger: false,
+              bossThreatCount: 0,
+              bossSupportCount: 0,
+            }
           : {}),
         dodgeDir: Math.random() > 0.5 ? 1 : -1,
         lastCheckX: wx,
@@ -136,14 +166,118 @@ export function spawnUnitInChunk(faction, chunk, rank = UnitRank.SOLDIER) {
         stuckTimer: 0,
       };
       state.npcs.push(unit);
+      const bucketKey = packChunkKey(Math.floor(wx / CHUNK_PX), Math.floor(wy / CHUNK_PX));
+      let bucket = state.spatialBuckets.get(bucketKey);
+      if (!bucket) {
+        bucket = state.bucketPool.pop() || [];
+        state.spatialBuckets.set(bucketKey, bucket);
+      }
+      bucket.push(unit);
+      addUnitToCollisionBucket(unit);
       return unit;
     }
   }
   return null;
 }
 
-export function recruitUnit(faction, rank, silent = false, cachedCounts = null, cachedOwnedChunks = null) {
-  if (!state.factionAlive[faction]) return false;
+const DEFEND_SPAWN_ENEMY_LIMIT = 3;
+
+const SPAWN_NEIGHBOR_OFFSETS = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+];
+
+function distanceToChunkPoint(chunk, x, y) {
+  return Math.hypot((chunk.cx + 0.5) * CHUNK_PX - x, (chunk.cy + 0.5) * CHUNK_PX - y);
+}
+
+function isOwnedBorderChunk(chunk, faction) {
+  for (const [dx, dy] of SPAWN_NEIGHBOR_OFFSETS) {
+    const neighbor = state.world.getChunk(chunk.cx + dx, chunk.cy + dy);
+    if (neighbor && neighbor.faction !== faction) return true;
+  }
+  return false;
+}
+
+function factionBossPosition(faction) {
+  if (faction === Faction.PLAYER && state.player && state.player.alive) return state.player;
+  for (let i = 0; i < state.npcs.length; i++) {
+    const unit = state.npcs[i];
+    if (unit && unit.faction === faction && unit.rank === UnitRank.BOSS) return unit;
+  }
+  return null;
+}
+
+/**
+ * Defend reinforcement placement: friendly turf near the threat, never a block
+ * already holding 3+ enemies when a safe alternative exists. Returns null when
+ * the faction is not defending, so the caller keeps the normal spawn rule.
+ */
+function chooseDefendSpawnChunk(faction, ownedChunks) {
+  const record = state.factionTactics && state.factionTactics[faction];
+  if (!record || record.globalStance !== GLOBAL_STANCE.DEFEND) return null;
+
+  const safe = ownedChunks.filter(
+    (chunk) => countLivingEnemiesOnChunk(chunk, faction) < DEFEND_SPAWN_ENEMY_LIMIT
+  );
+  const pool = safe.length > 0 ? safe : ownedChunks;
+  if (pool.length === 0) return null;
+
+  const boss = factionBossPosition(faction);
+  const anchorX = boss ? boss.x : record.bossX;
+  const anchorY = boss ? boss.y : record.bossY;
+
+  const threatened = (record.threatenedChunks || []).filter(
+    (chunk) => chunk.faction === faction
+  );
+  if (threatened.length > 0) {
+    let threat = null;
+    let threatDist = Infinity;
+    for (const chunk of threatened) {
+      const d = distanceToChunkPoint(chunk, anchorX, anchorY);
+      if (d < threatDist) {
+        threatDist = d;
+        threat = chunk;
+      }
+    }
+    if (threat && safe.includes(threat)) return threat;
+    if (threat) {
+      const tx = (threat.cx + 0.5) * CHUNK_PX;
+      const ty = (threat.cy + 0.5) * CHUNK_PX;
+      let best = null;
+      let bestDist = Infinity;
+      for (const chunk of pool) {
+        const d = distanceToChunkPoint(chunk, tx, ty);
+        if (d < bestDist) {
+          bestDist = d;
+          best = chunk;
+        }
+      }
+      return best;
+    }
+  }
+
+  let border = null;
+  let borderDist = Infinity;
+  let any = null;
+  let anyDist = Infinity;
+  for (const chunk of pool) {
+    const d = distanceToChunkPoint(chunk, anchorX, anchorY);
+    if (d < anyDist) {
+      anyDist = d;
+      any = chunk;
+    }
+    if (isOwnedBorderChunk(chunk, faction) && d < borderDist) {
+      borderDist = d;
+      border = chunk;
+    }
+  }
+  return border || any;
+}
+
+export function recruitUnit(faction, rank, silent = false, cachedCounts = null, cachedOwnedChunks = null) {  if (!state.factionAlive[faction]) return false;
   const stats = RANK_STATS[rank] || RANK_STATS[UnitRank.SOLDIER];
   const cost = stats.cost;
   if (state.treasuries[faction] < cost) return false;
@@ -185,7 +319,10 @@ export function recruitUnit(faction, rank, silent = false, cachedCounts = null, 
   if (ownedChunks.length === 0) return false;
 
   let spawnChunk = ownedChunks[Math.floor(Math.random() * ownedChunks.length)];
-  if (faction === Faction.PLAYER && state.player.alive) {
+  const defendChunk = chooseDefendSpawnChunk(faction, ownedChunks);
+  if (defendChunk) {
+    spawnChunk = defendChunk;
+  } else if (faction === Faction.PLAYER && state.player.alive) {
     const pTile = state.world.worldToTile(state.player.x, state.player.y);
     const pChunk = state.world.getChunk(pTile.cx, pTile.cy);
     if (pChunk && pChunk.faction === Faction.PLAYER) {

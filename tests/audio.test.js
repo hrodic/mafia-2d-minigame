@@ -7,7 +7,10 @@ import {
   setSoundEnabled,
   getMusicState,
   cycleMusicTrack,
+  getMasterGainValue,
   getNoiseBuffer,
+  MASTER_VOLUME,
+  MUSIC_VOLUME,
 } from '../src/audio/engine.js';
 
 test('audio: attenuation is full volume inside the inner radius', () => {
@@ -55,6 +58,14 @@ test('audio: sound toggle returns and stores the new state', () => {
   } finally {
     setSoundEnabled(before);
   }
+});
+
+test('audio: SFX is on and music off by default with a 100/50 mix', () => {
+  assertEqual(isSoundEnabled(), true);
+  assertEqual(getMusicState().enabled, false);
+  assertEqual(MASTER_VOLUME, 1.0);
+  assertEqual(MUSIC_VOLUME, 0.5);
+  assertEqual(getMasterGainValue(), 1.0);
 });
 
 test('audio: music cycles Noir I -> Noir II -> OFF -> Noir I', () => {

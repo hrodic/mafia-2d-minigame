@@ -18,6 +18,11 @@ function makeState() {
     factionAlive: { PLAYER: true, RIVAL_1: false },
     factionKills: { PLAYER: 2 },
     factionDeaths: { PLAYER: 1, RIVAL_1: 4 },
+    activeFactions: ['PLAYER', 'RIVAL_1'],
+    factionTactics: {
+      PLAYER: { globalStance: 2, localOrder: 1 },
+      RIVAL_1: { globalStance: 1, localOrder: 2 },
+    },
     player: {
       x: 10.04,
       y: 20.05,
@@ -31,6 +36,12 @@ function makeState() {
       muzzleFlashTimer: 0,
       ammo: 7,
       reloadTimer: 2.34,
+      weapon: 'pistol',
+      pistolOwned: true,
+      mp9Owned: false,
+      spareMags: 2,
+      pistolMags: 2,
+      mp9Mags: 0,
     },
     world: {
       chunks: new Map([
@@ -55,6 +66,12 @@ function makeState() {
         humanPeerId: 'peer1',
         ammo: 3,
         reloadTimer: 4.06,
+        weapon: 'mp9',
+        pistolOwned: true,
+        mp9Owned: true,
+        spareMags: 1,
+        pistolMags: 3,
+        mp9Mags: 1,
       },
       {
         id: 'u2',
@@ -72,6 +89,7 @@ function makeState() {
         humanPeerId: null,
         ammo: 10,
         reloadTimer: 0,
+        weapon: 'pistol',
       },
     ],
   };
@@ -115,6 +133,7 @@ test('protocol: encodeSnapshot rounds and preserves the wire arrays', () => {
   assertDeepEqual(snap.factionAlive, { PLAYER: true, RIVAL_1: false });
   assertDeepEqual(snap.kills, { PLAYER: 2 });
   assertDeepEqual(snap.deaths, { PLAYER: 1, RIVAL_1: 4 });
+  assertDeepEqual(snap.tactics, { PLAYER: [2, 1], RIVAL_1: [1, 2] });
 
   assertDeepEqual(snap.playerBoss, {
     x: 10,
@@ -129,6 +148,12 @@ test('protocol: encodeSnapshot rounds and preserves the wire arrays', () => {
     shoot: 0,
     ammo: 7,
     reload: 2.3,
+    weapon: 1,
+    pistol: 1,
+    mp9: 0,
+    mags: 2,
+    pistolMags: 2,
+    mp9Mags: 0,
   });
 
   assertDeepEqual(snap.chunks, [
@@ -136,8 +161,8 @@ test('protocol: encodeSnapshot rounds and preserves the wire arrays', () => {
     [2, 3, 'NEUTRAL', 0, ''],
   ]);
   assertDeepEqual(snap.npcs, [
-    ['u1', 'RIVAL_1', 'BOSS', 1.3, 2.3, -0.5, 49, 50, 0, 100, 0, 1, 'peer1', 3, 4.1],
-    ['u2', 'PLAYER', 'SOLDIER', 3, 4, 0, 10, 10, 5, 5, 1, 0, '', 10, 0],
+    ['u1', 'RIVAL_1', 'BOSS', 1.3, 2.3, -0.5, 49, 50, 0, 100, 0, 1, 'peer1', 3, 4.1, 2, 1, 1, 1, 3, 1],
+    ['u2', 'PLAYER', 'SOLDIER', 3, 4, 0, 10, 10, 5, 5, 1, 0, '', 10, 0, 1, 0, 0, -1, -1, -1],
   ]);
 });
 

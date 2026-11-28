@@ -27,6 +27,7 @@ export class DistrictChunk {
     this.elevation = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill(0));
     this.buildingStyle = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill(0));
     this.props = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill(PropType.NONE));
+    this.propRects = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill(null));
     this.propColors = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill('#18181b'));
     this.propVertical = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill(false));
     this.propCurbSide = Array.from({ length: CHUNK_SIZE }, () => Array(CHUNK_SIZE).fill('N'));
@@ -45,6 +46,7 @@ export class DistrictChunk {
     this.generateUrbanBlock(rng);
 
     this.buildSolidMask();
+    this.buildPropRects();
     this.buildStaticRenderLists();
   }
 
@@ -114,6 +116,25 @@ export class DistrictChunk {
         const p = this.props[ly][lx];
         this.solidMask[idx] =
           g === TileType.BUILDING || p === PropType.CAR ? 1 : 0;
+      }
+    }
+  }
+
+  /** Cache the static car footprints used by CityMap.canMoveTo. */
+  buildPropRects() {
+    const originX = this.cx * CHUNK_PX;
+    const originY = this.cy * CHUNK_PX;
+    for (let ly = 0; ly < CHUNK_SIZE; ly++) {
+      for (let lx = 0; lx < CHUNK_SIZE; lx++) {
+        if (this.props[ly][lx] !== PropType.CAR) continue;
+        const wx = originX + lx * TILE_SIZE;
+        const wy = originY + ly * TILE_SIZE;
+        this.propRects[ly][lx] = getCarFootprint(
+          wx,
+          wy,
+          this.propVertical[ly][lx],
+          this.propCurbSide[ly][lx]
+        );
       }
     }
   }

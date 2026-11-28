@@ -1,11 +1,11 @@
 // Frame renderer: viewport culling, depth sorting, world/character/effect layers.
 
-import { CHUNK_PX, TILE_SIZE, MAX_PISTOL_RANGE } from '../config/constants.js';
+import { CHUNK_PX, TILE_SIZE } from '../config/constants.js';
 import { Faction, UnitRank, PropType } from '../config/enums.js';
 import { SLASH } from '../config/balance.js';
 import { FACTION_META } from '../config/organizations.js';
 import { state, getLocalFaction, getLocalBoss, isLocalBossAlive } from '../core/state.js';
-import { getPistolAccuracyInfo, getPistolAim } from '../sim/combat.js';
+import { getPistolAim, getWeaponAccuracyInfo, getWeaponStats } from '../sim/combat.js';
 import {
   bloodParticles,
   bloodDecals,
@@ -164,9 +164,10 @@ export function render(dt = 1 / 60) {
     drawDeadBody(b);
   }
 
-  // 3. Waypoint marker & 1000px Pistol Range Ring for Local Boss
+  // 3. Waypoint marker & weapon range ring for the local boss
   const localBoss = getLocalBoss();
   if (localBoss && isLocalBossAlive()) {
+    const localWeapon = getWeaponStats(localBoss);
     if (localBoss.targetX !== null && localBoss.targetY !== null) {
       ctx.strokeStyle = 'rgba(251, 191, 36, 0.75)';
       ctx.lineWidth = 2;
@@ -175,25 +176,25 @@ export function render(dt = 1 / 60) {
       ctx.stroke();
     }
 
-    if (state.mouse.inside) {
+    if (localWeapon && state.mouse.inside) {
       const rect = canvas.getBoundingClientRect();
       const aimWx = state.camera.x - rect.width / 2 + state.mouse.screenX;
       const aimWy = state.camera.y - rect.height / 2 + state.mouse.screenY;
       const aim = getPistolAim(localBoss.x, localBoss.y, aimWx, aimWy);
       const aimDist = Math.hypot(aimWx - aim.muzzleX, aimWy - aim.muzzleY);
-      const accInfo = getPistolAccuracyInfo(aimDist);
+      const accInfo = getWeaponAccuracyInfo(aimDist, localWeapon);
 
       ctx.save();
       ctx.strokeStyle = 'rgba(251, 191, 36, 0.14)';
       ctx.setLineDash([6, 6]);
       ctx.lineWidth = 1.2;
       ctx.beginPath();
-      ctx.arc(localBoss.x, localBoss.y, MAX_PISTOL_RANGE, 0, Math.PI * 2);
+      ctx.arc(localBoss.x, localBoss.y, localWeapon.range, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
 
       // Aim guide starts at the same muzzle and uses the same angle as the bullet.
-      const guideLength = Math.min(aimDist, MAX_PISTOL_RANGE);
+      const guideLength = Math.min(aimDist, localWeapon.range);
       ctx.save();
       ctx.strokeStyle = accInfo.color;
       ctx.globalAlpha = 0.5;
@@ -270,6 +271,7 @@ export function render(dt = 1 / 60) {
         hitFlash: state.player.hitFlashTimer > 0,
         isMoving: state.player.isMoving,
         walkPhase: state.player.walkPhase || 0,
+        weapon: state.player.weapon,
       });
     } else if (item.type === 'npc') {
       const u = item.unit;
@@ -308,6 +310,7 @@ export function render(dt = 1 / 60) {
         hitFlash: u.hitFlashTimer > 0,
         isMoving: u.isMoving,
         walkPhase: u.walkPhase || 0,
+        weapon: u.weapon,
       });
     }
   }

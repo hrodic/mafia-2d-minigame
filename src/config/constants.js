@@ -14,6 +14,7 @@ export const MAX_FRAME_DELTA = 0.25;
 export const MAX_SIM_STEPS = 8;
 
 export const MAX_PISTOL_RANGE = 600;
+export const MAX_MP9_RANGE = 700;
 
 // Brief visual damage feedback shared by every unit and the local boss.
 export const HIT_FLASH_DURATION = 0.16;

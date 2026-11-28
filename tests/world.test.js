@@ -6,7 +6,7 @@ import { INCOME_TIERS } from '../src/config/balance.js';
 import { CHUNK_SIZE, TILE_SIZE } from '../src/config/constants.js';
 import { DistrictChunk } from '../src/world/chunk.js';
 import { CityMap, packChunkKey } from '../src/world/city.js';
-import { rebuildSpatialBuckets } from '../src/core/spatial.js';
+import { rebuildSpatialBuckets, rebuildCollisionBuckets, COLLISION_CELL_PX, packCollisionCell } from '../src/core/spatial.js';
 
 const ALL_FACTIONS = [Faction.PLAYER, Faction.RIVAL_1, Faction.RIVAL_2, Faction.RIVAL_3];
 const GENERATION = {
@@ -190,6 +190,25 @@ test('world: packChunkKey is unique across neighbours', () => {
     packChunkKey(0, -1),
   ];
   assertEqual(new Set(keys).size, keys.length);
+});
+
+test('world: fine collision grid groups units by 64 px cells and recycles arrays', () => {
+  const buckets = new Map();
+  const pool = [];
+  const a = { id: 1, x: 10, y: 10 };
+  const b = { id: 2, x: COLLISION_CELL_PX + 10, y: 10 };
+  const c = { id: 3, x: 10, y: COLLISION_CELL_PX + 10 };
+
+  rebuildCollisionBuckets([a, b, c], buckets, pool);
+  assertEqual(buckets.size, 3);
+  assertEqual(buckets.get(packCollisionCell(0, 0))[0], a);
+  assertEqual(buckets.get(packCollisionCell(1, 0))[0], b);
+  assertEqual(buckets.get(packCollisionCell(0, 1))[0], c);
+
+  rebuildCollisionBuckets([a], buckets, pool);
+  assertEqual(buckets.size, 1);
+  assertEqual(buckets.get(packCollisionCell(0, 0))[0], a);
+  assert(pool.length >= 2, 'recycled collision buckets should return to the pool');
 });
 
 test('world: spatial buckets group units by chunk and recycle arrays', () => {

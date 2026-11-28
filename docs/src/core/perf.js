@@ -1,0 +1,1 @@
+const t=Object.create(null),r={enabled:!1,reset(){for(const e in t)delete t[e]},inc(e){this.enabled&&(t[e]=(t[e]||0)+1)},add(e,n){this.enabled&&(t[e]=(t[e]||0)+n)},snapshot(){return{...t}}};export{r as perf};

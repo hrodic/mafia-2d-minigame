@@ -17,19 +17,37 @@ architecture description here.
   - UI/UX overhaul: primary status, crew management, action bar, leaderboard + kills
 - **Phase 3 — DONE (`0.4.11`):** shared unit contract, commands, fixed timestep, 600-step
   headless smoke + command-equivalence tests. Balance pass: one human slash rule; non-boss
-  AI ranks base speed 150; bosses 140 (sprint is their mobility edge).
+  AI ranks base speed 150; bosses 140 (sprint is their mobility edge). Current speeds:
+  Boss 130, Underboss 135, Captain 140, Soldier 150.
 - **Phase 4 — DONE (`0.4.19`):** netcode hardening; step 1 split complete; snapshot apply
   is O(n); hidden-host fallback added. Chunk deltas and NAT/TURN work moved to the future
   ideas section.
 - **Phase 5 — DONE (`0.4.22`):** quality gates and docs; tests/typecheck/build tooling
   documented and enforced; deploy/smoke guidance refreshed. Deployed Pages validation moved
   to the future ideas section by owner decision.
-- **Current work — `0.7.0` branch (in progress):** setup tabs/presets, crew limits,
-  action dock, radar/leaderboard/crew UX, economy visibility, negative cash, deaths,
-  procedural depth/weather, and short invite codes. Version stays `0.7.0` for the whole
-  branch by owner decision.
+- **Current work — `0.8.0` branch (in progress):** boss survival priority, no ranged/melee
+  dead zone, Glock/MP9 shop, economy/music/blood tuning, and the tactical command layer.
+  Command-layer steps 1–3 are live: faction global/local order state, Orders UI, commands,
+  snapshot sync, **Global Defend** (owned-turf patrol + safe reinforcement placement) and
+  **Local Guard** (scattered 50–150 px melee / 200–300 px gunner ring, focus debounce,
+  250 ms post cache, Attack danger collapse, self-defense, guard recall). Defaults
+  **Expand + Attack** preserve the pre-command behavior. A* quick wins are in:
+  binary heap, 16-tile LOS pre-check, optional perf counters; `scanNearby` now uses
+  squared distances and boss-only group counts. Collision safe pass is in: idle
+  `moveUnit` skips push/collision scans, body radii are cached, car rects are
+  precomputed per chunk, and `moveUnit` shares one 3×3 neighbourhood scan across
+  push and axis collision. Stage 1 push is in: same-faction units keep minimum
+  separation, a moving unit slowly pushes one ally, and a blocked ally blocks the
+  pusher. Stage 2 chain push is in: up to 3 allies are pushed as a chain with full
+  rollback if any link is blocked. Friendly NPC separation is halved for tighter
+  alleys, and AI units try a diagonal/pure side-step before pushing. Push speed is
+  30%; bosses have 1.25 push mass and resist pushes. Low-frequency depenetration
+  cleans stale overlaps. The push model is complete. The collision broad-phase now
+  uses a 64 px unit grid, cutting dense-fight candidate scans dramatically; the next
+  measured targets are `scanNearby` and `canMoveTo`.
+  Version stays `0.8.0` for the whole branch by owner decision.
 
-Phases 3, 4 and 5 are complete. `refactor/phase-5-quality` has merged into `master`. `0.7.0`
+Phases 3, 4 and 5 are complete. `refactor/phase-5-quality` has merged into `master`. `0.8.0`
 is the active feature branch; future ideas and optional tasks are listed below.
 
 ## Phase 3 — DONE (`0.4.11`)

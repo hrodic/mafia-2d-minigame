@@ -57,8 +57,9 @@ export function createHostController(deps) {
       faction: Faction.PLAYER,
       slotIdx: 0,
       isHost: true,
-      lastInput: { mx: 0, my: 0, sprint: false, facing: 0 },
+      lastInput: { mx: 0, my: 0, sprint: false, facing: 0, fire: false },
       lastInputAt: 0,
+      lastCmdSeq: 0,
     });
   }
 
@@ -150,8 +151,9 @@ export function createHostController(deps) {
         faction: null,
         slotIdx: -1,
         isHost: false,
-        lastInput: { mx: 0, my: 0, sprint: false, facing: 0 },
+        lastInput: { mx: 0, my: 0, sprint: false, facing: 0, fire: false },
         lastInputAt: 0,
+        lastCmdSeq: 0,
       });
       reassignHostSeats({ peers, selfPeerId: getSelfPeerId(), config, slotClosedAsAI });
       updateLobbyUI();
@@ -200,6 +202,7 @@ export function createHostController(deps) {
         my: Math.max(-1, Math.min(1, Number(env.payload.my) || 0)),
         sprint: Boolean(env.payload.sprint),
         facing: Number(env.payload.facing) || 0,
+        fire: Boolean(env.payload.fire),
       };
       peer.lastInputAt = performance.now();
     }
@@ -209,6 +212,12 @@ export function createHostController(deps) {
     if (!env || getMode() !== 'HOST' || !getMatchStarted()) return;
     const peer = peers.get(peerId);
     if (peer && peer.faction && env.type === MSG.CMD) {
+      // The local bus can deliver the same packet twice; command seq is the
+      // idempotency key, so purchases/switch commands never apply twice.
+      if (Number.isFinite(env.seq)) {
+        if (env.seq <= (peer.lastCmdSeq || 0)) return;
+        peer.lastCmdSeq = env.seq;
+      }
       dispatchCommand(peer.faction, env.payload);
     }
   }
@@ -230,6 +239,9 @@ export function createHostController(deps) {
 
     initializeWorld({ gridSize, tickSeconds, incomeTier, factionCount, orgRoster, unitCaps, worldSeed });
     onMatchLaunched();
+
+    // Guest command sequences restart at 1 for the new match.
+    for (const p of peers.values()) p.lastCmdSeq = 0;
 
     const assignments = {};
     for (const p of peers.values()) {
@@ -298,6 +310,7 @@ export function createHostController(deps) {
         my: 0,
         sprint: false,
         facing: peer.lastInput ? peer.lastInput.facing : 0,
+        fire: false,
       };
     }
     return peer.lastInput;

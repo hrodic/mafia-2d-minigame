@@ -176,6 +176,16 @@ export function createGuestController(deps) {
       }
     }
 
+    if (snap.tactics) {
+      for (const f of state.activeFactions) {
+        const record = state.factionTactics[f];
+        const wire = snap.tactics[f];
+        if (!record || !Array.isArray(wire)) continue;
+        record.globalStance = wire[0];
+        record.localOrder = wire[1];
+      }
+    }
+
     if (snap.playerBoss) {
       const pb = snap.playerBoss;
       // Store the authoritative target; the guest update interpolates per frame.
@@ -191,6 +201,12 @@ export function createGuestController(deps) {
       if (pb.shoot) state.player.muzzleFlashTimer = 0.11;
       if (typeof pb.ammo === 'number') state.player.ammo = pb.ammo;
       state.player.reloadTimer = pb.reload || 0;
+      state.player.weapon = pb.weapon === 2 ? 'mp9' : pb.weapon === 1 ? 'pistol' : 'none';
+      state.player.pistolOwned = Boolean(pb.pistol);
+      state.player.mp9Owned = Boolean(pb.mp9);
+      state.player.spareMags = typeof pb.mags === 'number' && pb.mags >= 0 ? pb.mags : null;
+      state.player.pistolMags = typeof pb.pistolMags === 'number' && pb.pistolMags >= 0 ? pb.pistolMags : null;
+      state.player.mp9Mags = typeof pb.mp9Mags === 'number' && pb.mp9Mags >= 0 ? pb.mp9Mags : null;
     }
 
     if (Array.isArray(snap.chunks)) {
@@ -218,7 +234,7 @@ export function createGuestController(deps) {
 
       const seenIds = new Set();
       for (let i = 0; i < snap.npcs.length; i++) {
-        const [id, fac, rank, x, y, facing, hp, maxHp, armor, maxArmor, slash, shoot, hPeer, ammo, reload] =
+        const [id, fac, rank, x, y, facing, hp, maxHp, armor, maxArmor, slash, shoot, hPeer, ammo, reload, weaponFlag, pistolOwnedFlag, mp9Flag, magsFlag, pistolMagsFlag, mp9MagsFlag] =
           snap.npcs[i];
         // The local player travels on playerBoss; never apply it twice from npcs.
         if (id === state.player.id) continue;
@@ -261,7 +277,16 @@ export function createGuestController(deps) {
             muzzleFlashTimer: 0,
             hitFlashTimer: 0,
             ...(rank === UnitRank.BOSS || rank === UnitRank.UNDERBOSS
-              ? { ammo: ammo ?? 0, reloadTimer: reload || 0 }
+              ? {
+                  weapon: weaponFlag === 2 ? 'mp9' : weaponFlag === 1 ? 'pistol' : 'none',
+                  pistolOwned: Boolean(pistolOwnedFlag),
+                  mp9Owned: Boolean(mp9Flag),
+                  ammo: ammo ?? 0,
+                  reloadTimer: reload || 0,
+                  spareMags: typeof magsFlag === 'number' && magsFlag >= 0 ? magsFlag : null,
+                  pistolMags: typeof pistolMagsFlag === 'number' && pistolMagsFlag >= 0 ? pistolMagsFlag : null,
+                  mp9Mags: typeof mp9MagsFlag === 'number' && mp9MagsFlag >= 0 ? mp9MagsFlag : null,
+                }
               : {}),
             dodgeDir: 1,
             lastCheckX: x,
@@ -283,6 +308,12 @@ export function createGuestController(deps) {
           if (rank === UnitRank.BOSS || rank === UnitRank.UNDERBOSS) {
             if (typeof ammo === 'number') unit.ammo = ammo;
             unit.reloadTimer = reload || 0;
+            unit.weapon = weaponFlag === 2 ? 'mp9' : weaponFlag === 1 ? 'pistol' : 'none';
+            unit.pistolOwned = Boolean(pistolOwnedFlag);
+            unit.mp9Owned = Boolean(mp9Flag);
+            unit.spareMags = typeof magsFlag === 'number' && magsFlag >= 0 ? magsFlag : null;
+            unit.pistolMags = typeof pistolMagsFlag === 'number' && pistolMagsFlag >= 0 ? pistolMagsFlag : null;
+            unit.mp9Mags = typeof mp9MagsFlag === 'number' && mp9MagsFlag >= 0 ? mp9MagsFlag : null;
           }
           if (slash) unit.slashAnimTimer = 0.18;
           if (shoot) unit.muzzleFlashTimer = 0.11;
@@ -319,7 +350,10 @@ export function createGuestController(deps) {
     }
 
     guestInputSeq++;
-    getSendInput()(envelope(MSG.INPUT, guestInputSeq, { mx, my, sprint, facing }), hostPeerId);
+    getSendInput()(
+      envelope(MSG.INPUT, guestInputSeq, { mx, my, sprint, facing, fire: Boolean(state.mouseFiring) }),
+      hostPeerId
+    );
   }
 
   function sendCommand(payload) {

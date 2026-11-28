@@ -2,10 +2,12 @@
 // Headless gameplay logic; presentation goes through events.
 
 import { Faction, UnitRank } from '../config/enums.js';
-import { CHUNK_SIZE, CHUNK_PX, TILE_SIZE, MAX_PISTOL_RANGE } from '../config/constants.js';
+import { CHUNK_SIZE, CHUNK_PX, TILE_SIZE } from '../config/constants.js';
 import { SLASH, AI_TACTICS } from '../config/balance.js';
+import { GLOBAL_STANCE, LOCAL_ORDER, TACTICS } from '../config/tactics.js';
 import { FACTION_META } from '../config/organizations.js';
-import { state } from '../core/state.js';
+import { state, getUnitById } from '../core/state.js';
+import { perf } from '../core/perf.js';
 import { emit } from '../core/events.js';
 import { packChunkKey } from '../world/city.js';
 import { computeTilePath, MAX_ASTAR_PER_FRAME } from '../world/pathfinding.js';
@@ -14,26 +16,39 @@ import { progressCapture, getCapturePerTick } from './territory.js';
 import {
   hasClearShot,
   hasFriendlyInShotPath,
+  getWeaponStats,
   performBossKnifeSlash,
   performBossPistolShot,
   performSlash,
   tryBuyNpcBossArmor,
+  tryBuyNpcBossEquipment,
 } from './combat.js';
 
-/** Scan the 3x3 chunk neighbourhood for the nearest enemy and nearby counts. */
-export function scanNearby(u) {
+const NEARBY_ALLY_RADIUS_SQ = 360 * 360;
+const NEARBY_ENEMY_RADIUS_SQ = 420 * 420;
+
+/**
+ * Scan the 3x3 chunk neighbourhood for the nearest enemy and nearby counts.
+ *
+ * `includeCounts` is only needed by bosses (armor purchase and retreat danger).
+ * Non-boss callers skip same-faction distance checks and count work entirely.
+ */
+export function scanNearby(u, includeCounts = true) {
+  if (perf.enabled) perf.inc('scanNearbyCalls');
   const uCx = Math.floor(u.x / CHUNK_PX);
   const uCy = Math.floor(u.y / CHUNK_PX);
   let nearestEnemy = null;
-  let nearestEnemyDist = Infinity;
+  let nearestEnemySq = Infinity;
   let nearbyEnemyCount = 0;
   let nearbyAllyCount = 0;
 
   if (state.player.alive && state.player.faction !== u.faction && u.faction !== Faction.PLAYER) {
-    const d = Math.hypot(state.player.x - u.x, state.player.y - u.y);
-    if (d < 420) nearbyEnemyCount++;
-    if (d < nearestEnemyDist) {
-      nearestEnemyDist = d;
+    const pdx = state.player.x - u.x;
+    const pdy = state.player.y - u.y;
+    const distSq = pdx * pdx + pdy * pdy;
+    if (includeCounts && distSq < NEARBY_ENEMY_RADIUS_SQ) nearbyEnemyCount++;
+    if (distSq < nearestEnemySq) {
+      nearestEnemySq = distSq;
       nearestEnemy = { isPlayer: true, entity: state.player, x: state.player.x, y: state.player.y };
     }
   }
@@ -45,26 +60,111 @@ export function scanNearby(u) {
       for (let b = 0; b < bucket.length; b++) {
         const other = bucket[b];
         if (other.id === u.id) continue;
-        const d = Math.hypot(other.x - u.x, other.y - u.y);
         if (other.faction === u.faction) {
-          if (d < 360) nearbyAllyCount++;
-        } else {
-          if (d < 420) nearbyEnemyCount++;
-          if (d < nearestEnemyDist) {
-            nearestEnemyDist = d;
-            nearestEnemy = { isPlayer: false, entity: other, x: other.x, y: other.y };
-          }
+          if (!includeCounts) continue;
+          const adx = other.x - u.x;
+          const ady = other.y - u.y;
+          if (adx * adx + ady * ady < NEARBY_ALLY_RADIUS_SQ) nearbyAllyCount++;
+          continue;
+        }
+
+        const odx = other.x - u.x;
+        const ody = other.y - u.y;
+        const distSq = odx * odx + ody * ody;
+        if (includeCounts && distSq < NEARBY_ENEMY_RADIUS_SQ) nearbyEnemyCount++;
+        if (distSq < nearestEnemySq) {
+          nearestEnemySq = distSq;
+          nearestEnemy = { isPlayer: false, entity: other, x: other.x, y: other.y };
         }
       }
     }
   }
 
-  return { uCx, uCy, nearestEnemy, nearestEnemyDist, nearbyEnemyCount, nearbyAllyCount };
+  return {
+    uCx,
+    uCy,
+    nearestEnemy,
+    nearestEnemyDist: nearestEnemy ? Math.sqrt(nearestEnemySq) : Infinity,
+    nearbyEnemyCount,
+    nearbyAllyCount,
+  };
+}
+
+function threatWeapon(unit) {
+  if (!unit || (unit.weapon !== 'pistol' && unit.weapon !== 'mp9')) return null;
+  if (typeof unit.ammo === 'number' && unit.ammo <= 0) return null;
+  return getWeaponStats(unit);
+}
+
+function threatRange(weapon) {
+  return weapon ? weapon.range : AI_TACTICS.bossMeleeThreatRange;
+}
+
+/**
+ * Threat-aware danger scan for a boss. Ranged enemies only count when the
+ * boss is inside their weapon range and the shot line is clear. Allies count
+ * within the support radius. Turf ownership is intentionally irrelevant.
+ */
+export function scanBossThreats(boss) {
+  const bossCx = Math.floor(boss.x / CHUNK_PX);
+  const bossCy = Math.floor(boss.y / CHUNK_PX);
+  let threatCount = 0;
+  let supportCount = 0;
+
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const bucket = state.spatialBuckets.get(packChunkKey(bossCx + dx, bossCy + dy));
+      if (!bucket) continue;
+      for (let i = 0; i < bucket.length; i++) {
+        const other = bucket[i];
+        if (!other || other === boss || other.hp <= 0) continue;
+        const ox = other.x - boss.x;
+        const oy = other.y - boss.y;
+        const distSq = ox * ox + oy * oy;
+
+        if (other.faction === boss.faction) {
+          if (distSq <= AI_TACTICS.bossSupportRadius * AI_TACTICS.bossSupportRadius) {
+            supportCount++;
+          }
+          continue;
+        }
+
+        const weapon = threatWeapon(other);
+        const range = threatRange(weapon);
+        if (distSq > range * range) continue;
+        if (weapon && !hasClearShot(other, boss.x, boss.y)) continue;
+        threatCount++;
+      }
+    }
+  }
+
+  const player = state.player;
+  if (player && player !== boss && player.alive && player.faction !== boss.faction) {
+    const px = player.x - boss.x;
+    const py = player.y - boss.y;
+    const distSq = px * px + py * py;
+    const weapon = threatWeapon(player);
+    const range = threatRange(weapon);
+    if (distSq <= range * range && (!weapon || hasClearShot(player, boss.x, boss.y))) {
+      threatCount++;
+    }
+  }
+
+  return { threatCount, supportCount };
+}
+
+/** HP danger or threat-aware outnumbering. */
+export function computeBossDanger(boss) {
+  const hpCritical =
+    boss.maxHp > 0 && boss.hp / boss.maxHp <= AI_TACTICS.bossRetreatHpFraction;
+  const { threatCount, supportCount } = scanBossThreats(boss);
+  const outnumbered =
+    threatCount >= AI_TACTICS.bossRetreatMinEnemies && threatCount > supportCount;
+  return { danger: hpCritical || outnumbered, threatCount, supportCount };
 }
 
 /** Pick the nearest non-owned chunk in a 7x7 neighborhood, with a global fallback. */
-export function choosePatrolChunk(u, uCx, uCy) {
-  let targetChunk = null;
+export function choosePatrolChunk(u, uCx, uCy) {  let targetChunk = null;
   let bestChunkDist = Infinity;
   for (let cy = uCy - 3; cy <= uCy + 3; cy++) {
     for (let cx = uCx - 3; cx <= uCx + 3; cx++) {
@@ -86,6 +186,243 @@ export function choosePatrolChunk(u, uCx, uCy) {
     }
   }
   return targetChunk;
+}
+
+const CHUNK_NEIGHBOR_OFFSETS = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+];
+
+function chunkCenterDistance(unit, chunk) {
+  return Math.hypot(
+    (chunk.cx + 0.5) * CHUNK_PX - unit.x,
+    (chunk.cy + 0.5) * CHUNK_PX - unit.y
+  );
+}
+
+function isOwnedBorderChunk(chunk, faction) {
+  for (const [dx, dy] of CHUNK_NEIGHBOR_OFFSETS) {
+    const neighbor = state.world.getChunk(chunk.cx + dx, chunk.cy + dy);
+    if (neighbor && neighbor.faction !== faction) return true;
+  }
+  return false;
+}
+
+/**
+ * Global Defend destination: threatened owned turf first, then the nearest owned
+ * border block, then the nearest owned block. Never returns non-owned turf.
+ */
+export function chooseDefendChunk(u) {
+  const record = state.factionTactics && state.factionTactics[u.faction];
+  if (!record || !state.world || !state.world.chunks) return null;
+
+  const threatened = record.threatenedChunks || [];
+  if (threatened.length > 0) {
+    let best = null;
+    let bestDist = Infinity;
+    for (const chunk of threatened) {
+      if (chunk.faction !== u.faction) continue;
+      const d = chunkCenterDistance(u, chunk);
+      if (d < bestDist) {
+        bestDist = d;
+        best = chunk;
+      }
+    }
+    if (best) return best;
+  }
+
+  let border = null;
+  let borderDist = Infinity;
+  let owned = null;
+  let ownedDist = Infinity;
+  for (const chunk of state.world.chunks.values()) {
+    if (chunk.faction !== u.faction) continue;
+    const d = chunkCenterDistance(u, chunk);
+    if (d < ownedDist) {
+      ownedDist = d;
+      owned = chunk;
+    }
+    if (isOwnedBorderChunk(chunk, u.faction) && d < borderDist) {
+      borderDist = d;
+      border = chunk;
+    }
+  }
+  return border || owned;
+}
+
+/** Global stance applies to non-boss allies outside the boss aura. */
+function usesDefendStance(u) {
+  if (u.rank === UnitRank.BOSS || u.inBossAura) return false;
+  const record = state.factionTactics && state.factionTactics[u.faction];
+  return Boolean(record) && record.globalStance === GLOBAL_STANCE.DEFEND;
+}
+
+/**
+ * Local Guard (or the Attack boss-danger collapse) for a non-boss ally inside
+ * the boss aura. Returns null when neither applies.
+ */
+function getGuardState(u) {
+  if (u.rank === UnitRank.BOSS) return null;
+  const record = state.factionTactics && state.factionTactics[u.faction];
+  if (!record || record.bossId === null) return null;
+
+  const collapse = record.localOrder === LOCAL_ORDER.ATTACK && record.bossInDanger;
+  if (record.localOrder !== LOCAL_ORDER.GUARD && !collapse) return null;
+
+  const distanceToBoss = Math.hypot(u.x - record.bossX, u.y - record.bossY);
+  const attached =
+    u.inBossAura ||
+    (Boolean(u.guardAssigned) && distanceToBoss <= TACTICS.guardRecallRadius);
+  if (!attached) return null;
+
+  let focus = record.localFocus;
+  if (focus && focus.id !== record.localFocusId) focus = null;
+  if (!focus && record.localFocusId !== null) focus = getUnitById(record.localFocusId);
+  if (focus) {
+    const valid =
+      focus !== u &&
+      focus.hp > 0 &&
+      focus.alive !== false &&
+      focus.faction !== u.faction &&
+      Math.hypot(focus.x - record.bossX, focus.y - record.bossY) <= TACTICS.localFocusRadius;
+    if (!valid) focus = null;
+  }
+
+  return { record, focus };
+}
+
+const GOLDEN_ANGLE = 2.399963229728653;
+const TWO_PI = Math.PI * 2;
+
+/** Deterministic 0..1 hash used to scatter stable guard slots. */
+function guardHash(id, salt) {
+  const x = Math.sin(id * 127.1 + salt * 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+function assignGuardSlot(u) {
+  if (!Number.isFinite(u.guardSlotAngle)) {
+    const base = (u.id * GOLDEN_ANGLE) % TWO_PI;
+    const jitter = (guardHash(u.id, 3) - 0.5) * 0.7;
+    u.guardSlotAngle = (base + jitter + TWO_PI) % TWO_PI;
+  }
+  if (!Number.isFinite(u.guardSlotDistance)) {
+    const isUnderboss = u.rank === UnitRank.UNDERBOSS;
+    const min = isUnderboss
+      ? TACTICS.guardUnderbossMinDistance
+      : TACTICS.guardMeleeMinDistance;
+    const max = isUnderboss
+      ? TACTICS.guardUnderbossMaxDistance
+      : TACTICS.guardMeleeMaxDistance;
+    u.guardSlotDistance = min + guardHash(u.id, isUnderboss ? 2 : 1) * (max - min);
+  }
+}
+
+function angularDistance(a, b) {
+  const d = Math.abs(a - b) % TWO_PI;
+  return d > Math.PI ? TWO_PI - d : d;
+}
+
+function findGuardPost(u, bossX, bossY, angle, distance) {
+  const snapAt = (testAngle) => {
+    const gx = bossX + Math.cos(testAngle) * distance;
+    const gy = bossY + Math.sin(testAngle) * distance;
+    const snapped = state.world.findNearestWalkablePoint(gx, gy, u.bodyRadius);
+    if (!snapped) return null;
+    return {
+      point: snapped,
+      dist: Math.hypot(snapped.x - bossX, snapped.y - bossY),
+    };
+  };
+
+  const exact = snapAt(angle);
+  if (exact && exact.dist >= distance * 0.6) return exact.point;
+
+  let best = exact ? exact.point : null;
+  let bestDist = exact ? exact.dist : -1;
+  let bestDeviation = Infinity;
+
+  // The slot may point into a wall or off the map. Search the walkable ring
+  // for the closest direction that still preserves most of the intended range.
+  const steps = 16;
+  for (let i = 0; i < steps; i++) {
+    const testAngle = (i / steps) * TWO_PI;
+    const candidate = snapAt(testAngle);
+    if (!candidate) continue;
+    if (candidate.dist >= distance * 0.6) {
+      const deviation = angularDistance(testAngle, angle);
+      if (deviation < bestDeviation) {
+        bestDeviation = deviation;
+        best = candidate.point;
+      }
+    } else if (bestDeviation === Infinity && candidate.dist > bestDist) {
+      bestDist = candidate.dist;
+      best = candidate.point;
+    }
+  }
+  return best;
+}
+
+function setGuardGoal(u, guard) {
+  const { record } = guard;
+  assignGuardSlot(u);
+
+  // Rebuild the post only when the 250 ms command layer refreshes. Between
+  // refreshes the guard holds a cached point instead of recomputing per frame.
+  const revision = record.revision || 0;
+  if (u.guardPostRevision !== revision) {
+    const snapped = findGuardPost(
+      u,
+      record.bossX,
+      record.bossY,
+      u.guardSlotAngle,
+      u.guardSlotDistance
+    );
+    const gx = record.bossX + Math.cos(u.guardSlotAngle) * u.guardSlotDistance;
+    const gy = record.bossY + Math.sin(u.guardSlotAngle) * u.guardSlotDistance;
+    u.guardPostX = snapped ? snapped.x : gx;
+    u.guardPostY = snapped ? snapped.y : gy;
+    u.guardPostRevision = revision;
+  }
+
+  const postX = u.guardPostX;
+  const postY = u.guardPostY;
+  const previousX = u.goalX;
+  const previousY = u.goalY;
+  const atPost = Math.hypot(u.x - postX, u.y - postY) <= TACTICS.guardIdleRadius;
+  if (atPost) {
+    // Already on station: stand still instead of micro-correcting.
+    u.goalX = u.x;
+    u.goalY = u.y;
+    u.path = null;
+    u.pathTimer = 0;
+    return;
+  }
+
+  u.goalX = postX;
+  u.goalY = postY;
+  if (Math.hypot(postX - previousX, postY - previousY) > 24) {
+    u.path = null;
+    u.pathTimer = 0;
+  }
+}
+
+/** Keep a chasing guard inside the recall radius around the boss. */
+function clampGuardGoal(u, guard) {
+  const { record } = guard;
+  const dx = u.goalX - record.bossX;
+  const dy = u.goalY - record.bossY;
+  const dist = Math.hypot(dx, dy);
+  if (dist <= TACTICS.guardRecallRadius || dist < 0.001) return;
+  const gx = record.bossX + (dx / dist) * TACTICS.guardRecallRadius;
+  const gy = record.bossY + (dy / dist) * TACTICS.guardRecallRadius;
+  const snapped = state.world.findNearestWalkablePoint(gx, gy, u.bodyRadius);
+  if (snapped) {
+    u.goalX = snapped.x;
+    u.goalY = snapped.y;
+  }
 }
 
 /** Pick a point away from the threat, preferring own turf when possible. */
@@ -117,6 +454,58 @@ function chooseRetreatPoint(u, enemy) {
   return best;
 }
 
+/** Pick the nearest enemy with a clear shot while the preferred target is blocked. */
+function findClearSecondaryTarget(u, primaryEntity, range, uCx, uCy) {
+  let best = null;
+  let bestDist = Infinity;
+
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const bucket = state.spatialBuckets.get(packChunkKey(uCx + dx, uCy + dy));
+      if (!bucket) continue;
+      for (let i = 0; i < bucket.length; i++) {
+        const other = bucket[i];
+        if (
+          !other ||
+          other === u ||
+          other === primaryEntity ||
+          other.hp <= 0 ||
+          other.faction === u.faction
+        ) {
+          continue;
+        }
+        const dist = Math.hypot(other.x - u.x, other.y - u.y);
+        if (dist > range || dist >= bestDist) continue;
+        if (!hasClearShot(u, other.x, other.y)) continue;
+        if (hasFriendlyInShotPath(u, other.x, other.y)) continue;
+        best = other;
+        bestDist = dist;
+      }
+    }
+  }
+
+  const player = state.player;
+  if (
+    player &&
+    player !== u &&
+    player !== primaryEntity &&
+    player.alive &&
+    player.faction !== u.faction
+  ) {
+    const dist = Math.hypot(player.x - u.x, player.y - u.y);
+    if (
+      dist <= range &&
+      dist < bestDist &&
+      hasClearShot(u, player.x, player.y) &&
+      !hasFriendlyInShotPath(u, player.x, player.y)
+    ) {
+      best = player;
+    }
+  }
+
+  return best;
+}
+
 /** Pick a lateral point that leaves the current firing line. */
 function chooseFlankPoint(u, enemy) {
   if (!state.world.findNearestWalkablePoint) return null;
@@ -143,58 +532,163 @@ function chooseFlankPoint(u, enemy) {
   return null;
 }
 
+/** Pick a point away from a too-close enemy so a ranged unit can keep firing. */
+function chooseBackoffPoint(u, enemy, distance) {
+  if (!state.world.findNearestWalkablePoint) return null;
+  const away = Math.atan2(u.y - enemy.y, u.x - enemy.x);
+  for (const offset of [0, 0.5, -0.5, 1.0, -1.0]) {
+    const angle = away + offset;
+    const gx = u.x + Math.cos(angle) * distance;
+    const gy = u.y + Math.sin(angle) * distance;
+    const snapped = state.world.findNearestWalkablePoint(gx, gy, u.bodyRadius);
+    if (!snapped) continue;
+    if (Math.hypot(snapped.x - u.x, snapped.y - u.y) < distance * 0.4) continue;
+    return snapped;
+  }
+  return null;
+}
+
 /** One AI step for a non-remote, non-player unit. */
 export function updateNpcAi(u, dt) {
   u.aiTimer -= dt;
   u.pathTimer -= dt;
   u.retreatTimer = Math.max(0, (u.retreatTimer || 0) - dt);
   u.flankTimer = Math.max(0, (u.flankTimer || 0) - dt);
+  u.backoffTimer = Math.max(0, (u.backoffTimer || 0) - dt);
+  u.shopTimer = Math.max(0, (u.shopTimer || 0) - dt);
 
-  const { uCx, uCy, nearestEnemy, nearestEnemyDist, nearbyEnemyCount, nearbyAllyCount } =
-    scanNearby(u);
+  if (u.rank === UnitRank.BOSS && !u.humanPeerId && u.shopTimer <= 0) {
+    u.shopTimer = 1;
+    tryBuyNpcBossEquipment(u);
+  }
+
+  const scan = scanNearby(u, u.rank === UnitRank.BOSS);
+  const { uCx, uCy, nearbyEnemyCount, nearbyAllyCount } = scan;
+  let nearestEnemy = scan.nearestEnemy;
+  let nearestEnemyDist = scan.nearestEnemyDist;
 
   if (u.rank === UnitRank.BOSS) {
     tryBuyNpcBossArmor(u, nearbyEnemyCount, nearbyAllyCount);
   }
 
-  // Only bosses and underbosses carry a pistol; captains and soldiers are knife-only.
+  // Only bosses and underbosses carry a gun; captains and soldiers are knife-only.
   const isRangedShooter = u.rank === UnitRank.BOSS || u.rank === UnitRank.UNDERBOSS;
-  const aggroRange = isRangedShooter ? 680 : 480;
+  const rangedWeapon = isRangedShooter ? getWeaponStats(u) : null;
+  const aggroRange = isRangedShooter && rangedWeapon
+    ? rangedWeapon.range + AI_TACTICS.rangedAggroBuffer
+    : AI_TACTICS.meleeAggroRange;
   const melee = SLASH.aiMeleeByRank[u.rank] || SLASH.aiMelee;
 
+  let bossInDanger = false;
+  if (u.rank === UnitRank.BOSS) {
+    u.bossDangerTimer = Math.max(0, (u.bossDangerTimer || 0) - dt);
+    if (u.bossDangerTimer <= 0) {
+      u.bossDangerTimer = AI_TACTICS.bossDangerInterval;
+      const danger = computeBossDanger(u);
+      u.bossDanger = danger.danger;
+      u.bossThreatCount = danger.threatCount;
+      u.bossSupportCount = danger.supportCount;
+    }
+    bossInDanger = Boolean(u.bossDanger && nearestEnemy);
+  }
+
   let retreating = u.rank === UnitRank.BOSS && u.retreatTimer > 0;
-  if (!retreating && u.rank === UnitRank.BOSS && nearestEnemy) {
-    const hpFraction = u.maxHp > 0 ? u.hp / u.maxHp : 1;
-    const noArmor = (u.armor || 0) <= 0;
-    const critical = hpFraction <= AI_TACTICS.bossRetreatHpFraction;
-    const outnumbered =
-      nearbyEnemyCount >= AI_TACTICS.bossRetreatMinEnemies &&
-      nearbyEnemyCount > nearbyAllyCount;
-    if (noArmor && (critical || outnumbered)) {
-      const point = chooseRetreatPoint(u, nearestEnemy);
-      if (point) {
-        u.retreatX = point.x;
-        u.retreatY = point.y;
-        u.retreatTimer = AI_TACTICS.bossRetreatDuration;
-        u.flankTimer = 0;
-        u.path = null;
-        u.pathTimer = 0;
-        retreating = true;
-      }
+  if (!retreating && bossInDanger) {
+    const point = chooseRetreatPoint(u, nearestEnemy);
+    if (point) {
+      u.retreatX = point.x;
+      u.retreatY = point.y;
+      u.retreatTimer = AI_TACTICS.bossRetreatDuration;
+      u.flankTimer = 0;
+      u.path = null;
+      u.pathTimer = 0;
+      retreating = true;
     }
   }
 
-  if (retreating) {
+  const guard = getGuardState(u);
+  if (guard) {
+    const threat = nearestEnemy;
+    const threatDist = nearestEnemyDist;
+    const focusDist = guard.focus
+      ? Math.hypot(guard.focus.x - u.x, guard.focus.y - u.y)
+      : Infinity;
+    const selfDefenseRadius = isRangedShooter ? 180 : melee.reach + 30;
+    let chosen = null;
+    let chosenDist = Infinity;
+
+    // Immediate self-defense always wins over the shared focus.
+    if (threat && threatDist <= selfDefenseRadius) {
+      chosen = threat;
+      chosenDist = threatDist;
+    } else if (guard.focus && focusDist <= aggroRange) {
+      chosen = {
+        isPlayer: guard.focus === state.player,
+        entity: guard.focus,
+        x: guard.focus.x,
+        y: guard.focus.y,
+      };
+      chosenDist = focusDist;
+    } else if (threat && threatDist <= aggroRange) {
+      chosen = threat;
+      chosenDist = threatDist;
+    }
+
+    nearestEnemy = chosen;
+    nearestEnemyDist = chosenDist;
+  }
+
+  if (guard && (!nearestEnemy || nearestEnemyDist > aggroRange)) {
+    setGuardGoal(u, guard);
+  } else if (retreating) {
     u.goalX = u.retreatX;
     u.goalY = u.retreatY;
+    u.backoffTimer = 0;
   } else if (nearestEnemy && nearestEnemyDist <= aggroRange) {
+    const canFireNow =
+      isRangedShooter &&
+      Boolean(rangedWeapon) &&
+      (u.ammo ?? 0) > 0 &&
+      !(u.reloadTimer > 0);
+    const bossWantsMelee =
+      u.rank === UnitRank.BOSS &&
+      !bossInDanger &&
+      nearestEnemyDist <= AI_TACTICS.bossMeleeCommitDistance;
+    const tooClose =
+      canFireNow &&
+      !bossWantsMelee &&
+      nearestEnemyDist > melee.reach &&
+      nearestEnemyDist < AI_TACTICS.rangedBackoffDistance;
+    if (!tooClose) u.backoffTimer = 0;
+    if (bossWantsMelee) u.flankTimer = 0;
+    if (tooClose && u.backoffTimer <= 0) {
+      const point = chooseBackoffPoint(u, nearestEnemy, AI_TACTICS.rangedBackoffStep);
+      if (point) {
+        u.backoffX = point.x;
+        u.backoffY = point.y;
+        u.backoffTimer = AI_TACTICS.rangedBackoffDuration;
+      }
+    }
+    const backingOff = tooClose && u.backoffTimer > 0;
     const flanking = u.flankTimer > 0;
-    u.goalX = flanking ? u.flankX : nearestEnemy.x;
-    u.goalY = flanking ? u.flankY : nearestEnemy.y;
+
+    if (backingOff) {
+      u.goalX = u.backoffX;
+      u.goalY = u.backoffY;
+    } else {
+      u.goalX = flanking ? u.flankX : nearestEnemy.x;
+      u.goalY = flanking ? u.flankY : nearestEnemy.y;
+    }
+    if (bossWantsMelee) {
+      u.backoffTimer = 0;
+      u.goalX = nearestEnemy.x;
+      u.goalY = nearestEnemy.y;
+    }
 
     if (nearestEnemyDist <= melee.reach) {
       // Knives have no friendly-fire restriction: always take the free hit.
       u.flankTimer = 0;
+      u.backoffTimer = 0;
       u.goalX = nearestEnemy.x;
       u.goalY = nearestEnemy.y;
       u.facing = Math.atan2(nearestEnemy.y - u.y, nearestEnemy.x - u.x);
@@ -209,8 +703,8 @@ export function updateNpcAi(u, dt) {
       }
     } else if (
       isRangedShooter &&
-      nearestEnemyDist >= 110 &&
-      nearestEnemyDist <= MAX_PISTOL_RANGE &&
+      rangedWeapon &&
+      nearestEnemyDist <= rangedWeapon.range &&
       u.attackCooldown <= 0 &&
       (u.ammo ?? 1) > 0 &&
       !(u.reloadTimer > 0)
@@ -219,23 +713,39 @@ export function updateNpcAi(u, dt) {
       const friendBlocked = clear && hasFriendlyInShotPath(u, nearestEnemy.x, nearestEnemy.y);
       if (clear && !friendBlocked) {
         performBossPistolShot(u, false, nearestEnemy.x, nearestEnemy.y);
-      } else if (friendBlocked && !flanking) {
-        const point = chooseFlankPoint(u, nearestEnemy);
-        if (point) {
-          u.flankX = point.x;
-          u.flankY = point.y;
-          u.flankTimer = AI_TACTICS.flankDuration;
-          u.flankSide = point.side === 0 ? 1 : -point.side;
-          u.goalX = point.x;
-          u.goalY = point.y;
-          u.path = null;
-          u.pathTimer = 0;
+      } else {
+        if (guard) {
+          const alternate = findClearSecondaryTarget(
+            u,
+            nearestEnemy.entity,
+            rangedWeapon.range,
+            uCx,
+            uCy
+          );
+          if (alternate) performBossPistolShot(u, false, alternate.x, alternate.y);
+        }
+        if (friendBlocked && !flanking && !backingOff) {
+          const point = chooseFlankPoint(u, nearestEnemy);
+          if (point) {
+            u.flankX = point.x;
+            u.flankY = point.y;
+            u.flankTimer = AI_TACTICS.flankDuration;
+            u.flankSide = point.side === 0 ? 1 : -point.side;
+            u.goalX = point.x;
+            u.goalY = point.y;
+            u.path = null;
+            u.pathTimer = 0;
+          }
         }
       }
     }
+    if (guard) clampGuardGoal(u, guard);
+  } else if (guard) {
+    setGuardGoal(u, guard);
   } else if (u.aiTimer <= 0) {
     u.aiTimer = 1.6 + Math.random() * 1.8;
-    const targetChunk = choosePatrolChunk(u, uCx, uCy);
+    const defending = usesDefendStance(u);
+    const targetChunk = defending ? chooseDefendChunk(u) : choosePatrolChunk(u, uCx, uCy);
     if (targetChunk) {
       const gx =
         targetChunk.cx * CHUNK_PX +
@@ -248,6 +758,10 @@ export function updateNpcAi(u, dt) {
         u.goalX = snapped.x;
         u.goalY = snapped.y;
       }
+    } else if (defending) {
+      // No owned turf to defend: hold position instead of marching to old turf.
+      u.goalX = u.x;
+      u.goalY = u.y;
     }
   }
 
@@ -256,13 +770,14 @@ export function updateNpcAi(u, dt) {
   let moveX = 0;
   let moveY = 0;
   if (distToGoal > 28) {
-    if (
-      (!u.path || u.path.length === 0 || u.pathTimer <= 0) &&
-      state.astarBudgetThisFrame < MAX_ASTAR_PER_FRAME
-    ) {
+    const needsPath = !u.path || u.path.length === 0 || u.pathTimer <= 0;
+    if (needsPath && perf.enabled) perf.inc('aiPathRequests');
+    if (needsPath && state.astarBudgetThisFrame < MAX_ASTAR_PER_FRAME) {
       state.astarBudgetThisFrame++;
       u.pathTimer = 0.85 + Math.random() * 0.45;
       u.path = computeTilePath(state.world, u.x, u.y, u.goalX, u.goalY, 160);
+    } else if (needsPath && perf.enabled) {
+      perf.inc('aiPathBudgetSkipped');
     }
 
     let steerX = u.goalX;

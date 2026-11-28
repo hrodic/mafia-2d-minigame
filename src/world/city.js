@@ -2,6 +2,7 @@
 
 import { CHUNK_SIZE, TILE_SIZE } from '../config/constants.js';
 import { TileType, PropType } from '../config/enums.js';
+import { perf } from '../core/perf.js';
 import { DistrictChunk } from './chunk.js';
 import { getPropFootprint, circleIntersectsRect } from './geometry.js';
 
@@ -97,6 +98,7 @@ export class CityMap {
   }
 
   canMoveTo(wx, wy, radius = 12) {
+    if (perf.enabled) perf.inc('canMoveToCalls');
     const diag = radius * 0.72;
     const oxList = [0, radius, -radius, 0, 0, diag, -diag, diag, -diag];
     const oyList = [0, 0, 0, radius, -radius, diag, diag, -diag, -diag];
@@ -130,13 +132,15 @@ export class CityMap {
         const ly = ((gy % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
         const prop = chunk.props[ly][lx];
         if (!prop || prop === PropType.DUMPSTER) continue;
-        const rect = getPropFootprint(
-          prop,
-          gx * TILE_SIZE,
-          gy * TILE_SIZE,
-          chunk.propVertical[ly][lx],
-          chunk.propCurbSide[ly][lx]
-        );
+        const rect = chunk.propRects
+          ? chunk.propRects[ly][lx]
+          : getPropFootprint(
+              prop,
+              gx * TILE_SIZE,
+              gy * TILE_SIZE,
+              chunk.propVertical[ly][lx],
+              chunk.propCurbSide[ly][lx]
+            );
         if (rect && circleIntersectsRect(rect, wx, wy, radius)) return false;
       }
     }

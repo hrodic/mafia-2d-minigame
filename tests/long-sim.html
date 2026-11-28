@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mafia 2D — 120s Turbo Simulation</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #09090b;
+      --panel: #15151a;
+      --line: #2a2a32;
+      --text: #e4e4e7;
+      --muted: #a1a1aa;
+      --green: #34d399;
+      --red: #fb7185;
+      --amber: #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at 50% 0%, #18181f 0%, var(--bg) 55%);
+      color: var(--text);
+      font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    main {
+      width: min(1080px, calc(100% - 32px));
+      margin: 28px auto 48px;
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 24px;
+      letter-spacing: 0.02em;
+    }
+    .sub { color: var(--muted); margin: 0 0 18px; }
+    .panel {
+      background: rgba(21, 21, 26, 0.9);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    label { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+    input, select {
+      width: 130px;
+      border: 1px solid #3f3f46;
+      border-radius: 8px;
+      background: #101014;
+      color: var(--text);
+      padding: 7px 9px;
+      font: 13px ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+    button {
+      border: 1px solid #10b981;
+      border-radius: 8px;
+      background: #059669;
+      color: #fff;
+      padding: 8px 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.45; cursor: progress; }
+    button.secondary { background: #27272a; border-color: #52525b; }
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font: 800 12px ui-monospace, SFMono-Regular, Consolas, monospace;
+      border: 1px solid var(--line);
+    }
+    .badge.pending { color: var(--amber); border-color: rgba(251, 191, 36, 0.5); }
+    .badge.pass { color: var(--green); border-color: rgba(52, 211, 153, 0.5); background: rgba(52, 211, 153, 0.1); }
+    .badge.fail { color: var(--red); border-color: rgba(251, 113, 133, 0.5); background: rgba(251, 113, 133, 0.1); }
+    .meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin-top: 12px; }
+    .stat { border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; background: #101014; }
+    .stat span { display: block; color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+    .stat b { font-size: 16px; font-variant-numeric: tabular-nums; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid #27272e; text-align: left; font-size: 12px; }
+    th { color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 0.08em; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    pre {
+      margin: 0;
+      max-height: 300px;
+      overflow: auto;
+      white-space: pre-wrap;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #0b0b0f;
+      padding: 10px;
+      color: #d4d4d8;
+      font: 11px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+    .ok { color: var(--green); }
+    .bad { color: var(--red); }
+    .hint { color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>120-second Headless Simulation</h1>
+    <p class="sub">
+      Standalone sanity run — not part of <code>tests/tests.html</code>.
+      Default: <b>Turbo</b> — <b>10×10</b> neighborhoods, <b>10s</b> economy tick,
+      <b>High</b> income, 4 factions. Pick a larger grid for a stress run.
+    </p>
+
+    <section class="panel">
+      <div class="controls">
+        <label for="seed">World seed</label>
+        <input id="seed" value="4242" inputmode="numeric" />
+        <label for="grid-size">Grid</label>
+        <select id="grid-size">
+          <option value="5">5×5</option>
+          <option value="10" selected>10×10</option>
+          <option value="15">15×15</option>
+          <option value="20">20×20</option>
+          <option value="25">25×25</option>
+        </select>
+        <label for="tick-speed">Tick</label>
+        <select id="tick-speed">
+          <option value="10" selected>10s Turbo</option>
+          <option value="15">15s</option>
+          <option value="20">20s</option>
+          <option value="25">25s Long</option>
+          <option value="30">30s</option>
+        </select>
+        <label for="income-tier">Income</label>
+        <select id="income-tier">
+          <option value="LOW">Low</option>
+          <option value="MID">Mid</option>
+          <option value="HIGH" selected>High</option>
+        </select>
+        <label for="faction-count">Factions</label>
+        <select id="faction-count">
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+        </select>
+        <label for="stance">Global stance</label>
+        <select id="stance">
+          <option value="2" selected>Expand</option>
+          <option value="1">Defend</option>
+        </select>
+        <label for="local-order">Local order</label>
+        <select id="local-order">
+          <option value="2" selected>Attack</option>
+          <option value="1">Guard</option>
+        </select>
+        <button id="run" type="button">Run 120s</button>
+        <button id="preset-big" type="button" class="secondary">Big Turbo 25×25</button>
+        <button id="random" type="button" class="secondary">Random seed</button>
+        <span id="badge" class="badge pending">NOT RUN</span>
+      </div>
+      <p class="hint">
+        Runs 14,400 fixed steps (120 simulated seconds) with the selected grid, economy tick,
+        income tier and faction count. The player boss patrols between chunk centers and
+        auto-buys the Glock, ammo and Kevlar, then attempts the MP9 after 90 simulated seconds.
+        <b>Global stance</b> and <b>local order</b> apply to every faction.
+        Grid size is in neighborhoods; <b>25×25 = 375×375 tiles</b>.
+        No rendering or real-time frame loop is involved.
+        <b>25×25 is a stress run</b> and can take tens of seconds.
+        <b>Recommended before every MINOR version bump and push.</b>
+      </p>
+      <div id="meta" class="meta"></div>
+    </section>
+
+    <section class="panel">
+      <h2 style="margin:0 0 8px;font-size:14px;text-transform:uppercase;letter-spacing:.08em">Factions</h2>
+      <table>
+        <thead><tr><th>Faction</th><th class="num">Turf</th><th class="num">Crew</th><th class="num">Cash</th><th class="num">Kills</th><th class="num">Deaths</th><th>Boss</th></tr></thead>
+        <tbody id="factions"></tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2 style="margin:0 0 8px;font-size:14px;text-transform:uppercase;letter-spacing:.08em">Boss equipment &amp; raw report</h2>
+      <table>
+        <thead><tr><th>Faction</th><th>Weapon</th><th>Glock</th><th>MP9</th><th class="num">Rounds</th><th class="num">Glock mags</th><th class="num">MP9 mags</th><th class="num">Armor</th></tr></thead>
+        <tbody id="bosses"></tbody>
+      </table>
+      <div id="purchases" class="hint" style="margin:10px 0 0">Player purchases: —</div>
+      <pre id="raw" style="margin-top:12px">Waiting…</pre>    </section>
+  </main>
+
+  <script type="module">
+    import { Faction, UnitRank } from '../src/config/enums.js';
+    import { SIM_DT, CHUNK_PX } from '../src/config/constants.js';
+    import { GLOBAL_STANCE, LOCAL_ORDER } from '../src/config/tactics.js';
+    import { perf } from '../src/core/perf.js';
+    import { state } from '../src/core/state.js';
+    import { CityMap } from '../src/world/city.js';
+    import { initWorld } from '../src/sim/match.js';
+    import { update } from '../src/sim/simulation.js';
+    import {
+      executeBuyArmorForFaction,
+      executeBuyAmmoForFaction,
+      executeBuyGlockForFaction,
+      executeBuyMp9ForFaction,
+    } from '../src/sim/combat.js';
+
+    const ORGS = ['COSA_NOSTRA', 'BRATVA', 'TRIADS', 'CARTEL'];
+    const STEPS = 120 / SIM_DT; // 14,400 fixed steps = 120 simulated seconds
+    const PATROL_EVERY = Math.round(5 / SIM_DT); // retarget the player every 5 simulated seconds
+    const SHOP_EVERY = Math.round(1 / SIM_DT); // attempt player purchases once per simulated second
+    const MP9_BUY_AT_SECONDS = 90;
+    let playerPurchases = [];
+
+    const $ = (id) => document.getElementById(id);
+    const badge = $('badge');
+    const meta = $('meta');
+    const raw = $('raw');
+    const runButton = $('run');
+
+    function finiteUnit(unit) {
+      return (
+        Number.isFinite(unit.x) &&
+        Number.isFinite(unit.y) &&
+        Number.isFinite(unit.hp) &&
+        Number.isFinite(unit.armor) &&
+        Number.isFinite(unit.attackCooldown) &&
+        Number.isFinite(unit.slashAnimTimer)
+      );
+    }
+
+    function setup(
+      seed,
+      globalStance = GLOBAL_STANCE.EXPAND,
+      localOrder = LOCAL_ORDER.ATTACK,
+      gridSize = 10,
+      tickSeconds = 10,
+      incomeTier = 'HIGH',
+      factionCount = 4
+    ) {
+      perf.enabled = true;
+      perf.reset();
+      state.world = new CityMap();
+      state.npcs = [];
+      state.floatingTexts = [];
+      state.spatialBuckets = new Map();
+      state.bucketPool = [];
+      state.keys = new Set();
+      state.net = null;
+      state.sprintButtonHeld = false;
+      state.mouseFiring = false;
+      state.aimInside = false;
+      playerPurchases = [];
+      initWorld(gridSize, true, tickSeconds, incomeTier, factionCount, ORGS, seed);
+      state.net = null;
+      for (const faction of state.activeFactions) {
+        state.factionTactics[faction].globalStance = globalStance;
+        state.factionTactics[faction].localOrder = localOrder;
+      }
+    }
+
+    function recordPurchase(step, item) {
+      playerPurchases.push({ at: Math.round(step * SIM_DT), item });
+    }
+
+    function tryPlayerShopping(step) {
+      const player = state.player;
+      if (!player.alive) return;
+
+      if (!player.pistolOwned) {
+        if (executeBuyGlockForFaction(Faction.PLAYER)) recordPurchase(step, 'Glock 19');
+      }
+
+      const weapon = player.weapon;
+      const dry =
+        !(player.reloadTimer > 0) &&
+        (player.ammo || 0) <= 0 &&
+        (player.spareMags || 0) <= 0;
+      if (weapon && dry) {
+        if (executeBuyAmmoForFaction(Faction.PLAYER)) {
+          recordPurchase(step, `${weapon === 'mp9' ? 'MP9' : 'Glock'} ammo (+20)`);
+        }
+      }
+
+      if ((player.armor || 0) < (player.maxArmor || 0)) {
+        if (executeBuyArmorForFaction(Faction.PLAYER)) recordPurchase(step, 'Kevlar +300');
+      }
+
+      if (!player.mp9Owned && step * SIM_DT >= MP9_BUY_AT_SECONDS) {
+        if (executeBuyMp9ForFaction(Faction.PLAYER)) recordPurchase(step, 'MP9');
+      }
+    }
+
+    function setPlayerPatrolTarget(step) {
+      if (!state.player.alive) return;
+      const chunks = [...state.world.chunks.values()];
+      if (chunks.length === 0) return;
+      const chunk = chunks[(Math.floor(step / PATROL_EVERY) * 7) % chunks.length];
+      const x = chunk.cx * CHUNK_PX + CHUNK_PX / 2;
+      const y = chunk.cy * CHUNK_PX + CHUNK_PX / 2;
+      const snapped = state.world.findNearestWalkablePoint(x, y, state.player.bodyRadius);
+      if (!snapped) return;
+      state.player.targetX = snapped.x;
+      state.player.targetY = snapped.y;
+      state.player.path = null;
+      state.player.pathTimer = 0;
+    }
+
+    function collect(seed, elapsedMs, maxUnits) {
+      const units = [state.player, ...state.npcs];
+      const invalid = units
+        .filter((unit) => !finiteUnit(unit) || !state.world.isWalkable(unit.x, unit.y))
+        .slice(0, 8)
+        .map((unit) => ({
+          id: unit.id,
+          faction: unit.faction,
+          rank: unit.rank,
+          x: unit.x,
+          y: unit.y,
+          finite: finiteUnit(unit),
+          walkable: state.world.isWalkable(unit.x, unit.y),
+        }));
+
+      const crews = {};
+      for (const unit of state.npcs) crews[unit.faction] = (crews[unit.faction] || 0) + 1;
+      const turf = {};
+      for (const chunk of state.world.chunks.values()) {
+        turf[chunk.faction] = (turf[chunk.faction] || 0) + 1;
+      }
+
+      let overlapPairs = 0;
+      let maxOverlap = 0;
+      const overlapDetails = [];
+      for (let i = 0; i < units.length; i++) {
+        const a = units[i];
+        if (!a || a.hp <= 0) continue;
+        const ar = a.bodyRadius || 11;
+        for (let j = i + 1; j < units.length; j++) {
+          const b = units[j];
+          if (!b || b.hp <= 0 || b.faction !== a.faction) continue;
+          const br = b.bodyRadius || 11;
+          const humanBoss =
+            a === state.player ||
+            b === state.player ||
+            Boolean(a.humanPeerId) ||
+            Boolean(b.humanPeerId);
+          const minDist = humanBoss ? ar + br - 1 : (ar + br) * 0.5;
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const distSq = dx * dx + dy * dy;
+          if (distSq >= minDist * minDist) continue;
+          overlapPairs++;
+          const dist = Math.sqrt(distSq);
+          const overlap = minDist - dist;
+          if (overlap > maxOverlap) maxOverlap = overlap;
+          if (overlapDetails.length < 6) {
+            overlapDetails.push({
+              a: a.id,
+              aRank: a.rank,
+              b: b.id,
+              bRank: b.rank,
+              faction: a.faction,
+              x: Math.round(a.x),
+              y: Math.round(a.y),
+              dist: Math.round(dist * 10) / 10,
+              overlap: Math.round(overlap * 10) / 10,
+            });
+          }
+        }
+      }
+
+      const bosses = [state.player, ...state.npcs.filter((unit) => unit.rank === UnitRank.BOSS)]
+        .map((unit) => ({
+          faction: unit.faction,
+          human: unit === state.player || Boolean(unit.humanPeerId),
+          weapon: unit.weapon,
+          pistolOwned: Boolean(unit.pistolOwned),
+          mp9Owned: Boolean(unit.mp9Owned),
+          ammo: unit.ammo,
+          pistolMags: unit.pistolMags,
+          mp9Mags: unit.mp9Mags,
+          armor: unit.armor,
+        }));
+
+      const factions = state.activeFactions.map((faction) => ({
+        faction,
+        alive: Boolean(state.factionAlive[faction]),
+        turf: turf[faction] || 0,
+        crew: crews[faction] || 0,
+        cash: state.treasuries[faction],
+        kills: state.factionKills[faction],
+        deaths: state.factionDeaths[faction],
+      }));
+
+      const invalidTreasury = state.activeFactions.filter(
+        (faction) => !Number.isFinite(state.treasuries[faction])
+      );
+      const pass =
+        invalid.length === 0 &&
+        invalidTreasury.length === 0 &&
+        units.length > 0 &&
+        state.gameStarted;
+
+      return {
+        status: pass ? 'PASS' : 'FAIL',
+        seed,
+        mode: 'HEADLESS',
+        gridSize: state.currentGridSize,
+        tickSeconds: state.tickDuration,
+        incomeTier: state.currentIncomeTier,
+        factionCount: state.activeFactions.length,
+        steps: STEPS,
+        simSeconds: 120,
+        elapsedMs: Math.round(elapsedMs),
+        stepsPerSecond: Math.round(STEPS / Math.max(0.001, elapsedMs / 1000)),
+        units: units.length,
+        maxUnits,
+        gameStarted: state.gameStarted,
+        gameOver: state.gameOver,
+        hour: state.gameHour,
+        tickTimer: Math.round(state.tickTimer * 1000) / 1000,
+        invalid,
+        invalidTreasury,
+        overlapPairs,
+        maxOverlap: Math.round(maxOverlap * 10) / 10,
+        overlapDetails,
+        globalStance: state.factionTactics[state.activeFactions[0]].globalStance,
+        localOrder: state.factionTactics[state.activeFactions[0]].localOrder,
+        perf: perf.snapshot(),
+        factions,
+        bosses,
+        playerPurchases,
+        turfTotal: turf,
+      };
+    }
+
+    function render(result) {
+      badge.className = `badge ${result.status === 'PASS' ? 'pass' : 'fail'}`;
+      badge.textContent = result.status;
+
+      const stats = [
+        ['Seed', result.seed],
+        ['Grid', result.gridSize ? `${result.gridSize}×${result.gridSize}` : '—'],
+        ['Tick', result.tickSeconds ? `${result.tickSeconds}s` : '—'],
+        ['Income', result.incomeTier || '—'],
+        ['Factions', result.factionCount || '—'],
+        ['Stance', result.globalStance === GLOBAL_STANCE.DEFEND ? 'Defend' : 'Expand'],
+        ['Local', result.localOrder === LOCAL_ORDER.GUARD ? 'Guard' : 'Attack'],
+        ['Wall time', `${result.elapsedMs} ms`],
+        ['Simulated', `${result.simSeconds}s`],
+        ['Steps', result.steps.toLocaleString()],
+        ['Steps/sec', result.stepsPerSecond.toLocaleString()],
+        ['Units', result.units],
+        ['Peak units', result.maxUnits],
+        ['A* calls', (result.perf && result.perf.astarCalls) || 0],
+        ['A* searches', (result.perf && result.perf.astarSearches) || 0],
+        ['LOS hits', (result.perf && result.perf.losHits) || 0],
+        ['A* nodes', (result.perf && result.perf.astarNodes) || 0],
+        ['Collision checks', (result.perf && result.perf.collisionChecks) || 0],
+        ['Hour', result.hour],
+        ['Game over', result.gameOver ? 'yes' : 'no'],
+        ['Invalid units', result.invalid.length],
+        ['Overlap pairs', result.overlapPairs ?? 0],
+        ['Max overlap', `${result.maxOverlap ?? 0} px`],
+      ];
+      meta.innerHTML = stats
+        .map(([label, value]) => `<div class="stat"><span>${label}</span><b>${value}</b></div>`)
+        .join('');
+
+      const factionRows = result.factions.map((f) => {
+        const boss = result.bosses.find((b) => b.faction === f.faction);
+        const bossText = boss
+          ? `${boss.weapon}${boss.mp9Owned ? ' · MP9 owned' : ''}${boss.pistolOwned ? '' : ' · no Glock'}`
+          : '—';
+        return `<tr>
+          <td>${f.faction}${f.alive ? '' : ' <span class="bad">(dead)</span>'}</td>
+          <td class="num">${f.turf}</td>
+          <td class="num">${f.crew}</td>
+          <td class="num">$${Math.round(f.cash).toLocaleString()}</td>
+          <td class="num">${f.kills}</td>
+          <td class="num">${f.deaths}</td>
+          <td>${bossText}</td>
+        </tr>`;
+      }).join('');
+      $('factions').innerHTML = factionRows;
+
+      const bossRows = result.bosses.map((b) => `<tr>
+        <td>${b.faction}</td>
+        <td>${b.weapon}</td>
+        <td>${b.pistolOwned ? '<span class="ok">yes</span>' : '<span class="bad">no</span>'}</td>
+        <td>${b.mp9Owned ? '<span class="ok">yes</span>' : 'no'}</td>
+        <td class="num">${b.ammo ?? 0}</td>
+        <td class="num">${b.pistolMags ?? '—'}</td>
+        <td class="num">${b.mp9Mags ?? '—'}</td>
+        <td class="num">${Math.round(b.armor || 0)}</td>
+      </tr>`).join('');
+      $('bosses').innerHTML = bossRows || '<tr><td colspan="8">No rival bosses left.</td></tr>';
+
+      const purchases = result.playerPurchases || [];
+      $('purchases').textContent = purchases.length
+        ? `Player purchases: ${purchases.map((p) => `${p.at}s ${p.item}`).join(' · ')}`
+        : 'Player purchases: none';
+
+      raw.textContent = JSON.stringify(result, null, 2);
+      window.__LONG_SIM_RESULT__ = result;
+    }
+
+    function run() {
+      const seed = Number($('seed').value) || 4242;
+      const gridSize = Number($('grid-size').value) || 10;
+      const tickSeconds = Number($('tick-speed').value) || 10;
+      const incomeTier = $('income-tier').value || 'HIGH';
+      const factionCount = Number($('faction-count').value) || 4;
+      const globalStance = Number($('stance').value) || GLOBAL_STANCE.EXPAND;
+      const localOrder = Number($('local-order').value) || LOCAL_ORDER.ATTACK;
+      runButton.disabled = true;
+      badge.className = 'badge pending';
+      badge.textContent = 'RUNNING…';
+      raw.textContent = `Running ${STEPS.toLocaleString()} fixed steps on ${gridSize}×${gridSize}…`;
+
+      setTimeout(() => {
+        try {
+          setup(seed, globalStance, localOrder, gridSize, tickSeconds, incomeTier, factionCount);
+          tryPlayerShopping(0);
+          const started = performance.now();
+          let maxUnits = 1;
+          for (let i = 0; i < STEPS; i++) {
+            if (i > 0 && i % SHOP_EVERY === 0) tryPlayerShopping(i);
+            if (i % PATROL_EVERY === 0) setPlayerPatrolTarget(i);
+            update(SIM_DT);
+            if (i % 120 === 0) maxUnits = Math.max(maxUnits, state.npcs.length + 1);
+          }
+          const elapsed = performance.now() - started;
+          maxUnits = Math.max(maxUnits, state.npcs.length + 1);
+          render(collect(seed, elapsed, maxUnits));
+        } catch (error) {
+          const result = {
+            status: 'FAIL',
+            seed,
+            error: error && error.stack ? error.stack : String(error),
+          };
+          badge.className = 'badge fail';
+          badge.textContent = 'FAIL';
+          raw.textContent = result.error;
+          window.__LONG_SIM_RESULT__ = result;
+        } finally {
+          runButton.disabled = false;
+        }
+      }, 60);
+    }
+
+    runButton.addEventListener('click', run);
+    $('preset-big').addEventListener('click', () => {
+      $('grid-size').value = '25';
+      $('tick-speed').value = '10';
+      $('income-tier').value = 'HIGH';
+      $('faction-count').value = '4';
+      run();
+    });
+    $('random').addEventListener('click', () => {
+      $('seed').value = String(Math.floor(Math.random() * 900000000) + 1);
+      run();
+    });
+
+    run();
+  </script>
+</body>
+</html>
+

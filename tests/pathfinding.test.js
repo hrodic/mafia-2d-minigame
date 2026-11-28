@@ -1,7 +1,13 @@
 // A* pathfinding tests against a synthetic tile map (pure logic, no rendering).
 import { test, assert, assertEqual } from './harness.js';
 import { TILE_SIZE } from '../src/config/constants.js';
-import { computeTilePath, MAX_ASTAR_PER_FRAME } from '../src/world/pathfinding.js';
+import {
+  computeTilePath,
+  hasLineOfSight,
+  LOS_MAX_TILES,
+  MAX_ASTAR_PER_FRAME,
+} from '../src/world/pathfinding.js';
+import { perf } from '../src/core/perf.js';
 
 function tileKey(x, y) {
   return `${x},${y}`;
@@ -50,17 +56,25 @@ test('pathfinding: budget constant is exported', () => {
   assertEqual(MAX_ASTAR_PER_FRAME, 10);
 });
 
-test('pathfinding: finds a direct path on an open grid', () => {
+test('pathfinding: finds a direct LOS path on an open grid', () => {
   const map = makeMap();
   const start = worldOf(2, 2);
   const goal = worldOf(10, 2);
   const path = computeTilePath(map, start.x, start.y, goal.x, goal.y);
   assertPathIsNavigable(map, path);
+  assertEqual(path.length, 1, 'a clear short line should skip A*');
   const last = path[path.length - 1];
   assertEqual(last.x, goal.x);
   assertEqual(last.y, goal.y);
-  const first = tileOf(path[0]);
-  assert(first.x >= 2 && first.x <= 3, `first waypoint too far: ${first.x},${first.y}`);
+});
+
+test('pathfinding: LOS reports clear, blocked, and too-long lines', () => {
+  const open = makeMap();
+  assertEqual(hasLineOfSight(open, 2, 2, 8, 2), 1);
+  assertEqual(hasLineOfSight(open, 2, 2, 2 + LOS_MAX_TILES + 4, 2), -1);
+
+  const blocked = new Set([tileKey(5, 2)]);
+  assertEqual(hasLineOfSight(makeMap(blocked), 2, 2, 8, 2), 0);
 });
 
 test('pathfinding: start equal to goal returns one waypoint', () => {
@@ -107,6 +121,7 @@ test('pathfinding: never cuts blocked diagonal corners', () => {
   const start = worldOf(5, 5);
   const goal = worldOf(6, 6);
   const path = computeTilePath(map, start.x, start.y, goal.x, goal.y, 400);
+  assert(path.length > 1, 'a blocked corner-cut line must fall back to A*');
   assertPathIsNavigable(map, path);
   for (let i = 1; i < path.length; i++) {
     const a = tileOf(path[i - 1]);
@@ -119,6 +134,35 @@ test('pathfinding: never cuts blocked diagonal corners', () => {
         `diagonal step ${a.x},${a.y} -> ${b.x},${b.y} cuts a blocked corner`
       );
     }
+  }
+});
+
+test('pathfinding: perf counters distinguish LOS hits from A* searches', () => {
+  perf.enabled = true;
+  perf.reset();
+  try {
+    const open = makeMap();
+    const start = worldOf(2, 2);
+    const goal = worldOf(10, 2);
+    computeTilePath(open, start.x, start.y, goal.x, goal.y);
+    let snapshot = perf.snapshot();
+    assertEqual(snapshot.losHits, 1);
+    assertEqual(snapshot.astarSearches || 0, 0);
+
+    perf.reset();
+    const blocked = new Set();
+    for (let y = 0; y < 20; y++) {
+      if (y !== 10) blocked.add(tileKey(6, y));
+    }
+    const wallMap = makeMap(blocked);
+    computeTilePath(wallMap, start.x, start.y, worldOf(10, 5).x, worldOf(10, 5).y, 400);
+    snapshot = perf.snapshot();
+    assertEqual(snapshot.losBlocked, 1);
+    assertEqual(snapshot.astarSearches, 1);
+    assert(snapshot.astarNodes > 0, 'A* should report explored nodes');
+  } finally {
+    perf.enabled = false;
+    perf.reset();
   }
 });
 

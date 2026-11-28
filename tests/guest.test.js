@@ -3,6 +3,7 @@ import { test, assert, assertEqual, assertDeepEqual } from './harness.js';
 import { state } from '../src/core/state.js';
 import { createGuestController } from '../src/net/guest.js';
 import { MSG } from '../src/net/protocol.js';
+import { createFactionTactics } from '../src/config/tactics.js';
 
 function makeController() {
   const calls = {
@@ -56,6 +57,7 @@ const SNAPSHOT_STATE_KEYS = [
   'gameHour',
   'tickTimer',
   'minimapCacheTimer',
+  'factionTactics',
 ];
 
 function withSnapshotState(fn) {
@@ -88,6 +90,10 @@ function withSnapshotState(fn) {
   state.gameHour = 1;
   state.tickTimer = 0;
   state.minimapCacheTimer = 0;
+  state.factionTactics = {
+    PLAYER: createFactionTactics(),
+    RIVAL_1: createFactionTactics(),
+  };
   try {
     return fn();
   } finally {
@@ -263,6 +269,28 @@ test('guest: snapshot chunks generate unknown chunks and refresh the radar', () 
     assertEqual(chunk.captureProgress, 0.42);
     assertEqual(chunk.capturingFaction, 'PLAYER');
     assertEqual(state.minimapCacheTimer, 1.0);
+  });
+});
+
+test('guest: snapshot applies faction global stance and local order codes', () => {
+  withSnapshotState(() => {
+    const { controller, setMatchStarted } = makeController();
+    controller.handleLobby({ type: MSG.LOBBY_STATE, payload: {} }, 'host');
+    setMatchStarted(true);
+
+    controller.handleSnapshot(
+      {
+        type: MSG.SNAPSHOT,
+        seq: 1,
+        payload: { tactics: { PLAYER: [1, 1], RIVAL_1: [2, 2] } },
+      },
+      'host'
+    );
+
+    assertEqual(state.factionTactics.PLAYER.globalStance, 1);
+    assertEqual(state.factionTactics.PLAYER.localOrder, 1);
+    assertEqual(state.factionTactics.RIVAL_1.globalStance, 2);
+    assertEqual(state.factionTactics.RIVAL_1.localOrder, 2);
   });
 });
 

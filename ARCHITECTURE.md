@@ -22,10 +22,11 @@ styles.css                 custom CSS (Tailwind remains on its CDN)
 src/
   main.js                  thin composition root: net bridge, event wiring, loop, bootstrap
   config/
-    constants.js           tile/chunk sizes, tick/sprint/pistol tuning
+    constants.js           tile/chunk sizes, tick/sprint/pistol/MP9 tuning
     version.js             GAME_VERSION single source (title/labels/net handshake)
     enums.js               TileType, PropType, Faction, UnitRank
-    balance.js             RANK_STATS, UNIT_CAPS, SLASH, PISTOL, income/cost tables
+    balance.js             RANK_STATS, UNIT_CAPS, SLASH, PISTOL, MP9, income/cost tables
+    tactics.js             global stance / local order codes, aura radii, record factory
     organizations.js       6 organizations, FACTION_META, slot helpers, ensureUniqueOrgs
   core/
     rng.js                 mulberry32, chunk seed hashing, explicit per-chunk RNG
@@ -33,19 +34,21 @@ src/
     fixedStep.js           accumulator: fixed sim steps + catch-up guard
     hiddenSim.js           hidden-tab host simulation fallback (no rendering)
     events.js              synchronous, isolated event bus (sim -> presentation facts)
-    spatial.js             per-chunk spatial buckets for neighbour queries
+    spatial.js             chunk buckets for perception + 64 px collision grid for movement
+    perf.js                optional zero-cost-when-disabled performance counters
   world/
-    chunk.js               DistrictChunk: seeded 15×15 block generation
+    chunk.js               DistrictChunk: seeded 15×15 blocks, solid mask + car rect cache
     city.js                CityMap: chunk store, tile queries, collision, ring expansion
     geometry.js            prop footprints (collision + raycast + drawing source)
-    pathfinding.js         A* over tiles with a per-frame budget
+    pathfinding.js         A* over tiles: LOS pre-check, binary heap, per-frame budget
   sim/                     headless gameplay logic (no DOM, no audio)
     match.js               initWorld: city/factions/economy/bosses for a new match
     simulation.js          update(dt): headless host/single-player fixed sim step
     ai.js                  NPC perception, attacks, patrol goals, A* steering, capture
+    tactics.js             faction command facts: 250 ms boss danger/threat/focus/aura refresh
     movement.js            moveUnit/sprint, collision, remote-human boss, waypoint steering
     units.js               caps, spawning, recruitment
-    combat.js              damage/armor, slashes, pistol raycast, armor purchases
+    combat.js              damage/armor, slashes, Glock/MP9 raycast, weapon purchases
     regen.js               friendly-turf HP regeneration, suppressed by hit flash
     territory.js           capture progress, elimination, victory
     economy.js             upkeep, income, hourly tick and auto-recruitment
@@ -91,7 +94,9 @@ tests/
   tests.html               zero-dependency test runner page
   harness.js               test/assert helpers + results UI
   *.test.js                suites (config, state, world, sim, render, UI, net-adjacent)
+  simulation-integration.test.js  real-map fixed-step integration suites
   mp-harness.html          iframe harness that forces the same-origin local bus
+  long-sim.html            standalone 120s headless simulation (configurable setup)
   SMOKE.md                 manual smoke checklist (per commit / per phase)
 docs/                      generated GitHub Pages artifact (never hand-edit)
 tools/
@@ -219,11 +224,29 @@ labels, seed display and HUD.
 - **CityMap** (`world/city.js`) stores chunks, answers tile queries
   (`worldToTile`, `isWalkable`, `isTileNavigable`), does radius collision
   (`canMoveTo`), snaps to nearest walkable points, and expands perimeter rings.
+  Each `DistrictChunk` precomputes its static car collision rectangles; `canMoveTo`
+  uses them and still falls back to `getPropFootprint` for synthetic/test chunks.
+  `moveUnit` gathers the 3×3 neighbourhood once per step and reuses it for friendly
+  push detection and both axis-collision checks. Friendly NPCs use **half** the
+  radius-sum separation, so they fit tighter alleys; human-controlled bosses keep
+  full spacing. A moving AI first tries a diagonal/pure side-step around a friendly
+  blocker, then pushes. Pushing may chain through up to 3 allies and rolls back
+  atomically if any link is blocked. Human-controlled bosses are never pushed by
+  allies. Push speed is 30%; bosses have 1.25 push mass and resist pushes from
+  lighter ranks. A 2 Hz depenetration pass (max 1 px per unit) cleans any stale
+  friendly overlaps. `spawnUnitInChunk` adds new units to the spatial bucket
+  immediately so same-tick recruits cannot spawn on the same spot.
 - **Pathfinding** (`world/pathfinding.js`) is A* over tiles with a per-frame exploration
-  budget (`MAX_ASTAR_PER_FRAME`). It is used by the NPC AI and by waypoint movement
-  (local player and remote bosses).
-- **Spatial index** (`core/spatial.js`) buckets entities by chunk; neighbors are scanned
-  in a 3×3 chunk neighborhood.
+  budget (`MAX_ASTAR_PER_FRAME`). A fast DDA tile-line pre-check (`hasLineOfSight`) skips A*
+  for clear short lines, and the open set is a binary min-heap. Blocked, too-long or
+  corner-cutting lines fall back to A*. `core/perf.js` counters are disabled in normal play
+  and enabled by the long-sim harness to report LOS hits, A* searches, explored nodes and
+  collision volume. It is used by the NPC AI and by waypoint movement (local player and
+  remote bosses).
+- **Spatial index** (`core/spatial.js`) keeps two structures:
+  - chunk buckets for AI perception (3×3 chunk queries),
+  - a 64 px collision grid (`collisionBuckets`) rebuilt each step for movement
+    broad-phase, so collision no longer scans whole 990 px chunks.
 - **Prop geometry** (`world/geometry.js`) is the single source for car/dumpster footprints,
   used by collision (`CityMap.canMoveTo`), bullet raycast (`sim/combat.js`) and drawing
   (`render/world.js`), so the three cannot drift.
@@ -250,13 +273,48 @@ Per-frame presentation stays state-driven: combat/capture/economy emit discrete 
 transitions only, never positions, timers or per-NPC updates.
 
 ### AI
-`sim/ai.js`: `scanNearby` (nearest enemy + ally/enemy counts in the 3×3 spatial buckets),
-boss armor purchase, melee for every rank and pistol fire for bosses/underbosses when the
-bullet path is clear (`hasClearShot`) and no ally is in the way (`hasFriendlyInShotPath`),
+See **`TACTICS.md`** for the current operational stance and rules of engagement.
+`sim/tactics.js` owns the faction command layer: every 250 ms it refreshes boss
+position/danger, threatened owned chunks, the local focus target and each unit's
+`inBossAura` flag (325 px enter / 360 px exit for both local orders).
+`state.factionTactics[faction]` stores the
+selected global stance (Defend/Expand) and local order (Guard/Attack); defaults are
+Expand/Attack. Orders travel through `SET_GLOBAL_STANCE` / `SET_LOCAL_ORDER` commands and
+compact snapshot codes. This module only reads sim facts; presentation reads the state.
+Global **Defend** is applied in `sim/ai.js` and `sim/units.js`: non-boss allies outside the
+boss aura pick only owned patrol destinations (threatened block → owned border → nearest
+owned), and reinforcements prefer safe friendly turf near the threatened block, avoiding
+blocks with 3+ enemies. Capture stays automatic; Defend only restricts deliberate
+destinations. Local **Guard** is applied in `sim/ai.js` for non-boss allies inside the aura:
+Soldiers/Captains hold scattered 50–150 px slots and Underbosses hold scattered 200–300 px
+slots in all directions, guards chase the local focus or a self-defense target inside their
+normal aggro range up to a 1000 px recall radius, an adjacent threat overrides the shared
+focus, and Attack crews collapse into the same ring when the boss is in danger. A unit that
+was guarding keeps `guardAssigned` outside the 325/360 aura and returns to its post after
+combat instead of falling back to the global stance. When a guard gunner's preferred target
+is blocked by an ally, it keeps that target for movement but fires at the nearest clear
+secondary enemy while repositioning. Each guard
+caches a stable slot and holds inside a 14 px idle deadzone; posts rebuild only when the
+250 ms command layer increments its revision, and focus switches debounce for two refreshes.
+Blocked/off-map slots fall back to the nearest walkable ring direction that keeps at least
+60% of the intended range.
+`sim/ai.js`: `scanNearby` (nearest enemy + ally/enemy counts in the 3×3 spatial buckets;
+squared distances, and counts are only computed for bosses that use them),
+`scanBossThreats`/`computeBossDanger` (threat-aware survival scan: melee 420 px, pistol
+600 px, MP9 700 px, ranged threats need ammo and a clear shot line, allies counted within
+500 px, refreshed every 200 ms),
+a one-second boss equipment shop (Glock first, first ammo/reload, then MP9 once the
+syndicate has 5 living units and 3 blocks), boss armor purchase, melee for every rank and
+weapon fire for bosses/underbosses from **melee reach to weapon range** when the bullet
+path is clear (`hasClearShot`) and no ally is in the way (`hasFriendlyInShotPath`);
+underbosses fire while backing off inside **110 px**, while healthy bosses commit to melee;
+the knife takes over inside melee reach; an MP9-equipped boss keeps its 0.1 s automatic
+cadence through the shared weapon cooldown,
 `choosePatrolChunk` (nearest non-owned chunk with
 a global fallback), A* path following/steering, obstacle dodge and capture. Wounded or
-outnumbered unarmored bosses buy armor when possible, otherwise sprint to a retreat point;
-blocked pistol shooters sidestep their firing lane, back off when both flanks are blocked,
+threat-outnumbered bosses buy armor when possible but still sprint to a retreat point while
+the danger persists; healthy, non-outnumbered bosses commit to melee instead of kiting, and
+blocked gun shooters sidestep their firing lane, back off when both flanks are blocked,
 and always knife at close range (knives have no friendly-fire restriction). `updateNpcAi(u,
 dt)` is headless; remote-human bosses bypass it. `simulation.js` remains the fixed-step
 orchestration loop; presentation is separate.
@@ -280,13 +338,16 @@ always collide.
 `sim/combat.js`: one armor→HP damage pipeline for units and the player
 (`damagePlayerBoss` delegates to `applyDamageToNpc`), death/elimination, one
 `performSlash` pipeline with player/rival/AI wrappers that share one knockback while
-keeping per-rank reach, arc and cooldowns, a pistol raycast with distance accuracy/damage
-bands, magazine reload (auto at 0 or manual with R, 4 s), pistol friendly fire and
-ally-aware AI hold-fire, a per-hit critical roll (5% base, +15% from the rear cone, 2×
-damage), and
-point-blank damage falloff, and armor purchases (player, rival AI). It emits facts only;
-`render/combatFx.js` draws blood/corpses/text/arcs/tracers and `audio/combatSfx.js` plays
-the combat SFX. The host's `shot:fired` subscriber broadcasts ephemeral tracers to guests.
+keeping per-rank reach, arc and cooldowns, one weapon-aware gun raycast (Glock 19 and the
+boss-only MP9) with distance accuracy/damage bands, weapon-specific magazines/reloads
+(auto at 0 or manual with R, 4 s) backed by finite spare-magazine reserves for bosses
+(pistol cap 20, MP9 cap 10; reload spends one), active-weapon 20-round ammo purchases,
+Glock/MP9 switching, friendly fire and ally-aware AI hold-fire, a per-hit critical roll
+(5% base, +15% from the rear cone, 2× damage), and point-blank damage falloff, armor
+purchases, the one-time Glock/MP9 upgrades and the AI boss equipment shop. It emits facts
+only; `render/combatFx.js` draws blood/corpses/text/arcs/tracers and `audio/combatSfx.js`
+plays the combat SFX. The host's `shot:fired` subscriber broadcasts ephemeral tracers to
+guests.
 
 ### Economy
 `sim/economy.js`: income totals from owned chunks, corruption penalties (1% per 10
@@ -308,8 +369,8 @@ subscribe in `main.js`.
 `config/balance.js` is the gameplay tuning surface: `RANK_STATS` (HP, armor, damage,
 AI/human speed, radius, capture points per tick, regen per second, cost/upkeep), `UNIT_CAPS`, `CORRUPTION`, `SLASH`
 profiles, and
-`PISTOL` stats + accuracy bands. `config/constants.js` owns world/map defaults, sprint,
-pistol range, hit flash, the fixed sim step and catch-up limits. Non-boss AI ranks use
+`PISTOL`/`MP9` stats + accuracy bands. `config/constants.js` owns world/map defaults, sprint,
+pistol/MP9 ranges, hit flash, the fixed sim step and catch-up limits. Non-boss AI ranks use
 their rank speed (Underboss `135`, Captain `140`, Soldier `150`); bosses use `130` for both AI and human control, so sprint is the boss
 mobility advantage. Local and remote humans and AI bosses share one `SLASH.humanBoss`/`SLASH.aiBoss`
 rule set; crew melee reads `SLASH.aiMeleeByRank` for per-rank reach, arc and cooldown. The local player's HP, damage, speed and
@@ -378,7 +439,9 @@ and characters into a depth-sorted list, and draws layers: a subtle world-space 
 backdrop (outside the playable chunks), ground + faction tint, capture bars, turf income
 labels, blood decals/corpses, waypoint and muzzle-accurate aim/reticle UI, characters (with
 HP/armor bars and rank labels), then effects (slash arcs, muzzle flashes, tracers, blood,
-sparks, casings, floating text). Character walk animation is distance-driven: `moveUnit`
+sparks, casings, floating text). Blood droplets are reduced per hit, while larger and
+longer-lived floor pools keep the scene readable; kill pools and corpses last twice as long
+as before. Character walk animation is distance-driven: `moveUnit`
 and guest interpolation advance `walkPhase`/`isMoving`, and `drawCharacter` uses one sine
 per visible moving unit for foot swing and a small body bob (no new timers or per-unit
 render state). Static ground is cached per visible chunk in an LRU of
@@ -399,7 +462,8 @@ default and expands to 336px.
 ## Audio
 
 `audio/engine.js` owns the AudioContext, master/music gains and a procedural noir music
-scheduler (two tracks; per-context noise buffer cache). `audio/sfx.js` synthesizes all
+scheduler (two tracks; per-context noise buffer cache). SFX start enabled at **100%**
+master volume; music starts **off** and uses **50%** volume when the player enables it. `audio/sfx.js` synthesizes all
 SFX (slash, gunshot, ricochet, armor, death, elimination, victory) and attenuates by
 distance from the camera.
 
@@ -408,21 +472,26 @@ distance from the camera.
 - `ui/hud.js`: primary boss/economy status, collapsible crew management panel (per-rank
   living counts, caps, recruit costs, turf/crew/gross/upkeep/net totals), collapsible faction leaderboard
   (turf, kills, deaths).
-- `ui/actionBar.js`: bottom-center combat bar. Slash/pistol/armor/sprint show ready/cooling
-  states, cooldown overlays, costs and shortcuts; the pistol badge shows rounds left and
-  switches to a 4s reload fill at 0 (R reloads early); sprint is boss-only, hold-to-run,
-  and guest input includes the held state.
+- `ui/actionBar.js`: bottom-center combat bar. Slash/weapon/sprint/buy show ready/cooling
+  states, cooldown overlays, costs and shortcuts; the separate **B** shop lists armor,
+  20-round active-weapon ammo, the Glock 19 and the MP9 with owned/locked/max states. The
+  weapon badge shows rounds left and the active spare-magazine count, swaps between Glock
+  and MP9 icons, and fills with the 4s reload; the shop stays open across purchases and is
+  locked off friendly turf; sprint is boss-only, hold-to-run, and guest input includes the
+  held state and held-fire flag.
 - `ui/hudCadence.js`: 4 Hz HUD refresh from the main loop.
 - `ui/menus.js`: setup modal tabs (Field Manual first, then Single/Host/Join), grid-derived
   crew-limit sliders, lobby buttons, start-game flow, `openSetupMenu`, banners and
   toasts; exports `initMenus`.
-- `ui/input.js`: keyboard/mouse/minimap handlers, HUD action buttons; releases held keys
-  on blur/visibility loss; exports `initInput`.
+- `ui/input.js`: keyboard/mouse/minimap handlers, HUD action buttons; tracks held RMB for
+  MP9 automatic fire, **B**/digits for the shop, **E** for weapon switching, and releases
+  held keys/fire on blur/visibility loss; exports `initInput`.
 - `ui/commandBridge.js`: the only guest/local branch for actions. Guests stream the command
   payload through `state.net.sendCommand`; host/single call `sim/commands.js` directly.
 - `ui/support.js`: the top-bar **Tip me** link opens the official Ko-fi popup; the floating
   launcher is hidden in CSS and the link falls back to ko-fi.com/hrodic.
-- `sim/commands.js`: `dispatchCommand(faction, payload)` for move, slash, shoot, reload, armor and
+- `sim/commands.js`: `dispatchCommand(faction, payload)` for move, slash, shoot, reload, armor,
+  ammo, Glock/MP9 purchases and weapon switching, plus recruitment preferences;
   recruit prefs. Local input and the host's remote-command receiver share it.
 
 ## Testing
@@ -434,6 +503,14 @@ distance from the camera.
   so render/HUD/menu tests can run headlessly. State is saved/restored per test.
 - `tests/mp-harness.html` embeds the game in an iframe to force the local bus; open it in
   two tabs for deterministic host/guest testing without external relays.
+- `tests/long-sim.html` is a standalone, slower sanity page: it runs 120 simulated seconds
+  (14,400 fixed steps) with a patrolling, auto-shopping player (Glock, ammo, Kevlar, MP9 after
+  90 s), and reports unit/faction/boss, world sanity, same-faction overlap pairs and optional
+  perf counters. The setup is
+  configurable: grid **5–25**, tick **10–30 s**, income **Low/Mid/High**, and **2–4**
+  factions. Default is **Turbo 10×10**; **Big Turbo 25×25** is the large stress preset. It
+  is not part of `tests.html`; open it directly to run a longer headless game. Run it at
+  least once before pushing each MINOR version bump.
 - Coverage includes config/RNG, transport API normalization (Trystero 0.27 vs local bus),
   protocol envelope/version/snapshot encoding, lobby seats/capacity/rosters, lobby DOM
   rendering/safe names, guest handshake/init routing, snapshot apply reuse/create/remove,
@@ -490,3 +567,4 @@ distance from the camera.
   FUTURE in `PLAN.md`.
 
 See `PLAN.md` for phase history and future ideas; `AGENTS.md` for the workflow contract.
+

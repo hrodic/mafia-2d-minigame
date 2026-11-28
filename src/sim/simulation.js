@@ -1,17 +1,20 @@
 // Simulation step: host/single-player world update and guest presentation loop.
 
 import { Faction, UnitRank } from '../config/enums.js';
+import { MP9 } from '../config/balance.js';
 import { state } from '../core/state.js';
-import { rebuildSpatialBuckets } from '../core/spatial.js';
+import { rebuildSpatialBuckets, rebuildCollisionBuckets } from '../core/spatial.js';
 import {
   moveUnit,
   updateHumanControlledRivalBoss,
   computeSteeringPath,
+  separateStaleOverlaps,
 } from './movement.js';
 import { progressCapture, getCapturePerTick } from './territory.js';
 import { processHourlyTick } from './economy.js';
 import { updateNpcAi } from './ai.js';
-import { tickWeapon } from './combat.js';
+import { updateFactionTactics } from './tactics.js';
+import { performBossPistolShot, tickWeapon } from './combat.js';
 import { regenUnit } from './regen.js';
 
 /** One fixed host/single-player simulation step. No presentation work here. */
@@ -20,6 +23,8 @@ export function update(dt) {
 
   state.astarBudgetThisFrame = 0;
   rebuildSpatialBuckets();
+  rebuildCollisionBuckets();
+  updateFactionTactics(dt);
 
   if (state.player.attackCooldown > 0) state.player.attackCooldown = Math.max(0, state.player.attackCooldown - dt);
   tickWeapon(state.player, dt);
@@ -77,6 +82,11 @@ export function update(dt) {
     const pTile = state.world.worldToTile(state.player.x, state.player.y);
     const pChunk = state.world.getChunk(pTile.cx, pTile.cy);
     progressCapture(pChunk, Faction.PLAYER, dt, getCapturePerTick(state.player.rank));
+
+    // MP9 is the only automatic weapon: hold RMB to keep firing at 0.1s cadence.
+    if (state.player.weapon === 'mp9' && state.mouseFiring && state.aimInside) {
+      performBossPistolShot(state.player, true, state.aimWorldX, state.aimWorldY);
+    }
   }
 
   // Update NPCs & Human-Controlled Rival Bosses
@@ -93,6 +103,17 @@ export function update(dt) {
 
     if (u.rank === UnitRank.BOSS && u.humanPeerId) {
       updateHumanControlledRivalBoss(u, dt);
+      if (u.weapon === 'mp9' && state.net && state.net.getPeerInput) {
+        const input = state.net.getPeerInput(u.humanPeerId);
+        if (input && input.fire) {
+          performBossPistolShot(
+            u,
+            false,
+            u.x + Math.cos(u.facing) * MP9.range,
+            u.y + Math.sin(u.facing) * MP9.range
+          );
+        }
+      }
       regenUnit(u, dt);
       continue;
     }
@@ -103,6 +124,9 @@ export function update(dt) {
 
   // Player regen after all NPC attacks, so a hit this frame suppresses it immediately.
   regenUnit(state.player, dt);
+
+  // Low-frequency cleanup for any stale friendly overlaps.
+  separateStaleOverlaps(dt);
 
   // Hourly Economy & Auto-Recruitment Tick
   state.tickTimer += dt;

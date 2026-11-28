@@ -24,10 +24,16 @@ function updateSpectatorCamera(dt) {
 
 /** Host/single-player mouse aim: turn the boss toward the cursor in world space. */
 export function updateLocalAim() {
-  if (!state.mouse.inside || !canvas || canvas.width <= 0) return;
+  if (!state.mouse.inside || !canvas || canvas.width <= 0) {
+    state.aimInside = false;
+    return;
+  }
   const rect = canvas.getBoundingClientRect();
   const aimWx = state.camera.x - rect.width / 2 + state.mouse.screenX;
   const aimWy = state.camera.y - rect.height / 2 + state.mouse.screenY;
+  state.aimWorldX = aimWx;
+  state.aimWorldY = aimWy;
+  state.aimInside = true;
   state.player.facing = getPistolAim(state.player.x, state.player.y, aimWx, aimWy).angle;
 }
 
